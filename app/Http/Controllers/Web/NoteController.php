@@ -100,8 +100,8 @@ class NoteController extends Controller
             'observed_at' => ['required','date'],
             'observed_end_at' => ['nullable','date','after_or_equal:observed_at'],
             'description' => ['required','string','min:10','max:5000'],
-            'files' => ['nullable','array','max:5'],
-            'files.*' => ['file','max:30720'],
+            'files' => ['nullable','array','max:50'],
+            'files.*' => ['file','max:102400'],
         ], [], [
             'floor_number' => 'رقم الطابق',
             'camera_number' => 'رقم الكاميرا',
@@ -112,9 +112,10 @@ class NoteController extends Controller
 
         $note = $this->noteService->createDraft($request->user(), $validated);
 
+        $attachmentErrors = [];
         if ($request->hasFile('files')) {
             foreach ($request->file('files') as $file) {
-                try { $this->noteService->addAttachment($request->user(), $note, $file); } catch (\Throwable $e) {}
+                try { $this->noteService->addAttachment($request->user(), $note, $file); } catch (\Throwable $e) { $attachmentErrors[] = $file->getClientOriginalName().': '.$e->getMessage(); \Illuminate\Support\Facades\Log::warning('Attachment failed in store: '.$e->getMessage()); }
             }
         }
 
@@ -123,9 +124,12 @@ class NoteController extends Controller
         }
 
         if ($request->expectsJson()) {
-            return response()->json(['success'=>true,'data'=>$note->load(['owner','attachments'])], 201);
+            return response()->json(['success'=>true,'data'=>$note->load(['owner','attachments']),'attachment_errors'=>$attachmentErrors], 201);
         }
 
+        if (!empty($attachmentErrors)) {
+            return redirect()->route('notes.index')->with('success', 'تم إنشاء الملاحظة بنجاح')->with('warning', 'بعض المرفقات لم تُرفع: '.implode(' | ', $attachmentErrors));
+        }
         return redirect()->route('notes.index')->with('success', 'تم إنشاء الملاحظة بنجاح');
     }
 
@@ -153,22 +157,26 @@ class NoteController extends Controller
             'observed_at' => ['required','date'],
             'observed_end_at' => ['nullable','date','after_or_equal:observed_at'],
             'description' => ['required','string','min:10','max:5000'],
-            'files' => ['nullable','array','max:5'],
-            'files.*' => ['file','max:30720'],
+            'files' => ['nullable','array','max:50'],
+            'files.*' => ['file','max:102400'],
         ]);
 
         $note = $this->noteService->updateNote($request->user(), $note, $validated);
 
+        $attachmentErrors = [];
         if ($request->hasFile('files')) {
             foreach ($request->file('files') as $file) {
-                try { $this->noteService->addAttachment($request->user(), $note, $file); } catch (\Throwable $e) {}
+                try { $this->noteService->addAttachment($request->user(), $note, $file); } catch (\Throwable $e) { $attachmentErrors[] = $file->getClientOriginalName().': '.$e->getMessage(); \Illuminate\Support\Facades\Log::warning('Attachment failed in update: '.$e->getMessage()); }
             }
         }
 
         if ($request->expectsJson()) {
-            return response()->json(['success'=>true,'data'=>$note->load(['owner','attachments'])]);
+            return response()->json(['success'=>true,'data'=>$note->load(['owner','attachments']),'attachment_errors'=>$attachmentErrors]);
         }
 
+        if (!empty($attachmentErrors)) {
+            return redirect()->route('notes.index')->with('success', 'تم تحديث الملاحظة بنجاح')->with('warning', 'بعض المرفقات لم تُرفع: '.implode(' | ', $attachmentErrors));
+        }
         return redirect()->route('notes.index')->with('success', 'تم تحديث الملاحظة بنجاح');
     }
 
@@ -188,7 +196,7 @@ class NoteController extends Controller
         $this->authorize('send', $note);
         $note = $this->noteService->sendNote(auth()->user(), $note);
         if (request()->expectsJson()) return response()->json(['success'=>true,'data'=>$note]);
-        return back()->with('success', 'تم إرسال الملاحظة للمراجعة');
+        return redirect()->route('notes.index')->with('success', 'تم إرسال الملاحظة للمراجعة');
     }
 
     public function accept(Note $note)
@@ -196,7 +204,7 @@ class NoteController extends Controller
         $this->authorize('accept', $note);
         $note = $this->noteService->acceptNote(auth()->user(), $note);
         if (request()->expectsJson()) return response()->json(['success'=>true,'data'=>$note]);
-        return back()->with('success', 'تم قبول الملاحظة');
+        return redirect()->route('notes.index')->with('success', 'تم قبول الملاحظة');
     }
 
     public function reject(Request $request, Note $note)
@@ -205,7 +213,7 @@ class NoteController extends Controller
         $request->validate(['rejection_reason'=>['required','string','min:5','max:1000']]);
         $note = $this->noteService->rejectNote(auth()->user(), $note, $request->rejection_reason);
         if (request()->expectsJson()) return response()->json(['success'=>true,'data'=>$note]);
-        return back()->with('success', 'تم رفض الملاحظة');
+        return redirect()->route('notes.index')->with('success', 'تم رفض الملاحظة');
     }
 
     public function resend(Note $note)
@@ -213,7 +221,7 @@ class NoteController extends Controller
         $this->authorize('resend', $note);
         $note = $this->noteService->resendRejectedNote(auth()->user(), $note);
         if (request()->expectsJson()) return response()->json(['success'=>true,'data'=>$note]);
-        return back()->with('success', 'تمت إعادة إرسال الملاحظة');
+        return redirect()->route('notes.index')->with('success', 'تمت إعادة إرسال الملاحظة');
     }
 
     public function destroyAttachment(Note $note, Attachment $attachment)

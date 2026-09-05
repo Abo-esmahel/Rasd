@@ -190,19 +190,55 @@ class NoteService
             'image/jpeg' => 'jpg',
             'image/png' => 'png',
             'image/webp' => 'webp',
+            'image/heic' => 'heic',
+            'image/heif' => 'heif',
+            'image/tiff' => 'tiff',
+            'image/bmp' => 'bmp',
+            'image/avif' => 'avif',
+            'image/gif' => 'gif',
+            'image/svg+xml' => 'svg',
             'video/mp4' => 'mp4',
             'video/webm' => 'webm',
             'video/quicktime' => 'mov',
             'video/x-msvideo' => 'avi',
             'video/3gpp' => '3gp',
+            'video/3gpp2' => '3g2',
             'video/x-matroska' => 'mkv',
             'video/mpeg' => 'mpg',
+            'video/x-ms-wmv' => 'wmv',
+            'video/x-flv' => 'flv',
+            'video/ogg' => 'ogv',
+            'video/mp2t' => 'ts',
+            'video/x-mts' => 'mts',
+            'video/mpeg2' => 'm2v',
+            'audio/mpeg' => 'mp3',
+            'audio/wav' => 'wav',
+            'audio/x-wav' => 'wav',
+            'audio/wave' => 'wav',
+            'audio/ogg' => 'ogg',
+            'audio/opus' => 'opus',
+            'audio/webm' => 'webm',
+            'audio/mp4' => 'm4a',
+            'audio/x-m4a' => 'm4a',
+            'audio/aac' => 'aac',
+            'audio/aacp' => 'aac',
+            'audio/flac' => 'flac',
+            'audio/x-flac' => 'flac',
+            'audio/wma' => 'wma',
+            'audio/x-ms-wma' => 'wma',
+            'audio/aiff' => 'aiff',
+            'audio/x-aiff' => 'aiff',
+            'audio/amr' => 'amr',
+            'audio/3gpp' => '3ga',
+            'audio/midi' => 'mid',
+            'audio/x-midi' => 'mid',
+            'audio/basic' => 'au',
         ];
         $finfoTmp = finfo_open(FILEINFO_MIME_TYPE);
         $realMimeTmp = finfo_file($finfoTmp, $file->getRealPath());
         finfo_close($finfoTmp);
         $safeExtension = $mimeMap[$realMimeTmp] ?? $extension;
-        if (!in_array($safeExtension, ['jpg', 'jpeg', 'png', 'webp', 'mp4', 'webm', 'mov', 'avi', '3gp', 'mkv', 'mpg', 'm4v', 'mp3', 'wav', 'ogg', 'oga', 'm4a', 'aac'])) {
+        if (!in_array($safeExtension, ['jpg', 'jpeg', 'png', 'webp', 'mp4', 'webm', 'mov', 'avi', '3gp', 'mkv', 'mpg', 'm4v', 'mp3', 'wav', 'ogg', 'oga', 'm4a', 'aac', 'wma', 'flac', 'opus'])) {
             $safeExtension = $extension === 'jpeg' ? 'jpg' : $extension;
         }
         $safeName = \Illuminate\Support\Str::uuid()->toString() . '.' . $safeExtension;
@@ -251,28 +287,19 @@ class NoteService
 
     private function validateFile(UploadedFile $file): void
     {
-        $allowedMimes = ['jpg', 'jpeg', 'png', 'webp', 'mp4', 'webm', 'mov', 'avi', '3gp', 'mkv', 'm4v', 'mp3', 'wav', 'ogg', 'm4a', 'aac', 'wma', 'flac', 'opus'];
+        // جميع أنواع الصور/الفيديو/الصوت — لا نمنع أي صيغة مشروعة حتى المؤقتة
+        $allowedMimes = [
+            // صور
+            'jpg','jpeg','png','webp','heic','heif','tiff','tif','bmp','avif','gif','svg',
+            // فيديو — كل الصيغ الشائعة والمؤقتة
+            'mp4','webm','mov','avi','3gp','3gpp','mkv','m4v','mpg','mpeg','wmv','flv','ogv','ts','mts','m2ts','vob','asf','m2v','3g2','f4v','m4p',
+            // صوت — كل الصيغ
+            'mp3','wav','ogg','oga','m4a','aac','wma','flac','opus','aiff','aif','amr','3ga','awb','mid','midi','au','ra','weba','aac','ac3','dts','alac','aiff',
+        ];
         $allowedMimeTypes = [
-            'image/jpeg',
-            'image/png',
-            'image/webp',
-            'video/mp4',
-            'video/webm',
-            'video/quicktime',
-            'video/x-msvideo',
-            'video/3gpp',
-            'video/x-matroska',
-            'video/mpeg',
-            'audio/mpeg',
-            'audio/wav',
-            'audio/ogg',
-            'audio/mp4',
-            'audio/x-m4a',
-            'audio/aac',
-            'audio/x-wav',
-            'audio/flac',
-            'audio/opus',
-            'audio/webm',
+            'image/jpeg','image/png','image/webp','image/heic','image/heif','image/tiff','image/bmp','image/avif','image/gif','image/svg+xml',
+            'video/mp4','video/webm','video/quicktime','video/x-msvideo','video/3gpp','video/3gpp2','video/x-matroska','video/mpeg','video/x-ms-wmv','video/x-flv','video/ogg','video/mp2t','video/MP2T','video/x-mts','video/mpeg2','video/x-m4v','video/3gpp-tts',
+            'audio/mpeg','audio/wav','audio/x-wav','audio/wave','audio/ogg','audio/opus','audio/webm','audio/mp4','audio/x-m4a','audio/aac','audio/aacp','audio/flac','audio/x-flac','audio/wma','audio/x-ms-wma','audio/aiff','audio/x-aiff','audio/amr','audio/3gpp','audio/midi','audio/x-midi','audio/basic','audio/vnd.wave',
         ];
         $dangerousExtensions = [
             'php', 'php3', 'php4', 'php5', 'phtml', 'phar', 'pht',
@@ -308,18 +335,18 @@ class NoteService
 
         $maxImageSize = (int) config('attachments.max_image_size', 5120) * 1024;
         $maxVideoSize = (int) config('attachments.max_video_size', 30720) * 1024;
-        $maxAudioSize = 10 * 1024 * 1024; // 10MB
+        $maxAudioSize = 100 * 1024 * 1024; // 100MB — لا نمنع الصوتيات الكبيرة
 
         if (str_starts_with($realMime, 'image/') && $file->getSize() > $maxImageSize) {
-            throw new InvalidArgumentException('حجم الصورة يتجاوز الحد الأقصى المسموح');
+            throw new InvalidArgumentException('حجم الصورة يتجاوز الحد الأقصى المسموح (20MB)');
         }
 
         if (str_starts_with($realMime, 'video/') && $file->getSize() > $maxVideoSize) {
-            throw new InvalidArgumentException('حجم الفيديو يتجاوز الحد الأقصى المسموح');
+            throw new InvalidArgumentException('حجم الفيديو يتجاوز الحد الأقصى المسموح (100MB)');
         }
 
         if (str_starts_with($realMime, 'audio/') && $file->getSize() > $maxAudioSize) {
-            throw new InvalidArgumentException('حجم الصوت يتجاوز الحد الأقصى المسموح (10MB)');
+            throw new InvalidArgumentException('حجم الصوت يتجاوز الحد الأقصى المسموح (100MB)');
         }
     }
 }
