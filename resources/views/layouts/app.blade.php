@@ -239,6 +239,19 @@
                 </button>
             </div>
         @endif
+        @if(session('warning'))
+            <div class="mb-6 flex items-start gap-3 p-4 bg-[#fffbeb] border border-[#fde68a] rounded-2xl shadow-sm overflow-hidden relative" role="alert">
+                <div class="absolute inset-y-0 right-0 w-1 bg-[#d97706]"></div>
+                <div class="shrink-0 w-9 h-9 rounded-xl bg-[#d97706] text-[#fffbeb] flex items-center justify-center">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+                </div>
+                <div class="flex-1 min-w-0 pt-0.5"><p class="text-[14px] font-bold leading-6 text-[#1a2e1f]">{{ session('warning') }}</p></div>
+                <button type="button" onclick="this.parentElement.remove()" class="shrink-0 w-8 h-8 rounded-full hover:bg-[#fef3c7] flex items-center justify-center text-[#9aa99a] hover:text-[#1a2e1f] transition" aria-label="إغلاق">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+        @endif
+        <div id="js-flash"></div>
         @if($errors->any())
             <div class="mb-6 p-4 bg-[#fdfcfa] border border-[#fecaca] rounded-2xl shadow-sm overflow-hidden relative" role="alert">
                 <div class="absolute inset-y-0 right-0 w-1 bg-[#c41e1e]"></div>
@@ -260,6 +273,33 @@
         @endif
         @yield('content')
     </main>
+
+    <script>
+        // عرض أخطاء المرفقات القادمة من إرسال fetch (تُخزن في sessionStorage قبل التحويل)
+        (function(){
+            try{
+                var raw=sessionStorage.getItem('attach_errors');
+                if(!raw) return;
+                sessionStorage.removeItem('attach_errors');
+                var errs=JSON.parse(raw);
+                if(!errs||!errs.length) return;
+                var box=document.getElementById('js-flash');
+                if(!box) return;
+                var div=document.createElement('div');
+                div.className='mb-6 flex items-start gap-3 p-4 bg-[#fffbeb] border border-[#fde68a] rounded-2xl shadow-sm overflow-hidden relative';
+                div.setAttribute('role','alert');
+                div.innerHTML='<div class="absolute inset-y-0 right-0 w-1 bg-[#d97706]"></div>'
+                    +'<div class="flex-1 min-w-0"><h3 class="text-[13px] font-extrabold text-[#1a2e1f]">تم الحفظ، لكن بعض المرفقات لم تُرفع:</h3>'
+                    +'<ul class="mt-1.5 list-disc list-inside space-y-1 text-[13px] leading-6 text-[#4a5a4f]"></ul></div>'
+                    +'<button type="button" class="shrink-0 w-8 h-8 rounded-full hover:bg-[#fef3c7] flex items-center justify-center" aria-label="إغلاق">✕</button>';
+                var ul=div.querySelector('ul');
+                errs.forEach(function(m){var li=document.createElement('li');li.textContent=m;ul.appendChild(li);});
+                div.querySelector('button').onclick=function(){div.remove();};
+                box.appendChild(div);
+                div.scrollIntoView({behavior:'smooth',block:'center'});
+            }catch(e){}
+        })();
+    </script>
 
     <script>
         (function(){

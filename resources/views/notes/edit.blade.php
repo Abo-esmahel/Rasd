@@ -206,7 +206,7 @@
                             <audio id="audio-preview-player-edit" class="hidden w-full mt-2 rounded-lg" controls></audio>
                             <div id="audio-preview-pending-edit" class="hidden mt-2 text-[11px] text-[#0e6a38] font-bold">سيتم إرفاقه عند حفظ الملاحظة</div>
                         </div>
-                        <p class="mt-2 text-xs text-ink-300">JPG, PNG, WEBP, MP4/WEBM, صوتيات — حتى 50 إجمالي • الصور 5MB • الفيديو 30MB • الصوت 100MB</p>
+                        <p class="mt-2 text-xs text-ink-300">JPG, PNG, WEBP, MP4/WEBM, صوتيات — حتى {{ max(1, (int) ini_get('max_file_uploads') ?: 20) }} إجمالي • الصور 5MB • الفيديو 30MB • الصوت 100MB</p>
                         <p class="mt-1 text-[11px] text-ink-400">على الجوال: تصوير/فيديو مباشر دون حفظ في الجهاز</p>
                         <input type="file" id="edit-files" name="files[]" multiple accept="image/*,video/*,audio/*" class="hidden">
                         <div id="edit-file-list" class="mt-3 hidden space-y-1.5 text-right"></div>
@@ -337,6 +337,8 @@
     // ——— Edit file handling with DataTransfer ———
     const input=document.getElementById('edit-files'),zone=document.getElementById('edit-drop-zone'),list=document.getElementById('edit-file-list');
     let fileTransferEdit = new DataTransfer();
+    // حد الملفات من السيرفر (max_file_uploads) — تجاوزه يجعل PHP يسقط الملفات الزائدة بصمت
+    const MAX_FILES_EDIT = {{ max(1, (int) ini_get('max_file_uploads') ?: 20) }};
     function syncInputEdit(){ input.files = fileTransferEdit.files; }
     function renderEdit(){
         const files=Array.from(fileTransferEdit.files);
@@ -349,7 +351,7 @@
             const badge=f.name.startsWith('camera-')?'<span class="text-[10px] bg-[#eef4f0] text-[#0e6a38] px-1.5 py-0.5 rounded-full font-bold">كاميرا</span>':'';
             const recBadge=f.name.startsWith('recording-')?'<span class="text-[10px] bg-red-50 text-red-600 px-1.5 py-0.5 rounded-full font-bold">تسجيل</span>':'';
             return `<div class="flex items-center gap-2.5 p-2.5 bg-white border border-[#e6e9e1] rounded-lg text-sm group"><span class="text-sm">${isA?'🎤':isV?'🎬':'🖼️'}</span><div class="flex-1 min-w-0 text-right"><div class="font-bold text-ink-700 truncate flex items-center gap-1.5">${f.name} ${badge} ${recBadge}</div><div class="text-xs text-ink-400">${sz} • ${f.type||'—'}</div></div><button type="button" data-remove-edit="${i}" class="shrink-0 w-7 h-7 rounded-lg hover:bg-red-50 text-ink-300 hover:text-red-500 flex items-center justify-center transition"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button></div>`;
-        }).join('')+(files.length>50?'<p class="text-xs font-bold text-red-500">الحد 50 ملف</p>':'');
+        }).join('')+(files.length>MAX_FILES_EDIT?'<p class="text-xs font-bold text-red-500">الحد '+MAX_FILES_EDIT+' ملف</p>':'');
         list.querySelectorAll('[data-remove-edit]').forEach(btn=>{
             btn.addEventListener('click', ()=>{
                 const idx=parseInt(btn.dataset.removeEdit);
@@ -361,7 +363,7 @@
     }
     function addFilesEdit(newFiles){
         for(const file of newFiles){
-            if(fileTransferEdit.files.length>=50){ alert('الحد الأقصى 50 ملف'); break; }
+            if(fileTransferEdit.files.length>=MAX_FILES_EDIT){ alert('الحد الأقصى '+MAX_FILES_EDIT+' ملف (حد السيرفر)'); break; }
             const ext=file.name.split('.').pop().toLowerCase();
             const audioExts=['mp3','wav','ogg','oga','m4a','aac','wma','flac','opus','aiff','aif','amr','3ga','awb','mid','midi','au','weba'];
             const isAudio=audioExts.includes(ext)||file.type.startsWith('audio/');
@@ -587,6 +589,14 @@
                 if(res.ok){
                     if(recordedAudioUrlE) URL.revokeObjectURL(recordedAudioUrlE);
                     recordedAudioBlobE=null; recordedAudioUrlE=null;
+                    let data=null;
+                    try{ data=await res.clone().json(); }catch(_){}
+                    // تمرير أخطاء المرفقات (إن وجدت) لعرضها بعد التحويل — بدل ضياعها بصمت
+                    try{
+                        if(data && data.attachment_errors && data.attachment_errors.length){
+                            sessionStorage.setItem('attach_errors', JSON.stringify(data.attachment_errors));
+                        }
+                    }catch(_){}
                     window.location.href="{{ route('notes.index') }}";
                     return;
                 }

@@ -94,15 +94,19 @@ class NoteController extends Controller
     {
         $this->authorize('create', Note::class);
 
+        // حد عدد الملفات يتبع حد السيرفر (max_file_uploads) حتى لا تُفقد ملفات بصمت من PHP
+        $maxFiles = max(1, (int) ini_get('max_file_uploads') ?: 20);
         $validated = $request->validate([
             'floor_number' => ['required','integer','min:1'],
             'camera_number' => ['required','integer','min:1'],
             'observed_at' => ['required','date'],
             'observed_end_at' => ['nullable','date','after_or_equal:observed_at'],
             'description' => ['required','string','min:10','max:5000'],
-            'files' => ['nullable','array','max:50'],
+            'files' => ['nullable','array','max:'.$maxFiles],
             'files.*' => ['file','max:102400'],
-        ], [], [
+        ], [
+            'files.max' => 'عدد الملفات يتجاوز الحد المسموح به من السيرفر (:max). أرسل على دفعات.',
+        ], [
             'floor_number' => 'رقم الطابق',
             'camera_number' => 'رقم الكاميرا',
             'observed_at' => 'وقت الرصد',
@@ -151,14 +155,18 @@ class NoteController extends Controller
     {
         $this->authorize('update', $note);
 
+        // حد عدد الملفات يتبع حد السيرفر (max_file_uploads) حتى لا تُفقد ملفات بصمت من PHP
+        $maxFiles = max(1, (int) ini_get('max_file_uploads') ?: 20);
         $validated = $request->validate([
             'floor_number' => ['required','integer','min:1'],
             'camera_number' => ['required','integer','min:1'],
             'observed_at' => ['required','date'],
             'observed_end_at' => ['nullable','date','after_or_equal:observed_at'],
             'description' => ['required','string','min:10','max:5000'],
-            'files' => ['nullable','array','max:50'],
+            'files' => ['nullable','array','max:'.$maxFiles],
             'files.*' => ['file','max:102400'],
+        ], [
+            'files.max' => 'عدد الملفات يتجاوز الحد المسموح به من السيرفر (:max). أرسل على دفعات.',
         ]);
 
         $note = $this->noteService->updateNote($request->user(), $note, $validated);

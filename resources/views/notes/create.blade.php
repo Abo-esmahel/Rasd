@@ -299,6 +299,8 @@
     // ——— File handling with DataTransfer + Camera Live ———
     const input=document.getElementById('files'),zone=document.getElementById('drop-zone'),list=document.getElementById('file-list');
     let fileTransfer = new DataTransfer();
+    // حد الملفات من السيرفر (max_file_uploads) — تجاوزه يجعل PHP يسقط الملفات الزائدة بصمت
+    const MAX_FILES = {{ max(1, (int) ini_get('max_file_uploads') ?: 20) }};
 
     function syncInput(){ input.files = fileTransfer.files; }
     function renderFiles(){
@@ -321,7 +323,7 @@
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
                 </button>
             </div>`;
-        }).join('') + (files.length>50?'<p class="text-xs font-bold text-red-500">الحد الأقصى 50 ملف — احذف بعضها</p>':'');
+        }).join('') + (files.length>MAX_FILES?'<p class="text-xs font-bold text-red-500">الحد الأقصى '+MAX_FILES+' ملف — احذف بعضها</p>':'');
         // bind remove
         list.querySelectorAll('[data-remove]').forEach(btn=>{
             btn.addEventListener('click', ()=>{
@@ -334,7 +336,7 @@
     }
     function addFiles(newFiles){
         for(const file of newFiles){
-            if(fileTransfer.files.length>=50){ alert('الحد الأقصى 50 ملف'); break; }
+            if(fileTransfer.files.length>=MAX_FILES){ alert('الحد الأقصى '+MAX_FILES+' ملف (حد السيرفر)'); break; }
             const ext=file.name.split('.').pop().toLowerCase();
             const audioExts=['mp3','wav','ogg','oga','m4a','aac','wma','flac','opus','aiff','aif','amr','3ga','awb','mid','midi','au','weba'];
             const isAudio=audioExts.includes(ext)||file.type.startsWith('audio/');
@@ -481,7 +483,7 @@
         canvas.toBlob(blob=>{
             if(!blob){ showStatus('فشل الالتقاط', false); return; }
             const file=new File([blob], `camera-${Date.now()}.jpg`, { type:'image/jpeg' });
-            if(fileTransfer.files.length>=50){ showStatus('الحد 50 ملف', false); return; }
+            if(fileTransfer.files.length>=MAX_FILES){ showStatus('الحد '+MAX_FILES+' ملف', false); return; }
             addFiles([file]);
             showStatus('تم التقاط الصورة وإضافتها ✓', true);
             // shutter flash effect
@@ -608,6 +610,12 @@
                     recordedAudioBlob=null; recordedAudioUrl=null;
                     let data=null;
                     try{ data=await res.clone().json(); }catch(_){}
+                    // تمرير أخطاء المرفقات (إن وجدت) لعرضها بعد التحويل — بدل ضياعها بصمت
+                    try{
+                        if(data && data.attachment_errors && data.attachment_errors.length){
+                            sessionStorage.setItem('attach_errors', JSON.stringify(data.attachment_errors));
+                        }
+                    }catch(_){}
                     if(data && data.redirect) window.location.href=data.redirect;
                     else window.location.href="{{ route('notes.index') }}";
                     return;
