@@ -194,6 +194,22 @@
         transform: scale(0.92) !important;
         transform-origin: top center !important;
         margin-bottom: -22mm !important;
+        overflow: visible !important;
+    }
+    .a4-preview-sheet[data-orientation="portrait"] {
+        /* N3 portrait preview fix: ensure full-width description not clipped by scale */
+        overflow: visible !important;
+    }
+    .a4-preview-sheet .a4-print-page {
+        overflow: visible !important;
+    }
+    /* N3: Force description wrapper to be full-width below imageArea, not inside hero */
+    .a4-print-page [data-print-description-wrapper] {
+        left: 0 !important;
+        width: 100% !important;
+        padding-left: 6mm !important;
+        padding-right: 6mm !important;
+        box-sizing: border-box !important;
     }
     #print-preview-pages-container {
         width: 100% !important;
@@ -363,18 +379,18 @@
         display: block !important;
         /* geometry comes from inline style left/top/width/height in mm — never override */
     }
-    /* Inner img — fill container exactly, no 4/3, no cover */
+    /* Inner img — contain, no stretch/squash, uniform scale to fit cell */
     [data-print-image] img {
         position: absolute !important;
         left: 0 !important;
         top: 0 !important;
         width: 100% !important;
         height: 100% !important;
-        max-width: none !important;
-        max-height: none !important;
+        max-width: 100% !important;
+        max-height: 100% !important;
         min-width: 0 !important;
         min-height: 0 !important;
-        object-fit: fill !important;
+        object-fit: contain !important;
         object-position: center !important;
         background: #ffffff !important;
         border: none !important;
@@ -488,6 +504,68 @@ function closePrintSelectionModal() {
     document.getElementById('print-selection-modal').classList.add('hidden');
     document.body.style.overflow = '';
 }
+// ===== PRINT BUTTON FIX 2026-09-06: base64 payload + precise errors =====
+// data-print-note (raw JSON in attribute) alone is fragile: if json_encode fails server-side
+// (e.g. invalid UTF-8 bytes in description/filename → false → empty attribute),
+// JSON.parse('') throws and the generic catch blames "invalid data" for EVERY
+// failure (even a missing script). Buttons now carry:
+//   data-print-note-id  (plain integer — can never break parsing)
+//   data-print-b64       (base64 of JSON with JSON_INVALID_UTF8_SUBSTITUTE — never false)
+//   data-print-note      (legacy raw-JSON fallback)
+// This helper decodes step-by-step and reports WHICH step failed for WHICH note.
+function decodePrintPayload(b64) {
+    const bin = window.atob(String(b64).trim());
+    const bytes = Uint8Array.from(bin, (c) => c.charCodeAt(0));
+    return JSON.parse(new TextDecoder('utf-8').decode(bytes));
+}
+function openPrintModalFromButton(btn) {
+    const nid = (btn && btn.getAttribute && btn.getAttribute('data-print-note-id')) || '?';
+    let data = null, how = '';
+    const b64 = btn ? btn.getAttribute('data-print-b64') : null;
+    if (b64) {
+        try { data = decodePrintPayload(b64); how = 'b64'; }
+        catch (e) { console.warn('[PRINT BTN] b64 payload decode failed for note #' + nid + ' — trying legacy', e); }
+    } else {
+        console.warn('[PRINT BTN] no data-print-b64 for note #' + nid + ' — trying legacy');
+    }
+    if (!data) {
+        const legacy = btn ? btn.getAttribute('data-print-note') : null;
+        if (legacy) {
+            try { data = JSON.parse(legacy); how = 'legacy'; }
+            catch (e) { console.error('[PRINT BTN] legacy JSON.parse failed for note #' + nid, e, 'raw head:', String(legacy).slice(0, 300)); }
+        } else {
+            console.warn('[PRINT BTN] no legacy data-print-note for note #' + nid);
+        }
+    }
+    if (!data || typeof data.id === 'undefined') {
+        // Diagnostic validation — states WHICH field failed instead of a generic message
+        const missingField = !data ? 'payload(BOTH b64+legacy unparseable)' : 'note.id';
+        console.error('[PRINT VALIDATION FAILED]', {
+            missingField: missingField,
+            noteIdAttr: nid,
+            payloadSource: how || 'none',
+            noteKeys: data ? Object.keys(data) : [],
+            attachments: data ? data.attachments : undefined,
+            attachmentCount: data && data.attachments ? data.attachments.length : -1,
+            descriptionType: data ? typeof data.description : 'n/a'
+        });
+        alert('تعذر فتح الطباعة: بيانات الملاحظة #' + nid + ' غير صالحة (' + missingField + ') — افتح الكونسول (F12) وابحث عن سطر [PRINT VALIDATION FAILED]');
+        return;
+    }
+    // Requested trace: raw note data BEFORE validation result is used
+    console.log('[PRINT] raw note data:', data);
+    console.log('[PRINT] note keys:', Object.keys(data || {}));
+    console.log('[PRINT] attachments:', data.attachments);
+    console.log('[PRINT] attachment count:', data.attachments ? data.attachments.length : 0);
+    console.log('[PRINT] payload:', { source: how, id: data.id });
+    console.log('[PRINT CHECK]', {
+        loaded: window.__PRINT_SCRIPT_LOADED__,
+        engineVersion: window.__PRINT_LAYOUT_ENGINE_VERSION__,
+        engineAvailable: typeof window.PrintLayoutEngine
+    });
+    console.log('[PRINT BTN] opening print for note #' + data.id + ' via ' + how);
+    openPrintModal(data);
+}
 function closePrintPreviewModal() {
     document.getElementById('print-preview-modal').classList.add('hidden');
     document.body.style.overflow = '';
@@ -562,7 +640,7 @@ async function extractNativeVideoFrame(url) {
                 const nativeH = video.videoHeight || 1080;
                 const canvas = document.createElement('canvas');
                 canvas.width = nativeW; canvas.height = nativeH;
-                const dpr = Math.min(window.devicePixelRatio || 1, 2);
+                const dpr = Math.min(window.devicePixelRatio || 1, 3);
                 const ctx = canvas.getContext('2d');
                 ctx.imageSmoothingEnabled = true;
                 ctx.imageSmoothingQuality = 'high';
@@ -617,14 +695,12 @@ function partitionItemsIntoPages(items) {
 let _printEngine = null;
 function getPrintEngine(){
     if(_printEngine) return _printEngine;
-    // Robust lookup: bare identifier may be unavailable when module not yet evaluated
     const Cls = (typeof PrintLayoutEngine !== 'undefined' ? PrintLayoutEngine : (typeof window !== 'undefined' && window.PrintLayoutEngine ? window.PrintLayoutEngine : null));
     if(!Cls){
         console.warn('[PRINT ENGINE] PrintLayoutEngine not found — window.PrintLayoutEngine:', typeof window.PrintLayoutEngine, 'bare:', typeof PrintLayoutEngine);
-        _printEngine = null;
         return null;
     }
-    try{ _printEngine = new Cls(); console.log('[PRINT ENGINE] PrintLayoutEngine loaded, version:', window.__PRINT_LAYOUT_ENGINE_VERSION__); }catch(e){ console.error('[PRINT ENGINE] failed to instantiate', e); _printEngine = null; }
+    try{ _printEngine = new Cls(); }catch(e){ console.error(e); return null; }
     return _printEngine;
 }
 // DEPRECATED RENDERER — PIPELINE FIX §7: هذا الرندر قديم وغير مستخدم، بقي للتوثيق فقط
@@ -774,7 +850,7 @@ function buildA4PageHtml(note, pageItems, pageIndex, totalPages, isLastPage) {
     console.log(`[RENDERER] buildA4PageHtml called — page ${pageIndex+1}/${totalPages}, items:${pageItems.length}`);
     // Physical page 210×297, margin 6mm → printable 198×285
     // Header 14mm, description dynamic, rest is images
-    const headerH = 14;
+    const headerH = 10;
     const descM = (()=>{ try{ return getPrintEngine() ? null : null }catch(e){ return null }})();
     // Use absolute container 210×297
     // We will render header, images, description all absolute inside a4-print-page
@@ -789,17 +865,18 @@ function buildA4PageHtml(note, pageItems, pageIndex, totalPages, isLastPage) {
         if(a.cur+len>cpl){a.lines++; a.cur=len;} else a.cur+=len;
         return a;
     },{lines:1,cur:0}).lines) : 0;
-    const descH = descText ? Math.min( Math.ceil(lines*8.2*0.3528*1.45 + 12), 38) : 0;
+    // Renderer descH is a FALLBACK — engine output overrides it after layout
+    let descH = descText ? Math.ceil(lines*8.2*0.3528*1.45 + 12) : 0;
     const imageArea = { x: margin, y: margin+headerH+2, w: printableW, h: paperH - margin*2 - headerH - descH - 8 };
     // Ensure imageArea not negative
     if(imageArea.h < 20) imageArea.h = 20;
 
     const headerHtml = `
-        <div style="position:absolute; left:${margin}mm; top:${margin}mm; width:${printableW}mm; height:${headerH}mm; border-bottom:0.7mm solid #0e6a38; display:flex; align-items:center; gap:3mm; box-sizing:border-box; padding-bottom:2mm;">
-            <div style="width:9mm; height:9mm; border:0.3mm solid #e6e9e1; border-radius:2mm; display:flex; align-items:center; justify-content:center; background:white; overflow:hidden;">
-                <svg width="6mm" height="6mm" viewBox="0 0 36 36" fill="none"><rect x="2" y="4" width="32" height="28" rx="6" fill="white" stroke="#e3ebe5"/><path d="M6 9.5C6 8.672 6.672 8 7.5 8H28.5C29.328 8 30 8.672 30 9.5V13H6V9.5Z" fill="#0e6a38"/><rect x="6" y="13" width="24" height="6" fill="white"/><g fill="#ce1126"><path d="M12 16.6l1.15 0.85 -0.44 -1.36 1.15 -0.84H12.44L12 14l-0.44 1.25H10.09l1.15 0.84 -0.44 1.36L12 16.6Z"/><path d="M18 16.6l1.15 0.85 -0.44 -1.36 1.15 -0.84H18.44L18 14l-0.44 1.25H16.09l1.15 0.84 -0.44 1.36L18 16.6Z"/><path d="M24 16.6l1.15 0.85 -0.44 -1.36 1.15 -0.84H24.44L24 14l-0.44 1.25H22.09l1.15 0.84 -0.44 1.36L24 16.6Z"/></g><path d="M6 19H30V26.5C30 27.328 29.328 28 28.5 28H7.5C6.672 28 6 27.328 6 26.5V19Z" fill="#0f1a13"/></svg>
+        <div style="position:absolute; left:${margin}mm; top:${margin}mm; width:${printableW}mm; height:${headerH}mm; border-bottom:0.5mm solid #0e6a38; display:flex; align-items:center; justify-content:flex-start; gap:1.8mm; box-sizing:border-box; padding-bottom:1mm; direction:rtl;">
+            <div style="width:6.5mm; height:6.5mm; border:0.25mm solid #e6e9e1; border-radius:1.4mm; display:flex; align-items:center; justify-content:center; background:white; overflow:hidden; flex-shrink:0;">
+                <svg width="4mm" height="4mm" viewBox="0 0 36 36" fill="none"><rect x="2" y="4" width="32" height="28" rx="6" fill="white" stroke="#e3ebe5"/><path d="M6 9.5C6 8.672 6.672 8 7.5 8H28.5C29.328 8 30 8.672 30 9.5V13H6V9.5Z" fill="#0e6a38"/><rect x="6" y="13" width="24" height="6" fill="white"/><g fill="#ce1126"><path d="M12 16.6l1.15 0.85 -0.44 -1.36 1.15 -0.84H12.44L12 14l-0.44 1.25H10.09l1.15 0.84 -0.44 1.36L12 16.6Z"/><path d="M18 16.6l1.15 0.85 -0.44 -1.36 1.15 -0.84H18.44L18 14l-0.44 1.25H16.09l1.15 0.84 -0.44 1.36L18 16.6Z"/><path d="M24 16.6l1.15 0.85 -0.44 -1.36 1.15 -0.84H24.44L24 14l-0.44 1.25H22.09l1.15 0.84 -0.44 1.36L24 16.6Z"/></g><path d="M6 19H30V26.5C30 27.328 29.328 28 28.5 28H7.5C6.672 28 6 27.328 6 26.5V19Z" fill="#0f1a13"/></svg>
             </div>
-            <div style="font-size:4.2mm; font-weight:800; color:#1a2e1f; letter-spacing:-0.1mm;">وزارة الإعلام</div>
+            <div style="font-size:2.9mm; font-weight:700; color:#1a2e1f; letter-spacing:0; line-height:1;">وزارة الإعلام</div>
         </div>
     `;
     let imagesHtml = '';
@@ -810,7 +887,7 @@ function buildA4PageHtml(note, pageItems, pageIndex, totalPages, isLastPage) {
         try{
             const eng = getPrintEngine();
             if(!eng) throw new Error('PrintLayoutEngine not loaded — window.PrintLayoutEngine is undefined (module not loaded or cached)');
-            const tmp = eng.layout(engineImages.map((it,i)=>({id:'i'+i,width:it.width,height:it.height})), isLastPage? descText : '', {width:210,height:297}, {margin:6});
+            const tmp = eng.layout(engineImages.map((it,i)=>({id:'i'+i,width:it.width,height:it.height})), isLastPage? descText : '', {width:210,height:297}, {margin:6, topOffset: headerH});
                 __pageLayout = tmp;
                 console.log(`[ENGINE] Page ${pageIndex} →`, tmp.metrics.topoName, `coverage:${tmp.metrics.imageCoverageRatio?.toFixed(3)}`);
                 console.table(tmp.images.map(x=>({id:x.id, x:x.x.toFixed(1), y:x.y.toFixed(1), w:x.width.toFixed(1), h:x.height.toFixed(1), rot:x.rotation})));
@@ -838,6 +915,10 @@ function buildA4PageHtml(note, pageItems, pageIndex, totalPages, isLastPage) {
                 // Use tmp.images absolute positions directly (they already include margin)
                 // Store layout for geometry tracker
                 window.__LAST_ENGINE_LAYOUT__ = JSON.parse(JSON.stringify(tmp));
+                // ENGINE IS SINGLE SOURCE OF TRUTH: override renderer descH with engine description
+                if(isLastPage && tmp.description && tmp.description.height > 0){
+                    descH = tmp.description.height;
+                }
                 imagesHtml = tmp.images.map((r,i)=>{
                     const it = pageItems[i];
                     // For multi-page, only last page has description, so imageArea is full for non-last pages
@@ -859,15 +940,19 @@ function buildA4PageHtml(note, pageItems, pageIndex, totalPages, isLastPage) {
     } else {
         imagesHtml = `<div style="position:absolute; left:${imageArea.x}mm; top:${imageArea.y + imageArea.h/2}mm; width:${imageArea.w}mm; text-align:center; color:#737373; font-size:3.5mm;">(لا توجد مرفقات)</div>`;
     }
-    const descY = paperH - margin - descH;
+    // descH was overridden by engine output if available; descY uses engine position when present
+    const descY = (__pageLayout && __pageLayout.description && __pageLayout.description.y !== undefined)
+        ? __pageLayout.description.y
+        : paperH - margin - descH;
+    const isN3Page = pageItems.length===3;
     const metadataHtml = descText && isLastPage ? `
-        <div dir="rtl" data-print-description-wrapper style="position:absolute; left:${margin}mm; top:${descY}mm; width:${printableW}mm; height:${descH}mm; border-top:0.4mm solid #e6e9e1; padding-top:2mm; box-sizing:border-box; direction:rtl;">
-            <div style="display:grid; grid-template-columns: repeat(5,1fr); gap:2mm; background:#f6f8f6; border:0.3mm solid #e2e8e2; border-radius:1.5mm; padding:1.5mm 3mm; font-size:2.6mm; box-sizing:border-box;">
-                <div><span style="font-weight:700; color:#737373; font-size:2.2mm; display:block;">التاريخ :</span><span style="font-weight:800; color:#000;">${note.observed_date || '—'}</span></div>
-                <div><span style="font-weight:700; color:#737373; font-size:2.2mm; display:block;">وقت بدء الملاحظة :</span><span style="font-weight:800; color:#000;">${note.observed_time_start || '—'}</span></div>
-                <div><span style="font-weight:700; color:#737373; font-size:2.2mm; display:block;">وقت انتهاء الملاحظة :</span><span style="font-weight:800; color:#000;">${note.observed_time_end || '—'}</span></div>
-                <div><span style="font-weight:700; color:#737373; font-size:2.2mm; display:block;">رقم الكاميرا :</span><span style="font-weight:800; color:#000;">${note.camera_number}</span></div>
-                <div><span style="font-weight:700; color:#737373; font-size:2.2mm; display:block;">رقم الطابق :</span><span style="font-weight:800; color:#000;">${note.floor_number}</span></div>
+        <div dir="rtl" data-print-description-wrapper style="position:absolute; ${isN3Page ? `left:0; width:100%; padding-left:${margin}mm; padding-right:${margin}mm;` : `left:${margin}mm; width:${printableW}mm;`} top:${descY}mm; min-height:${descH}mm; height:auto; overflow:visible; border-top:0.4mm solid #e6e9e1; padding-top:2mm; box-sizing:border-box; direction:rtl; text-align:right;">
+            <div style="display:grid; grid-template-columns: repeat(5,1fr); gap:1.4mm; background:#f6f8f6; border:0.25mm solid #e2e8e2; border-radius:1.2mm; padding:1mm 2mm; font-size:2.3mm; box-sizing:border-box;">
+                <div><span style="font-weight:700; color:#737373; font-size:1.9mm; display:block; line-height:1.2;">التاريخ :</span><span style="font-weight:800; color:#000; font-size:2.3mm;">${note.observed_date || '—'}</span></div>
+                <div><span style="font-weight:700; color:#737373; font-size:1.9mm; display:block; line-height:1.2;">وقت بدء الملاحظة :</span><span style="font-weight:800; color:#000; font-size:2.3mm;">${note.observed_time_start || '—'}</span></div>
+                <div><span style="font-weight:700; color:#737373; font-size:1.9mm; display:block; line-height:1.2;">وقت انتهاء الملاحظة :</span><span style="font-weight:800; color:#000; font-size:2.3mm;">${note.observed_time_end || '—'}</span></div>
+                <div><span style="font-weight:700; color:#737373; font-size:1.9mm; display:block; line-height:1.2;">رقم الكاميرا :</span><span style="font-weight:800; color:#000; font-size:2.3mm;">${note.camera_number}</span></div>
+                <div><span style="font-weight:700; color:#737373; font-size:1.9mm; display:block; line-height:1.2;">رقم الطابق :</span><span style="font-weight:800; color:#000; font-size:2.3mm;">${note.floor_number}</span></div>
             </div>
             <div dir="rtl" data-print-description style="margin-top:2mm; background:#fafbfa; border:0.3mm solid #e6e9e1; border-radius:1.5mm; padding:2mm 3mm; font-size:2.8mm; line-height:4.2mm; box-sizing:border-box; direction:rtl; text-align:right;">
                 <div style="font-weight:700; color:#0e6a38; font-size:2.8mm; margin-bottom:1mm; text-align:right; direction:rtl;">الوصف :</div>
@@ -884,6 +969,27 @@ function buildA4PageHtml(note, pageItems, pageIndex, totalPages, isLastPage) {
     const pgW = __pageLayout ? __pageLayout.paper.width : paperW;
     const pgH = __pageLayout ? __pageLayout.paper.height : paperH;
     const pgOrient = __pageLayout ? __pageLayout.paper.orientation : 'portrait';
+    // === N3 TRACE: Renderer vs Layout — Full Hierarchy ===
+    if(pageItems.length===3){
+        const tmpDesc = __pageLayout?.description;
+        console.log('[N3 TRACE][ENGINE]', {x: tmpDesc?.x, y: tmpDesc?.y, w: tmpDesc?.w, h: tmpDesc?.h, measuredHeight: tmpDesc?.height, engineDesc: tmpDesc, imageArea, paper:{w:paperW,h:paperH}, innerW: printableW, margin, headerH});
+        console.log('[N3 TRACE][RENDERER] descH fallback', (descText ? Math.ceil((descText.trim().split(/\s+/).reduce((a,w,i)=>{const cpl=Math.max(1,Math.floor((printableW-7)/(8.2*0.3528*0.56))); const len=w.length+1; if(a.cur+len>cpl){a.lines++; a.cur=len;} else a.cur+=len; return a;},{lines:1,cur:0}).lines*8.2*0.3528*1.45 +12)):0), 'engineDescH', __pageLayout?.description?.height, 'finalDescH', descH, 'finalDescY', descY, 'printableW', printableW);
+        console.log('[N3 TRACE][RENDERER HTML] wrapper will be left:'+margin+'mm top:'+descY+'mm width:'+printableW+'mm height:'+descH+'mm — metadataHtml snippet', metadataHtml.slice(0,600));
+        // Check hierarchy: imageArea vs description
+        console.log('[N3 TRACE][GEOMETRY CHECK]', {
+            imageArea: {x: imageArea.x, y: imageArea.y, w: imageArea.w, h: imageArea.h, bottom: imageArea.y + imageArea.h},
+            description: {x: tmpDesc?.x, y: tmpDesc?.y, w: tmpDesc?.w, h: tmpDesc?.h, bottom: (tmpDesc?.y||0)+(tmpDesc?.h||0)},
+            gap: (tmpDesc?.y||0) - (imageArea.y + imageArea.h),
+            isFullWidth: tmpDesc?.w === printableW && tmpDesc?.x === margin,
+            isBelow: (tmpDesc?.y||0) >= imageArea.y + imageArea.h,
+            assertion: {
+                xMatch: tmpDesc?.x === imageArea.x && tmpDesc?.x === margin,
+                wMatch: tmpDesc?.w === imageArea.w && tmpDesc?.w === printableW,
+                yBelow: (tmpDesc?.y||0) >= imageArea.y + imageArea.h,
+                fullWidth: Math.abs((tmpDesc?.w||0) - printableW) < 1
+            }
+        });
+    }
     // RTL FIX: ensure page itself is RTL for Windows print context
     return `<div class="a4-print-page" dir="rtl" data-orientation="${pgOrient}" style="width:${pgW}mm; height:${pgH}mm; position:relative; background:white; overflow:visible; box-sizing:border-box; direction:rtl;">${headerHtml}${imagesHtml}${metadataHtml}</div>`;
 }
@@ -917,6 +1023,93 @@ async function generateAndOpenPreview() {
         // SINGLE SOURCE: #printable-a4-doc هو المصدر الوحيد للطباعة (§9)
         if (printableDoc) printableDoc.innerHTML = printDocHtml;
         if (legacyPrintDoc) { legacyPrintDoc.innerHTML = printDocHtml; console.warn('[DEPRECATED] #rasd-print-document filled for legacy compat — not used for print'); }
+        // === N3 TRACE: DOM after render — Hierarchy & Geometry ===
+        if(pages.length===1 && pages[0].length===3){
+            setTimeout(()=>{
+                const descWrapper = document.querySelector('[data-print-description-wrapper]');
+                const descInner = document.querySelector('[data-print-description]');
+                const descTextEl = document.querySelector('.print-description-text');
+                const pageEl = document.querySelector('.a4-print-page');
+                const heroEl = document.querySelector('[data-print-image]');
+                console.log('[N3 TRACE][DOM] page rect', pageEl?.getBoundingClientRect(), 'computed display', pageEl ? getComputedStyle(pageEl).display : null, 'position', pageEl ? getComputedStyle(pageEl).position : null);
+                console.log('[N3 TRACE][DOM] hero first image rect', heroEl?.getBoundingClientRect(), 'hero computed', heroEl ? {display:getComputedStyle(heroEl).display, position:getComputedStyle(heroEl).position, left:getComputedStyle(heroEl).left, top:getComputedStyle(heroEl).top, width:getComputedStyle(heroEl).width, height:getComputedStyle(heroEl).height} : null);
+                [descWrapper, descInner, descTextEl].forEach((el, idx)=>{
+                    if(!el) { console.log(`[N3 TRACE][DOM ${idx}] element not found`); return; }
+                    const rect = el.getBoundingClientRect();
+                    const cs = getComputedStyle(el);
+                    const parentRect = el.parentElement?.getBoundingClientRect();
+                    console.log(`[N3 TRACE][DOM ${['wrapper','inner','text'][idx]}]`, {
+                        html: el.outerHTML.slice(0,500),
+                        rect: {w: rect.width, h: rect.height, top: rect.top, left: rect.left},
+                        parentRect: parentRect ? {w: parentRect.width, h: parentRect.height, top: parentRect.top, left: parentRect.left} : null,
+                        scrollHeight: el.scrollHeight,
+                        clientHeight: el.clientHeight,
+                        scrollWidth: el.scrollWidth,
+                        clientWidth: el.clientWidth,
+                        isInsideHero: !!el.closest('[data-print-image]'),
+                        isDirectChildOfPage: el.parentElement?.classList?.contains('a4-print-page'),
+                        computed: {
+                            width: cs.width,
+                            height: cs.height,
+                            maxHeight: cs.maxHeight,
+                            minHeight: cs.minHeight,
+                            overflow: cs.overflow,
+                            overflowY: cs.overflowY,
+                            display: cs.display,
+                            position: cs.position,
+                            left: cs.left,
+                            top: cs.top,
+                            flex: cs.flex,
+                            grid: cs.gridTemplateColumns,
+                            gridRows: cs.gridTemplateRows
+                        }
+                    });
+                    if(el.scrollHeight > el.clientHeight + 2) console.warn(`[N3 TRACE][CLIPPING] ${['wrapper','inner','text'][idx]} scrollHeight ${el.scrollHeight} > clientHeight ${el.clientHeight} diff ${el.scrollHeight - el.clientHeight} — CLIPPED`);
+                });
+                // Parent chain up to page
+                let parent = descWrapper?.parentElement;
+                let level=0;
+                while(parent && level<5){
+                    const cs = getComputedStyle(parent);
+                    const rect = parent.getBoundingClientRect();
+                    console.log(`[N3 TRACE][PARENT ${level}]`, {
+                        tag: parent.tagName,
+                        classes: parent.className?.slice(0,120),
+                        id: parent.id,
+                        rect: {w: rect.width, h: rect.height, top: rect.top, left: rect.left},
+                        computed: {
+                            width: cs.width,
+                            height: cs.height,
+                            maxHeight: cs.maxHeight,
+                            minHeight: cs.minHeight,
+                            overflow: cs.overflow,
+                            overflowY: cs.overflowY,
+                            display: cs.display,
+                            position: cs.position,
+                            gridTemplateColumns: cs.gridTemplateColumns,
+                            gridTemplateRows: cs.gridTemplateRows
+                        }
+                    });
+                    if(cs.overflow === 'hidden' || cs.overflowY === 'hidden') console.warn(`[N3 TRACE][PARENT ${level}] HAS overflow:hidden — may clip description`);
+                    if(cs.display === 'grid' || cs.display === 'flex') console.log(`[N3 TRACE][PARENT ${level}] is ${cs.display} — check if description is inside grid/flex that constrains it`);
+                    parent = parent.parentElement;
+                    level++;
+                }
+                // Check hierarchy: is description inside image area or hero?
+                if(descWrapper){
+                    const isInsideImageArea = !!descWrapper.closest('.print-images-grid') || !!descWrapper.closest('.print-attachments-grid') || !!descWrapper.closest('[data-print-image]');
+                    console.log('[N3 TRACE][HIERARCHY] is description inside image grid/hero?', isInsideImageArea, 'parent:', descWrapper.parentElement?.tagName, descWrapper.parentElement?.className?.slice(0,80));
+                    const inlineH = descWrapper.getAttribute('style')?.match(/height:\s*([^;]+)/)?.[1];
+                    const computedH = getComputedStyle(descWrapper).height;
+                    console.log('[N3 TRACE][INLINE vs COMPUTED] inline height', inlineH, 'computed height', computedH, 'inline contains descH?', inlineH?.includes('mm'), 'computed px', computedH);
+                    // Check width: is it full width or hero width?
+                    const pageWpx = pageEl?.getBoundingClientRect().width;
+                    const wrapperWpx = descWrapper.getBoundingClientRect().width;
+                    const heroWpx = heroEl?.getBoundingClientRect().width;
+                    console.log('[N3 TRACE][WIDTH CHECK] pageW', pageWpx, 'wrapperW', wrapperWpx, 'heroW', heroWpx, 'wrapper is full width?', Math.abs(wrapperWpx - pageWpx*0.94) < 20, 'wrapper == hero width?', Math.abs(wrapperWpx - heroWpx) < 5);
+                }
+            }, 700);
+        }
         // === FORENSIC §4 + §7 ===
         // §7 — PRINT ROOTS
         console.log('[PRINT ROOTS]', document.querySelectorAll('.a4-print-page').length, document.querySelectorAll('.print-image').length, document.querySelectorAll('#printable-a4-doc').length, document.querySelectorAll('#rasd-print-document').length);
@@ -1006,19 +1199,20 @@ async function triggerNativePrint() {
   @page { size: A4 ${hasLandscape ? 'landscape' : 'portrait'}; margin: 0; }
   html, body { margin:0 !important; padding:0 !important; background:white !important; direction:rtl !important; }
   html { direction:rtl; }
-  body { visibility:visible !important; direction:rtl; }
-  #isolated-print-root { width:210mm; margin:0 auto; background:white; direction:rtl; }
+  body { visibility:visible !important; direction:rtl; background:white !important; overflow:visible !important; width:${hasLandscape ? '297mm' : '210mm'} !important; margin:0 auto !important; }
+  #isolated-print-root { width:100% !important; max-width:100% !important; margin:0 !important; background:white !important; direction:rtl; display:block !important; }
   .a4-print-page { position:relative !important; width:210mm !important; height:297mm !important; min-width:210mm !important; min-height:297mm !important; max-width:210mm !important; max-height:297mm !important; margin:0 !important; padding:0 !important; overflow:visible !important; display:block !important; box-sizing:border-box !important; background:white !important; page-break-inside:avoid !important; break-inside:avoid !important; border:none !important; box-shadow:none !important; direction:rtl; }
   .a4-print-page[data-orientation="landscape"] { width:297mm !important; height:210mm !important; min-width:297mm !important; min-height:210mm !important; max-width:297mm !important; max-height:210mm !important; }
   [data-print-image] { position:absolute !important; box-sizing:border-box !important; overflow:hidden !important; background:white !important; border:0.3mm solid #e5e7eb !important; border-radius:1.5mm !important; display:block !important; }
   [data-print-image] img { position:absolute !important; left:0 !important; top:0 !important; width:100% !important; height:100% !important; max-width:none !important; max-height:none !important; object-fit:fill !important; display:block !important; aspect-ratio:auto !important; border:none !important; -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }
   /* RTL FIX: Description must be RTL in Windows print context — plaintext preserves numbers/English */
   [data-print-description], .print-description-text { direction:rtl !important; unicode-bidi:plaintext !important; text-align:right !important; }
-  @media print {
-    html, body { margin:0 !important; padding:0 !important; direction:rtl !important; }
-    @page { size:A4 ${hasLandscape ? 'landscape' : 'portrait'}; margin:0; }
-    .a4-print-page { break-inside:avoid !important; page-break-inside:avoid !important; direction:rtl; }
-  }
+   @media print {
+     html, body { margin:0 !important; padding:0 !important; direction:rtl !important; display:block !important; background:white !important; width:${hasLandscape ? '297mm' : '210mm'} !important; }
+     #isolated-print-root { width:100% !important; max-width:100% !important; margin:0 !important; padding:0 !important; background:white !important; display:block !important; }
+     @page { size:A4 ${hasLandscape ? 'landscape' : 'portrait'}; margin:0; }
+     .a4-print-page { break-inside:avoid !important; page-break-inside:avoid !important; direction:rtl; margin:0 !important; }
+   }
 </style></head><body dir="rtl"><div id="isolated-print-root">${html}</div></body></html>`;
     win.document.open();
     win.document.write(isolatedHtml);
@@ -1036,7 +1230,7 @@ async function triggerNativePrint() {
     await new Promise(r=> win.requestAnimationFrame(()=> win.requestAnimationFrame(r)));
     await new Promise(r=> setTimeout(r, 100));
 
-    // Diagnostic for isolated window
+    // Diagnostic for isolated window — check for horizontal overflow (scrollbar cause)
     try{
         const pages = win.document.querySelectorAll('.a4-print-page');
         console.log('[Isolated Print] pages:', pages.length, 'expected:1');
@@ -1044,6 +1238,28 @@ async function triggerNativePrint() {
             const rect = p.getBoundingClientRect();
             console.log(`[Isolated] page ${i}: ${(rect.width/3.77953).toFixed(1)}mm × ${(rect.height/3.77953).toFixed(1)}mm`);
         });
+        const body = win.document.body;
+        const root = win.document.getElementById('isolated-print-root');
+        const page = win.document.querySelector('.a4-print-page');
+        console.log('[Isolated Overflow Check]', {
+            bodyScrollWidth: body.scrollWidth,
+            bodyClientWidth: body.clientWidth,
+            bodyOverflow: win.getComputedStyle(body).overflow,
+            rootScrollWidth: root?.scrollWidth,
+            rootClientWidth: root?.clientWidth,
+            rootComputedWidth: root ? win.getComputedStyle(root).width : null,
+            pageWidth: page?.getBoundingClientRect().width,
+            pageHeight: page?.getBoundingClientRect().height,
+            hasHorizontalScrollbar: body.scrollWidth > body.clientWidth,
+            viewportWidth: win.innerWidth,
+            devicePixelRatio: win.devicePixelRatio,
+            zoom: (win.outerWidth / win.innerWidth).toFixed(2)
+        });
+        if(body.scrollWidth > body.clientWidth){
+            console.warn('[Isolated] HORIZONTAL OVERFLOW DETECTED — body.scrollWidth > body.clientWidth', body.scrollWidth, '>', body.clientWidth);
+        } else {
+            console.log('[Isolated] No horizontal overflow — body fits viewport');
+        }
     }catch(e){}
 
     win.focus();
@@ -1052,6 +1268,11 @@ async function triggerNativePrint() {
     win.addEventListener('afterprint', ()=> setTimeout(()=> { try{ win.close(); }catch(e){} }, 400));
 }
 window.openPrintModal = openPrintModal;
+window.openPrintModalFromButton = openPrintModalFromButton;
+// Initialization marker — proves the print script parsed AND executed (step LOAD+INITIALIZE)
+window.__PRINT_SCRIPT_LOADED__ = true;
+console.log('[PRINT SCRIPT]', 'loaded OK — openPrintModalFromButton:', typeof openPrintModalFromButton, 'engine:', window.__PRINT_LAYOUT_ENGINE_VERSION__ || '(engine module not evaluated yet — lazy at preview time)');
+window.decodePrintPayload = decodePrintPayload;
 window.closePrintSelectionModal = closePrintSelectionModal;
 window.closePrintPreviewModal = closePrintPreviewModal;
 window.backToSelectionModal = backToSelectionModal;

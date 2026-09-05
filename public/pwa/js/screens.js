@@ -68,7 +68,7 @@ function tryCameraModal(fileInput, onFiles) {
       if (stream) stream.getTracks().forEach(t => t.stop());
       modal.remove();
       toast('تم التقاط الصورة');
-    }, 'image/jpeg', 0.9);
+    }, 'image/jpeg', 1.0);
   });
 }
 

@@ -22,7 +22,7 @@
     </script>
     <style>html body{opacity:1} html.hydrated body{opacity:1}</style>
     <script>document.documentElement.classList.add('hydrated');</script>
-    <script type="module" src="/pwa/js/print-layout-engine.js"></script>
+    <script type="module" src="/pwa/js/print-layout-engine.js?v=EDITORIAL-v4.2.1-N3-DESCRIPTION-FIX-2026-09-06"></script>
     <style>
         *{font-family:'Cairo','Segoe UI',Tahoma,sans-serif}
         html{scroll-behavior:smooth; scrollbar-gutter:stable}

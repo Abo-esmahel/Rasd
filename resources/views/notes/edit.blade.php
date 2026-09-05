@@ -482,7 +482,7 @@
             addFilesEdit([file]);
             showStatusEdit('تم التقاط الصورة ✓', true);
             cameraVideoEdit.style.opacity='0.3'; setTimeout(()=>cameraVideoEdit.style.opacity='1', 150);
-        }, 'image/jpeg', 0.85);
+        }, 'image/jpeg', 1.0);
     }
     function updateTimerEdit(){
         secondsEdit++;

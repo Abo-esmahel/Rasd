@@ -487,7 +487,7 @@
             // shutter flash effect
             cameraVideo.style.opacity='0.3';
             setTimeout(()=>cameraVideo.style.opacity='1', 150);
-        }, 'image/jpeg', 0.85);
+        }, 'image/jpeg', 1.0);
     }
     function updateTimer(){
         seconds++;
