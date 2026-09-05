@@ -1,0 +1,174 @@
+@import 'tailwindcss';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+
+@theme {
+    --font-sans: 'Cairo', ui-sans-serif, system-ui, -apple-system, sans-serif;
+    --font-cairo: 'Cairo', 'Segoe UI', Tahoma, sans-serif;
+
+    /* Syrian Government Identity — Professional Light System */
+    --color-sy-green: #0e6a38;
+    --color-sy-green-dark: #0a4d28;
+    --color-sy-green-soft: #eef4f0;
+    --color-sy-red: #c41e1e;
+    --color-sy-black: #0f1a13;
+
+    /* Surface Hierarchy — calm, warm, not white-on-white */
+    --color-background: #eceee9;      /* Page — warm stone, 93.5% L */
+    --color-surface: #fdfcfa;         /* Header / Sidebar — warm paper, 99% */
+    --color-surface-elevated: #ffffff;/* Cards / Modals — pure white, elevation */
+    --color-surface-muted: #f5f7f5;   /* Subtle hover / muted bg */
+    --color-surface-input: #ffffff;   /* Inputs — always elevated */
+
+    --color-border: #e6e9e1;          /* Subtle but visible */
+    --color-border-strong: #d4ddd3;
+
+    --color-text-primary: #1a1a1a;    /* Ink-800 — strong */
+    --color-text-secondary: #525252;  /* Ink-500 — secondary */
+    --color-text-muted: #737373;      /* Ink-400 — muted only */
+
+    --color-primary: #0e6a38;
+    --color-primary-hover: #0a4d28;
+    --color-primary-soft: #eef4f0;
+
+    --radius-gov-sm: 10px;
+    --radius-gov: 14px;
+    --radius-gov-lg: 18px;
+    --radius-gov-xl: 22px;
+}
+
+/* Base — Light Hierarchy */
+* { font-family: 'Cairo','Segoe UI',Tahoma,sans-serif; }
+html { scroll-behavior: smooth; scrollbar-gutter: stable; }
+body {
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+    background: var(--color-background);
+    color: var(--color-text-primary);
+}
+img, video, iframe { max-width: 100%; height: auto; display: block; }
+:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+::selection { background: var(--color-primary); color: #fff; }
+
+/* Scrollbar — muted warm, visible */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: var(--color-background); }
+::-webkit-scrollbar-thumb { background: #c2cbc1; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #9aa99a; }
+
+/* ——— Surface System ——— */
+.surface-page { background: var(--color-background); }
+.surface { background: var(--color-surface); border: 1px solid var(--color-border); }
+.surface-elevated {
+    background: var(--color-surface-elevated);
+    border: 1px solid var(--color-border);
+    box-shadow: 0 1px 2px rgba(26,46,31,0.04);
+}
+.surface-muted { background: var(--color-surface-muted); border: 1px solid var(--color-border); }
+.surface-input {
+    background: var(--color-surface-input);
+    border: 1px solid var(--color-border);
+}
+
+/* Cards — elevated, not flat white-on-white */
+.gov-card {
+    background: var(--color-surface-elevated);
+    border: 1px solid var(--color-border);
+    border-radius: 16px;
+    box-shadow: 0 1px 2px rgba(26,46,31,0.06);
+}
+.gov-card-hover:hover {
+    border-color: var(--color-border-strong);
+    box-shadow: 0 4px 12px rgba(26,46,31,0.08);
+}
+
+/* Inputs — distinct from card */
+.gov-input {
+    background: var(--color-surface-input);
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    color: var(--color-text-primary);
+    transition: border-color .15s, box-shadow .15s;
+}
+.gov-input::placeholder { color: var(--color-text-muted); opacity: 0.7; }
+.gov-input:hover { border-color: var(--color-border-strong); }
+.gov-input:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(14,106,56,0.10);
+    outline: none;
+}
+.gov-input:disabled { background: var(--color-surface-muted); color: var(--color-text-muted); }
+
+/* Buttons hierarchy */
+.btn-primary {
+    background: var(--color-primary);
+    color: #fff;
+    border: 1px solid var(--color-primary);
+    font-weight: 700;
+}
+.btn-primary:hover { background: var(--color-primary-hover); border-color: var(--color-primary-hover); }
+.btn-secondary {
+    background: var(--color-surface);
+    color: var(--color-text-primary);
+    border: 1px solid var(--color-border);
+    font-weight: 600;
+}
+.btn-secondary:hover { background: var(--color-surface-muted); border-color: var(--color-border-strong); }
+.btn-ghost {
+    background: transparent;
+    color: var(--color-text-secondary);
+    border: 1px solid transparent;
+}
+.btn-ghost:hover { background: var(--color-surface-muted); color: var(--color-text-primary); }
+
+/* Typography — clear contrast, not all gray */
+.text-primary { color: var(--color-text-primary); }
+.text-secondary { color: var(--color-text-secondary); }
+.text-muted { color: var(--color-text-muted); }
+
+/* Borders — subtle but visible */
+.border-default { border-color: var(--color-border); }
+.border-strong { border-color: var(--color-border-strong); }
+
+/* Line clamp */
+.line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* Syrian hairline */
+.sy-hairline {
+    background: linear-gradient(to left, var(--color-sy-green) 0%, var(--color-sy-green) 33.33%, #ffffff 33.33%, #ffffff 66.66%, var(--color-sy-black) 66.66%, var(--color-sy-black) 100%);
+    height: 3px;
+}
+
+/* Pagination */
+nav[role="navigation"] { display:flex; justify-content:center; }
+
+/* ——— Harmonious Dark — balanced, not black ——— */
+html.dark { color-scheme: dark; }
+html.dark body { background: #1e2320; color: #e7ece5; }
+html.dark ::-webkit-scrollbar-track { background: #232923; }
+html.dark ::-webkit-scrollbar-thumb { background: #343a34; }
+html.dark ::-webkit-scrollbar-thumb:hover { background: #404840; }
+html.dark ::selection { background: var(--color-primary); color: #e7ece5; }
+html.dark .bg-\[\#fdfcfa\]{background-color:#2a302b !important}
+html.dark .bg-\[\#fdfcfa\]\/80{background-color:rgba(37,43,38,0.85) !important}
+html.dark .bg-\[\#f1f3f0\]{background-color:#1e2320 !important}
+html.dark .bg-\[\#f6f7f5\]{background-color:#252b26 !important}
+html.dark .bg-\[\#eceee9\]{background-color:#1e2320 !important}
+html.dark .bg-white{background-color:#2a302b !important}
+html.dark .border-\[\#e6e9e1\]{border-color:#2e352e !important}
+html.dark .border-\[\#eceee9\]{border-color:#2e352e !important}
+html.dark .text-\[\#1a2e1f\]{color:#e7ece5 !important}
+html.dark .text-\[\#6b7a6e\]{color:#9bb0a0 !important}
+html.dark .text-\[\#0e6a38\]{color:#4ade80 !important}
+html.dark input,html.dark textarea,html.dark select{background-color:#2a302b !important;border-color:#2e352e !important;color:#e7ece5 !important}
+html.dark .hover\:bg-white:hover,html.dark .hover\:bg-\[\#fdfcfa\]:hover{background-color:#2e352e !important}
+html.dark .hover\:bg-\[\#eceee9\]:hover{background-color:#2a302b !important}
+html.dark .hover\:bg-\[\#f6f7f5\]:hover,html.dark .hover\:bg-surface-50:hover{background-color:#2e352e !important}
