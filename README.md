@@ -19,7 +19,7 @@
 
 *   **الويب:** Blade + Tailwind + واجهة RTL قابلة للتثبيت كـ PWA
 *   **API:** نفس المنطق عبر `NoteService` + `NotePolicy` مع مصادقة JWT مخصصة
-*   **التخزين:** قرص خاص `private` غير مكشوف عبر `/storage`
+*   **التخزين:** سحابي `Cloudinary` عبر `Storage::disk('cloudinary')` — القرص الافتراضي `FILESYSTEM_DISK=cloudinary` — روابط `https` مباشرة
 
 ---
 
@@ -97,7 +97,7 @@
 | **المستخدمون** | ملف شخصي + avatar، رقم جوال سوري موحّد `SyrianPhone`، سجل إشعارات، ترتيب |
 | **PWA** | `public/pwa/` — `manifest.json` + `sw.js` + أوفلاين محدود + تثبيت standalone RTL |
 | **الأداء** | `config:cache` + `route:cache` + `view:cache`، تحميل Tailwind مؤجل، خط Cairo async، `preflight: false` |
-| **الأمان** | حماية mass-assignment، تخزين خاص `serve:false`، مصادقة API بتوكن عبر Header أو `?token=` للصور |
+| **الأمان** | حماية mass-assignment، تخزين سحابي `Cloudinary` عبر `Storage::disk('cloudinary')`، مصادقة API بتوكن عبر Header أو `?token=` للصور |
 
 ---
 
@@ -107,6 +107,7 @@
 *   **Frontend Web:** `Blade` + `Tailwind CDN (defer)` + `Cairo` + ألوان sage `#1f6f4a` + خلفية دافئة `#f5f3ef` + dark mode
 *   **API:** REST JSON — `Bearer JWT (HMAC-SHA256)` — انتهاء `60 دقيقة`
 *   **DB:** `MySQL 5.7+` / `SQLite` (اختبارات `:memory:`) — Eloquent
+*   **التخزين:** `Cloudinary` عبر `codebar-ag/laravel-flysystem-cloudinary` — القرص الافتراضي `cloudinary` — مجلد `CLOUDINARY_FOLDER=rasd` — توصيل `https` (`CLOUDINARY_SECURE_URL=true`)
 *   **Auth:** Web `session + CSRF` — API `JwtService + Cache blacklist`
 *   **Build:** `Vite` (اختياري)، `Composer scripts: setup/dev/test`
 *   **Tests:** `PHPUnit 12` — `63` اختبار
@@ -127,7 +128,7 @@ Flutter (API)─┘   API Controllers ──┤
 *   **NoteService:** `createDraft / updateNote / deleteDraft / sendNote / acceptNote / rejectNote / resendRejectedNote / addAttachment / removeAttachment` — معاملات transactions عند الحاجة
 *   **NotePolicy:** `create / viewAny / view / update / delete / send / accept / reject / resend / addAttachment / removeAttachment`
 *   **JwtService:** توليد/تحقق `HMAC-SHA256` + فحص signature/expiry/blacklist (Cache)
-*   **Config:** `config/jwt.php` + `config/attachments.php` + `config/filesystems.php` قرص `private` `serve:false` + `storage/app/private/notes/`
+*   **Config:** `config/jwt.php` + `config/attachments.php` + `config/filesystems.php` قرص `cloudinary` (الافتراضي) + `config/flysystem-cloudinary.php` (`folder` / `secure_url`)
 
 > الويب والـ API **لا يكرران** المنطق.
 
@@ -201,18 +202,19 @@ draft ──(إرسال: مالك فقط)──→ pending ──(قبول: كا
 `id` | `user_id` FK→users | `floor_number` int indexed | `camera_number` int indexed | `observed_at` datetime indexed | `observed_end_at` datetime nullable | `description` text | `status` enum(`draft`,`pending`,`accepted`,`rejected`) indexed | `rejection_reason` text nullable | `processed_by` FK→users nullable | `sent_at` timestamp nullable | `processed_at` timestamp nullable
 
 ### `attachments`
-`id` | `note_id` FK | `file_path` varchar | `original_name` varchar | `mime_type` varchar | `file_size` bigint
+`id` | `note_id` FK | `file_path` varchar (مسار Cloudinary `public_id`: `notes/{id}/{UUID}` بدون امتداد) | `original_name` varchar | `mime_type` varchar | `file_size` bigint
 
 **العلاقات:** `User hasMany notes / processedNotes` · `Note belongsTo owner/processor` · `Note hasMany attachments` · `Attachment belongsTo note`
 
 ---
 
-## 📎 المرفقات والتسجيل الصوتي
+## 📎 المرفقات والتسجيل الصوتي (Cloudinary)
 
-*   **المسار:** `storage/app/private/notes/` — قرص `private` — `serve:false` — لا يوجد `public/storage` للمجلد الخاص
-*   **الأسماء:** `UUID + امتداد مستنتج من MIME الفعلي` (finfo) وليس امتداد العميل
-*   **التحقق:** `allowedMimes` + `allowedMimeTypes` (finfo) + حجم + عدد (50) + رفض `php/phtml/phar/html/js/exe/sh/bat...` + رفض `test.php.jpg` / `image.jpg.php`
-*   **التنزيل/العرض:**
+*   **التخزين:** `Cloudinary` حصرًا عبر `Storage::disk('cloudinary')` — لا يوجد تخزين محلي للمرفقات
+*   **المسار (`file_path` = `public_id`):** الملاحظات `notes/{note_id}/{UUID}` **بدون امتداد** (يحدد Cloudinary الصيغة تلقائيًا `resource_type=auto` لتجنب `cat.jpg.jpg`) — الصور الشخصية `avatars/{UUID}.{ext}`
+*   **البيانات المحفوظة:** `attachments(file_path, original_name, mime_type, file_size)` — الأصلي للعرض فقط، والامتداد الآمن يُستنتج من `finfo` وليس من امتداد العميل
+*   **الأسماء:** `UUID` آمن — فحص `finfo` + امتداد + رفض الامتدادات الخطرة ومزدوجة الامتداد (`php/phtml/phar/html/js/exe/sh/bat...` + `test.php.jpg`)
+*   **التنزيل/العرض (stream من Cloudinary):**
     *   `GET /attachments/{id}/view` (stream inline) — أي مستخدم يملك حق `view`
     *   `GET /attachments/{id}/download` (attachment) — **كاتب التقارير فقط**
     *   `GET /api/attachments/{id}` — API بنفس القواعد
@@ -261,7 +263,7 @@ draft ──(إرسال: مالك فقط)──→ pending ──(قبول: كا
 | DELETE | `/notes/{note}/attachments/{attachment}` | `notes.attachments.destroy` | حذف مرفق |
 | GET | `/attachments/{a}/view` | `notes.attachments.view` | عرض |
 | GET | `/attachments/{a}/download` | `notes.attachments.download` | تنزيل (كاتب فقط) |
-| GET/PUT | `/profile`, `/profile/edit` | `profile.*` | الملف الشخصي + avatar `storage/app/public/avatars/` |
+| GET/PUT | `/profile`, `/profile/edit` | `profile.*` | الملف الشخصي + avatar على `Cloudinary` مجلد `avatars/` (الرابط عبر `avatar_url`) |
 | GET | `/ranking` | `ranking` | الترتيب |
 | GET/POST | `/notifications*` | `notifications.*` | الإشعارات |
 
@@ -342,12 +344,21 @@ DB_CONNECTION=sqlite
 JWT_SECRET=ضع_مفتاح_256بت_عشوائي_قوي
 JWT_EXPIRY_MINUTES=60
 
+FILESYSTEM_DISK=cloudinary
+CLOUDINARY_CLOUD_NAME=your-cloud-name
+CLOUDINARY_API_KEY=your-api-key
+CLOUDINARY_API_SECRET=your-api-secret
+CLOUDINARY_FOLDER=rasd
+CLOUDINARY_SECURE_URL=true
+# اختياري: CLOUDINARY_UPLOAD_PRESET=
+
 MAX_IMAGE_SIZE=5120        # KB
 MAX_VIDEO_SIZE=30720       # KB
 MAX_ATTACHMENTS_PER_NOTE=50
 ```
 
-> تُقرأ عبر `config('jwt.secret')` و `config('attachments.*')` وليس `env()` مباشرة (آمن مع `config:cache`).
+> تُقرأ عبر `config('jwt.secret')` و `config('attachments.*')` و `config/filesystems.php` (قرص `cloudinary`) وليس `env()` مباشرة (آمن مع `config:cache`).
+> الحزمة المستخدمة: `codebar-ag/laravel-flysystem-cloudinary` — الإعداد الإضافي في `config/flysystem-cloudinary.php` (`folder` / `secure_url`).
 
 ### البذور
 
@@ -375,18 +386,18 @@ composer test
 
 ## ☁️ النشر — InfinityFree / استضافة مشتركة
 
-*   **PHP:** فعّل `8.3`
+*   **PHP:** فعّل `8.3` + تأكد من `ext-curl` و `ext-fileinfo` (مطلوبة لرفع Cloudinary وفحص `finfo`)
 *   **Document Root:** `public`
-*   **Env:** انسخ `.env.example` → `.env` + عيّن `APP_KEY` + `DB_*` + `JWT_SECRET`
+*   **Env:** انسخ `.env.example` → `.env` + عيّن `APP_KEY` + `DB_*` + `JWT_SECRET` + `FILESYSTEM_DISK=cloudinary` + `CLOUDINARY_CLOUD_NAME/API_KEY/API_SECRET/FOLDER/SECURE_URL`
 *   **Migrations:** `php artisan migrate --force`
-*   **Storage:** تأكد من صلاحيات `storage/` — لا تستخدم `storage:link` للمجلد الخاص — تأكد أن `storage/app/private` غير مكشوف
+*   **Storage (Cloudinary):** المرفقات تُرفع لـ `notes/{id}/{UUID}` والصور الشخصية لـ `avatars/` وتُعرض عبر `Storage::disk('cloudinary')->response/download/url` بروابط `https` — لا حاجة لـ `storage:link` للمرفقات — فقط تأكد من صلاحيات `storage/` للكاش والجلسات واللوغ
 *   **Cache (للأداء):**
     ```bash
     php artisan config:cache
     php artisan route:cache
     php artisan view:cache
     ```
-*   **بدون Queue/Redis/WebSocket** — الملفات محلية فقط
+*   **بدون Queue/Redis/WebSocket** — الملفات على `Cloudinary` مباشرة (رفع/حذف متزامن عبر `Storage::disk('cloudinary')`)
 
 ---
 
@@ -399,7 +410,7 @@ app/Services/{JwtService, NoteService}.php
 app/Policies/NotePolicy.php
 app/Models/{User, Note, Attachment}.php
 app/Support/SyrianPhone.php
-config/{jwt, attachments, filesystems}.php
+config/{jwt, attachments, filesystems, flysystem-cloudinary}.php
 database/{migrations,factories,seeders}
 resources/views/{layouts/app, auth/login, notes/{index,my,create,edit}, profile/*, notes/partials/print_modal.blade.php}
 routes/{web,api}.php
@@ -421,7 +432,7 @@ docs/{SYSTEM,ARCHITECTURE,DATABASE,API,WORKFLOW,DEVELOPMENT}.md
 *   اقرأ `docs/*.md` قبل أي تعديل
 *   حافظ على `NoteService/NotePolicy` كمصدر وحيد للمنطق
 *   أي `env()` جديد يجب نقله إلى `config/*.php`
-*   الملفات الخاصة دائماً عبر قرص `private` مع فحص `finfo` و `UUID`
+*   المرفقات والصور دائماً عبر قرص `cloudinary` (`notes/{id}/{UUID}` بدون امتداد + `avatars/`) مع فحص `finfo` و `UUID` — و `file_path` هو `public_id` في Cloudinary
 *   شغّل `php artisan test` قبل الـ push
 
 ---

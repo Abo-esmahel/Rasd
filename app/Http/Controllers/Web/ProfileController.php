@@ -8,6 +8,9 @@ use App\Support\SyrianPhone;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class ProfileController extends Controller
@@ -119,17 +122,39 @@ class ProfileController extends Controller
         $user->username = $validated['username'];
         $user->personal_number = $normalized;
 
-        // — avatar handling —
+        // — avatar handling: Cloudinary فقط — ممنوع الحفظ المحلي حسب طلب المالك —
         if ($request->boolean('remove_avatar') && $user->avatar_path) {
-            \Illuminate\Support\Facades\Storage::disk('public')->delete($user->avatar_path);
+            try {
+                Storage::disk('cloudinary')->delete($user->avatar_path);
+            } catch (\Throwable $e) {
+                Log::warning('Cloudinary avatar delete failed: '.$e->getMessage(), ['userId' => $user->id]);
+            }
             $user->avatar_path = null;
         }
         if ($request->hasFile('avatar')) {
-            if ($user->avatar_path) {
-                \Illuminate\Support\Facades\Storage::disk('public')->delete($user->avatar_path);
+            $avatarFile = $request->file('avatar');
+            $avatarName = Str::uuid()->toString();
+            try {
+                // بدون امتداد لتجنب تكرار الامتداد cat.jpg.jpg على Cloudinary
+                $path = $avatarFile->storeAs('avatars', $avatarName, 'cloudinary');
+                // حذف القديمة فقط بعد نجاح الرفع الجديد
+                if ($user->avatar_path && $user->avatar_path !== $path) {
+                    try {
+                        Storage::disk('cloudinary')->delete($user->avatar_path);
+                    } catch (\Throwable $e) {}
+                }
+                $user->avatar_path = $path;
+            } catch (\Throwable $e) {
+                // التفاصيل التقنية في السجلات فقط — لا تُعرض للمستخدم (قد تحوي مسارات أو تفاصيل SSL)
+                Log::error('Cloudinary avatar upload failed', [
+                    'userId' => $user->id,
+                    'exception' => get_class($e),
+                    'message' => $e->getMessage(),
+                ]);
+                return back()
+                    ->withErrors(['avatar' => 'تعذّر رفع الصورة إلى التخزين السحابي (Cloudinary). تحقق من الاتصال وحاول مجدداً.'])
+                    ->withInput();
             }
-            $path = $request->file('avatar')->store('avatars', 'public');
-            $user->avatar_path = $path;
         }
 
         $user->save();

@@ -300,6 +300,18 @@ class NoteController extends Controller
                 'success' => false,
                 'message' => $e->getMessage(),
             ], 400);
+        } catch (\Throwable $e) {
+            // فشل نقل (شبكة/Cloudinary/SSL) — التفاصيل في السجلات فقط
+            \Illuminate\Support\Facades\Log::error('Cloudinary attachment upload failed', [
+                'userId' => $user->id,
+                'noteId' => $note->id,
+                'exception' => get_class($e),
+                'message' => $e->getMessage(),
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'تعذّر رفع الملف إلى التخزين السحابي (Cloudinary). تحقق من الاتصال وحاول مجدداً.',
+            ], 503);
         }
     }
 
@@ -347,16 +359,39 @@ class NoteController extends Controller
             ], 403);
         }
 
-        if (!Storage::disk('private')->exists($attachment->file_path)) {
+        // التنزيل لكاتب التقرير فقط — حتى صاحب الملاحظة لا يمكنه التنزيل (حسب سياسة المشروع)
+        if (!$user->isReportWriter()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'التنزيل مسموح لكاتب التقرير فقط',
+            ], 403);
+        }
+
+        // بث عبر readStream (يعمل لكل الأنواع) — download() الخاص بالقرص يعتمد على
+        // metadata بنوع image فقط فيفشل مع الصوت/الفيديو. النوع والحجم من سجل DB.
+        try {
+            $stream = Storage::disk('cloudinary')->readStream($attachment->file_path);
+        } catch (\Throwable $e) {
+            $stream = false;
+        }
+        if ($stream === false) {
             return response()->json([
                 'success' => false,
                 'message' => 'الملف غير موجود',
             ], 404);
         }
 
-        return Storage::disk('private')->download(
-            $attachment->file_path,
-            $attachment->original_name
-        );
+        $headers = [
+            'Content-Type' => $attachment->mime_type,
+            'Content-Length' => (string) $attachment->file_size,
+            'X-Content-Type-Options' => 'nosniff',
+        ];
+
+        return response()->streamDownload(function () use ($stream) {
+            fpassthru($stream);
+            if (is_resource($stream)) {
+                fclose($stream);
+            }
+        }, $attachment->original_name, $headers);
     }
 }

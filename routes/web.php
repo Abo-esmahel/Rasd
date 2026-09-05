@@ -36,7 +36,7 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/profile', [ProfileController::class, 'show'])->name('profile.show');
     Route::get('/profile/edit', [ProfileController::class, 'edit'])->name('profile.edit');
-    Route::get('/profile/{id}', [ProfileController::class, 'show'])->name('profile.showUser');
+    Route::get('/profile/{id}', [ProfileController::class, 'show'])->whereNumber('id')->name('profile.showUser');
     Route::put('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::get('/ranking', [ProfileController::class, 'ranking'])->name('ranking');
 

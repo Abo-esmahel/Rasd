@@ -936,30 +936,39 @@ document.querySelectorAll('form[data-ajax]').forEach(form => {
             });
             const data = await res.json();
             if (res.ok && data.success) {
-                // Update badge in-place
+                // الحالة الجديدة — من الجذر أو من data (توافق)
+                const newStatus = data.status || (data.data && data.data.status);
                 const noteId = this.dataset.noteId;
-                const card = document.querySelector('[data-note-id="'+noteId+'"]');
-                if (card && data.status) {
+                // البطاقة الحاوية: ليست الفورم نفسه (الفورم يحمل data-note-id أيضاً)
+                let card = this.closest('[data-note-card]');
+                if (!card && noteId) {
+                    const candidates = Array.from(document.querySelectorAll('[data-note-id="'+noteId+'"]'));
+                    card = candidates.find(el => el !== this && (el.querySelector('.note-badge') || el.querySelector('.note-actions'))) || null;
+                }
+                let updated = false;
+                if (card && newStatus) {
                     const statusMap = { draft:'مسودة', pending:'قيد المراجعة', accepted:'مقبولة', rejected:'مرفوضة' };
                     const clsMap = { draft:'bg-ink-100 text-ink-500 border-[#e6e9e1]', pending:'bg-amber-50 text-amber-700 border-amber-200', accepted:'bg-[#eef4f0] text-[#0e6a38] border-[#cde7d6]', rejected:'bg-red-50 text-red-700 border-red-200' };
                     const dotMap = { draft:'bg-ink-300', pending:'bg-amber-400', accepted:'bg-[#0e6a38]', rejected:'bg-red-400' };
                     const badge = card.querySelector('.note-badge');
-                    if (badge) {
-                        badge.className = 'note-badge inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold border ' + clsMap[data.status];
-                        badge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full ' + dotMap[data.status] + (data.status==='pending'?' animate-pulse':'') + '"></span>' + statusMap[data.status];
+                    if (badge && clsMap[newStatus]) {
+                        badge.className = 'note-badge inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold border ' + clsMap[newStatus];
+                        badge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full ' + dotMap[newStatus] + (newStatus==='pending'?' animate-pulse':'') + '"></span>' + statusMap[newStatus];
+                        updated = true;
                     }
                     // Show/hide action buttons
                     const actionsEl = card.querySelector('.note-actions');
                     if (actionsEl) {
                         let newActions = '';
-                        if (data.status === 'pending') {
+                        if (newStatus === 'pending') {
                             newActions = '<a href="/notes/'+noteId+'/edit" class="px-2.5 py-1 rounded-lg bg-[#fdfcfa] border border-[#e6e9e1] text-[#525252] text-xs font-bold">تعديل</a>';
-                        } else if (data.status === 'accepted') {
+                        } else if (newStatus === 'accepted') {
                             newActions = '<span class="text-[11px] text-[#0e6a38] font-bold">مقبولة</span>';
-                        } else if (data.status === 'rejected') {
+                        } else if (newStatus === 'rejected') {
                             newActions = '<a href="/notes/'+noteId+'/edit" class="px-2.5 py-1 rounded-lg bg-ink-800 text-white text-xs font-bold">تصحيح</a>';
                         }
                         actionsEl.innerHTML = newActions;
+                        updated = true;
                     }
                 }
                 if (data.deleted && card) {
@@ -967,7 +976,10 @@ document.querySelectorAll('form[data-ajax]').forEach(form => {
                     card.style.opacity = '0';
                     card.style.transform = 'translateX(20px)';
                     setTimeout(() => card.remove(), 250);
+                    updated = true;
                 }
+                // لا عناصر قابلة للتحديث الموضعي (الصفوف الحالية بلا note-badge) — حدّث الصفحة لإظهار الحالة الجديدة بدل التعليق
+                if (!updated) { location.reload(); return; }
             } else {
                 alert(data.message || 'حدث خطأ');
                 if (btn) { btn.disabled = false; btn.innerHTML = origHtml; }

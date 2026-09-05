@@ -54,7 +54,9 @@ class NoteService
 
         DB::transaction(function () use ($note) {
             foreach ($note->attachments as $attachment) {
-                Storage::disk('private')->delete($attachment->file_path);
+                try {
+                    Storage::disk('cloudinary')->delete($attachment->file_path);
+                } catch (\Throwable $e) {}
                 $attachment->delete();
             }
             $note->delete();
@@ -241,9 +243,17 @@ class NoteService
         if (!in_array($safeExtension, ['jpg', 'jpeg', 'png', 'webp', 'mp4', 'webm', 'mov', 'avi', '3gp', 'mkv', 'mpg', 'm4v', 'mp3', 'wav', 'ogg', 'oga', 'm4a', 'aac', 'wma', 'flac', 'opus'])) {
             $safeExtension = $extension === 'jpeg' ? 'jpg' : $extension;
         }
-        $safeName = \Illuminate\Support\Str::uuid()->toString() . '.' . $safeExtension;
+        // Cloudinary: تخزين بدون امتداد لتجنب تكرار الامتداد في الرابط (cat.jpg.jpg)
+        // Cloudinary يحدد الصيغة تلقائيًا من resource_type=auto
+        // سياسة المشروع: ممنوع أي حفظ محلي — كل المرفقات على Cloudinary فقط
+        $safeName = \Illuminate\Support\Str::uuid()->toString();
         $path = 'notes/' . $note->id . '/' . $safeName;
-        $file->storeAs('notes/' . $note->id, $safeName, 'private');
+        try {
+            $file->storeAs('notes/' . $note->id, $safeName, 'cloudinary');
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Cloudinary attachment upload failed: '.$e->getMessage(), ['note_id' => $note->id]);
+            throw new InvalidArgumentException('تعذّر رفع الملف إلى التخزين السحابي (Cloudinary). تحقق من الاتصال وحاول مجدداً.');
+        }
 
         return Attachment::create([
             'note_id' => $note->id,
@@ -267,7 +277,9 @@ class NoteService
         }
 
         DB::transaction(function () use ($attachment) {
-            Storage::disk('private')->delete($attachment->file_path);
+            try {
+                Storage::disk('cloudinary')->delete($attachment->file_path);
+            } catch (\Throwable $e) {}
             $attachment->delete();
         });
     }
@@ -335,7 +347,7 @@ class NoteService
 
         $maxImageSize = (int) config('attachments.max_image_size', 5120) * 1024;
         $maxVideoSize = (int) config('attachments.max_video_size', 30720) * 1024;
-        $maxAudioSize = 100 * 1024 * 1024; // 100MB — لا نمنع الصوتيات الكبيرة
+        $maxAudioSize = (int) config('attachments.max_audio_size', 100 * 1024 * 1024);
 
         if (str_starts_with($realMime, 'image/') && $file->getSize() > $maxImageSize) {
             throw new InvalidArgumentException('حجم الصورة يتجاوز الحد الأقصى المسموح (20MB)');

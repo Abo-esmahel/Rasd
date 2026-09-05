@@ -64,7 +64,7 @@ class NoteController extends Controller
     public function myNotes(Request $request)
     {
         $user = $request->user();
-        $query = Note::with(['owner','attachments'])->where('user_id', $user->id);
+        $query = Note::with(['owner','processor','attachments'])->where('user_id', $user->id);
 
         if ($request->filled('status') && in_array($request->status, ['draft','pending','accepted','rejected'], true)) {
             $query->where('status', $request->status);
@@ -115,7 +115,7 @@ class NoteController extends Controller
         $attachmentErrors = [];
         if ($request->hasFile('files')) {
             foreach ($request->file('files') as $file) {
-                try { $this->noteService->addAttachment($request->user(), $note, $file); } catch (\Throwable $e) { $attachmentErrors[] = $file->getClientOriginalName().': '.$e->getMessage(); \Illuminate\Support\Facades\Log::warning('Attachment failed in store: '.$e->getMessage()); }
+                try { $this->noteService->addAttachment($request->user(), $note, $file); } catch (\InvalidArgumentException $e) { $attachmentErrors[] = $file->getClientOriginalName().': '.$e->getMessage(); \Illuminate\Support\Facades\Log::warning('Attachment failed in store: '.$e->getMessage()); } catch (\Throwable $e) { $attachmentErrors[] = $file->getClientOriginalName().': تعذّر الرفع إلى التخزين السحابي'; \Illuminate\Support\Facades\Log::warning('Attachment failed in store: '.get_class($e).': '.$e->getMessage()); }
             }
         }
 
@@ -166,7 +166,7 @@ class NoteController extends Controller
         $attachmentErrors = [];
         if ($request->hasFile('files')) {
             foreach ($request->file('files') as $file) {
-                try { $this->noteService->addAttachment($request->user(), $note, $file); } catch (\Throwable $e) { $attachmentErrors[] = $file->getClientOriginalName().': '.$e->getMessage(); \Illuminate\Support\Facades\Log::warning('Attachment failed in update: '.$e->getMessage()); }
+                try { $this->noteService->addAttachment($request->user(), $note, $file); } catch (\InvalidArgumentException $e) { $attachmentErrors[] = $file->getClientOriginalName().': '.$e->getMessage(); \Illuminate\Support\Facades\Log::warning('Attachment failed in update: '.$e->getMessage()); } catch (\Throwable $e) { $attachmentErrors[] = $file->getClientOriginalName().': تعذّر الرفع إلى التخزين السحابي'; \Illuminate\Support\Facades\Log::warning('Attachment failed in update: '.get_class($e).': '.$e->getMessage()); }
             }
         }
 
@@ -195,7 +195,7 @@ class NoteController extends Controller
     {
         $this->authorize('send', $note);
         $note = $this->noteService->sendNote(auth()->user(), $note);
-        if (request()->expectsJson()) return response()->json(['success'=>true,'data'=>$note]);
+        if (request()->expectsJson()) return response()->json(['success'=>true,'status'=>$note->status,'data'=>$note]);
         return redirect()->route('notes.index')->with('success', 'تم إرسال الملاحظة للمراجعة');
     }
 
@@ -203,7 +203,7 @@ class NoteController extends Controller
     {
         $this->authorize('accept', $note);
         $note = $this->noteService->acceptNote(auth()->user(), $note);
-        if (request()->expectsJson()) return response()->json(['success'=>true,'data'=>$note]);
+        if (request()->expectsJson()) return response()->json(['success'=>true,'status'=>$note->status,'data'=>$note]);
         return redirect()->route('notes.index')->with('success', 'تم قبول الملاحظة');
     }
 
@@ -212,7 +212,7 @@ class NoteController extends Controller
         $this->authorize('reject', $note);
         $request->validate(['rejection_reason'=>['required','string','min:5','max:1000']]);
         $note = $this->noteService->rejectNote(auth()->user(), $note, $request->rejection_reason);
-        if (request()->expectsJson()) return response()->json(['success'=>true,'data'=>$note]);
+        if (request()->expectsJson()) return response()->json(['success'=>true,'status'=>$note->status,'data'=>$note]);
         return redirect()->route('notes.index')->with('success', 'تم رفض الملاحظة');
     }
 
@@ -220,7 +220,7 @@ class NoteController extends Controller
     {
         $this->authorize('resend', $note);
         $note = $this->noteService->resendRejectedNote(auth()->user(), $note);
-        if (request()->expectsJson()) return response()->json(['success'=>true,'data'=>$note]);
+        if (request()->expectsJson()) return response()->json(['success'=>true,'status'=>$note->status,'data'=>$note]);
         return redirect()->route('notes.index')->with('success', 'تمت إعادة إرسال الملاحظة');
     }
 
@@ -233,22 +233,54 @@ class NoteController extends Controller
         return back()->with('success', 'تم حذف المرفق');
     }
 
+    /**
+     * بث ملف من Cloudinary عبر readStream — يعمل لكل الأنواع (صور/فيديو/صوت).
+     * لا نستخدم response()/download() الخاصة بالقرص لأنها تعتمد على metadata
+     * عبر Admin API بنوع image فقط، فتفشل مع الصوت/الفيديو (video resource).
+     * نوع المحتوى والحجم يؤخذان من سجل DB (موثوق ومحفوظ عند الرفع).
+     */
+    private function streamCloudinaryAttachment(Attachment $attachment, bool $asDownload)
+    {
+        try {
+            $stream = Storage::disk('cloudinary')->readStream($attachment->file_path);
+        } catch (\Throwable $e) {
+            $stream = false;
+            \Illuminate\Support\Facades\Log::warning('Cloudinary readStream failed: '.$e->getMessage());
+        }
+        if ($stream === false) {
+            abort(404, 'الملف غير موجود');
+        }
+
+        $disposition = ($asDownload ? 'attachment' : 'inline').'; filename="'.addslashes($attachment->original_name).'"';
+        $headers = [
+            'Content-Type' => $attachment->mime_type,
+            'Content-Length' => (string) $attachment->file_size,
+            'Content-Disposition' => $disposition,
+            'X-Content-Type-Options' => 'nosniff',
+            'Cache-Control' => 'private, max-age=3600',
+        ];
+
+        $callback = function () use ($stream) {
+            fpassthru($stream);
+            if (is_resource($stream)) {
+                fclose($stream);
+            }
+        };
+
+        if ($asDownload) {
+            return response()->streamDownload($callback, $attachment->original_name, $headers);
+        }
+
+        return response()->stream($callback, 200, $headers);
+    }
+
     public function viewAttachment(Attachment $attachment)
     {
         $user = auth()->user();
         $note = $attachment->note;
         if (!$user->can('view', $note)) abort(403, 'غير مصرح لك بعرض هذا المرفق');
-        if (!Storage::disk('private')->exists($attachment->file_path)) abort(404, 'الملف غير موجود');
 
-        $mime = $attachment->mime_type;
-        $headers = [
-            'Content-Type' => $mime,
-            'Content-Disposition' => 'inline; filename="'.addslashes($attachment->original_name).'"',
-            'X-Content-Type-Options' => 'nosniff',
-            'Cache-Control' => 'private, max-age=3600',
-        ];
-
-        return Storage::disk('private')->response($attachment->file_path, $attachment->original_name, $headers);
+        return $this->streamCloudinaryAttachment($attachment, false);
     }
 
     public function downloadAttachment(Attachment $attachment)
@@ -256,9 +288,9 @@ class NoteController extends Controller
         $user = auth()->user();
         $note = $attachment->note;
         if (!$user->can('view', $note)) abort(403, 'غير مصرح لك بتحميل هذا المرفق');
+        // التنزيل لكاتب التقرير فقط — حتى صاحب الملاحظة لا يمكنه التنزيل (حسب سياسة المشروع)
         if (!$user->isReportWriter()) abort(403, 'التنزيل مسموح لكاتب التقرير فقط');
-        if (!Storage::disk('private')->exists($attachment->file_path)) abort(404, 'الملف غير موجود');
 
-        return Storage::disk('private')->download($attachment->file_path, $attachment->original_name);
+        return $this->streamCloudinaryAttachment($attachment, true);
     }
 }

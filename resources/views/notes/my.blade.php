@@ -5,11 +5,10 @@
     $isMonitor = auth()->user()->isMonitor();
     $isWriter = !$isMonitor;
     $userId = auth()->id();
-    $baseQuery = \App\Models\Note::query();
-    // الجميع يرى مسوداته + كل غير المسودات (كاتب التقرير مشرف)
-    $baseQuery->where(function($q) use ($userId){ $q->where('user_id',$userId)->orWhere('status','!=','draft'); });
+    // صفحة "ملاحظاتي": كل العدادات خاصة بالمستخدم الحالي فقط
+    $baseQuery = \App\Models\Note::where('user_id', $userId);
     $totalCount = (clone $baseQuery)->count();
-    $draftCount = \App\Models\Note::where('user_id',$userId)->where('status','draft')->count();
+    $draftCount = (clone $baseQuery)->where('status','draft')->count();
     $pendingCount = (clone $baseQuery)->where('status','pending')->count();
     $acceptedCount = (clone $baseQuery)->where('status','accepted')->count();
     $rejectedCount = (clone $baseQuery)->where('status','rejected')->count();
@@ -19,7 +18,7 @@
 {{-- ===== 1. PAGE HEADER ===== --}}
 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
     <div>
-        <h1 class="text-xl font-extrabold text-ink-800 leading-tight">الملاحظات</h1>
+        <h1 class="text-xl font-extrabold text-ink-800 leading-tight">ملاحظاتي</h1>
         <p class="text-sm text-[#737373] mt-1">
             @if($isMonitor) تابع ملاحظاتك الميدانية وإدارتها @else ملاحظاتك — المسودات والمقبولة @endif
         </p>
@@ -32,21 +31,7 @@
     @endif
     </div>
 
-    {{-- عرض مستقل لملاحظات مراقب محدد --}}
-    @if(isset($observerUser) && $observerUser)
-        <div class="mt-4 p-4 bg-white border border-surface-300 rounded-xl flex items-center gap-3 shadow-sm">
-            @if($observerUser->avatar_url)
-                <img src="{{ $observerUser->avatar_url }}" alt="{{ $observerUser->name }}" class="w-10 h-10 rounded-xl object-cover border border-surface-300 shrink-0">
-            @else
-                <div class="w-10 h-10 rounded-xl bg-sage-100 text-sage-700 flex items-center justify-center font-bold shrink-0">{{ $observerUser->initial }}</div>
-            @endif
-            <div class="min-w-0 flex-1">
-                <div class="text-sm font-extrabold text-ink-800">ملاحظات {{ $observerUser->name }}</div>
-                <div class="text-xs text-ink-400 mt-0.5">يُعرض فقط ملاحظات هذا المراقب</div>
-            </div>
-            <a href="{{ route('notes.index', request()->except(['observer','user','page'])) }}" class="shrink-0 px-3 py-2 rounded-lg bg-surface-100 border border-surface-300 text-ink-600 text-xs font-bold hover:bg-white transition">مسح الفلتر ✕</a>
-        </div>
-    @endif
+    {{-- صفحة "ملاحظاتي" تعرض فقط ملاحظات المستخدم الحالي — لا حاجة لفلتر مراقب --}}
 
     {{-- ===== 2. STATUS TABS — متناسق وهادئ ===== --}}
 <div class="border-b border-[#e6e9e1] mb-6 -mx-4 sm:mx-0 px-4 sm:px-0 overflow-x-auto scrollbar-hide">
@@ -64,8 +49,8 @@
             @php
                 $isActive = $currentStatus === $tab['key'];
                 $url = $tab['key'] === null
-                    ? route('notes.index')
-                    : route('notes.index', array_merge(request()->except('status','page'), ['status' => $tab['key']]));
+                    ? route('notes.my')
+                    : route('notes.my', array_merge(request()->except('status','page'), ['status' => $tab['key']]));
             @endphp
             <a href="{{ $url }}" data-ajax-tab class="relative flex items-center gap-1.5 py-3 text-[13px] whitespace-nowrap border-b-2 transition {{ $isActive ? 'border-[#0e6a38] text-ink-800 font-bold' : 'border-transparent text-[#737373] hover:text-ink-600 font-medium' }}">
                 <span>{{ $tab['label'] }}</span>
@@ -75,45 +60,27 @@
     </nav>
 </div>
 
-{{-- ===== 3. FILTERS — يتضمن المراقب والترتيب داخلياً (هادئ) ===== --}}
+{{-- ===== 3. FILTERS — خاص بملاحظات المستخدم الحالي فقط ===== --}}
 <div class="mb-5">
     <details class="group">
         <summary class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium text-[#737373] hover:text-ink-700 hover:bg-[#eceee9] cursor-pointer transition list-none">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
-            فلاتر وترتيب
-            @if(request()->hasAny(['date','floor_number','camera_number','observer','sort']))
+            فلاتر
+            @if(request()->hasAny(['date','floor_number','camera_number']))
                 <span class="w-1.5 h-1.5 rounded-full bg-[#0e6a38]"></span>
             @endif
             <svg class="w-3.5 h-3.5 transition group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
         </summary>
         <div class="mt-3 p-4 bg-surface-50 rounded-xl border border-surface-300">
-            <form method="GET" action="{{ route('notes.index') }}">
+            <form method="GET" action="{{ route('notes.my') }}">
                 @if($currentStatus)
                     <input type="hidden" name="status" value="{{ $currentStatus }}">
                 @endif
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                     <div>
-                        <label class="block text-xs font-bold text-[#525252] mb-1.5">المراقب</label>
-                        <select name="observer" class="w-full rounded-lg border border-[#e6e9e1] bg-white py-2 px-3 text-sm text-ink-800 focus:border-[#0e6a38] focus:ring-2 focus:ring-[#0e6a38]/10 outline-none transition">
-                            <option value="">الكل</option>
-                            @foreach($observers as $obs)
-                                <option value="{{ $obs->id }}" {{ request('observer') == $obs->id ? 'selected' : '' }}>{{ $obs->name }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-[#525252] mb-1.5">ترتيب حسب</label>
-                        <select name="sort" class="w-full rounded-lg border border-[#e6e9e1] bg-white py-2 px-3 text-sm text-ink-800 focus:border-[#0e6a38] focus:ring-2 focus:ring-[#0e6a38]/10 outline-none transition">
-                            <option value="" {{ !request('sort') ? 'selected' : '' }}>الأحدث</option>
-                            <option value="observer" {{ request('sort')=='observer' ? 'selected' : '' }}>المراقب (أ-ي)</option>
-                        </select>
-                    </div>
-                    <div>
                         <label class="block text-xs font-bold text-[#525252] mb-1.5">تاريخ الرصد</label>
                         <input type="date" name="date" value="{{ request('date') }}" class="w-full rounded-lg border border-[#e6e9e1] bg-white py-2 px-3 text-sm text-ink-800 focus:border-[#0e6a38] focus:ring-2 focus:ring-[#0e6a38]/10 outline-none transition">
                     </div>
-                </div>
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-3">
                     <div>
                         <label class="block text-xs font-bold text-[#525252] mb-1.5">رقم الطابق</label>
                         <input type="number" name="floor_number" value="{{ request('floor_number') }}" min="1" placeholder="مثال: 3" class="w-full rounded-lg border border-[#e6e9e1] bg-white py-2 px-3 text-sm text-ink-800 placeholder:text-ink-300 focus:border-[#0e6a38] focus:ring-2 focus:ring-[#0e6a38]/10 outline-none transition">
@@ -122,12 +89,13 @@
                         <label class="block text-xs font-bold text-[#525252] mb-1.5">رقم الكاميرا</label>
                         <input type="number" name="camera_number" value="{{ request('camera_number') }}" min="1" placeholder="مثال: 12" class="w-full rounded-lg border border-[#e6e9e1] bg-white py-2 px-3 text-sm text-ink-800 placeholder:text-ink-300 focus:border-[#0e6a38] focus:ring-2 focus:ring-[#0e6a38]/10 outline-none transition">
                     </div>
-                    <div class="flex gap-2 items-end">
+                </div>
+                <div class="flex gap-2 items-end mt-3">
                         <button type="submit" class="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg bg-[#0e6a38] hover:bg-[#0a4d28] text-white font-bold text-sm py-2 transition">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
                             تطبيق
                         </button>
-                        <a href="{{ route('notes.index', request()->has('status') ? ['status' => request('status')] : []) }}" class="inline-flex items-center justify-center px-3 py-2 rounded-lg border border-[#e6e9e1] text-[#737373] font-medium text-sm hover:bg-[#f5f7f5] transition">مسح</a>
+                        <a href="{{ route('notes.my', request()->has('status') ? ['status' => request('status')] : []) }}" class="inline-flex items-center justify-center px-3 py-2 rounded-lg border border-[#e6e9e1] text-[#737373] font-medium text-sm hover:bg-[#f5f7f5] transition">مسح</a>
                     </div>
                 </div>
             </form>
@@ -153,7 +121,7 @@
         </p>
         <div class="mt-5 flex items-center justify-center gap-2">
             @if(request()->hasAny(['date','floor_number','camera_number']))
-                <a href="{{ route('notes.index', request()->has('status') ? ['status' => request('status')] : []) }}" class="px-4 py-2 rounded-lg border border-[#e6e9e1] text-[#525252] font-medium text-sm hover:bg-[#f5f7f5] transition">مسح الفلاتر</a>
+                <a href="{{ route('notes.my', request()->has('status') ? ['status' => request('status')] : []) }}" class="px-4 py-2 rounded-lg border border-[#e6e9e1] text-[#525252] font-medium text-sm hover:bg-[#f5f7f5] transition">مسح الفلاتر</a>
             @endif
             @if($isMonitor)
                 <a href="{{ route('notes.create') }}" class="px-4 py-2 rounded-lg bg-[#0e6a38] text-white font-bold text-sm hover:bg-[#0a4d28] transition">+ ملاحظة جديدة</a>
@@ -942,30 +910,39 @@ document.querySelectorAll('form[data-ajax]').forEach(form => {
             });
             const data = await res.json();
             if (res.ok && data.success) {
-                // Update badge in-place
+                // الحالة الجديدة — من الجذر أو من data (توافق)
+                const newStatus = data.status || (data.data && data.data.status);
                 const noteId = this.dataset.noteId;
-                const card = document.querySelector('[data-note-id="'+noteId+'"]');
-                if (card && data.status) {
+                // البطاقة الحاوية: ليست الفورم نفسه (الفورم يحمل data-note-id أيضاً)
+                let card = this.closest('[data-note-card]');
+                if (!card && noteId) {
+                    const candidates = Array.from(document.querySelectorAll('[data-note-id="'+noteId+'"]'));
+                    card = candidates.find(el => el !== this && (el.querySelector('.note-badge') || el.querySelector('.note-actions'))) || null;
+                }
+                let updated = false;
+                if (card && newStatus) {
                     const statusMap = { draft:'مسودة', pending:'قيد المراجعة', accepted:'مقبولة', rejected:'مرفوضة' };
                     const clsMap = { draft:'bg-ink-100 text-ink-500 border-[#e6e9e1]', pending:'bg-amber-50 text-amber-700 border-amber-200', accepted:'bg-[#eef4f0] text-[#0e6a38] border-[#cde7d6]', rejected:'bg-red-50 text-red-700 border-red-200' };
                     const dotMap = { draft:'bg-ink-300', pending:'bg-amber-400', accepted:'bg-[#0e6a38]', rejected:'bg-red-400' };
                     const badge = card.querySelector('.note-badge');
-                    if (badge) {
-                        badge.className = 'note-badge inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold border ' + clsMap[data.status];
-                        badge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full ' + dotMap[data.status] + (data.status==='pending'?' animate-pulse':'') + '"></span>' + statusMap[data.status];
+                    if (badge && clsMap[newStatus]) {
+                        badge.className = 'note-badge inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold border ' + clsMap[newStatus];
+                        badge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full ' + dotMap[newStatus] + (newStatus==='pending'?' animate-pulse':'') + '"></span>' + statusMap[newStatus];
+                        updated = true;
                     }
                     // Show/hide action buttons
                     const actionsEl = card.querySelector('.note-actions');
                     if (actionsEl) {
                         let newActions = '';
-                        if (data.status === 'pending') {
+                        if (newStatus === 'pending') {
                             newActions = '<a href="/notes/'+noteId+'/edit" class="px-2.5 py-1 rounded-lg bg-[#fdfcfa] border border-[#e6e9e1] text-[#525252] text-xs font-bold">تعديل</a>';
-                        } else if (data.status === 'accepted') {
+                        } else if (newStatus === 'accepted') {
                             newActions = '<span class="text-[11px] text-[#0e6a38] font-bold">مقبولة</span>';
-                        } else if (data.status === 'rejected') {
+                        } else if (newStatus === 'rejected') {
                             newActions = '<a href="/notes/'+noteId+'/edit" class="px-2.5 py-1 rounded-lg bg-ink-800 text-white text-xs font-bold">تصحيح</a>';
                         }
                         actionsEl.innerHTML = newActions;
+                        updated = true;
                     }
                 }
                 if (data.deleted && card) {
@@ -973,7 +950,10 @@ document.querySelectorAll('form[data-ajax]').forEach(form => {
                     card.style.opacity = '0';
                     card.style.transform = 'translateX(20px)';
                     setTimeout(() => card.remove(), 250);
+                    updated = true;
                 }
+                // لا عناصر قابلة للتحديث الموضعي (الصفوف الحالية بلا note-badge) — حدّث الصفحة لإظهار الحالة الجديدة بدل التعليق
+                if (!updated) { location.reload(); return; }
             } else {
                 alert(data.message || 'حدث خطأ');
                 if (btn) { btn.disabled = false; btn.innerHTML = origHtml; }

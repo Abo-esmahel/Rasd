@@ -336,14 +336,14 @@
         for(const file of newFiles){
             if(fileTransfer.files.length>=50){ alert('الحد الأقصى 50 ملف'); break; }
             const ext=file.name.split('.').pop().toLowerCase();
-            const audioExts=['mp3','wav','ogg','m4a','aac','wma','flac','opus'];
+            const audioExts=['mp3','wav','ogg','oga','m4a','aac','wma','flac','opus','aiff','aif','amr','3ga','awb','mid','midi','au','weba'];
             const isAudio=audioExts.includes(ext)||file.type.startsWith('audio/');
             if(!['jpg','jpeg','png','webp','mp4','webm','mov','avi','3gp','mkv','m4v','mpg','3gpp'].includes(ext) && !file.type.startsWith('image/') && !file.type.startsWith('video/') && !isAudio){
                 alert('نوع غير مدعوم: '+file.name); continue;
             }
             if(file.type.startsWith('image/') && file.size>5*1024*1024){ alert('حجم الصورة كبير (الحد 5MB): '+file.name); continue; }
             if(file.type.startsWith('video/') && file.size>30*1024*1024){ alert('حجم الفيديو كبير (الحد 30MB): '+file.name); continue; }
-            if(isAudio && file.size>10*1024*1024){ alert('حجم الصوت كبير (الحد 10MB): '+file.name); continue; }
+            if(isAudio && file.size>100*1024*1024){ alert('حجم الصوت كبير (الحد 100MB): '+file.name); continue; }
             fileTransfer.items.add(file);
         }
         syncInput(); renderFiles();

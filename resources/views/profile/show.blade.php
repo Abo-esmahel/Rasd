@@ -166,7 +166,9 @@
                 </div>
 
                 <div class="flex gap-2 pt-2">
-                    <a href="{{ route('profile.edit') }}" class="px-5 py-2.5 rounded-xl text-white font-bold text-sm transition shadow-sm" style="background-color:#1f6f4a">تعديل الملف</a>
+                    @if($isOwn ?? true)
+                        <a href="{{ route('profile.edit') }}" class="px-5 py-2.5 rounded-xl text-white font-bold text-sm transition shadow-sm" style="background-color:#1f6f4a">تعديل الملف</a>
+                    @endif
                     <a href="{{ route('notes.index') }}" class="px-5 py-2.5 rounded-xl border border-surface-300 bg-white text-ink-500 font-medium text-sm hover:bg-surface-100 transition">العودة للملاحظات</a>
                 </div>
             </div>

@@ -59,18 +59,11 @@ class User extends Authenticatable
 
     public function getAvatarUrlAttribute(): ?string
     {
-        if ($this->avatar_path) {
-            // نسبي ليشتغل على localhost وعلى IP الشبكة (0.0.0.0) بدون مشكلة
-            $url = '/storage/' . ltrim($this->avatar_path, '/');
-            try {
-                $path = \Illuminate\Support\Facades\Storage::disk('public')->path($this->avatar_path);
-                if (file_exists($path)) {
-                    $url .= '?v=' . filemtime($path);
-                }
-            } catch (\Throwable $e) {}
-            return $url;
+        if (!$this->avatar_path) {
+            return null;
         }
-        return null;
+        // Cloudinary فقط — كل الوسائط سحابية حسب سياسة المشروع
+        return \Illuminate\Support\Facades\Storage::disk('cloudinary')->url($this->avatar_path);
     }
 
     public function getInitialAttribute(): string

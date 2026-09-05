@@ -1,4 +1,4 @@
-const CACHE_STATIC = 'rasd-static-v2';
+const CACHE_STATIC = 'rasd-static-v3';
 const CACHE_API = 'rasd-api-v1';
 const STATIC_ASSETS = [
   '/pwa/',
@@ -32,10 +32,12 @@ self.addEventListener('fetch', e => {
 
   if (url.pathname.startsWith('/api/')) {
     // API: network-first with cache fallback
+    // المرفقات (/api/attachments) ثنائية من Cloudinary — لا تُحفظ على الجهاز أبدًا (network فقط)
+    const isAttachment = url.pathname.startsWith('/api/attachments');
     if (e.request.method === 'GET') {
       e.respondWith(
         fetch(e.request).then(resp => {
-          if (resp.ok) {
+          if (resp.ok && !isAttachment) {
             const clone = resp.clone();
             caches.open(CACHE_API).then(c => c.put(e.request, clone));
           }
@@ -56,7 +58,11 @@ self.addEventListener('fetch', e => {
       );
     }
   } else {
-    // Static: cache-first
+    // Static: cache-first — باستثناء المرفقات (/attachments) فهي من Cloudinary ولا تُحفظ على الجهاز
+    if (url.pathname.startsWith('/attachments/')) {
+      e.respondWith(fetch(e.request));
+      return;
+    }
     e.respondWith(
       caches.match(e.request).then(r => {
         if (r) return r;

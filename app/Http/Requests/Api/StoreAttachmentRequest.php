@@ -23,7 +23,7 @@ class StoreAttachmentRequest extends FormRequest
                 'required',
                 'file',
                 'max:' . $maxSize,
-                'mimes:jpg,jpeg,png,webp,mp4,webm,mov,avi,3gp,mkv,m4v,mp3,wav,ogg,m4a,aac,wma,flac,opus',
+                'mimes:jpg,jpeg,png,webp,mp4,webm,mov,avi,3gp,mkv,m4v,mp3,wav,ogg,oga,m4a,aac,wma,flac,opus,aiff,aif,amr,3ga,awb,mid,midi,au,weba',
             ],
         ];
     }

@@ -5,8 +5,6 @@ namespace Database\Factories;
 use App\Models\Attachment;
 use App\Models\Note;
 use Illuminate\Database\Eloquent\Factories\Factory;
-use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Storage;
 
 class AttachmentFactory extends Factory
 {
@@ -16,7 +14,8 @@ class AttachmentFactory extends Factory
     {
         return [
             'note_id' => Note::factory(),
-            'file_path' => 'notes/1/' . fake()->uuid() . '.jpg',
+            // صيغة Cloudinary: public_id بدون امتداد (resource_type=auto) — مطابقة لـ NoteService::addAttachment
+            'file_path' => 'notes/1/'.fake()->uuid(),
             'original_name' => fake()->word() . '.jpg',
             'mime_type' => 'image/jpeg',
             'file_size' => fake()->numberBetween(10000, 5000000),
