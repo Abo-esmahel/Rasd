@@ -1,5 +1,8 @@
 # نظام ملاحظات كاميرات المراقبة — جهة حكومية
 
+> **إعلان — وثائق A4 بمعايير النشر الاحترافي**
+> لم يعد إخراج التقارير مجرد طباعة صور. النظام الآن يبني **صفحة A4 تحريرية متكاملة** — صور ووصف وهيكلة بصرية — كما يصممها مصمم نشر محترف، لا كشبكة مربعات آلية.
+
 > **نظام داخلي** لتسجيل ومتابعة ملاحظات مراقبة الكاميرات — واجهة ويب عربية RTL + واجهة برمجة تطبيقات REST لتطبيق Flutter + تطبيق PWA
 
 > **قبل تعديل المشروع اقرأ مجلد `/docs` أولاً:** `SYSTEM.md` · `ARCHITECTURE.md` · `DATABASE.md` · `API.md` · `WORKFLOW.md` · `DEVELOPMENT.md`
@@ -17,6 +20,68 @@
 *   **الويب:** Blade + Tailwind + واجهة RTL قابلة للتثبيت كـ PWA
 *   **API:** نفس المنطق عبر `NoteService` + `NotePolicy` مع مصادقة JWT مخصصة
 *   **التخزين:** قرص خاص `private` غير مكشوف عبر `/storage`
+
+---
+
+## 🖨️ إعلان — نظام الطباعة الاحترافي الجديد
+
+### لماذا الطباعة مختلفة الآن؟
+
+الطباعة التقليدية تضع الصور في شبكة ثابتة `50/50` أو `2×2` ثم تلصق الوصف أسفلها. النتيجة: فراغات ضخمة، صور مقصوصة، وصف منفصل بصريًا، ووثيقة تبدو مولدة آليًا.
+
+**نظام RASD الجديد هو محرك تكوين بصري تحريري (Editorial Visual Composition Engine v4.2)** — يفكر كـ **مصمم مطبوعات**، لا كـ خوارزمية تعبئة مستطيلات.
+
+#### المحرك — مرحلتان
+
+```
+الصور + الوصف + A4
+        ↓
+[1] توليد تكوينات تحريرية ذات معنى (Hero, Stack, Mosaic)
+        ↓
+[2] تحسين هندسي مستمر (نسب 0.02mm + Gap 3mm + وزن بصري)
+        ↓
+وثيقة A4 واحدة متكاملة
+```
+
+**الوصف ليس صندوقًا يُضاف بعد الصور.** يُحسب أولاً `estimateDescriptionMetrics()` (خط 8.2pt / ارتفاع سطر 1.45 / حشوة 3.5mm / عدد الأسطر الحقيقي) ثم `imageAreaH = innerH - descH - gap` — الصور والوصف وحدة واحدة.
+
+#### ماذا ترى في كل حالة؟
+
+| العدد | التكوين التحريري | كيف يوزع المساحة | الميزة |
+|------|-----------------|------------------|--------|
+| **N=1** | `HERO-FILL` | صورة واحدة تملأ `innerW × imageAreaH` كاملة بأكبر تغطية `coverage >0.70` | صورة تقرير مهيمنة، لا فراغ مهدور |
+| **N=2** | `FULL-WIDTH VERTICAL STACK` | صورتان فوق بعضهما بعرض كامل `198mm`، ارتفاع ديناميكي `35/65 → 65/35` حسب `Aspect Ratio + الدقة + الوزن البصري + مساحة الوصف` (مثال `56/44` للوزن المختلف، `50/50` للمتشابه) — ممنوع `side-by-side` أو `Grid` | صفحة تقرير رسمية متماسكة، لا مربعان متساويان قسرًا |
+| **N=3** | `HERO + STACKED PAIR` | `Hero 62-68% عرض (افتراضي 0.64)` يسارًا + عمود ثانوي `32-38%` يضم صورتين مكدستين عموديًا `gap 3mm` — بطل واضح + ثانويتان داعمتان | هرمية بصرية واضحة، لا `3 أعمدة` ولا `3 cards` |
+| **N=4** | `HERO + THREE SUPPORT` | `Hero 58-68% عرض (افتراضي 0.64)` يسارًا + 3 صور مكدسة يمينًا `secH=(area.h-2*gap)/3` مع حد أدنى `32mm` لكل صورة — بديل وحيد `Hero Top + 2 +1` عند الضرورة فقط | 4 صور لا تصبح 4 وحدات متساوية `2×2` — القارئ يرى `معلومة أساسية + 3 معلومات داعمة` فورًا |
+| **N=5** | `HERO + 4 GRID` | Hero علوي `30-40%` ارتفاع + 4 صور `2×2` أسفله | تغطية `0.91` مع الحفاظ على القراءة |
+
+#### ضمانات بصرية
+
+* **100% بدون Crop** — `object-fit: fill` مع كلفة `aspectCost = log(tr/sr)²` — تشويه صغير رخيص، كبير مكلف جدًا
+* **استغلال كامل العرض** — `x=margin, width=innerW` — ممنوع `198→180mm` من optimizer
+* **لا تدوير إنقاذي** — `rotation=0` لـ N=2/3/4 — لا تقلب الصورة 90° لمجرد تحسين رقم
+* **Gap موحد 3mm** — يشعر أن الصور قطعة واحدة، لا عناصر منفصلة
+* **حواف متراصفة** — `Hero left edge = Secondary edge = Description edge = Page edge`
+* **RTL كامل** — `html dir="rtl" lang="ar"` + `body direction:rtl` + `description direction:rtl; text-align:right; unicode-bidi:plaintext` — يحافظ على `Camera 12` و `10:35 PM` و `192.168.1.10` دون انقلاب، ويظهر صحيحًا في **Windows Print Preview** (المستند المعزول `window.open` كان `LTR` سابقًا)
+* **هندسة واحدة مصدر الحقيقة** — `Engine → layout {x,y,width,height} mm → DOM absolute mm` — لا يعيد CSS تحديد المكان
+* **نافذة طباعة معزولة** — `#printable-a4-doc` مصدر وحيد، `A4 210×297` ثابت `overflow:visible`، لا `height:auto` ولا `display:flex/grid` ولا `aspect-ratio:4/3` — نفس الهندسة في `Website Preview = Browser Preview = Windows Preview = PDF`
+
+#### مثال حي — N=2
+
+```
+قبل:  [ IMG 1 | IMG 2 ] + صندوق وصف منفصل
+بعد:  ┌─────────────────────┐
+      │      IMAGE 1        │  ← ارتفاع 56% حسب الوزن
+      ├─────────────────────┤
+      │      IMAGE 2        │  ← ارتفاع 44%
+      ├─────────────────────┤
+      │ DESCRIPTION         │  ← محسوب من البداية، مندمج
+      └─────────────────────┘
+```
+
+وثيقة N=2, N=3, N=4 الآن تبدو **صفحة تقرير صممها إنسان**، لا شبكة.
+
+> **الإصدار الحالي:** `EDITORIAL-v4.2-N3-N4-2026-09-06` — يُعرض في Console و `window.__PRINT_LAYOUT_ENGINE_VERSION__`
 
 ---
 
@@ -45,6 +110,7 @@
 *   **Auth:** Web `session + CSRF` — API `JwtService + Cache blacklist`
 *   **Build:** `Vite` (اختياري)، `Composer scripts: setup/dev/test`
 *   **Tests:** `PHPUnit 12` — `63` اختبار
+*   **Print Engine:** `public/pwa/js/print-layout-engine.js` — Editorial v4.2 — `210×297mm` — `mm` مطلق
 
 ---
 
@@ -151,6 +217,17 @@ draft ──(إرسال: مالك فقط)──→ pending ──(قبول: كا
     *   `GET /attachments/{id}/download` (attachment) — **كاتب التقارير فقط**
     *   `GET /api/attachments/{id}` — API بنفس القواعد
 *   **التسجيل الصوتي:** `MediaRecorder` مع اختيار `audio/webm;codecs=opus → audio/webm → audio/ogg...` — `Blob` في RAM + `URL.createObjectURL` للمعاينة + تنظيف `revokeObjectURL` + `stream.getTracks().stop()` — لا يُحفظ على الجهاز
+
+---
+
+## 🖨️ تفاصيل الطباعة للمطورين
+
+*   **المحرك:** `public/pwa/js/print-layout-engine.js` — `PrintLayoutEngine.layout(images, description, paper, opts)` → `{paper, images:[{x,y,width,height,rotation}], description, metrics}`
+*   **الوحدات:** `mm` مطلق، `EPS 1e-7` للحدود المشتركة، `210×297` مع هوامش `6mm`
+*   **الوصف:** `estimateDescriptionMetrics()` يحسب الارتفاع الحقيقي ثم `descH = min(height, innerH*0.35-0.40)` قبل توزيع الصور — لا `append` منفصل
+*   **الطباعة:** `resources/views/notes/partials/print_modal.blade.php` — معاينة `a4-preview-sheet scale(0.92)` + طباعة معزولة `window.open` بـ `html dir="rtl"` — `#printable-a4-doc` مصدر وحيد، `position:absolute left/top/width/height mm`، `overflow:visible`, `display:block`
+*   **RTL:** `unicode-bidi: plaintext` على وصف الطباعة يحافظ على `Camera 12` و `192.168.1.10` دون انقلاب
+*   **الاختبار:** `node public/pwa/js/print-layout-engine.js` → `17/17 passed` — يختبر `N=1..5` + `extreme` + `RTL`
 
 ---
 
@@ -324,9 +401,9 @@ app/Models/{User, Note, Attachment}.php
 app/Support/SyrianPhone.php
 config/{jwt, attachments, filesystems}.php
 database/{migrations,factories,seeders}
-resources/views/{layouts/app, auth/login, notes/{index,my,create,edit}, profile/*}
+resources/views/{layouts/app, auth/login, notes/{index,my,create,edit}, profile/*, notes/partials/print_modal.blade.php}
 routes/{web,api}.php
-public/pwa/{manifest.json, sw.js, index.html, js/*, css/*, icons/*}
+public/pwa/{manifest.json, sw.js, index.html, js/print-layout-engine.js, js/*, css/*, icons/*}
 tests/Feature/{Api/*, Web/*}
 docs/{SYSTEM,ARCHITECTURE,DATABASE,API,WORKFLOW,DEVELOPMENT}.md
 ```
