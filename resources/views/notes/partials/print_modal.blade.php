@@ -924,8 +924,8 @@ function buildA4PageHtml(note, pageItems, pageIndex, totalPages, isLastPage) {
                     // For multi-page, only last page has description, so imageArea is full for non-last pages
                     // Add data-engine attributes for forensic tracker + class for selector
                     return `<div data-print-image="${r.id}" data-engine-x="${r.x}" data-engine-y="${r.y}" data-engine-w="${r.width}" data-engine-h="${r.height}" style="position:absolute; left:${r.x}mm; top:${r.y}mm; width:${r.width}mm; height:${r.height}mm; overflow:hidden; background:white; border:0.3mm solid #e5e7eb; border-radius:1.5mm; box-sizing:border-box;">
-                        <img src="${it.src}" style="position:absolute; left:0; top:0; width:100%; height:100%; object-fit:fill; display:block;" loading="eager" decoding="sync" />
-                        ${it.isVideo?`<div style="position:absolute; bottom:2mm; right:2mm; background:rgba(14,106,56,0.9); color:white; font-size:2.5mm; padding:0.8mm 2mm; border-radius:1.5mm; display:flex; gap:1mm; align-items:center;"><svg width="3mm" height="3mm" fill="white" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg><span>إطار من فيديو</span></div>`:''}
+                        <img src="${it.src}" style="position:absolute; left:0; top:0; width:100%; height:100%; object-fit:contain; display:block; background:white;" loading="eager" decoding="sync" />
+                        ${it.isVideo?`<div style="position:absolute; bottom:2mm; right:2mm; background:#0e6a38 !important; color:#ffffff !important; font-size:3mm; font-weight:700; padding:1mm 2.5mm; border-radius:1.5mm; border:0.2mm solid white; display:flex; gap:1.2mm; align-items:center; box-shadow:0 0.8mm 2mm rgba(0,0,0,0.35); z-index:10; -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important;"><svg width="3.2mm" height="3.2mm" fill="white" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg><span>إطار من فيديو</span></div>`:''}
                     </div>`;
                 }).join('');
                 // If not last page, we don't want description overlapping, so clear description
