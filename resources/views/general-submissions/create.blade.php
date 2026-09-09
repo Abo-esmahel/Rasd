@@ -18,7 +18,7 @@
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                     <label class="block text-sm font-bold text-ink-700 mb-1.5">رقم الطابق <span class="text-red-500">*</span></label>
-                    <input type="number" name="floor_number" value="{{ old('floor_number') }}" min="1" required class="block w-full rounded-xl border border-[#e6e9e1] bg-white py-3 px-4 text-sm focus:border-[#0e6a38] focus:ring-2 focus:ring-[#0e6a38]/10 outline-none @error('floor_number') border-red-400 @enderror">
+                    <input type="number" name="floor_number" value="{{ old('floor_number') }}" min="0" required class="block w-full rounded-xl border border-[#e6e9e1] bg-white py-3 px-4 text-sm focus:border-[#0e6a38] focus:ring-2 focus:ring-[#0e6a38]/10 outline-none @error('floor_number') border-red-400 @enderror">
                     @error('floor_number') <p class="text-xs text-red-500 mt-1">{{ $message }}</p> @enderror
                 </div>
                 <div>

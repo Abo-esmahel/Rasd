@@ -62,11 +62,11 @@ class NoteService
             $msg = $filesReceived === 0
                 ? "تم إعلان {$clientFilesCount} ملف لكن لم يصل أي مرفق إلى الخادم. يرجى إعادة رفع الملف."
                 : "وصل {$filesReceived} من أصل {$clientFilesCount} ملف معلن فقط. أعد إرسال الملفات الناقصة.";
-            Log::warning('[ATTACHMENT] transport loss before create', [
+            Log::warning('[ATTACHMENT] transport loss before create', array_merge([
                 'user_id' => $user->id,
                 'client_files_count' => $clientFilesCount,
                 'files_received' => $filesReceived,
-            ]);
+            ], $this->transportForensics()));
 
             throw new AttachmentUploadException(
                 $msg,
@@ -202,6 +202,12 @@ class NoteService
             $msg = $filesReceived === 0
                 ? "تم إعلان {$clientFilesCount} ملف لكن لم يصل أي مرفق إلى الخادم."
                 : "وصل {$filesReceived} من أصل {$clientFilesCount} ملف معلن فقط.";
+            Log::warning('[ATTACHMENT] transport loss before update', array_merge([
+                'user_id' => $user->id,
+                'note_id' => $note->id,
+                'client_files_count' => $clientFilesCount,
+                'files_received' => $filesReceived,
+            ], $this->transportForensics()));
             throw new AttachmentUploadException(
                 $msg,
                 stage: 'transport_loss',
@@ -494,8 +500,11 @@ class NoteService
         if ($note->user_id !== $user->id) {
             throw new InvalidArgumentException('غير مصرح لك بإضافة مرفقات لهذه الملاحظة');
         }
+        if ($note->isRejected()) {
+            throw new InvalidArgumentException('لا يمكن تعديل مرفقات ملاحظة مرفوضة');
+        }
         if ($note->isAccepted() && $note->processed_by !== null && $note->processed_by !== $user->id) {
-            throw new InvalidArgumentException('لا يمكن تعديل مرفقات ملاحظة تمت مراجعتها من مستخدم آخر');
+            throw new InvalidArgumentException('لا يمكن تعديل مرفقات ملاحظة مقبولة اعتمدها غيرك');
         }
         $maxAttachments = (int) config('attachments.max_per_note', 5);
         if ($note->attachments()->count() >= $maxAttachments) {
@@ -580,8 +589,11 @@ class NoteService
         if ($note->user_id !== $user->id) {
             throw new InvalidArgumentException('غير مصرح لك بحذف هذا المرفق');
         }
+        if ($note->isRejected()) {
+            throw new InvalidArgumentException('لا يمكن حذف مرفقات ملاحظة مرفوضة');
+        }
         if ($note->isAccepted() && $note->processed_by !== null && $note->processed_by !== $user->id) {
-            throw new InvalidArgumentException('لا يمكن حذف مرفقات ملاحظة تمت مراجعتها من مستخدم آخر');
+            throw new InvalidArgumentException('لا يمكن حذف مرفقات ملاحظة مقبولة اعتمدها غيرك');
         }
         $isLocal = $this->storage->isLocal($attachment);
         $path = (string) $attachment->file_path;
@@ -606,15 +618,11 @@ class NoteService
     public function getVisibleNotesQuery(User $user)
     {
         $query = Note::with(['owner', 'attachments']);
-        // الخصوصية: الملاحظ يرى ملاحظاته فقط، كاتب التقرير يرى ملاحظاته + جميع غير المسودة
-        if ($user->isReportWriter()) {
-            $query->where(function ($q) use ($user) {
-                $q->where('user_id', $user->id)
-                    ->orWhere('status', '!=', Note::STATUS_DRAFT);
-            });
-        } else {
-            $query->where('user_id', $user->id);
-        }
+        // السياسة الجديدة: قيد المراجعة/مقبولة/مرفوضة مرئية للجميع، المسودة لصاحبها فقط
+        $query->where(function ($q) use ($user) {
+            $q->where('user_id', $user->id)
+                ->orWhere('status', '!=', Note::STATUS_DRAFT);
+        });
         return $query;
     }
 
@@ -650,6 +658,27 @@ class NoteService
             UPLOAD_ERR_EXTENSION => "رفض الخادم الملف {$safe} (إضافة PHP).",
             default => "تعذّر استلام الملف {$safe} (خطأ رفع {$code}).",
         };
+    }
+
+    /**
+     * Forensic snapshot for transport-loss diagnosis (limits, body size, files keys).
+     * Safe outside HTTP context (returns []).
+     */
+    private function transportForensics(): array
+    {
+        try {
+            $req = request();
+            return [
+                'content_length' => $req->server('CONTENT_LENGTH') ?? $req->header('Content-Length'),
+                'content_type_head' => substr((string) $req->header('Content-Type'), 0, 60),
+                'post_max_size' => ini_get('post_max_size'),
+                'upload_max_filesize' => ini_get('upload_max_filesize'),
+                'max_file_uploads' => ini_get('max_file_uploads'),
+                'files_keys' => array_keys($req->allFiles()),
+            ];
+        } catch (\Throwable $e) {
+            return [];
+        }
     }
 
     private function hasNotification(User $user, string $type, int $id, string $key = 'note_id', mixed $since = null): bool
@@ -718,18 +747,43 @@ class NoteService
                 }
             }
         }
+        // الحدود ديناميكية من config — رسائل الخطأ تعرض القيمة الفعلية (لا أرقام ثابتة مضللة)
         $maxImageSize = (int) config('attachments.max_image_size', 5120) * 1024;
         $maxVideoSize = (int) config('attachments.max_video_size', 30720) * 1024;
         $maxAudioSize = (int) config('attachments.max_audio_size', 100 * 1024 * 1024);
+        // احترام حد PHP الفعلي أيضاً (upload_max_filesize)
+        $phpMax = $this->parseBytes((string) ini_get('upload_max_filesize'));
+        if ($phpMax > 0) {
+            $maxImageSize = min($maxImageSize, $phpMax);
+            $maxVideoSize = min($maxVideoSize, $phpMax);
+            $maxAudioSize = min($maxAudioSize, $phpMax);
+        }
         $realMimeStr = (string) $realMime;
         if (str_starts_with($realMimeStr, 'image/') && $file->getSize() > $maxImageSize) {
-            throw new InvalidArgumentException('حجم الصورة يتجاوز الحد الأقصى المسموح (20MB)');
+            $mb = round($maxImageSize / 1024 / 1024, 1);
+            throw new InvalidArgumentException("حجم الصورة يتجاوز الحد الأقصى المسموح ({$mb}MB)");
         }
         if (str_starts_with($realMimeStr, 'video/') && $file->getSize() > $maxVideoSize) {
-            throw new InvalidArgumentException('حجم الفيديو يتجاوز الحد الأقصى المسموح (500MB)');
+            $mb = round($maxVideoSize / 1024 / 1024, 1);
+            throw new InvalidArgumentException("حجم الفيديو يتجاوز الحد الأقصى المسموح ({$mb}MB)");
         }
         if (str_starts_with($realMimeStr, 'audio/') && $file->getSize() > $maxAudioSize) {
-            throw new InvalidArgumentException('حجم الصوت يتجاوز الحد الأقصى المسموح (100MB)');
+            $mb = round($maxAudioSize / 1024 / 1024, 1);
+            throw new InvalidArgumentException("حجم الصوت يتجاوز الحد الأقصى المسموح ({$mb}MB)");
         }
+    }
+
+    private function parseBytes(string $value): int
+    {
+        $value = trim($value);
+        if ($value === '' || $value === '-1') return 0;
+        $unit = strtolower(substr($value, -1));
+        $number = (float) $value;
+        return (int) match ($unit) {
+            'g' => $number * 1024 * 1024 * 1024,
+            'm' => $number * 1024 * 1024,
+            'k' => $number * 1024,
+            default => $number,
+        };
     }
 }

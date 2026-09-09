@@ -36,7 +36,7 @@ class VisibilityTest extends TestCase
         $this->assertNotContains($draft->id, $ids);
     }
 
-    public function test_monitor_cannot_see_other_monitors_pending_notes(): void
+    public function test_monitor_can_see_other_monitors_pending_notes(): void
     {
         $monitor1 = User::factory()->monitor()->create();
         $monitor2 = User::factory()->monitor()->create();
@@ -49,10 +49,10 @@ class VisibilityTest extends TestCase
 
         $response->assertOk();
         $ids = collect($response->json('data.data'))->pluck('id');
-        $this->assertNotContains($pending->id, $ids);
+        $this->assertContains($pending->id, $ids);
     }
 
-    public function test_monitor_cannot_see_other_monitors_accepted_notes(): void
+    public function test_monitor_can_see_other_monitors_accepted_notes(): void
     {
         $monitor1 = User::factory()->monitor()->create();
         $monitor2 = User::factory()->monitor()->create();
@@ -65,10 +65,10 @@ class VisibilityTest extends TestCase
 
         $response->assertOk();
         $ids = collect($response->json('data.data'))->pluck('id');
-        $this->assertNotContains($accepted->id, $ids);
+        $this->assertContains($accepted->id, $ids);
     }
 
-    public function test_monitor_cannot_see_other_monitors_rejected_notes(): void
+    public function test_monitor_can_see_other_monitors_rejected_notes(): void
     {
         $monitor1 = User::factory()->monitor()->create();
         $monitor2 = User::factory()->monitor()->create();
@@ -81,7 +81,7 @@ class VisibilityTest extends TestCase
 
         $response->assertOk();
         $ids = collect($response->json('data.data'))->pluck('id');
-        $this->assertNotContains($rejected->id, $ids);
+        $this->assertContains($rejected->id, $ids);
     }
 
     public function test_monitor_can_see_own_drafts(): void

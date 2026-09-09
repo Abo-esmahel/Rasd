@@ -278,7 +278,7 @@ function renderNotes(container) {
       <div class="filter-row">
         <select class="input" id="filter-floor" style="max-width:120px;padding:8px 32px 8px 12px;font-size:12px">
           <option value="">الطابق</option>
-          ${[1,2,3,4,5,6,7,8,9,10].map(f => `<option value="${f}">${f}</option>`).join('')}
+          ${[0,1,2,3,4,5,6,7,8,9,10].map(f => `<option value="${f}">${f}</option>`).join('')}
         </select>
         <select class="input" id="filter-camera" style="max-width:120px;padding:8px 32px 8px 12px;font-size:12px">
           <option value="">الكاميرا</option>
@@ -364,7 +364,7 @@ function renderCreate(container) {
               <label>رقم الطابق <span class="required">*</span></label>
               <select class="input" name="floor_number" required>
                 <option value="">اختر الطابق</option>
-                ${[1,2,3,4,5,6,7,8,9,10].map(f => `<option value="${f}">${f}</option>`).join('')}
+                ${[0,1,2,3,4,5,6,7,8,9,10].map(f => `<option value="${f}">${f}</option>`).join('')}
               </select>
             </div>
             <div class="input-group">
@@ -432,9 +432,9 @@ function renderCreate(container) {
                   الكاميرا
                 </button>
               </div>
-              <input type="file" id="cr-files" multiple accept="image/jpeg,image/png,image/webp,video/mp4" style="display:none">
+              <input type="file" id="cr-files" multiple accept="image/*,video/*,audio/*" style="display:none">
               <input type="file" id="cr-camera" accept="image/*" style="display:none">
-              <div style="font-size:11px;color:var(--ink-300);margin-top:6px">JPG, PNG, WEBP, MP4 — حتى 50 ملف</div>
+              <div style="font-size:11px;color:var(--ink-300);margin-top:6px">صور/فيديو/صوت — حتى 10 ملفات (20MB صورة، 100MB فيديو/صوت)</div>
               <div class="file-list" id="cr-file-list"></div>
             </div>
           </div>
@@ -459,7 +459,7 @@ function renderCreate(container) {
     const d = dateEl.value, t = timeEl.value, e = endEl.value;
     if (d && t) {
       const dt = new Date(d + 'T' + t);
-      let txt = dt.toLocaleDateString('ar-EG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+      let txt = dt.toLocaleDateString('ar-EG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true });
       if (e) txt += ' — ' + e;
       previewEl.textContent = txt;
     } else { previewEl.textContent = '— اختر الوقت —'; }
@@ -581,7 +581,7 @@ async function renderEdit(container, noteId) {
               <div class="input-group">
                 <label>رقم الطابق <span class="required">*</span></label>
                 <select class="input" name="floor_number" required>
-                  ${[1,2,3,4,5,6,7,8,9,10].map(f => `<option value="${f}" ${note.floor_number == f ? 'selected' : ''}>${f}</option>`).join('')}
+                  ${[0,1,2,3,4,5,6,7,8,9,10].map(f => `<option value="${f}" ${note.floor_number == f ? 'selected' : ''}>${f}</option>`).join('')}
                 </select>
               </div>
               <div class="input-group">
@@ -653,7 +653,7 @@ async function renderEdit(container, noteId) {
                   <label class="file-zone-btn" for="ed-files">اختيار ملفات</label>
                   <button type="button" class="file-zone-btn" id="ed-camera-btn" style="background:var(--ink-600)">الكاميرا</button>
                 </div>
-              <input type="file" id="ed-files" multiple accept="image/jpeg,image/png,image/webp,video/mp4" style="display:none">
+              <input type="file" id="ed-files" multiple accept="image/*,video/*,audio/*" style="display:none">
               <input type="file" id="ed-camera" accept="image/*" style="display:none">
                 <div class="file-list" id="ed-file-list"></div>
               </div>
@@ -676,7 +676,7 @@ async function renderEdit(container, noteId) {
       const d = dateEl.value, t = timeEl.value, e = endEl.value;
       if (d && t) {
         const dt2 = new Date(d + 'T' + t);
-        let txt = dt2.toLocaleDateString('ar-EG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+        let txt = dt2.toLocaleDateString('ar-EG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true });
         if (e) txt += ' — ' + e;
         previewEl.textContent = txt;
       }

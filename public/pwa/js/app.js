@@ -8,13 +8,15 @@ const App = {
     this.container = document.getElementById('screen-container');
     window.addEventListener('hashchange', () => this.route());
     window.addEventListener('popstate', (e) => this.handleBack(e));
+    // PWA install disabled - service worker not registered
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/pwa/sw.js').catch(() => {});
+      navigator.serviceWorker.getRegistrations().then(rs=>rs.forEach(r=>r.unregister()));
     }
     this.initTheme();
     await this.route();
     setTimeout(() => document.getElementById('splash')?.classList.add('hide'), 600);
     setTimeout(() => document.getElementById('splash')?.remove(), 1100);
+  },
   },
 
   navigate(screen, param, skipHistory = false) {
@@ -293,7 +295,7 @@ function formatDate(d) {
 
 function formatTime(d) {
   if (!d) return '—';
-  return new Date(d).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
+  return new Date(d).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit', hour12: true });
 }
 
 function timeRange(start, end) {
@@ -333,10 +335,10 @@ const PwaShare = {
     const statusLabel = isDraft ? 'مسودة' : isPending ? 'قيد المراجعة' : 'مقبولة';
     const dt = new Date(note.observed_at);
     const dateStr = dt.toLocaleDateString('ar-EG');
-    const timeStr = dt.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
+    const timeStr = dt.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit', hour12: true });
     let endStr = '';
     if (note.observed_end_at) {
-      endStr = ' — ' + new Date(note.observed_end_at).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
+      endStr = ' — ' + new Date(note.observed_end_at).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit', hour12: true });
     }
     const text = `الطابق: ${note.floor_number} — الكاميرا: ${note.camera_number}\nالملاحظة: ${dateStr} ${timeStr}${endStr}\n${note.description}`;
 

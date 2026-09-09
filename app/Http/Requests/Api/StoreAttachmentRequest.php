@@ -14,8 +14,8 @@ class StoreAttachmentRequest extends FormRequest
     public function rules(): array
     {
         $maxSize = max(
-            (int) config('attachments.max_image_size', 50120),
-            (int) config('attachments.max_video_size', 3990720)
+            (int) config('attachments.max_image_size', 20480),
+            (int) config('attachments.max_video_size', 102400)
         );
 
         return [
@@ -23,7 +23,7 @@ class StoreAttachmentRequest extends FormRequest
                 'required',
                 'file',
                 'max:' . $maxSize,
-                'mimes:jpg,jpeg,png,webp,mp4,webm,mov,avi,3gp,mkv,m4v,mp3,wav,ogg,oga,m4a,aac,wma,flac,opus,aiff,aif,amr,3ga,awb,mid,midi,au,weba',
+                'mimes:jpg,jpeg,png,webp,heic,heif,tiff,tif,bmp,avif,gif,svg,mp4,webm,mov,avi,3gp,3gpp,mkv,m4v,mpg,mpeg,wmv,flv,ogv,ts,mts,m2ts,vob,asf,m2v,3g2,f4v,m4p,mp3,wav,ogg,oga,m4a,aac,wma,flac,opus,aiff,aif,amr,3ga,awb,mid,midi,au,ra,weba,ac3,dts,alac',
             ],
         ];
     }

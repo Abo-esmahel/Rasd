@@ -75,6 +75,10 @@ class User extends Authenticatable
 
     public function getAvatarUrlAttribute(): ?string
     {
+        // Local avatar first (offline)
+        if ($this->avatar_path && \Illuminate\Support\Facades\Storage::disk('public')->exists($this->avatar_path)) {
+            return \Illuminate\Support\Facades\Storage::disk('public')->url($this->avatar_path);
+        }
         if ($this->avatar_secure_url) {
             return $this->avatar_secure_url;
         }

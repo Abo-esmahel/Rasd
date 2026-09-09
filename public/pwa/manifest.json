@@ -1,10 +1,10 @@
 {
-  "id": "/pwa/",
+  "id": "/",
   "name": "نظام ملاحظة كاميرات المراقبة",
   "short_name": "ملاحظة",
   "description": "تطبيق ملاحظة كاميرات المراقبة - وزارة الإعلام",
   "start_url": "/pwa/",
-  "scope": "/pwa/",
+  "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#f5f3ef",

@@ -1,4 +1,4 @@
-const CACHE_STATIC = 'rasd-static-v7';
+const CACHE_STATIC = 'rasd-static-v4';
 const CACHE_API = 'rasd-api-v1';
 const STATIC_ASSETS = [
   '/pwa/',

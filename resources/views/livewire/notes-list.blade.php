@@ -115,7 +115,7 @@
                         <span class="text-ink-200">·</span>
                         <span class="text-sm text-[#525252]">الطابق {{ $note->floor_number }}</span>
                         <span class="text-ink-200">·</span>
-                        <span class="text-sm text-[#737373]">{{ $note->observed_at->format('H:i') }}{{ $note->observed_end_at ? ' — '.$note->observed_end_at->format('H:i') : '' }}</span>
+                        <span class="text-sm text-[#737373]">{{ $note->observed_at->toTime12() }}{{ $note->observed_end_at ? ' — '.$note->observed_end_at->toTime12() : '' }}</span>
                         <span class="text-ink-200">·</span>
                         <span class="text-sm text-[#737373]">{{ $note->created_at->diffForHumans() }}</span>
                     </div>
@@ -201,7 +201,7 @@
                             <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-red-50 text-red-700 border border-red-200">مرفوضة</span>
                         @endif
                     </div>
-                    <span class="text-xs text-ink-300">{{ $note->observed_at->format('H:i') }}{{ $note->observed_end_at ? ' — '.$note->observed_end_at->format('H:i') : '' }}</span>
+                    <span class="text-xs text-ink-300">{{ $note->observed_at->toTime12() }}{{ $note->observed_end_at ? ' — '.$note->observed_end_at->toTime12() : '' }}</span>
                 </div>
                 <div class="flex items-center gap-2 text-sm text-ink-600 mb-1.5">
                     <span class="font-semibold">كاميرا {{ $note->camera_number }}</span>

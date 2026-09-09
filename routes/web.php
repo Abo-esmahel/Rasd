@@ -35,6 +35,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/notes/{note}/reject', [NoteController::class, 'reject'])->name('notes.reject');
     Route::post('/notes/{note}/resend', [NoteController::class, 'resend'])->name('notes.resend');
 
+    Route::post('/notes/{note}/attachments', [NoteController::class, 'storeAttachment'])->name('notes.attachments.store');
     Route::delete('/notes/{note}/attachments/{attachment}', [NoteController::class, 'destroyAttachment'])->name('notes.attachments.destroy');
     Route::get('/attachments/{attachment}/view', [NoteController::class, 'viewAttachment'])->name('notes.attachments.view');
     Route::get('/attachments/{attachment}/download', [NoteController::class, 'downloadAttachment'])->name('notes.attachments.download');

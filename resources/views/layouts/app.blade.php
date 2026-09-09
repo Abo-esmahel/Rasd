@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="color-scheme" content="light dark">
+    <!-- PWA disabled -->
+    <meta name="apple-mobile-web-app-capable" content="no">
+    <link rel="apple-touch-icon" href="/pwa/icons/icon-192.png">
     <script>(function(){try{var t=localStorage.getItem('theme')||localStorage.getItem('rasd_theme');if(t!=='light')document.documentElement.classList.add('dark');}catch(e){document.documentElement.classList.add('dark');}})();</script>
     <title>{{ $title ?? 'نظام ملاحظات كاميرات المراقبة' }} — وزارة الإعلام</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -152,9 +155,6 @@
                         <a href="{{ route('profile.show') }}" class="px-3 py-1.5 rounded-lg text-[13px] transition {{ request()->routeIs('profile.*') ? 'text-[#0e6a38] font-bold' : 'text-[#6b7a6e] hover:text-[#1a2e1f] font-medium' }}">
                             حسابي
                         </a>
-                        <a href="{{ route('pwa') }}" class="pwa-install-link px-3 py-1.5 rounded-lg text-[13px] font-bold text-[#0e6a38] hover:bg-[#f6f7f5] transition">
-                            📱 تطبيق الجوال
-                        </a>
                     </nav>
                 </div>
 
@@ -232,7 +232,6 @@
                     <a href="{{ route('general-submissions.index') }}" class="px-3 py-2.5 rounded-lg text-sm font-medium {{ request()->routeIs('general-submissions.*') ? 'bg-[#f6f7f5] text-[#0e6a38] font-bold' : 'text-[#4a5a4f]' }}">الإرسالات العامة</a>
                     <a href="{{ route('ranking') }}" class="px-3 py-2.5 rounded-lg text-sm font-medium {{ request()->routeIs('ranking') ? 'bg-[#f6f7f5] text-[#0e6a38] font-bold' : 'text-[#4a5a4f]' }}">الترتيب</a>
                     <a href="{{ route('profile.show') }}" class="px-3 py-2.5 rounded-lg text-sm font-medium {{ request()->routeIs('profile.*') ? 'bg-[#f6f7f5] text-[#0e6a38] font-bold' : 'text-[#4a5a4f]' }}">حسابي</a>
-                    <a href="{{ route('pwa') }}" class="pwa-install-link px-3 py-2.5 rounded-lg text-sm font-bold text-[#0e6a38]">📱 تطبيق الجوال — تثبيت</a>
                     <form method="POST" action="{{ route('logout') }}">
                         @csrf
                         <button type="submit" class="w-full text-right px-3 py-2.5 rounded-lg text-sm font-medium text-[#9aa99a] hover:text-red-600">خروج</button>
@@ -407,6 +406,46 @@
 
             function escapeHtml(s){ const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
 
+            // صوت واهتزاز عند الإشعار الجديد
+            let isFirstFetch = true;
+            function playNotificationSound(){
+                try{
+                    if('vibrate' in navigator) navigator.vibrate([250,100,250]);
+                    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                    if(ctx.state === 'suspended') ctx.resume();
+                    const o = ctx.createOscillator();
+                    const g = ctx.createGain();
+                    o.type = 'sine';
+                    o.frequency.value = 880;
+                    o.connect(g);
+                    g.connect(ctx.destination);
+                    g.gain.setValueAtTime(0.0001, ctx.currentTime);
+                    g.gain.exponentialRampToValueAtTime(0.3, ctx.currentTime + 0.01);
+                    g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.35);
+                    o.start();
+                    o.stop(ctx.currentTime + 0.36);
+                    setTimeout(()=>{
+                        const o2 = ctx.createOscillator();
+                        const g2 = ctx.createGain();
+                        o2.type = 'sine';
+                        o2.frequency.value = 660;
+                        o2.connect(g2);
+                        g2.connect(ctx.destination);
+                        g2.gain.setValueAtTime(0.0001, ctx.currentTime);
+                        g2.gain.exponentialRampToValueAtTime(0.25, ctx.currentTime + 0.01);
+                        g2.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.25);
+                        o2.start();
+                        o2.stop(ctx.currentTime + 0.26);
+                    }, 180);
+                }catch(e){}
+                // fallback audio element
+                try{
+                    const a = new Audio('data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAA==');
+                    a.volume = 0.6;
+                    a.play().catch(()=>{});
+                }catch(e){}
+            }
+
             async function fetchNotifications(showBrowser = false){
                 try{
                     const res = await fetch('{{ route('notifications.index') }}', { headers: { 'Accept':'application/json', 'X-Requested-With':'XMLHttpRequest' }});
@@ -424,9 +463,14 @@
                         badge.classList.remove('flex');
                     }
 
-                    // Browser Notification — خارج الموقع (شريط النظام)
+                    // Browser Notification — خارج الموقع (شريط النظام) + صوت واهتزاز
+                    const newIds = notifications.filter(n=>!n.read_at).map(n=>n.id).filter(id=>!lastUnreadIds.has(id));
+                    if(!isFirstFetch && newIds.length>0){
+                        playNotificationSound();
+                        // اهتزاز إضافي عند وصول ملاحظة جديدة حتى لو التبويب في المقدمة
+                        try{ if('vibrate' in navigator) navigator.vibrate([200,100,200,100,200]); }catch(e){}
+                    }
                     if(showBrowser && window.Notification && Notification.permission === 'granted'){
-                        const newIds = notifications.filter(n=>!n.read_at).map(n=>n.id).filter(id=>!lastUnreadIds.has(id));
                         newIds.forEach(id=>{
                             const n = notifications.find(x=>x.id===id);
                             if(n){
@@ -437,22 +481,36 @@
                                 else if(t.includes('sent')) title = 'إرسالية جديدة';
                                 else if(t.includes('note_rejected')) title = 'تم رفض ملاحظتك';
                                 else if(t.includes('note_accepted')) title = 'تم قبول ملاحظتك';
+                                else if(t.includes('note_sent')) title = 'ملاحظة جديدة بانتظار المراجعة';
                                 const body = (n.data.message || n.data.reason || '').substring(0,120);
-                                const notif = new Notification(title, {
-                                    body: body,
-                                    icon: '/favicon.ico',
-                                    tag: n.id,
-                                    requireInteraction: false
-                                });
-                                notif.onclick = ()=>{
-                                    window.focus();
-                                    const u = n.data.url;
-                                    if(u) window.location.href = u;
-                                };
+                                try{
+                                    const notif = new Notification(title, {
+                                        body: body,
+                                        icon: '/favicon.ico',
+                                        tag: n.id,
+                                        requireInteraction: true,
+                                        silent: false,
+                                        vibrate: [250,100,250]
+                                    });
+                                    notif.onclick = ()=>{
+                                        window.focus();
+                                        const u = n.data.url;
+                                        if(u) window.location.href = u;
+                                    };
+                                    // صوت إضافي عند عرض الإشعار النظامي
+                                    notif.onshow = ()=>{ try{ playNotificationSound(); }catch(e){} };
+                                }catch(e){
+                                    // fallback بدون vibrate/silent إذا غير مدعوم
+                                    try{
+                                        const notif2 = new Notification(title, { body: body, icon: '/favicon.ico', tag: n.id });
+                                        notif2.onclick = ()=>{ window.focus(); const u=n.data.url; if(u) window.location.href=u; };
+                                    }catch(e2){}
+                                }
                             }
                         });
                     }
                     lastUnreadIds = new Set(notifications.filter(n=>!n.read_at).map(n=>n.id));
+                    isFirstFetch = false;
 
                     // Render dropdown list
                     if(notifications.length===0){
@@ -523,6 +581,8 @@
             document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) fetchNotifications(true); });
             // Force refresh on focus
             window.addEventListener('focus', ()=> fetchNotifications(false));
+
+
 
         })();
         const btn=document.getElementById('mobile-menu-btn'),menu=document.getElementById('mobile-menu');
@@ -608,25 +668,6 @@
         window.ajaxFilter = ajaxFilter;
     </script>
     @stack('scripts')
-    {{-- PWA install prompt — زر "تطبيق الجوال" يتحول لزر تثبيت مباشر عند توفره --}}
-    <script>
-    (function(){
-        var deferred = null;
-        window.addEventListener('beforeinstallprompt', function(e){
-            e.preventDefault();
-            deferred = e;
-            document.querySelectorAll('.pwa-install-link').forEach(function(a){
-                a.innerHTML = '⬇️ ثبّت التطبيق';
-                a.addEventListener('click', function(ev){
-                    if (!deferred) return;
-                    ev.preventDefault();
-                    deferred.prompt();
-                    deferred.userChoice.then(function(){ deferred = null; });
-                }, { once: true });
-            });
-        });
-    })();
-    </script>
     <!-- Print Root — مباشر تحت body لمنع 2 pages من ancestor display:none -->
     <div id="printable-a4-doc" class="hidden" data-print-root style="display:none;"></div>
     <div id="rasd-print-document" class="hidden" aria-hidden="true" style="display:none;"></div>

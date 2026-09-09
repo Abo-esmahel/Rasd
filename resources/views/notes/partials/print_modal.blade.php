@@ -587,11 +587,11 @@ function renderAttachmentsSelector() {
             <div onclick="toggleAttachmentSelection(${index})" class="relative flex items-center gap-3 p-3 rounded-xl border transition cursor-pointer select-none ${item.selected ? 'border-[#0e6a38] bg-[#eef4f0]/40 shadow-sm' : 'border-[#e6e9e1] bg-white hover:border-[#c2cbc1]'}">
                 <input type="checkbox" id="print-cb-${index}" ${item.selected ? 'checked' : ''} onclick="event.stopPropagation(); toggleAttachmentSelection(${index});" class="rounded border-[#c2cbc1] text-[#0e6a38] focus:ring-[#0e6a38]/20 w-4 h-4 shrink-0">
                 <div class="w-14 h-14 rounded-lg bg-[#f5f7f5] border border-[#e6e9e1] overflow-hidden flex items-center justify-center shrink-0">
-                    ${isImage ? `<img src="${item.url}" alt="${item.name}" class="w-full h-full object-cover">` : ''}
+                    ${isImage ? `<img src="${escPrint(item.url)}" alt="${escPrint(item.name)}" class="w-full h-full object-cover">` : ''}
                     ${isVideo ? `<div class="flex flex-col items-center justify-center text-red-500"><svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg><span class="text-[9px] font-bold text-[#525252]">HD Video</span></div>` : ''}
                 </div>
-                <div class="min-w-0 flex-1">
-                    <div class="text-xs font-bold text-ink-800 truncate" title="${item.name}">${item.name}</div>
+                    <div class="min-w-0 flex-1">
+                        <div class="text-xs font-bold text-ink-800 truncate" title="${escPrint(item.name)}">${escPrint(item.name)}</div>
                     <div class="mt-1 flex items-center gap-2">
                         ${badgeIcon}
                         <span class="text-[10px] text-[#737373]">${item.file_size ? (item.file_size / 1024).toFixed(0) + ' KB' : ''}</span>
@@ -846,7 +846,82 @@ function assertBeforePrint(printableDoc){
     return { valid: errors.length===0, errors, pages: pages.length };
 }
 
-function buildA4PageHtml(note, pageItems, pageIndex, totalPages, isLastPage) {
+// ===== SMART DESCRIPTION — المحرك الذكي للوصف =====
+// 1) escPrint: تهريب HTML — الحروف الخاصة (<>&"') في الوصف/الأسماء كانت تكسر
+//    التخطيط وتبتلع الوصف كاملاً.
+// 2) حجز كامل لكتلة الوصف (نص + شبكة البيانات + تذييل) ضمن 297مم — المحرك كان
+//    يحجز النص فقط فيتجاوز الذيل حد الصفحة ويُقص على الورق (بينما المعاينة تُظهره).
+// 3) الوصف الأطول من المتبقي ينتقل تلقائياً لصفحة مخصصة بدل قصّه.
+function escPrint(s){
+    return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+const DESC_LINE_H_MM = 8.2*0.3528*1.45; // ≈4.19 — يطابق estimateDescriptionMetrics في المحرك
+const DESC_META_MM = 16;    // شبكة البيانات + عنوان الوصف + التذييل (غير محسوبة في المحرك)
+const DESC_MIN_IMG_MM = 50; // أقل ارتفاع صور نبقيه في صفحة تحمل الوصف
+function descCpl(){
+    const printableW = 210 - 6*2;
+    const avgCW = 8.2*0.3528*0.56;
+    return Math.max(1, Math.floor((printableW-7)/avgCW));
+}
+// عد الأسطر بمنطق المحرك نفسه (يحترم \n + الكلمات الأطول من السطر)
+function countDescLines(text, cpl){
+    if(!text || !String(text).trim()) return 0;
+    let lines = 0;
+    for(const para of String(text).split('\n')){
+        const trimmed = para.trim();
+        if(!trimmed){ lines += 1; continue; }
+        let cur = 0, paraLines = 1;
+        for(const w of trimmed.split(/\s+/)){
+            if(w.length >= cpl){ paraLines += Math.max(1, Math.ceil(w.length / cpl)); cur = 0; continue; }
+            const need = w.length + 1;
+            if(cur + need > cpl){ paraLines++; cur = need; } else cur += need;
+        }
+        lines += paraLines;
+    }
+    if(/[A-Za-z0-9]/.test(text)) lines = Math.ceil(lines*1.07);
+    return lines;
+}
+// الارتفاع الكلي المحجوز لكتلة الوصف (نص + chrome)
+function descBlockHMM(text){
+    const lines = countDescLines(text, descCpl());
+    if(!lines) return 0;
+    return Math.ceil(lines*DESC_LINE_H_MM + 12) + DESC_META_MM;
+}
+// تقسيم النص لأسطر ثم لمقاطع صفحات (الكلمات الطويلة تُكسر كما ستُعرض)
+function chunkDescLines(text, cpl, firstCap, contCap){
+    const outLines = [];
+    for(const para of String(text).split('\n')){
+        const trimmed = para.trim();
+        if(!trimmed){ outLines.push(''); continue; }
+        let cur = '', curLen = 0;
+        const pushWord = (w)=>{
+            while(w.length >= cpl){ outLines.push(w.slice(0, cpl)); w = w.slice(cpl); }
+            const need = w.length + 1;
+            if(curLen + need > cpl && cur){ outLines.push(cur); cur = w; curLen = need; }
+            else { cur = cur ? cur + ' ' + w : w; curLen += need; }
+        };
+        for(const w of trimmed.split(/\s+/)){ if(w) pushWord(w); }
+        if(cur) outLines.push(cur);
+    }
+    const chunks = [];
+    let idx = 0, cap = Math.max(1, firstCap);
+    while(idx < outLines.length){
+        chunks.push(outLines.slice(idx, idx + cap).join('\n'));
+        idx += cap; cap = Math.max(1, contCap);
+    }
+    return chunks.length ? chunks : [''];
+}
+function printHeaderHtml(margin, printableW, headerH){
+    return `
+        <div style="position:absolute; left:${margin}mm; top:${margin}mm; width:${printableW}mm; height:${headerH}mm; border-bottom:0.5mm solid #0e6a38; display:flex; align-items:center; justify-content:flex-start; gap:1.8mm; box-sizing:border-box; padding-bottom:1mm; direction:rtl;">
+            <div style="width:6.5mm; height:6.5mm; border:0.25mm solid #e6e9e1; border-radius:1.4mm; display:flex; align-items:center; justify-content:center; background:white; overflow:hidden; flex-shrink:0;">
+                <svg width="4mm" height="4mm" viewBox="0 0 36 36" fill="none"><rect x="2" y="4" width="32" height="28" rx="6" fill="white" stroke="#e3ebe5"/><path d="M6 9.5C6 8.672 6.672 8 7.5 8H28.5C29.328 8 30 8.672 30 9.5V13H6V9.5Z" fill="#0e6a38"/><rect x="6" y="13" width="24" height="6" fill="white"/><g fill="#ce1126"><path d="M12 16.6l1.15 0.85 -0.44 -1.36 1.15 -0.84H12.44L12 14l-0.44 1.25H10.09l1.15 0.84 -0.44 1.36L12 16.6Z"/><path d="M18 16.6l1.15 0.85 -0.44 -1.36 1.15 -0.84H18.44L18 14l-0.44 1.25H16.09l1.15 0.84 -0.44 1.36L18 16.6Z"/><path d="M24 16.6l1.15 0.85 -0.44 -1.36 1.15 -0.84H24.44L24 14l-0.44 1.25H22.09l1.15 0.84 -0.44 1.36L24 16.6Z"/></g><path d="M6 19H30V26.5C30 27.328 29.328 28 28.5 28H7.5C6.672 28 6 27.328 6 26.5V19Z" fill="#0f1a13"/></svg>
+            </div>
+            <div style="font-size:2.9mm; font-weight:700; color:#1a2e1f; letter-spacing:0; line-height:1;">وزارة الإعلام</div>
+        </div>
+    `;
+}
+function buildA4PageHtml(note, pageItems, pageIndex, totalPages, isLastPage, withDesc = true) {
     console.log(`[RENDERER] buildA4PageHtml called — page ${pageIndex+1}/${totalPages}, items:${pageItems.length}`);
     // Physical page 210×297, margin 6mm → printable 198×285
     // Header 14mm, description dynamic, rest is images
@@ -858,6 +933,8 @@ function buildA4PageHtml(note, pageItems, pageIndex, totalPages, isLastPage) {
     const printableW = paperW - margin*2;
     // Estimate description height for layout (same as engine)
     const descText = note.description || '';
+    // SMART: effDesc='' ينقل الوصف لصفحة مخصصة (تُبنى في generateAndOpenPreview)
+    const effDesc = (withDesc && isLastPage) ? descText : '';
     const avgCW = 8.2*0.3528*0.56;
     const cpl = Math.max(1, Math.floor((printableW-7)/avgCW));
     const lines = descText ? Math.ceil(descText.trim().split(/\s+/).reduce((a,w,i)=>{
@@ -866,19 +943,13 @@ function buildA4PageHtml(note, pageItems, pageIndex, totalPages, isLastPage) {
         return a;
     },{lines:1,cur:0}).lines) : 0;
     // Renderer descH is a FALLBACK — engine output overrides it after layout
-    let descH = descText ? Math.ceil(lines*8.2*0.3528*1.45 + 12) : 0;
+    // SMART: +META ليطابق الحجز الفعلي (شبكة البيانات + التذييل)
+    let descH = effDesc ? Math.ceil(lines*8.2*0.3528*1.45 + 12) + DESC_META_MM : 0;
     const imageArea = { x: margin, y: margin+headerH+2, w: printableW, h: paperH - margin*2 - headerH - descH - 8 };
     // Ensure imageArea not negative
     if(imageArea.h < 20) imageArea.h = 20;
 
-    const headerHtml = `
-        <div style="position:absolute; left:${margin}mm; top:${margin}mm; width:${printableW}mm; height:${headerH}mm; border-bottom:0.5mm solid #0e6a38; display:flex; align-items:center; justify-content:flex-start; gap:1.8mm; box-sizing:border-box; padding-bottom:1mm; direction:rtl;">
-            <div style="width:6.5mm; height:6.5mm; border:0.25mm solid #e6e9e1; border-radius:1.4mm; display:flex; align-items:center; justify-content:center; background:white; overflow:hidden; flex-shrink:0;">
-                <svg width="4mm" height="4mm" viewBox="0 0 36 36" fill="none"><rect x="2" y="4" width="32" height="28" rx="6" fill="white" stroke="#e3ebe5"/><path d="M6 9.5C6 8.672 6.672 8 7.5 8H28.5C29.328 8 30 8.672 30 9.5V13H6V9.5Z" fill="#0e6a38"/><rect x="6" y="13" width="24" height="6" fill="white"/><g fill="#ce1126"><path d="M12 16.6l1.15 0.85 -0.44 -1.36 1.15 -0.84H12.44L12 14l-0.44 1.25H10.09l1.15 0.84 -0.44 1.36L12 16.6Z"/><path d="M18 16.6l1.15 0.85 -0.44 -1.36 1.15 -0.84H18.44L18 14l-0.44 1.25H16.09l1.15 0.84 -0.44 1.36L18 16.6Z"/><path d="M24 16.6l1.15 0.85 -0.44 -1.36 1.15 -0.84H24.44L24 14l-0.44 1.25H22.09l1.15 0.84 -0.44 1.36L24 16.6Z"/></g><path d="M6 19H30V26.5C30 27.328 29.328 28 28.5 28H7.5C6.672 28 6 27.328 6 26.5V19Z" fill="#0f1a13"/></svg>
-            </div>
-            <div style="font-size:2.9mm; font-weight:700; color:#1a2e1f; letter-spacing:0; line-height:1;">وزارة الإعلام</div>
-        </div>
-    `;
+    const headerHtml = printHeaderHtml(margin, printableW, headerH);
     let imagesHtml = '';
     let __pageLayout = null; // for A4 geometry assertion
     if(pageItems.length){
@@ -887,7 +958,10 @@ function buildA4PageHtml(note, pageItems, pageIndex, totalPages, isLastPage) {
         try{
             const eng = getPrintEngine();
             if(!eng) throw new Error('PrintLayoutEngine not loaded — window.PrintLayoutEngine is undefined (module not loaded or cached)');
-            const tmp = eng.layout(engineImages.map((it,i)=>({id:'i'+i,width:it.width,height:it.height})), isLastPage? descText : '', {width:210,height:297}, {margin:6, topOffset: headerH});
+            // SMART: descOpts.paddingMm=11.5 يحجز للنص + شبكة البيانات + التذييل (≈+16مم)
+            // حتى لا يتجاوز الذيل 297مم ويُقص على الورق
+            // (25.5مم chrome في المحرك ≈ 28مم فعلياً في العرض)
+            const tmp = eng.layout(engineImages.map((it,i)=>({id:'i'+i,width:it.width,height:it.height})), effDesc, {width:210,height:297}, {margin:6, topOffset: headerH, descOpts:{paddingMm:11.5}});
                 __pageLayout = tmp;
                 console.log(`[ENGINE] Page ${pageIndex} →`, tmp.metrics.topoName, `coverage:${tmp.metrics.imageCoverageRatio?.toFixed(3)}`);
                 console.table(tmp.images.map(x=>({id:x.id, x:x.x.toFixed(1), y:x.y.toFixed(1), w:x.width.toFixed(1), h:x.height.toFixed(1), rot:x.rotation})));
@@ -945,25 +1019,25 @@ function buildA4PageHtml(note, pageItems, pageIndex, totalPages, isLastPage) {
         ? __pageLayout.description.y
         : paperH - margin - descH;
     const isN3Page = pageItems.length===3;
-    const metadataHtml = descText && isLastPage ? `
+    const metadataHtml = effDesc ? `
         <div dir="rtl" data-print-description-wrapper style="position:absolute; ${isN3Page ? `left:0; width:100%; padding-left:${margin}mm; padding-right:${margin}mm;` : `left:${margin}mm; width:${printableW}mm;`} top:${descY}mm; min-height:${descH}mm; height:auto; overflow:visible; border-top:0.4mm solid #e6e9e1; padding-top:2mm; box-sizing:border-box; direction:rtl; text-align:right;">
             <div style="display:grid; grid-template-columns: repeat(5,1fr); gap:1.4mm; background:#f6f8f6; border:0.25mm solid #e2e8e2; border-radius:1.2mm; padding:1mm 2mm; font-size:2.3mm; box-sizing:border-box;">
-                <div><span style="font-weight:700; color:#737373; font-size:1.9mm; display:block; line-height:1.2;">التاريخ :</span><span style="font-weight:800; color:#000; font-size:2.3mm;">${note.observed_date || '—'}</span></div>
-                <div><span style="font-weight:700; color:#737373; font-size:1.9mm; display:block; line-height:1.2;">وقت بدء الملاحظة :</span><span style="font-weight:800; color:#000; font-size:2.3mm;">${note.observed_time_start || '—'}</span></div>
-                <div><span style="font-weight:700; color:#737373; font-size:1.9mm; display:block; line-height:1.2;">وقت انتهاء الملاحظة :</span><span style="font-weight:800; color:#000; font-size:2.3mm;">${note.observed_time_end || '—'}</span></div>
-                <div><span style="font-weight:700; color:#737373; font-size:1.9mm; display:block; line-height:1.2;">رقم الكاميرا :</span><span style="font-weight:800; color:#000; font-size:2.3mm;">${note.camera_number}</span></div>
-                <div><span style="font-weight:700; color:#737373; font-size:1.9mm; display:block; line-height:1.2;">رقم الطابق :</span><span style="font-weight:800; color:#000; font-size:2.3mm;">${note.floor_number}</span></div>
+                <div><span style="font-weight:700; color:#737373; font-size:1.9mm; display:block; line-height:1.2;">التاريخ :</span><span style="font-weight:800; color:#000; font-size:2.3mm;">${escPrint(note.observed_date) || '—'}</span></div>
+                <div><span style="font-weight:700; color:#737373; font-size:1.9mm; display:block; line-height:1.2;">وقت بدء الملاحظة :</span><span style="font-weight:800; color:#000; font-size:2.3mm;">${escPrint(note.observed_time_start) || '—'}</span></div>
+                <div><span style="font-weight:700; color:#737373; font-size:1.9mm; display:block; line-height:1.2;">وقت انتهاء الملاحظة :</span><span style="font-weight:800; color:#000; font-size:2.3mm;">${escPrint(note.observed_time_end) || '—'}</span></div>
+                <div><span style="font-weight:700; color:#737373; font-size:1.9mm; display:block; line-height:1.2;">رقم الكاميرا :</span><span style="font-weight:800; color:#000; font-size:2.3mm;">${escPrint(note.camera_number)}</span></div>
+                <div><span style="font-weight:700; color:#737373; font-size:1.9mm; display:block; line-height:1.2;">رقم الطابق :</span><span style="font-weight:800; color:#000; font-size:2.3mm;">${escPrint(note.floor_number)}</span></div>
             </div>
             <div dir="rtl" data-print-description style="margin-top:2mm; background:#fafbfa; border:0.3mm solid #e6e9e1; border-radius:1.5mm; padding:2mm 3mm; font-size:2.8mm; line-height:4.2mm; box-sizing:border-box; direction:rtl; text-align:right;">
                 <div style="font-weight:700; color:#0e6a38; font-size:2.8mm; margin-bottom:1mm; text-align:right; direction:rtl;">الوصف :</div>
-                <div dir="rtl" class="print-description-text" style="color:#000; white-space:pre-wrap; word-break:break-word; direction:rtl; text-align:right; unicode-bidi:plaintext;">${note.description || '—'}</div>
+                <div dir="rtl" class="print-description-text" style="color:#000; white-space:pre-wrap; word-break:break-word; overflow-wrap:anywhere; direction:rtl; text-align:right; unicode-bidi:plaintext;">${escPrint(note.description) || '—'}</div>
             </div>
             <div style="margin-top:1.5mm; font-size:2.2mm; color:#737373; display:flex; justify-content:space-between;">
-                <span>المُلاحظ: <strong style="color:#000;">${note.owner_name || '—'}</strong></span>
+                <span>المُلاحظ: <strong style="color:#000;">${escPrint(note.owner_name) || '—'}</strong></span>
                 <span>صفحة ${pageIndex+1} من ${totalPages}</span>
             </div>
         </div>
-    ` : (isLastPage ? `<div style="position:absolute; left:${margin}mm; top:${descY}mm; width:${printableW}mm; font-size:2.2mm; color:#737373;">المُلاحظ: <strong style="color:#000;">${note.owner_name||'—'}</strong></div>` : '');
+    ` : (isLastPage ? `<div style="position:absolute; left:${margin}mm; top:${descY}mm; width:${printableW}mm; font-size:2.2mm; color:#737373;">المُلاحظ: <strong style="color:#000;">${escPrint(note.owner_name)||'—'}</strong></div>` : '');
 
     // PIPELINE FIX §4: A4 geometry from layout.paper — support portrait/landscape
     const pgW = __pageLayout ? __pageLayout.paper.width : paperW;
@@ -993,6 +1067,33 @@ function buildA4PageHtml(note, pageItems, pageIndex, totalPages, isLastPage) {
     // RTL FIX: ensure page itself is RTL for Windows print context
     return `<div class="a4-print-page" dir="rtl" data-orientation="${pgOrient}" style="width:${pgW}mm; height:${pgH}mm; position:relative; background:white; overflow:visible; box-sizing:border-box; direction:rtl;">${headerHtml}${imagesHtml}${metadataHtml}</div>`;
 }
+// ===== SMART: صفحة مخصصة للوصف الطويل — تدفق طبيعي بلا قص =====
+// تُستدعى فقط عندما لا تتسع كتلة الوصف في صفحة الصور الأخيرة.
+function buildDescPageHtml(note, chunkText, pageIndex, totalPages, isFirst){
+    const margin = 6, headerH = 10, paperW = 210, paperH = 297;
+    const printableW = paperW - margin*2;
+    const gridHtml = isFirst ? `
+            <div style="display:grid; grid-template-columns: repeat(5,1fr); gap:1.4mm; background:#f6f8f6; border:0.25mm solid #e2e8e2; border-radius:1.2mm; padding:1mm 2mm; font-size:2.3mm; box-sizing:border-box; margin-bottom:2mm;">
+                <div><span style="font-weight:700; color:#737373; font-size:1.9mm; display:block; line-height:1.2;">التاريخ :</span><span style="font-weight:800; color:#000; font-size:2.3mm;">${escPrint(note.observed_date) || '—'}</span></div>
+                <div><span style="font-weight:700; color:#737373; font-size:1.9mm; display:block; line-height:1.2;">وقت بدء الملاحظة :</span><span style="font-weight:800; color:#000; font-size:2.3mm;">${escPrint(note.observed_time_start) || '—'}</span></div>
+                <div><span style="font-weight:700; color:#737373; font-size:1.9mm; display:block; line-height:1.2;">وقت انتهاء الملاحظة :</span><span style="font-weight:800; color:#000; font-size:2.3mm;">${escPrint(note.observed_time_end) || '—'}</span></div>
+                <div><span style="font-weight:700; color:#737373; font-size:1.9mm; display:block; line-height:1.2;">رقم الكاميرا :</span><span style="font-weight:800; color:#000; font-size:2.3mm;">${escPrint(note.camera_number)}</span></div>
+                <div><span style="font-weight:700; color:#737373; font-size:1.9mm; display:block; line-height:1.2;">رقم الطابق :</span><span style="font-weight:800; color:#000; font-size:2.3mm;">${escPrint(note.floor_number)}</span></div>
+            </div>` : '';
+    return `<div class="a4-print-page" dir="rtl" data-orientation="portrait" data-desc-page="1" style="width:${paperW}mm; height:${paperH}mm; position:relative; background:white; overflow:visible; box-sizing:border-box; direction:rtl;">${printHeaderHtml(margin, printableW, headerH)}
+        <div dir="rtl" data-print-description-wrapper style="position:absolute; left:${margin}mm; top:${margin+headerH+2}mm; width:${printableW}mm; height:auto; overflow:visible; border-top:0.4mm solid #e6e9e1; padding-top:2mm; box-sizing:border-box; direction:rtl; text-align:right;">
+            ${gridHtml}
+            <div dir="rtl" data-print-description style="background:#fafbfa; border:0.3mm solid #e6e9e1; border-radius:1.5mm; padding:2mm 3mm; font-size:2.8mm; line-height:4.2mm; box-sizing:border-box; direction:rtl; text-align:right;">
+                <div style="font-weight:700; color:#0e6a38; font-size:2.8mm; margin-bottom:1mm; text-align:right; direction:rtl;">${isFirst ? 'الوصف :' : 'الوصف (تتمة) :'}</div>
+                <div dir="rtl" class="print-description-text" style="color:#000; white-space:pre-wrap; word-break:break-word; overflow-wrap:anywhere; direction:rtl; text-align:right; unicode-bidi:plaintext;">${escPrint(chunkText) || '—'}</div>
+            </div>
+            <div style="margin-top:1.5mm; font-size:2.2mm; color:#737373; display:flex; justify-content:space-between;">
+                <span>المُلاحظ: <strong style="color:#000;">${escPrint(note.owner_name) || '—'}</strong></span>
+                <span>صفحة ${pageIndex+1} من ${totalPages}</span>
+            </div>
+        </div>
+    </div>`;
+}
 async function generateAndOpenPreview() {
     const proceedBtn = document.getElementById('print-proceed-preview-btn');
     const spinner = document.getElementById('print-proceed-spinner');
@@ -1006,19 +1107,55 @@ async function generateAndOpenPreview() {
             item.mime && item.mime.includes('video') ? extractNativeVideoFrame(item.url) : preloadNativeImage(item.url)
         ));
         const pages = partitionItemsIntoPages(resolvedAssets);
-        const totalPages = pages.length;
+        // ===== SMART DESC: هل تتسع كتلة الوصف في صفحة الصور الأخيرة؟ =====
+        const dText = (currentPrintNote && currentPrintNote.description) || '';
+        const innerH = 297 - 6*2 - 10; // هوامش + هيدر
+        const dBlockH = descBlockHMM(dText);
+        const lastCount = pages.length > 0 ? pages[pages.length-1].length : 0;
+        // SMART: المحرك يسقف حجز الوصف (40% أو 35% للـN=4) — أي وصف يتجاوز السقف
+        // سيُقص على الورق، فينتقل لصفحة مخصصة. N=3 وبدون صور: بلا سقف.
+        const capRatio = lastCount === 4 ? 0.35 : 0.40;
+        let needOwnPage = false;
+        if (dText) {
+            if (lastCount === 3) needOwnPage = dBlockH + DESC_MIN_IMG_MM > innerH;
+            else needOwnPage = dBlockH > innerH * capRatio;
+        }
+        let descChunks = null;
+        if (needOwnPage) {
+            // الوصف أطول من المحجوز → صفحات مخصصة (الأولى تحمل شبكة البيانات)
+            const firstCap = Math.floor(((innerH - 10 - 10 - 8) / DESC_LINE_H_MM) * 0.85);
+            const contCap = Math.floor(((innerH - 10 - 8) / DESC_LINE_H_MM) * 0.85);
+            descChunks = chunkDescLines(dText, descCpl(), firstCap, contCap);
+            console.log('[SMART DESC] desc block', dBlockH.toFixed(1) + 'mm exceeds engine reserve — dedicated page(s):', descChunks.length);
+        } else if (dText) {
+            console.log('[SMART DESC] desc block', dBlockH.toFixed(1) + 'mm fits in engine reserve');
+        }
+        // SMART: بلا مرفقات + وصف طويل → نتجاوز صفحة "(لا توجد مرفقات)" الفارغة
+        const skipEmptyPage = !!(descChunks && pages.length === 1 && pages[0].length === 0);
+        const imgPageCount = skipEmptyPage ? 0 : pages.length;
+        const totalPages = imgPageCount + (descChunks ? descChunks.length : 0);
         const previewContainer = document.getElementById('print-preview-pages-container');
         const printableDoc = document.getElementById('printable-a4-doc'); // PIPELINE FIX §9: المصدر الوحيد للطباعة
         const legacyPrintDoc = document.getElementById('rasd-print-document'); // DEPRECATED — للتوافق فقط
         let previewHtml = ''; let printDocHtml = '';
         pages.forEach((pageItems, pIdx) => {
-            const isLast = (pIdx === totalPages - 1);
-            const pageHtml = buildA4PageHtml(currentPrintNote, pageItems, pIdx, totalPages, isLast);
+            if (skipEmptyPage) return;
+            // isLastImagePage = آخر صفحة صور (سطر المُلاحظ فقط عند نقل الوصف)
+            const isLastImagePage = (pIdx === pages.length - 1);
+            const pageHtml = buildA4PageHtml(currentPrintNote, pageItems, pIdx, totalPages, isLastImagePage, !descChunks);
             // Preview wrapper needs data-orientation too
             const orientation = pageHtml.includes('data-orientation="landscape"') ? 'landscape' : 'portrait';
             previewHtml += `<div class="a4-preview-sheet" data-orientation="${orientation}">${pageHtml}</div>`;
             printDocHtml += pageHtml;
         });
+        if (descChunks) {
+            descChunks.forEach((chunk, ci) => {
+                const pIdx = imgPageCount + ci;
+                const descPageHtml = buildDescPageHtml(currentPrintNote, chunk, pIdx, totalPages, ci === 0);
+                previewHtml += `<div class="a4-preview-sheet" data-orientation="portrait">${descPageHtml}</div>`;
+                printDocHtml += descPageHtml;
+            });
+        }
         previewContainer.innerHTML = previewHtml;
         // SINGLE SOURCE: #printable-a4-doc هو المصدر الوحيد للطباعة (§9)
         if (printableDoc) printableDoc.innerHTML = printDocHtml;
@@ -1206,7 +1343,7 @@ async function triggerNativePrint() {
   [data-print-image] { position:absolute !important; box-sizing:border-box !important; overflow:hidden !important; background:white !important; border:0.3mm solid #e5e7eb !important; border-radius:1.5mm !important; display:block !important; }
   [data-print-image] img { position:absolute !important; left:0 !important; top:0 !important; width:100% !important; height:100% !important; max-width:none !important; max-height:none !important; object-fit:fill !important; display:block !important; aspect-ratio:auto !important; border:none !important; -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }
   /* RTL FIX: Description must be RTL in Windows print context — plaintext preserves numbers/English */
-  [data-print-description], .print-description-text { direction:rtl !important; unicode-bidi:plaintext !important; text-align:right !important; }
+  [data-print-description], .print-description-text { direction:rtl !important; unicode-bidi:plaintext !important; text-align:right !important; overflow-wrap:anywhere !important; }
    @media print {
      html, body { margin:0 !important; padding:0 !important; direction:rtl !important; display:block !important; background:white !important; width:${hasLandscape ? '297mm' : '210mm'} !important; }
      #isolated-print-root { width:100% !important; max-width:100% !important; margin:0 !important; padding:0 !important; background:white !important; display:block !important; }

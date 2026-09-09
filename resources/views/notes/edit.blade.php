@@ -24,7 +24,7 @@
                 </span>
                 <span class="text-xs text-ink-300 font-mono">#{{ $note->id }}</span>
             </div>
-            <p class="text-xs text-ink-400 mt-1">آخر تحديث: {{ $note->updated_at->format('Y-m-d H:i') }} — الملاحظة: {{ $note->observed_at->format('Y-m-d H:i') }}</p>
+            <p class="text-xs text-ink-400 mt-1">آخر تحديث: {{ $note->updated_at->toDatetime12() }} — الملاحظة: {{ $note->observed_at->toDatetime12() }}</p>
         </div>
     </div>
     @if($note->isAccepted())
@@ -40,7 +40,7 @@
                 <div class="text-sm font-bold text-red-700">سبب الرفض — يرجى التصحيح</div>
                 <p class="mt-1 text-sm leading-6 text-red-600 break-words">{{ $note->rejection_reason }}</p>
                 @if($note->processor)
-                    <div class="mt-1.5 text-xs font-bold text-red-500">بواسطة {{ $note->processor->name }} — {{ $note->processed_at?->format('Y-m-d H:i') }}</div>
+                    <div class="mt-1.5 text-xs font-bold text-red-500">بواسطة {{ $note->processor->name }} — {{ $note->processed_at?->toDatetime12() }}</div>
                 @endif
             </div>
         </div>
@@ -57,10 +57,20 @@
         <form method="POST" action="{{ route('notes.update', $note, false) }}" enctype="multipart/form-data" class="p-6 space-y-5" id="edit-form" novalidate>
             @csrf @method('PUT')
             <div id="form-errors-edit" class="hidden p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700"></div>
+            <div id="upload-progress-edit" class="hidden p-4 bg-[#eef4f0] border border-[#cde7d6] rounded-xl">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-sm font-bold text-[#0e6a38] flex items-center gap-2"><span class="w-3 h-3 border-2 border-[#0e6a38] border-t-transparent rounded-full animate-spin"></span>جاري الرفع...</span>
+                    <span id="upload-progress-text-edit" class="text-xs font-bold text-ink-500">0%</span>
+                </div>
+                <div class="w-full bg-white rounded-full h-2.5 border border-[#e6e9e1] overflow-hidden">
+                    <div id="upload-progress-bar-edit" class="h-2.5 rounded-full bg-[#0e6a38] transition-all duration-300" style="width:0%"></div>
+                </div>
+                <div class="mt-1 text-[11px] text-ink-400">يتم ضغط الصور ورفع الملفات — لا تغلق الصفحة</div>
+            </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                     <label class="block text-sm font-bold text-ink-700 mb-1.5">رقم الطابق <span class="text-red-500">*</span></label>
-                    <input type="number" name="floor_number" value="{{ old('floor_number', $note->floor_number) }}" min="1" required
+                    <input type="number" name="floor_number" value="{{ old('floor_number', $note->floor_number) }}" min="0" required
                         class="block w-full rounded-xl border border-[#e6e9e1] bg-white py-3 px-4 text-sm font-medium text-ink-800 focus:border-[#0e6a38] focus:ring-2 focus:ring-[#0e6a38]/10 outline-none transition">
                 </div>
                 <div>
@@ -335,11 +345,73 @@
         document.getElementById('clear-datetime-edit')?.addEventListener('click',()=>{ if(dateEl) dateEl.value=''; if(timeEl) timeEl.value=''; if(endTimeEl) endTimeEl.value=''; sync(); });
         sync();
     })();
+    // ——— ضغط الصور محلياً — local optimized ———
+    async function compressImageClientEdit(file){
+        try{
+            if(!file.type.startsWith('image/') || file.type==='image/gif' || file.type==='image/svg+xml') return file;
+            if(file.size < 600*1024) return file;
+            let bitmap=null, width=0, height=0;
+            if(window.createImageBitmap){
+                try{ bitmap = await createImageBitmap(file); width=bitmap.width; height=bitmap.height; }catch(e){ bitmap=null; }
+            }
+            if(!bitmap){
+                const url=URL.createObjectURL(file);
+                const img=await new Promise((res,rej)=>{ const i=new Image(); i.onload=()=>res(i); i.onerror=rej; i.src=url; });
+                width=img.naturalWidth||img.width; height=img.naturalHeight||img.height;
+                URL.revokeObjectURL(url);
+                const maxDim=1920;
+                if(width<=maxDim && height<=maxDim && file.size<2*1024*1024) return file;
+                const ratio=Math.min(maxDim/width, maxDim/height,1);
+                const nw=Math.round(width*ratio), nh=Math.round(height*ratio);
+                const c=document.createElement('canvas'); c.width=nw; c.height=nh;
+                c.getContext('2d').drawImage(img,0,0,nw,nh);
+                const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',0.82));
+                if(!blob||blob.size>=file.size) return file;
+                return new File([blob], file.name.replace(/\.[^.]+$/,'')+'.jpg', {type:'image/jpeg'});
+            }
+            const maxDim=1920;
+            if(width<=maxDim && height<=maxDim && file.size<2*1024*1024){ bitmap.close(); return file; }
+            const ratio=Math.min(maxDim/width, maxDim/height,1);
+            const nw=Math.round(width*ratio), nh=Math.round(height*ratio);
+            const c=document.createElement('canvas'); c.width=nw; c.height=nh;
+            c.getContext('2d').drawImage(bitmap,0,0,nw,nh);
+            bitmap.close();
+            const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',0.82));
+            if(!blob||blob.size>=file.size) return file;
+            return new File([blob], file.name.replace(/\.[^.]+$/,'')+'.jpg', {type:'image/jpeg'});
+        }catch(e){ return file; }
+    }
+    function setUploadProgressEdit(pct, detail){
+        const wrap=document.getElementById('upload-progress-edit'), bar=document.getElementById('upload-progress-bar-edit'), txt=document.getElementById('upload-progress-text-edit');
+        if(!wrap) return;
+        wrap.classList.remove('hidden');
+        if(bar) bar.style.width=pct+'%';
+        if(txt) txt.textContent=Math.round(pct)+'%';
+    }
+    function hideUploadProgressEdit(){ const w=document.getElementById('upload-progress-edit'); if(w) w.classList.add('hidden'); }
+    function xhrUploadEdit(url, fd, csrf, onProgress){
+        return new Promise((resolve, reject)=>{
+            const xhr=new XMLHttpRequest();
+            xhr.open('POST', url, true);
+            xhr.setRequestHeader('Accept','application/json');
+            xhr.setRequestHeader('X-Requested-With','XMLHttpRequest');
+            if(csrf) xhr.setRequestHeader('X-CSRF-TOKEN', csrf);
+            xhr.timeout=600000;
+            if(xhr.upload && onProgress) xhr.upload.onprogress=(e)=>{ if(e.lengthComputable) onProgress(Math.round(e.loaded/e.total*100)); };
+            xhr.onload=()=>{ let data=null; try{ data=JSON.parse(xhr.responseText);}catch(_){} resolve({status:xhr.status, ok:xhr.status>=200&&xhr.status<300, data, raw:xhr.responseText}); };
+            xhr.onerror=()=>reject(new Error('فشل الشبكة'));
+            xhr.ontimeout=()=>reject(Object.assign(new Error('انتهت مهلة الإرسال'),{name:'AbortError'}));
+            xhr.send(fd);
+        });
+    }
+
     // ——— Edit file handling with DataTransfer ———
     const input=document.getElementById('edit-files'),zone=document.getElementById('edit-drop-zone'),list=document.getElementById('edit-file-list');
     let fileTransferEdit = new DataTransfer();
     // UPLOAD INTENT — عدّاد مستقل عن مخازن النقل — ROOT CAUSE FIX (انظر create.blade.php)
     let intendedFilesCountEdit = 0;
+    // مصدر حقيقة احتياطي: DataTransfer يُسقط ملفات الفيديو الكبيرة بصمت في بعض متصفحات الجوال
+    let pendingFilesEdit = [];
     // حد الملفات من السيرفر (max_file_uploads) — تجاوزه يجعل PHP يسقط الملفات الزائدة بصمت
     const MAX_FILES_EDIT = {{ max(1, (int) ini_get('max_file_uploads') ?: 20) }};
     function syncInputEdit(){ try{ input.files = fileTransferEdit.files; }catch(e){ /* fileTransferEdit remains source of truth */ } }
@@ -358,34 +430,52 @@
         list.querySelectorAll('[data-remove-edit]').forEach(btn=>{
             btn.addEventListener('click', ()=>{
                 const idx=parseInt(btn.dataset.removeEdit);
+                const removedFile=Array.from(fileTransferEdit.files)[idx];
                 const dt=new DataTransfer();
                 Array.from(fileTransferEdit.files).forEach((file,j)=>{ if(j!==idx) dt.items.add(file); });
-                fileTransferEdit=dt; intendedFilesCountEdit=Math.max(0, intendedFilesCountEdit-1); syncInputEdit(); renderEdit();
+                fileTransferEdit=dt; intendedFilesCountEdit=Math.max(0, intendedFilesCountEdit-1);
+                // حذف بالهوية (لا بالفهرس) — الفهارس قد تنحرف لو أسقط DataTransfer ملفاً
+                if(removedFile) pendingFilesEdit=pendingFilesEdit.filter(f=>f!==removedFile);
+                else pendingFilesEdit.splice(idx,1);
+                syncInputEdit(); renderEdit();
             });
         });
     }
-    function addFilesEdit(newFiles){
-        for(const file of newFiles){
+    async function addFilesEdit(newFiles){
+        for(let orig of newFiles){
             if(fileTransferEdit.files.length>=MAX_FILES_EDIT){ alert('الحد الأقصى '+MAX_FILES_EDIT+' ملف (حد السيرفر)'); break; }
+            let file=orig;
+            if(file.type.startsWith('image/')){
+                const before=file.size;
+                file=await compressImageClientEdit(file);
+                if(file.size!==before) console.log('[COMPRESS-EDIT] '+orig.name+' '+(before/1024/1024).toFixed(2)+'MB → '+(file.size/1024/1024).toFixed(2)+'MB');
+            }
             const ext=file.name.split('.').pop().toLowerCase();
             const audioExts=['mp3','wav','ogg','oga','m4a','aac','wma','flac','opus','aiff','aif','amr','3ga','awb','mid','midi','au','weba'];
             const isAudio=audioExts.includes(ext)||file.type.startsWith('audio/');
+            if(!['jpg','jpeg','png','webp','mp4','webm','mov','avi','3gp','mkv','m4v','mpg','3gpp'].includes(ext) && !file.type.startsWith('image/') && !file.type.startsWith('video/') && !isAudio){
+                alert('نوع غير مدعوم: '+file.name); continue;
+            }
             if(file.type.startsWith('image/') && file.size>20*1024*1024){ alert('حجم الصورة كبير (الحد 20MB): '+file.name); continue; }
-            if(file.type.startsWith('video/') && file.size>500*1024*1024){ alert('حجم الفيديو كبير (الحد 500MB): '+file.name); continue; }
+            if(file.type.startsWith('video/') && file.size>100*1024*1024){ alert('حجم الفيديو كبير (الحد 100MB): '+file.name); continue; }
             if(isAudio && file.size>100*1024*1024){ alert('حجم الصوت كبير (الحد 100MB): '+file.name); continue; }
             fileTransferEdit.items.add(file);
             intendedFilesCountEdit++;
+            pendingFilesEdit.push(file);
+            if(fileTransferEdit.files.length < pendingFilesEdit.length){
+                console.warn('[UPLOAD] DataTransfer dropped a file — pendingFilesEdit is source of truth', {dt: fileTransferEdit.files.length, pending: pendingFilesEdit.length, name: file.name});
+            }
         }
         syncInputEdit(); renderEdit();
     }
     if(input&&zone&&list){
-        input.addEventListener('change', e=>{
-            addFilesEdit(Array.from(e.target.files));
+        input.addEventListener('change', async e=>{
+            await addFilesEdit(Array.from(e.target.files));
             input.value=''; syncInputEdit();
         });
         ['dragenter','dragover'].forEach(ev=>zone.addEventListener(ev,e=>{e.preventDefault();zone.classList.add('border-[#0e6a38]','bg-[#eef4f0]')}));
         ['dragleave','drop'].forEach(ev=>zone.addEventListener(ev,e=>{e.preventDefault();zone.classList.remove('border-[#0e6a38]','bg-[#eef4f0]')}));
-        zone.addEventListener('drop',e=>{ e.preventDefault(); if(e.dataTransfer?.files?.length) addFilesEdit(Array.from(e.dataTransfer.files)); });
+        zone.addEventListener('drop',async e=>{ e.preventDefault(); if(e.dataTransfer?.files?.length) await addFilesEdit(Array.from(e.dataTransfer.files)); });
     }
 
     // ——— Camera Live for Edit ———
@@ -568,7 +658,17 @@
             if(submitBtn) submitBtn.disabled=true;
             const fd=new FormData(formEdit);
             fd.delete('files[]');
-            const filesToSendEdit = fileTransferEdit.files.length > 0 ? Array.from(fileTransferEdit.files) : Array.from(input.files);
+            // مصدر الحقيقة: pendingFilesEdit (مصفوفة عادية لا تُسقط الفيديو) ثم fileTransfer ثم input
+            let filesToSendEdit = pendingFilesEdit.length > 0 ? pendingFilesEdit.slice()
+                : (fileTransferEdit.files.length > 0 ? Array.from(fileTransferEdit.files) : Array.from(input.files));
+            // فحص ما قبل الإرسال: لا ترسل طلباً محكوماً بالفشل
+            if(filesToSendEdit.length < intendedFilesCountEdit){
+                formErrorsEdit.innerHTML='<div class="font-bold mb-1 text-red-600">تعذّر تجهيز الملفات في المتصفح</div><p class="text-xs">اخترت '+intendedFilesCountEdit+' ملف لكن المتصفح جهّز '+filesToSendEdit.length+' فقط (يحدث مع الفيديو الكبير في بعض متصفحات الجوال). أعد اختيار الملفات ثم أعد المحاولة — لم يُرسل شيء.</p>';
+                formErrorsEdit.classList.remove('hidden');
+                formErrorsEdit.scrollIntoView({behavior:'smooth', block:'center'});
+                if(submitBtn) submitBtn.disabled=false;
+                return;
+            }
             filesToSendEdit.forEach(f=> fd.append('files[]', f));
             if(recordedAudioBlobE){
                 const ext=audioMimeToExtE(recordedAudioBlobE.type||'audio/webm');
@@ -584,27 +684,19 @@
                     audio: recordedAudioBlobE ? 1 : 0,
                     announced: clientFilesCountEdit,
                     fileTransfer: fileTransferEdit.files.length,
+                    pending: pendingFilesEdit.length,
                     inputFiles: input.files ? input.files.length : -1,
                     toSend: filesToSendEdit.length
                 });
             }catch(_){}
             try{
-                // --- Fetch with timeout + CSRF (405 forensic) ---
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 600000); // 10min timeout (large videos)
                 const csrfTokenE = document.querySelector('meta[name="csrf-token"]')?.content || '';
                 const formEditActionUrl = formEdit.getAttribute('action');
                 console.debug('[EDIT SUBMIT] action='+formEditActionUrl+' method=POST files='+filesToSendEdit.length+' count='+clientFilesCountEdit);
-                const res = await fetch(formEditActionUrl, {
-                    method: 'POST',
-                    body: fd,
-                    signal: controller.signal,
-                    headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-TOKEN': csrfTokenE }
-                });
-                clearTimeout(timeoutId);
-
-                let data=null, rawTextE='';
-                try{ rawTextE=await res.clone().text(); data=JSON.parse(rawTextE); }catch(_){ try{ data=JSON.parse(rawTextE); }catch(_){} }
+                setUploadProgressEdit(5);
+                const res = await xhrUploadEdit(formEditActionUrl, fd, csrfTokenE, (pct)=> setUploadProgressEdit(Math.max(5, Math.min(95,pct))));
+                setUploadProgressEdit(98);
+                let data=res.data, rawTextE=res.raw;
                 const failLoudEdit = (title, errs) => {
                     const list=(errs&&errs.length?errs:['فشل رفع المرفقات. لم يتم حفظ التعديلات.']).map(e=> typeof e==='string'?e:((e.file?e.file+': ':'')+(e.message||JSON.stringify(e)))).join('<br>');
                     formErrorsEdit.innerHTML='<div class="font-bold mb-1 text-red-600">'+title+'</div><p class="text-xs">'+list+'</p><p class="mt-2 text-xs font-bold">الملفات الجديدة محفوظة — صحح الخطأ ثم أعد المحاولة.</p>';
@@ -653,22 +745,20 @@
                 } else {
                     let diagE='';
                     try{
-                        const allowE=res.headers.get('Allow')||'';
                         const bodySnippetE=(rawTextE||'').substring(0,800).replace(/</g,'&lt;');
-                        console.error('[EDIT 405 FORENSIC]', {status:res.status, statusText:res.statusText, allow:allowE, url:formEditActionUrl, body:rawTextE});
+                        console.error('[EDIT FORENSIC]', {status:res.status, body:rawTextE});
                         diagE='<div class="mt-2 p-2 bg-white border border-red-200 rounded text-[11px] text-left dir-ltr break-all">'
                             +'<div>URL: '+formEditActionUrl+'</div>'
-                            +'<div>Method: POST (_method='+ (fd.get('_method')||'PUT') +')</div>'
-                            +(allowE?'<div>Allow: '+allowE+'</div>':'')
+                            +'<div>Method: POST</div>'
                             +(bodySnippetE?'<div class="mt-1">Body: '+bodySnippetE+'</div>':'')
-                            +'</div>'
-                            +'<p class="mt-2 text-xs">انسخ التشخيص وأرسله. Ctrl+F5 ثم أعد المحاولة.</p>';
+                            +'</div>';
                     }catch(_){}
-                    formErrorsEdit.innerHTML='<div class="font-bold mb-1 text-red-600">فشل الإرسال (كود: '+res.status+' '+(res.statusText||'')+')</div><p class="text-xs">لم يتم حفظ التعديلات. الملفات محفوظة — أعد المحاولة.</p>'+diagE;
+                    formErrorsEdit.innerHTML='<div class="font-bold mb-1 text-red-600">فشل الإرسال (كود: '+res.status+')</div><p class="text-xs">لم يتم حفظ التعديلات. الملفات محفوظة — أعد المحاولة.</p>'+diagE;
                     formErrorsEdit.classList.remove('hidden');
                     formErrorsEdit.scrollIntoView({behavior:'smooth', block:'center'});
                 }
             }catch(err){
+                hideUploadProgressEdit();
                 if(err.name === 'AbortError'){
                     formErrorsEdit.innerHTML='<div class="font-bold mb-1 text-red-600">انتهت مهلة الإرسال (10 دقائق)</div><p class="text-xs">تحقق من اتصالك أو قلل حجم المرفقات.</p>';
                 } else {
@@ -677,6 +767,7 @@
                 formErrorsEdit.classList.remove('hidden');
                 formErrorsEdit.scrollIntoView({behavior:'smooth', block:'center'});
             }finally{
+                hideUploadProgressEdit();
                 if(submitBtn) submitBtn.disabled=false;
             }
         }

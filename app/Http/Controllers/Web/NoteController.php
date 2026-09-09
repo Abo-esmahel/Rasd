@@ -105,17 +105,26 @@ class NoteController extends Controller
         $this->authorize('create', Note::class);
 
         $maxFiles = max(1, (int) ini_get('max_file_uploads') ?: 20);
+        // حد الملف الواحد = أصغر بين حد PHP وحد التطبيق — أسرع فشل مبكر ورسالة واضحة
+        $phpMaxKb = (int) ($this->parseBytes((string) ini_get('upload_max_filesize')) / 1024);
+        $appMaxKb = max(
+            (int) config('attachments.max_image_size', 20480),
+            (int) config('attachments.max_video_size', 102400),
+            (int) (config('attachments.max_audio_size', 100*1024*1024) / 1024)
+        );
+        $fileMaxKb = $phpMaxKb > 0 ? min($phpMaxKb, $appMaxKb, 512000) : min($appMaxKb, 512000);
         $validated = $request->validate([
-            'floor_number' => ['required','integer','min:1'],
+            'floor_number' => ['required','integer','min:0'],
             'camera_number' => ['required','integer','min:1'],
             'observed_at' => ['required','date'],
             'observed_end_at' => ['nullable','date','after_or_equal:observed_at'],
             'description' => ['required','string','min:10','max:5000'],
             'files' => ['nullable','array','max:'.$maxFiles],
-            'files.*' => ['file','max:512000'],
+            'files.*' => ['file','max:'.$fileMaxKb],
             'client_files_count' => ['nullable','integer','min:0','max:100'],
         ], [
             'files.max' => 'عدد الملفات يتجاوز الحد المسموح به من السيرفر (:max). أرسل على دفعات.',
+            'files.*.max' => 'حجم الملف يتجاوز الحد الأقصى (:max كيلوبايت). قلل الحجم أو اضغط الصورة.',
         ], [
             'floor_number' => 'رقم الطابق',
             'camera_number' => 'رقم الكاميرا',
@@ -230,17 +239,25 @@ class NoteController extends Controller
         }
 
         $maxFiles = max(1, (int) ini_get('max_file_uploads') ?: 20);
+        $phpMaxKb = (int) ($this->parseBytes((string) ini_get('upload_max_filesize')) / 1024);
+        $appMaxKb = max(
+            (int) config('attachments.max_image_size', 20480),
+            (int) config('attachments.max_video_size', 102400),
+            (int) (config('attachments.max_audio_size', 100*1024*1024) / 1024)
+        );
+        $fileMaxKb = $phpMaxKb > 0 ? min($phpMaxKb, $appMaxKb, 512000) : min($appMaxKb, 512000);
         $validated = $request->validate([
-            'floor_number' => ['required','integer','min:1'],
+            'floor_number' => ['required','integer','min:0'],
             'camera_number' => ['required','integer','min:1'],
             'observed_at' => ['required','date'],
             'observed_end_at' => ['nullable','date','after_or_equal:observed_at'],
             'description' => ['required','string','min:10','max:5000'],
             'files' => ['nullable','array','max:'.$maxFiles],
-            'files.*' => ['file','max:512000'],
+            'files.*' => ['file','max:'.$fileMaxKb],
             'client_files_count' => ['nullable','integer','min:0','max:100'],
         ], [
             'files.max' => 'عدد الملفات يتجاوز الحد المسموح به من السيرفر (:max). أرسل على دفعات.',
+            'files.*.max' => 'حجم الملف يتجاوز الحد الأقصى (:max كيلوبايت). قلل الحجم أو اضغط الصورة.',
         ]);
 
         $rawFiles = $request->file('files');
@@ -353,6 +370,47 @@ class NoteController extends Controller
         $note = $this->noteService->resendRejectedNote(auth()->user(), $note);
         if (request()->expectsJson()) return response()->json(['success' => true,'status' => $note->status,'data' => $note]);
         return redirect()->route('notes.index')->with('success', 'تمت إعادة إرسال الملاحظة');
+    }
+
+    /**
+     * رفع مرفق واحد بعد إنشاء الملاحظة — يستخدم للرفع المتدرج (Progressive Upload)
+     * يسمح برفع ملفات كبيرة واحدة تلو الأخرى بدلاً من طلب واحد ضخم، أسرع وأكثر استقراراً
+     */
+    public function storeAttachment(Request $request, Note $note)
+    {
+        $this->authorize('update', $note);
+        if ($overflow = $this->postOverflowResponse($request)) return $overflow;
+
+        $phpMaxKb = (int) ($this->parseBytes((string) ini_get('upload_max_filesize')) / 1024);
+        $appMaxKb = max(
+            (int) config('attachments.max_image_size', 20480),
+            (int) config('attachments.max_video_size', 102400),
+            (int) (config('attachments.max_audio_size', 100*1024*1024) / 1024)
+        );
+        $fileMaxKb = $phpMaxKb > 0 ? min($phpMaxKb, $appMaxKb, 512000) : min($appMaxKb, 512000);
+
+        $request->validate([
+            'file' => ['required','file','max:'.$fileMaxKb,'mimes:jpg,jpeg,png,webp,heic,heif,tiff,tif,bmp,avif,gif,svg,mp4,webm,mov,avi,3gp,3gpp,mkv,m4v,mpg,mpeg,wmv,flv,ogv,ts,mts,m2ts,vob,asf,m2v,3g2,f4v,m4p,mp3,wav,ogg,oga,m4a,aac,wma,flac,opus,aiff,aif,amr,3ga,awb,mid,midi,au,ra,weba'],
+        ]);
+
+        $file = $request->file('file');
+        if (!$file || !$file->isValid()) {
+            $code = $file ? (int) $file->getError() : UPLOAD_ERR_NO_FILE;
+            $msg = $this->uploadErrorMessage($code, $file?->getClientOriginalName() ?? 'الملف');
+            return response()->json(['success'=>false,'message'=>$msg], 422);
+        }
+
+        try {
+            $attachment = $this->noteService->addAttachment($request->user(), $note, $file);
+            return response()->json(['success'=>true,'data'=>$attachment,'message'=>'تم رفع المرفق'], 201);
+        } catch (\App\Exceptions\AttachmentUploadException $e) {
+            return response()->json(['success'=>false,'message'=>$e->getMessage(),'stage'=>$e->stage], 422);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['success'=>false,'message'=>$e->getMessage()], 422);
+        } catch (\Throwable $e) {
+            Log::error('[ATTACHMENT] web single upload failed', ['note_id'=>$note->id,'message'=>$e->getMessage()]);
+            return response()->json(['success'=>false,'message'=>'تعذر حفظ المرفق: '.$e->getMessage()], 500);
+        }
     }
 
     public function destroyAttachment(Note $note, Attachment $attachment)

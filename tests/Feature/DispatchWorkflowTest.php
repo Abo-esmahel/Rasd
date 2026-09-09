@@ -230,18 +230,18 @@ class DispatchWorkflowTest extends TestCase
 
         // Sender sees
         $this->assertTrue($monitorA->can('view', $note));
-        // Other monitors blocked
-        $this->assertFalse($monitorB->can('view', $note));
-        $this->assertFalse($monitorC->can('view', $note));
+        // Other monitors can view pending (الملاحظات قيد المراجعة للجميع)
+        $this->assertTrue($monitorB->can('view', $note));
+        $this->assertTrue($monitorC->can('view', $note));
         // Writer can see pending
         $this->assertTrue($writer->can('view', $note));
 
-        // Direct URL blocked for other monitor
+        // Direct URL allowed for other monitor (pending visible to all)
         $tokenB = $this->jwtService->generateToken($monitorB);
         $response = $this->getJson("/api/notes/{$note->id}", [
             'Authorization' => "Bearer $tokenB",
         ]);
-        $response->assertForbidden();
+        $response->assertOk();
 
         // Sender can view via API
         $tokenA = $this->jwtService->generateToken($monitorA);
@@ -415,18 +415,18 @@ class DispatchWorkflowTest extends TestCase
         // Owner can view attachment via policy check (can view note)
         $this->assertTrue($monitorA->can('view', $note));
 
-        // Other monitor cannot view note => cannot view attachment
-        $this->assertFalse($monitorB->can('view', $note));
+        // Other monitor can view pending note (قيد المراجعة للجميع) => can view attachment
+        $this->assertTrue($monitorB->can('view', $note));
 
         // Writer can view note => can view attachment (but download only for writer)
         $this->assertTrue($writer->can('view', $note));
 
-        // Test actual HTTP endpoint for view
+        // Test actual HTTP endpoint for view - now allowed for other monitor
         $tokenB = $this->jwtService->generateToken($monitorB);
         // Web route requires auth, but we test API view logic: viewAttachment checks can view
         // Simulate web request
         $response = $this->actingAs($monitorB)->get("/attachments/{$attachment->id}/view");
-        $response->assertForbidden();
+        $this->assertNotEquals(403, $response->getStatusCode());
 
         $response = $this->actingAs($monitorA)->get("/attachments/{$attachment->id}/view");
         // Should redirect to cloudinary url (302) or success, not 403

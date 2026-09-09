@@ -508,8 +508,10 @@ function bspPartition(rect, n, depth=0, pattern=null){
 function clampCellToArea(cell, area){
   const EPS = 0.01;
   let {x, y, width, height} = cell;
-  if(x < area.x) x = area.x;
-  if(y < area.y) y = area.y;
+  // SMART FIX: clamping position must preserve the opposite edge —
+  // shifting x/y without shrinking w/h used to CREATE neighbor overlaps.
+  if(x < area.x){ const dx = area.x - x; x = area.x; width = width - dx; }
+  if(y < area.y){ const dy = area.y - y; y = area.y; height = height - dy; }
   // Uniform scale to fit if exceeds right/bottom — preserve aspect, no crop, no stretch
   if(x + width > area.x + area.w + EPS){
     const maxW = area.x + area.w - x;
@@ -866,7 +868,12 @@ export class PrintLayoutEngine {
             if(prop==='width') im.width += delta;
             if(prop==='height') im.height += delta;
             if(im.width < 22 || im.height < 18) continue;
-            if(im.x < 6-EPS || im.y < 6-EPS || im.x+im.width > cand.paper.width-6+EPS || im.y+im.height > cand.description.y+EPS) continue;
+            // SMART FIX: respect the real imageArea top/left (margin+topOffset),
+            // not hardcoded 6 — otherwise area-violating moves get clamped into overlaps later.
+            const dbgA = cand._debug?.imageArea;
+            const aL = dbgA ? dbgA.x : 6, aT = dbgA ? dbgA.y : 6;
+            const aR = dbgA ? dbgA.x + dbgA.w : cand.paper.width - 6;
+            if(im.x < aL-EPS || im.y < aT-EPS || im.x+im.width > aR+EPS || im.y+im.height > cand.description.y+EPS) continue;
             let overlap=false;
             for(let j=0;j<cand.images.length;j++) if(j!==i){
               const a=cand.images[i], b=cand.images[j];

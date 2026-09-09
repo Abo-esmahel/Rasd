@@ -5,9 +5,8 @@
     $isMonitor = auth()->user()->isMonitor();
     $isWriter = !$isMonitor;
     $userId = auth()->id();
-    $baseQuery = \App\Models\Note::query();
-    // الجميع يرى مسوداته + كل غير المسودات (كاتب التقرير مشرف)
-    $baseQuery->where(function($q) use ($userId){ $q->where('user_id',$userId)->orWhere('status','!=','draft'); });
+    // السياسة الجديدة: قيد المراجعة/مقبولة/مرفوضة للجميع، المسودة لصاحبها فقط — app/Services/NoteService.php:606
+    $baseQuery = \App\Models\Note::query()->where(function($q) use ($userId){ $q->where('user_id',$userId)->orWhere('status','!=','draft'); });
     $totalCount = (clone $baseQuery)->count();
     $draftCount = \App\Models\Note::where('user_id',$userId)->where('status','draft')->count();
     $pendingCount = (clone $baseQuery)->where('status','pending')->count();
@@ -188,7 +187,7 @@
                         <span class="text-ink-200">·</span>
                         <span class="text-sm text-[#525252]">الطابق {{ $note->floor_number }}</span>
                         <span class="text-ink-200">·</span>
-                        <span class="text-sm text-[#737373]">{{ $note->observed_at->format('H:i') }}{{ $note->observed_end_at ? ' — '.$note->observed_end_at->format('H:i') : '' }}</span>
+                        <span class="text-sm text-[#737373]">{{ $note->observed_at->toTime12() }}{{ $note->observed_end_at ? ' — '.$note->observed_end_at->toTime12() : '' }}</span>
                         <span class="text-ink-200">·</span>
                         <span class="text-sm text-[#737373]">{{ $note->created_at->diffForHumans() }}</span>
                     </div>
@@ -237,8 +236,8 @@
                         $statusLabel = $note->isDraft() ? 'مسودة' : ($note->isPending() ? 'قيد المراجعة' : 'مقبولة');
                         $shareText = "ملاحظة #".str_pad($note->id, 4, '0', STR_PAD_LEFT)."\n";
                         $shareText .= "الطابق: {$note->floor_number} — الكاميرا: {$note->camera_number}\n";
-                        $shareText .= "الملاحظة: ".$note->observed_at->format('Y-m-d H:i');
-                        if($note->observed_end_at) $shareText .= ' — '.$note->observed_end_at->format('H:i');
+                        $shareText .= "الملاحظة: ".$note->observed_at->toDatetime12();
+                        if($note->observed_end_at) $shareText .= ' — '.$note->observed_end_at->toTime12();
                         $shareText .= "\n".$note->description;
                         $shareText .= "\nالحالة: ".$statusLabel;
                         $shareAttachments = $note->attachments->map(fn($a) => ['id'=>$a->id, 'name'=>$a->original_name, 'mime'=>$a->mime_type, 'url'=>route('notes.attachments.view', $a)])->toArray();
@@ -301,7 +300,7 @@
                             <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-red-50 text-red-700 border border-red-200">مرفوضة</span>
                         @endif
                     </div>
-                    <span class="text-xs text-ink-300">{{ $note->observed_at->format('H:i') }}{{ $note->observed_end_at ? ' — '.$note->observed_end_at->format('H:i') : '' }}</span>
+                    <span class="text-xs text-ink-300">{{ $note->observed_at->toTime12() }}{{ $note->observed_end_at ? ' — '.$note->observed_end_at->toTime12() : '' }}</span>
                 </div>
                 <div class="flex items-center gap-2 text-sm text-ink-600 mb-1.5">
                     <span class="font-semibold">كاميرا {{ $note->camera_number }}</span>
@@ -330,8 +329,8 @@
                                 $statusLabel = $note->isDraft() ? 'مسودة' : ($note->isPending() ? 'قيد المراجعة' : 'مقبولة');
                                 $shareText = "ملاحظة #".str_pad($note->id, 4, '0', STR_PAD_LEFT)."\n";
                                 $shareText .= "الطابق: {$note->floor_number} — الكاميرا: {$note->camera_number}\n";
-                                $shareText .= "الملاحظة: ".$note->observed_at->format('Y-m-d H:i');
-                                if($note->observed_end_at) $shareText .= ' — '.$note->observed_end_at->format('H:i');
+                                $shareText .= "الملاحظة: ".$note->observed_at->toDatetime12();
+                                if($note->observed_end_at) $shareText .= ' — '.$note->observed_end_at->toTime12();
                                 $shareText .= "\n".$note->description;
                                 $shareText .= "\nالحالة: ".$statusLabel;
                                 $shareAttachments = $note->attachments->map(fn($a) => ['id'=>$a->id, 'name'=>$a->original_name, 'mime'=>$a->mime_type, 'url'=>route('notes.attachments.view', $a)])->toArray();
@@ -387,8 +386,8 @@
             'floor_number' => $note->floor_number,
             'camera_number' => $note->camera_number,
             'observed_date' => $note->observed_at->format('Y-m-d'),
-            'observed_time_start' => $note->observed_at->format('H:i'),
-            'observed_time_end' => $note->observed_end_at ? $note->observed_end_at->format('H:i') : '—',
+            'observed_time_start' => $note->observed_at->toTime12(),
+            'observed_time_end' => $note->observed_end_at ? $note->observed_end_at->toTime12() : '—',
             'description' => $note->description,
             'status' => $note->status,
             'status_label' => $note->isDraft() ? 'مسودة' : ($note->isPending() ? 'قيد المراجعة' : ($note->isAccepted() ? 'مقبولة' : 'مرفوضة')),
@@ -430,7 +429,7 @@
                                 <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-red-50 text-red-700 border border-red-200">مرفوضة</span>
                             @endif
                         </div>
-                        <div class="text-xs text-[#737373] mt-0.5">{{ $note->owner->name }} — أُنشئت {{ $note->created_at->format('Y-m-d H:i') }}</div>
+                        <div class="text-xs text-[#737373] mt-0.5">{{ $note->owner->name }} — أُنشئت {{ $note->created_at->toDatetime12() }}</div>
                     </div>
                 </div>
                 <div class="flex items-center gap-2">
@@ -459,7 +458,7 @@
                     </div>
                     <div class="rounded-xl bg-[#f5f7f5] border border-[#e6e9e1] p-3 text-center">
                         <div class="text-[11px] font-bold text-ink-300 mb-1">وقت الملاحظة</div>
-                        <div class="text-sm font-bold text-ink-800">{{ $note->observed_at->format('H:i') }}{{ $note->observed_end_at ? ' — '.$note->observed_end_at->format('H:i') : '' }}</div>
+                        <div class="text-sm font-bold text-ink-800">{{ $note->observed_at->toTime12() }}{{ $note->observed_end_at ? ' — '.$note->observed_end_at->toTime12() : '' }}</div>
                         <div class="text-[11px] text-[#737373]">{{ $note->observed_at->format('Y-m-d') }}</div>
                     </div>
                     <div class="rounded-xl bg-[#f5f7f5] border border-[#e6e9e1] p-3 text-center">
@@ -484,7 +483,7 @@
                     </div>
                     <div class="mr-auto text-left">
                         <div class="text-[11px] font-bold text-ink-300">تاريخ الإنشاء</div>
-                        <div class="text-xs font-medium text-[#525252]">{{ $note->created_at->format('Y-m-d H:i') }}</div>
+                        <div class="text-xs font-medium text-[#525252]">{{ $note->created_at->toDatetime12() }}</div>
                     </div>
                 </div>
 
@@ -506,7 +505,7 @@
                         </h3>
                         <p class="text-sm leading-7 text-red-600">{{ $note->rejection_reason }}</p>
                         @if($note->processor)
-                            <div class="mt-2 text-xs font-bold text-red-500">بواسطة {{ $note->processor->name }} — {{ $note->processed_at?->format('Y-m-d H:i') }}</div>
+                            <div class="mt-2 text-xs font-bold text-red-500">بواسطة {{ $note->processor->name }} — {{ $note->processed_at?->toDatetime12() }}</div>
                         @endif
                     </div>
                 @endif
@@ -557,7 +556,7 @@
                         <div class="w-8 h-8 rounded-lg bg-[#eceee9] flex items-center justify-center text-xs font-bold text-[#525252]">{{ mb_substr($note->processor->name, 0, 1) }}</div>
                         <div>
                             <div class="text-[11px] font-bold text-ink-300">{{ $note->isAccepted() ? 'تم الاعتماد بواسطة' : 'تم الرفض بواسطة' }}</div>
-                            <div class="text-sm font-bold text-ink-700">{{ $note->processor->name }} — {{ $note->processed_at?->format('Y-m-d H:i') }}</div>
+                            <div class="text-sm font-bold text-ink-700">{{ $note->processor->name }} — {{ $note->processed_at?->toDatetime12() }}</div>
                         </div>
                     </div>
                 @endif
@@ -570,8 +569,8 @@
                         $statusLabel = $note->isDraft() ? 'مسودة' : ($note->isPending() ? 'قيد المراجعة' : 'مقبولة');
                         $shareText = "ملاحظة #".str_pad($note->id, 4, '0', STR_PAD_LEFT)."\n";
                         $shareText .= "الطابق: {$note->floor_number} — الكاميرا: {$note->camera_number}\n";
-                        $shareText .= "الملاحظة: ".$note->observed_at->format('Y-m-d H:i');
-                        if($note->observed_end_at) $shareText .= ' — '.$note->observed_end_at->format('H:i');
+                        $shareText .= "الملاحظة: ".$note->observed_at->toDatetime12();
+                        if($note->observed_end_at) $shareText .= ' — '.$note->observed_end_at->toTime12();
                         $shareText .= "\n".$note->description;
                         $shareText .= "\nالحالة: ".$statusLabel;
                         $shareAttachments = $note->attachments->map(fn($a) => ['id'=>$a->id, 'name'=>$a->original_name, 'mime'=>$a->mime_type, 'url'=>route('notes.attachments.view', $a)])->toArray();

@@ -24,7 +24,9 @@ const API = {
     for (let attempt = 0; attempt <= retries; attempt++) {
       try {
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 15000);
+        // المرفقات (فيديو كبير) تحتاج مهلة طويلة — 10 دقائق بدل 15 ثانية
+        const timeoutMs = isForm ? 600000 : 15000;
+        const timeout = setTimeout(() => controller.abort(), timeoutMs);
         opts.signal = controller.signal;
 
         const r = await fetch(this.BASE + path, opts);

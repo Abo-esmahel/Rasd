@@ -19,28 +19,27 @@ class NotePolicy
 
     public function view(User $user, Note $note): bool
     {
-        // المالك يرى دائماً إرساليته
+        // المالك يرى دائماً
         if ($note->user_id === $user->id) {
             return true;
         }
-
-        // كاتب التقرير يرى الملاحظات غير المسودة فقط (قيد المراجعة / مقبولة / مرفوضة)
-        // لكن الملاحظون الآخرون لا يرونها — خصوصية الإرسالية
-        if ($user->isReportWriter()) {
-            return $note->status !== Note::STATUS_DRAFT;
-        }
-
-        return false;
+        // قيد المراجعة/مقبولة/مرفوضة (مع سبب الرفض) مرئية للجميع، المسودة لصاحبها فقط
+        return $note->status !== Note::STATUS_DRAFT;
     }
 
     public function update(User $user, Note $note): bool
     {
+        // التعديل فقط لصاحب الملاحظة
         if ($note->user_id !== $user->id) {
+            return false;
+        }
+        if ($note->isRejected()) {
             return false;
         }
         if (!$note->isAccepted()) {
             return true;
         }
+        // بعد القبول: فقط إذا كان المالك هو من اعتمدها
         return $note->processed_by === $user->id;
     }
 
@@ -74,15 +73,22 @@ class NotePolicy
         if ($note->user_id !== $user->id) {
             return false;
         }
+        if ($note->isRejected()) {
+            return false;
+        }
         if (!$note->isAccepted()) {
             return true;
         }
+        // بعد القبول: فقط إذا كان المالك هو نفسه من اعتمدها (كاتب التقرير يكتب ملاحظته الخاصة)
         return $note->processed_by === $user->id;
     }
 
     public function removeAttachment(User $user, Note $note): bool
     {
         if ($note->user_id !== $user->id) {
+            return false;
+        }
+        if ($note->isRejected()) {
             return false;
         }
         if (!$note->isAccepted()) {
