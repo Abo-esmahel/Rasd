@@ -2,7 +2,9 @@
 
 namespace App\Providers;
 
+use App\Models\GeneralSubmission;
 use App\Models\Note;
+use App\Policies\GeneralSubmissionPolicy;
 use App\Policies\NotePolicy;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
@@ -17,5 +19,6 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Gate::policy(Note::class, NotePolicy::class);
+        Gate::policy(GeneralSubmission::class, GeneralSubmissionPolicy::class);
     }
 }

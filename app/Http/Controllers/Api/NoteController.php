@@ -13,15 +13,16 @@ use App\Services\NoteService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
-use Illuminate\Support\Facades\Storage;
 
 class NoteController extends Controller
 {
     private NoteService $noteService;
+    private \App\Services\AttachmentStorageService $storage;
 
-    public function __construct(NoteService $noteService)
+    public function __construct(NoteService $noteService, \App\Services\AttachmentStorageService $storage)
     {
         $this->noteService = $noteService;
+        $this->storage = $storage;
     }
 
     public function index(Request $request): JsonResponse
@@ -289,29 +290,70 @@ class NoteController extends Controller
         }
 
         try {
-            $attachment = $this->noteService->addAttachment($user, $note, $request->file('file'));
+            $file = $request->file('file');
+            if (!$file || !$file->isValid()) {
+                $code = $file ? (int) $file->getError() : UPLOAD_ERR_NO_FILE;
+                $name = $file ? $file->getClientOriginalName() : 'الملف';
+                $msg = match ($code) {
+                    UPLOAD_ERR_INI_SIZE => "الملف {$name} يتجاوز حد الخادم upload_max_filesize.",
+                    UPLOAD_ERR_FORM_SIZE => "الملف {$name} يتجاوز الحد المسموح في النموذج.",
+                    UPLOAD_ERR_PARTIAL => "وصل الملف {$name} ناقصاً. يرجى إعادة المحاولة.",
+                    UPLOAD_ERR_NO_FILE => "لم يتم استلام الملف {$name}.",
+                    default => "تعذّر استلام الملف {$name} (خطأ رفع {$code}).",
+                };
+
+                return response()->json([
+                    'success' => false,
+                    'message' => $msg,
+                    'files_received' => $file ? 1 : 0,
+                    'attachments_saved' => 0,
+                ], 422);
+            }
+            $attachment = $this->noteService->addAttachment($user, $note, $file);
             return response()->json([
                 'success' => true,
                 'message' => 'تم إضافة المرفق بنجاح',
+                'files_received' => 1,
+                'attachments_saved' => 1,
                 'data' => $attachment,
             ], 201);
+        } catch (\App\Exceptions\AttachmentUploadException $e) {
+            \Illuminate\Support\Facades\Log::error('[ATTACHMENT] api single upload failed', [
+                'userId' => $user->id,
+                'noteId' => $note->id,
+                'stage' => $e->stage,
+                'message' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'فشل رفع المرفق: '.$e->getMessage(),
+                'files_received' => 1,
+                'attachments_saved' => 0,
+                'attachment_errors' => $e->attachmentErrors ?: [$e->getMessage()],
+            ], 422);
         } catch (\InvalidArgumentException $e) {
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage(),
+                'files_received' => 1,
+                'attachments_saved' => 0,
             ], 400);
         } catch (\Throwable $e) {
-            // فشل نقل (شبكة/Cloudinary/SSL) — التفاصيل في السجلات فقط
-            \Illuminate\Support\Facades\Log::error('Cloudinary attachment upload failed', [
+            // فشل تخزين محلي — التفاصيل في السجلات فقط (لا Cloudinary في المسار الجديد)
+            \Illuminate\Support\Facades\Log::error('[ATTACHMENT] local storage upload failed', [
                 'userId' => $user->id,
                 'noteId' => $note->id,
                 'exception' => get_class($e),
                 'message' => $e->getMessage(),
             ]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'تعذّر رفع الملف إلى التخزين السحابي (Cloudinary). تحقق من الاتصال وحاول مجدداً.',
-            ], 503);
+                'message' => 'تعذّر تخزين الملف على القرص المحلي. حاول مجدداً.',
+                'files_received' => 1,
+                'attachments_saved' => 0,
+            ], 500);
         }
     }
 
@@ -367,31 +409,44 @@ class NoteController extends Controller
             ], 403);
         }
 
-        // بث عبر readStream (يعمل لكل الأنواع) — download() الخاص بالقرص يعتمد على
-        // metadata بنوع image فقط فيفشل مع الصوت/الفيديو. النوع والحجم من سجل DB.
-        try {
-            $stream = Storage::disk('cloudinary')->readStream($attachment->file_path);
-        } catch (\Throwable $e) {
-            $stream = false;
+        // Local first, legacy Cloudinary (secure_url) second, else controlled 404.
+        if ($this->storage->isLocal($attachment)) {
+            return $this->storage->fileResponse($attachment, true);
         }
-        if ($stream === false) {
+
+        if (!empty($attachment->secure_url)) {
+            return redirect()->away($attachment->secure_url);
+        }
+
+        return response()->json([
+            'success' => false,
+            'message' => 'الملف غير موجود',
+        ], 404);
+    }
+
+    public function viewAttachment(Request $request, Attachment $attachment): \Symfony\Component\HttpFoundation\Response
+    {
+        $user = $request->user();
+        $note = $attachment->note;
+
+        if (!$user->can('view', $note)) {
             return response()->json([
                 'success' => false,
-                'message' => 'الملف غير موجود',
-            ], 404);
+                'message' => 'غير مصرح لك بعرض هذا المرفق',
+            ], 403);
         }
 
-        $headers = [
-            'Content-Type' => $attachment->mime_type,
-            'Content-Length' => (string) $attachment->file_size,
-            'X-Content-Type-Options' => 'nosniff',
-        ];
+        if ($this->storage->isLocal($attachment)) {
+            return $this->storage->fileResponse($attachment, false);
+        }
 
-        return response()->streamDownload(function () use ($stream) {
-            fpassthru($stream);
-            if (is_resource($stream)) {
-                fclose($stream);
-            }
-        }, $attachment->original_name, $headers);
+        if (!empty($attachment->secure_url)) {
+            return redirect()->away($attachment->secure_url);
+        }
+
+        return response()->json([
+            'success' => false,
+            'message' => 'الملف غير موجود',
+        ], 404);
     }
 }

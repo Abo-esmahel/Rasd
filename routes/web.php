@@ -17,6 +17,11 @@ Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
+// PWA — نسخة الجوال القابلة للتثبيت (عامة، بدون تسجيل دخول)
+Route::get('/pwa', function () {
+    return response()->file(public_path('pwa/index.html'));
+})->name('pwa');
+
 Route::middleware('auth')->group(function () {
     Route::get('/dashboard', function () {
         return redirect()->route('notes.index');
@@ -46,4 +51,40 @@ Route::middleware('auth')->group(function () {
     Route::post('/notifications/{id}/read', [NotificationController::class, 'markOneAsRead'])->name('notifications.markOneRead');
 
     Route::get('/print-test', function(){ return view('print-test'); })->name('print.test');
+
+    Route::get('/general-submissions', [\App\Http\Controllers\Web\GeneralSubmissionController::class, 'index'])->name('general-submissions.index');
+    Route::get('/general-submissions/create', [\App\Http\Controllers\Web\GeneralSubmissionController::class, 'create'])->name('general-submissions.create');
+    Route::post('/general-submissions', [\App\Http\Controllers\Web\GeneralSubmissionController::class, 'store'])->name('general-submissions.store');
+    Route::get('/general-submissions/{generalSubmission}', [\App\Http\Controllers\Web\GeneralSubmissionController::class, 'show'])->name('general-submissions.show');
+    Route::post('/general-submissions/{generalSubmission}/accept', [\App\Http\Controllers\Web\GeneralSubmissionController::class, 'accept'])->name('general-submissions.accept');
+    Route::post('/general-submissions/{generalSubmission}/reject', [\App\Http\Controllers\Web\GeneralSubmissionController::class, 'reject'])->name('general-submissions.reject');
+
+    Route::get('/submission-attachments/{attachment}/view', [\App\Http\Controllers\Web\GeneralSubmissionController::class, 'viewAttachment'])->name('submission-attachments.view');
+    Route::get('/submission-attachments/{attachment}/download', [\App\Http\Controllers\Web\GeneralSubmissionController::class, 'downloadAttachment'])->name('submission-attachments.download');
+
+    // TEMP DIAGNOSTIC - Web Runtime (remove after verification)
+    Route::get('/_diag/runtime', function () {
+        $user = auth()->user();
+        return response()->json([
+            'APP_ENV' => config('app.env'),
+            'APP_URL' => config('app.url'),
+            'DB_CONNECTION' => config('database.default'),
+            'DB_DATABASE' => config('database.connections.'.config('database.default').'.database'),
+            'DB_HOST' => config('database.connections.'.config('database.default').'.host') ?? 'sqlite',
+            'Cloudinary_cloud_name' => config('filesystems.disks.cloudinary.cloud_name'),
+            'Cloudinary_folder' => config('filesystems.disks.cloudinary.folder'),
+            'Cloudinary_SDK_version' => \Cloudinary\Cloudinary::VERSION ?? 'unknown',
+            'upload_max_filesize' => ini_get('upload_max_filesize'),
+            'post_max_size' => ini_get('post_max_size'),
+            'max_file_uploads' => ini_get('max_file_uploads'),
+            'max_input_time' => ini_get('max_input_time'),
+            'max_execution_time' => ini_get('max_execution_time'),
+            'memory_limit' => ini_get('memory_limit'),
+            'config_cache' => file_exists(base_path('bootstrap/cache/config.php')) ? 'cached' : 'not cached',
+            'auth_user_id' => $user?->id,
+            'auth_user_role' => $user?->role,
+            'code_version' => trim(@exec('git rev-parse --short HEAD 2>&1') ?: 'unknown'),
+            'time' => now()->toIso8601String(),
+        ]);
+    })->name('diag.runtime');
 });

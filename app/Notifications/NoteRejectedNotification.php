@@ -37,6 +37,8 @@ class NoteRejectedNotification extends Notification implements ShouldQueue
             'processor_name' => $this->processorName,
             'observed_at' => $this->note->observed_at?->toIso8601String(),
             'message' => "تم رفض ملاحظتك #{$this->note->id} (كاميرا {$this->note->camera_number} - الطابق {$this->note->floor_number}) بواسطة {$this->processorName}",
+            'url' => route('notes.show', $this->note->id),
+            'type' => 'note_rejected',
         ];
     }
 

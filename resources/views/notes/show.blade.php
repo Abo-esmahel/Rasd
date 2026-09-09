@@ -56,7 +56,7 @@
             <div class="text-lg font-extrabold text-ink-800">{{ $note->floor_number }}</div>
         </div>
         <div class="rounded-xl bg-[#f5f7f5] border border-[#e6e9e1] p-3 text-center">
-            <div class="text-[11px] font-bold text-ink-300 mb-1">وقت الرصد</div>
+            <div class="text-[11px] font-bold text-ink-300 mb-1">وقت الملاحظة</div>
             <div class="text-sm font-bold text-ink-800">{{ $note->observed_at->format('H:i') }}{{ $note->observed_end_at ? ' — '.$note->observed_end_at->format('H:i') : '' }}</div>
             <div class="text-[11px] text-[#737373]">{{ $note->observed_at->format('Y-m-d') }}</div>
         </div>
@@ -115,6 +115,12 @@
         </h3>
         <div class="space-y-2">
             @foreach($note->attachments as $attachment)
+                {{-- معاينة مرئية مباشرة للصور — DISPLAY PIPELINE: <img> ظاهر بدون نقر --}}
+                @if(str_starts_with($attachment->mime_type, 'image/'))
+                    <button type="button" onclick="openAttachmentView('{{ route('notes.attachments.view', $attachment) }}', '{{ $attachment->mime_type }}', '{{ addslashes($attachment->original_name) }}')" class="block w-full rounded-xl border border-[#e6e9e1] hover:border-[#cde7d6] overflow-hidden transition group" title="اضغط للعرض الكامل">
+                        <img src="{{ route('notes.attachments.view', $attachment) }}" alt="{{ $attachment->original_name }}" data-testid="attachment-image" data-attachment-id="{{ $attachment->id }}" class="w-full max-h-96 object-contain bg-[#f5f7f5]" loading="lazy" oncontextmenu="return false;" draggable="false">
+                    </button>
+                @endif
                 <div class="flex items-center gap-3 p-3 rounded-xl border border-[#e6e9e1] hover:border-[#cde7d6] hover:bg-[#eef4f0]/30 transition group">
                     <div class="w-9 h-9 rounded-lg bg-[#f5f7f5] border border-[#e6e9e1] flex items-center justify-center shrink-0">
                         @if(str_contains($attachment->mime_type, 'video'))
@@ -173,4 +179,71 @@
 @endif
 
 @include('notes.partials.print_modal')
+
+{{-- ===== ATTACHMENT VIEW MODAL — عرض فقط بدون تنزيل (مطابق لـ notes/index) ===== --}}
+<div id="attachment-view-modal" data-modal class="hidden fixed inset-0 z-[60] flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-ink-900/70 backdrop-blur-sm" onclick="closeModal('attachment-view-modal')"></div>
+    <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden">
+        <div class="px-4 py-3 border-b border-surface-300 flex items-center justify-between gap-3 shrink-0">
+            <h3 id="attachment-view-title" class="text-sm font-bold text-ink-800 truncate"></h3>
+            <button type="button" onclick="closeModal('attachment-view-modal')" class="w-8 h-8 rounded-lg hover:bg-surface-100 flex items-center justify-center text-ink-400 hover:text-ink-700 transition">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+        <div class="flex-1 min-h-0 bg-ink-900 flex items-center justify-center p-4 overflow-auto">
+            <img id="attachment-view-image" class="hidden max-w-full max-h-[70vh] rounded-lg object-contain" oncontextmenu="return false;" draggable="false" alt="معاينة الصورة">
+            <video id="attachment-view-video" class="hidden max-w-full max-h-[70vh] rounded-lg" controls controlsList="nodownload" oncontextmenu="return false;" disablePictureInPicture></video>
+            <audio id="attachment-view-audio" class="hidden w-full max-w-md" controls controlsList="nodownload" oncontextmenu="return false;"></audio>
+            <div id="attachment-view-fallback" class="hidden text-center text-white/70 text-sm">لا يمكن معاينة هذا النوع</div>
+        </div>
+        <div class="px-4 py-3 border-t border-surface-300 bg-surface-50 flex items-center justify-between gap-3 shrink-0">
+            <p class="text-xs text-ink-400">العرض فقط — التنزيل لكاتب التقرير فقط</p>
+            <button type="button" onclick="closeModal('attachment-view-modal')" class="px-4 py-2 rounded-lg bg-white border border-surface-300 text-ink-600 text-sm font-bold hover:bg-surface-100 transition">إغلاق</button>
+        </div>
+    </div>
+</div>
 @endsection
+
+@push('scripts')
+<script>
+function openAttachmentView(url, mime, name){
+    const modal = document.getElementById('attachment-view-modal');
+    const img = document.getElementById('attachment-view-image');
+    const video = document.getElementById('attachment-view-video');
+    const audio = document.getElementById('attachment-view-audio');
+    const fallback = document.getElementById('attachment-view-fallback');
+    const title = document.getElementById('attachment-view-title');
+    if(title) title.textContent = name;
+    img.classList.add('hidden'); img.src='';
+    video.classList.add('hidden'); video.pause(); video.src=''; video.load();
+    audio.classList.add('hidden'); audio.pause(); audio.src=''; audio.load();
+    fallback.classList.add('hidden');
+    if(mime.startsWith('image/')){
+        img.src = url;
+        img.classList.remove('hidden');
+    } else if(mime.startsWith('video/')){
+        video.src = url;
+        video.classList.remove('hidden');
+        video.load();
+    } else if(mime.startsWith('audio/')){
+        audio.src = url;
+        audio.classList.remove('hidden');
+        audio.load();
+    } else {
+        fallback.classList.remove('hidden');
+        fallback.textContent = 'لا يمكن معاينة هذا النوع — ' + mime;
+    }
+    modal.classList.remove('hidden');
+    document.body.style.overflow='hidden';
+    img.oncontextmenu = () => false;
+    video.oncontextmenu = () => false;
+}
+// منع السحب والحفظ
+document.addEventListener('contextmenu', e=>{
+    const modal = document.getElementById('attachment-view-modal');
+    if(modal && !modal.classList.contains('hidden') && (e.target.tagName==='IMG' || e.target.tagName==='VIDEO')){
+        e.preventDefault();
+    }
+});
+</script>
+@endpush

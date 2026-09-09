@@ -19,12 +19,15 @@ class NotePolicy
 
     public function view(User $user, Note $note): bool
     {
-        if ($user->isReportWriter()) {
-            return $note->user_id === $user->id || $note->status !== Note::STATUS_DRAFT;
+        // المالك يرى دائماً إرساليته
+        if ($note->user_id === $user->id) {
+            return true;
         }
 
-        if ($user->isMonitor()) {
-            return $note->user_id === $user->id || $note->status !== Note::STATUS_DRAFT;
+        // كاتب التقرير يرى الملاحظات غير المسودة فقط (قيد المراجعة / مقبولة / مرفوضة)
+        // لكن الملاحظون الآخرون لا يرونها — خصوصية الإرسالية
+        if ($user->isReportWriter()) {
+            return $note->status !== Note::STATUS_DRAFT;
         }
 
         return false;
@@ -32,11 +35,13 @@ class NotePolicy
 
     public function update(User $user, Note $note): bool
     {
-        if ($note->status === Note::STATUS_ACCEPTED) {
+        if ($note->user_id !== $user->id) {
             return false;
         }
-
-        return $note->user_id === $user->id;
+        if (!$note->isAccepted()) {
+            return true;
+        }
+        return $note->processed_by === $user->id;
     }
 
     public function delete(User $user, Note $note): bool
@@ -66,11 +71,23 @@ class NotePolicy
 
     public function addAttachment(User $user, Note $note): bool
     {
-        return $note->user_id === $user->id && !$note->isAccepted();
+        if ($note->user_id !== $user->id) {
+            return false;
+        }
+        if (!$note->isAccepted()) {
+            return true;
+        }
+        return $note->processed_by === $user->id;
     }
 
     public function removeAttachment(User $user, Note $note): bool
     {
-        return $note->user_id === $user->id && !$note->isAccepted();
+        if ($note->user_id !== $user->id) {
+            return false;
+        }
+        if (!$note->isAccepted()) {
+            return true;
+        }
+        return $note->processed_by === $user->id;
     }
 }

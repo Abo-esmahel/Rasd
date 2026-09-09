@@ -4,28 +4,26 @@ namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\Media\CloudinaryMediaService;
 use App\Support\SyrianPhone;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class ProfileController extends Controller
 {
+    public function __construct(private CloudinaryMediaService $media) {}
+
     public function show(Request $request, ?int $id = null)
     {
-        // إذا تم تمرير id → عرض بروفايل مستخدم آخر (مسموح للجميع)
         if ($id) {
             $user = \App\Models\User::findOrFail($id);
-            // السماح برؤية بروفايلات بعض
             $stats = $this->getStats($user);
             $isOwn = Auth::id() === $user->id;
             return view('profile.show', compact('user', 'stats', 'isOwn'));
         }
-
         $user = Auth::user();
         $stats = $this->getStats($user);
         $isOwn = true;
@@ -45,14 +43,11 @@ class ProfileController extends Controller
             ->orderByDesc('accepted_notes')
             ->orderByDesc('total_notes')
             ->get();
-
         $writers = \App\Models\User::where('role', 'report_writer')
             ->withCount([
                 'notes as total_notes' => fn($q) => $q->where('user_id', \Illuminate\Support\Facades\DB::raw('users.id')),
             ])
             ->get();
-
-        // إحصائيات عامة
         $globalStats = [
             'total' => \App\Models\Note::count(),
             'draft' => \App\Models\Note::where('status', 'draft')->count(),
@@ -60,7 +55,6 @@ class ProfileController extends Controller
             'accepted' => \App\Models\Note::where('status', 'accepted')->count(),
             'rejected' => \App\Models\Note::where('status', 'rejected')->count(),
         ];
-
         return view('profile.ranking', compact('monitors', 'writers', 'globalStats'));
     }
 
@@ -84,18 +78,15 @@ class ProfileController extends Controller
     public function update(Request $request)
     {
         $user = Auth::user();
-
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:100'],
             'username' => ['required', 'string', 'max:50', Rule::unique('users', 'username')->ignore($user->id)],
             'personal_number' => ['nullable', 'string', 'max:20'],
-            'avatar' => ['nullable', 'image', 'mimes:jpeg,png,jpg,webp', 'max:2048'],
+            'avatar' => ['nullable', 'image', 'mimes:jpeg,png,jpg,webp', 'max:10240'],
             'remove_avatar' => ['nullable', 'boolean'],
             'current_password' => ['nullable', 'string'],
             'password' => ['nullable', 'string', 'min:8', 'max:50', 'confirmed'],
         ]);
-
-        // — Syrian phone normalization + validation —
         $rawPhone = $request->input('personal_number');
         $normalized = null;
         if ($rawPhone !== null && trim($rawPhone) !== '') {
@@ -103,49 +94,47 @@ class ProfileController extends Controller
             if (!SyrianPhone::isValidNormalized($normalized)) {
                 return back()->withErrors(['personal_number' => 'رقم الجوال غير صحيح'])->withInput();
             }
-            // منع التكرار بعد التطبيع (مقارنة بالقيمة المخزنة المطبّعة)
             $exists = User::where('personal_number', $normalized)->where('id', '!=', $user->id)->exists();
             if ($exists) {
                 return back()->withErrors(['personal_number' => 'هذا الرقم مستخدم مسبقاً'])->withInput();
             }
         }
-
-        // إذا أراد تغيير كلمة المرور يجب تأكيد الحالية
         if (!empty($validated['password'])) {
             if (empty($validated['current_password']) || !Hash::check($validated['current_password'], $user->password)) {
                 return back()->withErrors(['current_password' => 'كلمة المرور الحالية غير صحيحة'])->withInput();
             }
             $user->password = $validated['password'];
         }
-
         $user->name = $validated['name'];
         $user->username = $validated['username'];
         $user->personal_number = $normalized;
-
-        // — avatar handling: Cloudinary فقط — ممنوع الحفظ المحلي حسب طلب المالك —
-        if ($request->boolean('remove_avatar') && $user->avatar_path) {
+        if ($request->boolean('remove_avatar') && ($user->avatar_path || $user->avatar_public_id)) {
             try {
-                Storage::disk('cloudinary')->delete($user->avatar_path);
+                $publicId = $user->avatar_public_id ?: $user->getCloudinaryPath();
+                $resourceType = $user->avatar_resource_type ?: 'image';
+                $this->media->delete($publicId, $resourceType);
             } catch (\Throwable $e) {
                 Log::warning('Cloudinary avatar delete failed: '.$e->getMessage(), ['userId' => $user->id]);
             }
             $user->avatar_path = null;
+            $user->avatar_public_id = null;
+            $user->avatar_resource_type = null;
+            $user->avatar_secure_url = null;
         }
         if ($request->hasFile('avatar')) {
             $avatarFile = $request->file('avatar');
-            $avatarName = Str::uuid()->toString();
             try {
-                // بدون امتداد لتجنب تكرار الامتداد cat.jpg.jpg على Cloudinary
-                $path = $avatarFile->storeAs('avatars', $avatarName, 'cloudinary');
-                // حذف القديمة فقط بعد نجاح الرفع الجديد
-                if ($user->avatar_path && $user->avatar_path !== $path) {
-                    try {
-                        Storage::disk('cloudinary')->delete($user->avatar_path);
-                    } catch (\Throwable $e) {}
+                $result = $this->media->upload($avatarFile, 'avatars');
+                $oldPublicId = $user->avatar_public_id ?: $user->getCloudinaryPath();
+                $oldResourceType = $user->avatar_resource_type ?: 'image';
+                if ($oldPublicId && $oldPublicId !== $result->publicId) {
+                    try { $this->media->delete($oldPublicId, $oldResourceType); } catch (\Throwable $e) {}
                 }
-                $user->avatar_path = $path;
+                $user->avatar_path = $result->publicId;
+                $user->avatar_public_id = $result->publicId;
+                $user->avatar_resource_type = $result->resourceType;
+                $user->avatar_secure_url = $result->secureUrl;
             } catch (\Throwable $e) {
-                // التفاصيل التقنية في السجلات فقط — لا تُعرض للمستخدم (قد تحوي مسارات أو تفاصيل SSL)
                 Log::error('Cloudinary avatar upload failed', [
                     'userId' => $user->id,
                     'exception' => get_class($e),
@@ -156,9 +145,7 @@ class ProfileController extends Controller
                     ->withInput();
             }
         }
-
         $user->save();
-
         return redirect()->route('profile.show')->with('success', 'تم تحديث الملف الشخصي بنجاح');
     }
 }

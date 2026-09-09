@@ -24,7 +24,7 @@
                 </span>
                 <span class="text-xs text-ink-300 font-mono">#{{ $note->id }}</span>
             </div>
-            <p class="text-xs text-ink-400 mt-1">آخر تحديث: {{ $note->updated_at->format('Y-m-d H:i') }} — الرصد: {{ $note->observed_at->format('Y-m-d H:i') }}</p>
+            <p class="text-xs text-ink-400 mt-1">آخر تحديث: {{ $note->updated_at->format('Y-m-d H:i') }} — الملاحظة: {{ $note->observed_at->format('Y-m-d H:i') }}</p>
         </div>
     </div>
     @if($note->isAccepted())
@@ -54,7 +54,7 @@
     @endif
 
     <div class="bg-[#fdfcfa] rounded-2xl border border-[#e6e9e1] overflow-hidden">
-        <form method="POST" action="{{ route('notes.update', $note) }}" enctype="multipart/form-data" class="p-6 space-y-5" id="edit-form" novalidate>
+        <form method="POST" action="{{ route('notes.update', $note, false) }}" enctype="multipart/form-data" class="p-6 space-y-5" id="edit-form" novalidate>
             @csrf @method('PUT')
             <div id="form-errors-edit" class="hidden p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700"></div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -71,7 +71,7 @@
             </div>
 
             <div class="rounded-xl border border-[#e6e9e1] bg-[#f5f7f5] p-4" id="edit-datetime-wrap">
-                <label class="block text-sm font-bold text-ink-700 mb-1">الرصد <span class="text-red-500">*</span></label>
+                <label class="block text-sm font-bold text-ink-700 mb-1">الملاحظة <span class="text-red-500">*</span></label>
                 @php
                     $editObserved = old('observed_at', $note->observed_at->format('Y-m-d\TH:i'));
                     $editDate = $editObserved ? date('Y-m-d', strtotime($editObserved)) : '';
@@ -88,13 +88,13 @@
                     </div>
                     <div class="grid grid-cols-2 gap-3">
                         <div>
-                            <div class="text-xs font-bold text-ink-500 mb-1.5">بداية الرصد</div>
+                            <div class="text-xs font-bold text-ink-500 mb-1.5">بداية الملاحظة</div>
                             <input type="time" id="observed_time_edit" value="{{ $editTime }}" required step="60"
                                 class="block w-full rounded-xl border border-[#e6e9e1] bg-white py-2.5 px-4 text-sm font-bold text-ink-800 focus:border-[#0e6a38] focus:ring-2 focus:ring-[#0e6a38]/10 outline-none transition cursor-pointer"
                                 style="color-scheme: light;">
                         </div>
                         <div>
-                            <div class="text-xs font-bold text-ink-500 mb-1.5">انتهاء الرصد</div>
+                            <div class="text-xs font-bold text-ink-500 mb-1.5">انتهاء الملاحظة</div>
                             <input type="time" id="observed_end_time_edit" value="{{ $editEndTime }}" step="60"
                                 class="block w-full rounded-xl border border-[#e6e9e1] bg-white py-2.5 px-4 text-sm font-bold text-ink-800 focus:border-[#0e6a38] focus:ring-2 focus:ring-[#0e6a38]/10 outline-none transition cursor-pointer"
                                 style="color-scheme: light;">
@@ -155,12 +155,10 @@
                                         </a>
                                     @endif
                                     @if(!$note->isAccepted())
-                                        <form method="POST" action="{{ route('notes.attachments.destroy', [$note, $attachment]) }}" class="inline" onsubmit="return confirm('هل أنت متأكد من الحذف؟')">
-                                            @csrf @method('DELETE')
-                                            <button type="submit" class="w-8 h-8 rounded-lg bg-red-50 border border-red-200 flex items-center justify-center text-red-400 hover:bg-red-100 transition" aria-label="حذف">
-                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                                            </button>
-                                        </form>
+                                        {{-- زر حذف مرتبط بنموذج حذف مشترك خارج نموذج التعديل (نماذج متداخلة غير صالحة كانت تكسر FormData) --}}
+                                        <button type="submit" form="attach-del-form" formaction="{{ route('notes.attachments.destroy', [$note, $attachment], false) }}" formmethod="post" onclick="return confirm('هل أنت متأكد من الحذف؟')" class="w-8 h-8 rounded-lg bg-red-50 border border-red-200 flex items-center justify-center text-red-400 hover:bg-red-100 transition" aria-label="حذف">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                        </button>
                                     @endif
                                 </div>
                             </div>
@@ -206,8 +204,6 @@
                             <audio id="audio-preview-player-edit" class="hidden w-full mt-2 rounded-lg" controls></audio>
                             <div id="audio-preview-pending-edit" class="hidden mt-2 text-[11px] text-[#0e6a38] font-bold">سيتم إرفاقه عند حفظ الملاحظة</div>
                         </div>
-                        <p class="mt-2 text-xs text-ink-300">JPG, PNG, WEBP, MP4/WEBM, صوتيات — حتى {{ max(1, (int) ini_get('max_file_uploads') ?: 20) }} إجمالي • الصور 5MB • الفيديو 30MB • الصوت 100MB</p>
-                        <p class="mt-1 text-[11px] text-ink-400">على الجوال: تصوير/فيديو مباشر دون حفظ في الجهاز</p>
                         <input type="file" id="edit-files" name="files[]" multiple accept="image/*,video/*,audio/*" class="hidden">
                         <div id="edit-file-list" class="mt-3 hidden space-y-1.5 text-right"></div>
                     </div>
@@ -294,6 +290,11 @@
                 <button type="submit" class="flex-1 sm:flex-none px-6 py-2.5 rounded-xl bg-[#0e6a38] hover:bg-[#0a4d28] text-white font-bold text-sm shadow-sm transition sm:mr-auto">حفظ التعديلات</button>
             </div>
         </form>
+        {{-- نموذج حذف المرفقات المشترك: خارج نموذج التعديل (التداخل غير صالح ويكسر FormData).
+             أزرار الحذف أعلاه ترتبط به عبر form="attach-del-form" مع formaction لكل مرفق. --}}
+        <form id="attach-del-form" method="POST" class="hidden" aria-hidden="true">
+            @csrf @method('DELETE')
+        </form>
     </div>
 </div>
 
@@ -337,9 +338,11 @@
     // ——— Edit file handling with DataTransfer ———
     const input=document.getElementById('edit-files'),zone=document.getElementById('edit-drop-zone'),list=document.getElementById('edit-file-list');
     let fileTransferEdit = new DataTransfer();
+    // UPLOAD INTENT — عدّاد مستقل عن مخازن النقل — ROOT CAUSE FIX (انظر create.blade.php)
+    let intendedFilesCountEdit = 0;
     // حد الملفات من السيرفر (max_file_uploads) — تجاوزه يجعل PHP يسقط الملفات الزائدة بصمت
     const MAX_FILES_EDIT = {{ max(1, (int) ini_get('max_file_uploads') ?: 20) }};
-    function syncInputEdit(){ input.files = fileTransferEdit.files; }
+    function syncInputEdit(){ try{ input.files = fileTransferEdit.files; }catch(e){ /* fileTransferEdit remains source of truth */ } }
     function renderEdit(){
         const files=Array.from(fileTransferEdit.files);
         if(!files.length){ list.classList.add('hidden'); list.innerHTML=''; return; }
@@ -357,7 +360,7 @@
                 const idx=parseInt(btn.dataset.removeEdit);
                 const dt=new DataTransfer();
                 Array.from(fileTransferEdit.files).forEach((file,j)=>{ if(j!==idx) dt.items.add(file); });
-                fileTransferEdit=dt; syncInputEdit(); renderEdit();
+                fileTransferEdit=dt; intendedFilesCountEdit=Math.max(0, intendedFilesCountEdit-1); syncInputEdit(); renderEdit();
             });
         });
     }
@@ -367,10 +370,11 @@
             const ext=file.name.split('.').pop().toLowerCase();
             const audioExts=['mp3','wav','ogg','oga','m4a','aac','wma','flac','opus','aiff','aif','amr','3ga','awb','mid','midi','au','weba'];
             const isAudio=audioExts.includes(ext)||file.type.startsWith('audio/');
-            if(file.type.startsWith('image/') && file.size>5*1024*1024){ alert('حجم الصورة كبير (الحد 5MB): '+file.name); continue; }
-            if(file.type.startsWith('video/') && file.size>30*1024*1024){ alert('حجم الفيديو كبير (الحد 30MB): '+file.name); continue; }
+            if(file.type.startsWith('image/') && file.size>20*1024*1024){ alert('حجم الصورة كبير (الحد 20MB): '+file.name); continue; }
+            if(file.type.startsWith('video/') && file.size>500*1024*1024){ alert('حجم الفيديو كبير (الحد 500MB): '+file.name); continue; }
             if(isAudio && file.size>100*1024*1024){ alert('حجم الصوت كبير (الحد 100MB): '+file.name); continue; }
             fileTransferEdit.items.add(file);
+            intendedFilesCountEdit++;
         }
         syncInputEdit(); renderEdit();
     }
@@ -505,7 +509,7 @@
             const blob=new Blob(recordedChunksEdit, { type: mediaRecorderEdit.mimeType || 'video/webm' });
             const ext=blob.type.includes('mp4')?'mp4':'webm';
             const file=new File([blob], `camera-video-${Date.now()}.${ext}`, { type: blob.type });
-            if(file.size>30*1024*1024){ showStatusEdit('حجم كبير', false); return; }
+            if(file.size>500*1024*1024){ showStatusEdit('حجم كبير', false); return; }
             addFilesEdit([file]);
             showStatusEdit(`تم التسجيل (${(file.size/1024/1024).toFixed(1)} MB) ✓`, true);
         };
@@ -548,7 +552,7 @@
         let clientErrors=[];
         if(!floorEl.value) clientErrors.push('رقم الطابق مطلوب');
         if(!camEl.value) clientErrors.push('رقم الكاميرا مطلوب');
-        if(!hiddenEl.value) clientErrors.push('تاريخ ووقت الرصد مطلوب');
+        if(!hiddenEl.value) clientErrors.push('تاريخ ووقت الملاحظة مطلوب');
         if(!descEl.value.trim()) clientErrors.push('الوصف مطلوب');
         if(clientErrors.length){
             e.preventDefault();
@@ -557,52 +561,87 @@
             formErrorsEdit.scrollIntoView({behavior:'smooth', block:'center'});
             return;
         }
-        if(fileTransferEdit.files.length>0 || recordedAudioBlobE){
+        if(fileTransferEdit.files.length>0 || recordedAudioBlobE || intendedFilesCountEdit>0){
             e.preventDefault();
             formErrorsEdit.classList.add('hidden');
             const submitBtn=e.submitter || document.activeElement;
             if(submitBtn) submitBtn.disabled=true;
             const fd=new FormData(formEdit);
             fd.delete('files[]');
-            Array.from(fileTransferEdit.files).forEach(f=> fd.append('files[]', f));
+            const filesToSendEdit = fileTransferEdit.files.length > 0 ? Array.from(fileTransferEdit.files) : Array.from(input.files);
+            filesToSendEdit.forEach(f=> fd.append('files[]', f));
             if(recordedAudioBlobE){
                 const ext=audioMimeToExtE(recordedAudioBlobE.type||'audio/webm');
                 fd.append('files[]', recordedAudioBlobE, 'recording-'+Date.now()+'.'+ext);
             }
+            // UPLOAD INTEGRITY: إعلان النية من عدّاد مستقل لا من مخزن النقل — ROOT CAUSE FIX
+            const clientFilesCountEdit = intendedFilesCountEdit + (recordedAudioBlobE ? 1 : 0);
+            fd.append('client_files_count', String(clientFilesCountEdit));
+            // UPLOAD FORENSIC (تشخيص فقط — لا يغيّر السلوك)
             try{
-                // --- Fetch with timeout ---
+                console.debug('[UPLOAD FORENSIC] intent vs transport (edit)', {
+                    intended: intendedFilesCountEdit,
+                    audio: recordedAudioBlobE ? 1 : 0,
+                    announced: clientFilesCountEdit,
+                    fileTransfer: fileTransferEdit.files.length,
+                    inputFiles: input.files ? input.files.length : -1,
+                    toSend: filesToSendEdit.length
+                });
+            }catch(_){}
+            try{
+                // --- Fetch with timeout + CSRF (405 forensic) ---
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
-                
-                const res = await fetch(formEdit.action, {
+                const timeoutId = setTimeout(() => controller.abort(), 600000); // 10min timeout (large videos)
+                const csrfTokenE = document.querySelector('meta[name="csrf-token"]')?.content || '';
+                const formEditActionUrl = formEdit.getAttribute('action');
+                console.debug('[EDIT SUBMIT] action='+formEditActionUrl+' method=POST files='+filesToSendEdit.length+' count='+clientFilesCountEdit);
+                const res = await fetch(formEditActionUrl, {
                     method: 'POST',
                     body: fd,
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest',
-                        'Accept': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || document.querySelector('input[name="_token"]')?.value
-                    },
-                    signal: controller.signal
+                    signal: controller.signal,
+                    headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-TOKEN': csrfTokenE }
                 });
                 clearTimeout(timeoutId);
-                
-                if(res.ok){
+
+                let data=null, rawTextE='';
+                try{ rawTextE=await res.clone().text(); data=JSON.parse(rawTextE); }catch(_){ try{ data=JSON.parse(rawTextE); }catch(_){} }
+                const failLoudEdit = (title, errs) => {
+                    const list=(errs&&errs.length?errs:['فشل رفع المرفقات. لم يتم حفظ التعديلات.']).map(e=> typeof e==='string'?e:((e.file?e.file+': ':'')+(e.message||JSON.stringify(e)))).join('<br>');
+                    formErrorsEdit.innerHTML='<div class="font-bold mb-1 text-red-600">'+title+'</div><p class="text-xs">'+list+'</p><p class="mt-2 text-xs font-bold">الملفات الجديدة محفوظة — صحح الخطأ ثم أعد المحاولة.</p>';
+                    formErrorsEdit.classList.remove('hidden');
+                    formErrorsEdit.scrollIntoView({behavior:'smooth', block:'center'});
+                    if(submitBtn) submitBtn.disabled=false;
+                };
+                if(data && data.success === false){
+                    failLoudEdit('فشل رفع المرفقات. لم يتم حفظ التعديلات.', data.attachment_errors);
+                    return;
+                }
+                if(data && typeof data.files_received==='number' && typeof data.attachments_saved==='number'){
+                    // For update, attachments_saved = newly saved count in this request.
+                    if(data.files_received !== data.attachments_saved && data.files_received>0){
+                        // Allow case: files_received=0, attachments_saved=total? backend returns new_saved; strict check:
+                        if(!(data.files_received===0 && (data.attachment_errors||[]).length===0)){
+                            failLoudEdit('فشل رفع المرفقات. لم يتم حفظ التعديلات.', data.attachment_errors || ['عدد الملفات المحفوظة لا يطابق المرسلة.']);
+                            return;
+                        }
+                    }
+                    if((data.attachment_errors||[]).length>0){
+                        failLoudEdit('فشل رفع المرفقات. لم يتم حفظ التعديلات.', data.attachment_errors);
+                        return;
+                    }
+                }
+                if(res.ok && data && data.success !== false){
                     if(recordedAudioUrlE) URL.revokeObjectURL(recordedAudioUrlE);
                     recordedAudioBlobE=null; recordedAudioUrlE=null;
-                    let data=null;
-                    try{ data=await res.clone().json(); }catch(_){}
-                    // تمرير أخطاء المرفقات (إن وجدت) لعرضها بعد التحويل — بدل ضياعها بصمت
-                    try{
-                        if(data && data.attachment_errors && data.attachment_errors.length){
-                            sessionStorage.setItem('attach_errors', JSON.stringify(data.attachment_errors));
-                        }
-                    }catch(_){}
-                    window.location.href="{{ route('notes.index') }}";
+                    window.location.href="{{ route('notes.index', [], false) }}";
                     return;
                 }
                 if(res.status===422){
-                    const data=await res.json();
-                    const errors=data.errors||{};
+                    if(data && (data.attachment_errors || data.success === false)){
+                        failLoudEdit('فشل رفع المرفقات. لم يتم حفظ التعديلات.', data.attachment_errors);
+                        return;
+                    }
+                    const errors=(data&&data.errors)||{};
                     let html='<div class="font-bold mb-1">يرجى تصحيح الحقول:</div><ul class="list-disc list-inside space-y-1">';
                     for(const [field,msgs] of Object.entries(errors)){
                         for(const msg of msgs) html+=`<li>${msg}</li>`;
@@ -612,13 +651,26 @@
                     formErrorsEdit.classList.remove('hidden');
                     formErrorsEdit.scrollIntoView({behavior:'smooth', block:'center'});
                 } else {
-                    formErrorsEdit.innerHTML='<div class="font-bold mb-1 text-red-600">فشل الإرسال (كود: '+res.status+')</div><p class="text-xs">يرجى المحاولة مرة أخرى أو التواصل مع الدعم.</p>';
+                    let diagE='';
+                    try{
+                        const allowE=res.headers.get('Allow')||'';
+                        const bodySnippetE=(rawTextE||'').substring(0,800).replace(/</g,'&lt;');
+                        console.error('[EDIT 405 FORENSIC]', {status:res.status, statusText:res.statusText, allow:allowE, url:formEditActionUrl, body:rawTextE});
+                        diagE='<div class="mt-2 p-2 bg-white border border-red-200 rounded text-[11px] text-left dir-ltr break-all">'
+                            +'<div>URL: '+formEditActionUrl+'</div>'
+                            +'<div>Method: POST (_method='+ (fd.get('_method')||'PUT') +')</div>'
+                            +(allowE?'<div>Allow: '+allowE+'</div>':'')
+                            +(bodySnippetE?'<div class="mt-1">Body: '+bodySnippetE+'</div>':'')
+                            +'</div>'
+                            +'<p class="mt-2 text-xs">انسخ التشخيص وأرسله. Ctrl+F5 ثم أعد المحاولة.</p>';
+                    }catch(_){}
+                    formErrorsEdit.innerHTML='<div class="font-bold mb-1 text-red-600">فشل الإرسال (كود: '+res.status+' '+(res.statusText||'')+')</div><p class="text-xs">لم يتم حفظ التعديلات. الملفات محفوظة — أعد المحاولة.</p>'+diagE;
                     formErrorsEdit.classList.remove('hidden');
                     formErrorsEdit.scrollIntoView({behavior:'smooth', block:'center'});
                 }
             }catch(err){
                 if(err.name === 'AbortError'){
-                    formErrorsEdit.innerHTML='<div class="font-bold mb-1 text-red-600">انتهت مهلة الإرسال (30 ثانية)</div><p class="text-xs">تحقق من اتصالك أو قلل حجم المرفقات.</p>';
+                    formErrorsEdit.innerHTML='<div class="font-bold mb-1 text-red-600">انتهت مهلة الإرسال (10 دقائق)</div><p class="text-xs">تحقق من اتصالك أو قلل حجم المرفقات.</p>';
                 } else {
                     formErrorsEdit.innerHTML='<div class="font-bold mb-1 text-red-600">خطأ في الشبكة</div><p class="text-xs">'+err.message+'</p>';
                 }

@@ -135,7 +135,7 @@
     avatarInput?.addEventListener('change', e=>{
         const f=e.target.files[0];
         if(!f){ avatarPreview.innerHTML=initialHTML; avatarFileName.classList.add('hidden'); return; }
-        if(f.size>2*1024*1024){ alert('حجم الصورة كبير — الحد 2MB'); e.target.value=''; return; }
+        if(f.size>10*1024*1024){ alert('حجم الصورة كبير — الحد 10MB'); e.target.value=''; return; }
         avatarFileName.textContent=f.name+' ('+(f.size/1024).toFixed(0)+' KB)';
         avatarFileName.classList.remove('hidden');
         const r=new FileReader();

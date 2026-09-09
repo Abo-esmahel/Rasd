@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Services\JwtService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class AttachmentTest extends TestCase
@@ -20,6 +21,7 @@ class AttachmentTest extends TestCase
     {
         parent::setUp();
         $this->jwtService = app(JwtService::class);
+        Storage::fake('attachments');
     }
 
     private function authenticate(): array
@@ -128,6 +130,52 @@ class AttachmentTest extends TestCase
     {
         $monitor = User::factory()->monitor()->create();
         $note = Note::factory()->accepted()->create(['user_id' => $monitor->id]);
+        $token = $this->jwtService->generateToken($monitor);
+
+        $file = $this->createMinimalJpeg();
+
+        $response = $this->postJson("/api/notes/{$note->id}/attachments", [
+            'file' => $file,
+        ], [
+            'Authorization' => "Bearer $token",
+        ]);
+
+        $response->assertForbidden();
+    }
+
+    public function test_report_writer_can_add_attachment_to_own_accepted_note(): void
+    {
+        $writer = User::factory()->reportWriter()->create();
+        $note = Note::factory()->accepted()->create([
+            'user_id' => $writer->id,
+            'processed_by' => $writer->id,
+        ]);
+        $token = $this->jwtService->generateToken($writer);
+
+        $file = $this->createMinimalJpeg();
+
+        $response = $this->postJson("/api/notes/{$note->id}/attachments", [
+            'file' => $file,
+        ], [
+            'Authorization' => "Bearer $token",
+        ]);
+
+        $response->assertCreated();
+        $this->assertDatabaseHas('attachments', ['note_id' => $note->id]);
+        $attachment = Attachment::where('note_id', $note->id)->first();
+        $this->assertNotNull($attachment);
+        $this->assertNull($attachment->secure_url);
+        Storage::disk('attachments')->assertExists($attachment->file_path);
+    }
+
+    public function test_cannot_add_attachment_to_note_accepted_by_other(): void
+    {
+        $monitor = User::factory()->monitor()->create();
+        $writer = User::factory()->reportWriter()->create();
+        $note = Note::factory()->accepted()->create([
+            'user_id' => $monitor->id,
+            'processed_by' => $writer->id,
+        ]);
         $token = $this->jwtService->generateToken($monitor);
 
         $file = $this->createMinimalJpeg();

@@ -29,6 +29,7 @@
         "codebar-ag/laravel-flysystem-cloudinary": "*",
         "laravel/framework": "^13.17",
         "laravel/tinker": "^3.0",
+        "livewire/livewire": "*",
         "symfony/clock": "^7.4",
         "symfony/console": "^7.4",
         "symfony/css-selector": "^7.4",

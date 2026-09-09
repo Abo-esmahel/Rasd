@@ -68,12 +68,21 @@
         html.dark input,html.dark textarea,html.dark select{background-color:#2a302b !important;border-color:#343a34 !important;color:#e7ece5 !important}
         html.dark input::placeholder,html.dark textarea::placeholder{color:#7e8e7e !important}
         html.dark .divide-surface-300 > :not([hidden]) ~ :not([hidden]){border-color:#2e352e !important}
-        html.dark .hover\:bg-white:hover,html.dark .hover\:bg-white\/80:hover{background-color:#2e352e !important}
-        html.dark .hover\:bg-\[\#fdfcfa\]:hover,html.dark .hover\:bg-\[\#fdfcfa\]\/80:hover{background-color:#2e352e !important}
-        html.dark .hover\:bg-\[\#eceee9\]:hover{background-color:#2a302b !important}
-        html.dark .hover\:bg-\[\#f1f3f0\]:hover{background-color:#2e352e !important}
-        html.dark .hover\:bg-\[\#f6f7f5\]:hover,html.dark .hover\:bg-\[\#f5f7f5\]:hover,html.dark .hover\:bg-surface-50:hover,html.dark .hover\:bg-surface-100:hover,html.dark .hover\:bg-surface-200:hover{background-color:#2e352e !important}
-        html.dark .hover\:bg-\[\#fef2f2\]:hover{background-color:#3d2626 !important}
+        html.dark .hover\:bg-white:hover,html.dark .hover\:bg-white\/80:hover{background-color:#3a443b !important}
+        html.dark .hover\:bg-\[\#fdfcfa\]:hover,html.dark .hover\:bg-\[\#fdfcfa\]\/80:hover{background-color:#3a443b !important}
+        html.dark .hover\:bg-\[\#eceee9\]:hover{background-color:#3a443b !important}
+        html.dark .hover\:bg-\[\#f1f3f0\]:hover{background-color:#3a443b !important}
+        html.dark .hover\:bg-\[\#f6f7f5\]:hover,html.dark .hover\:bg-\[\#f5f7f5\]:hover,html.dark .hover\:bg-surface-50:hover,html.dark .hover\:bg-surface-100:hover,html.dark .hover\:bg-surface-200:hover{background-color:#3a443b !important}
+        html.dark .hover\:bg-\[\#fef2f2\]:hover{background-color:#522a2a !important}
+        html.dark .hover\:bg-sage-700:hover{background-color:#156b35 !important}
+        html.dark .hover\:bg-ink-900:hover{background-color:#1a1f1a !important}
+        html.dark .hover\:bg-amber-600:hover{background-color:#b8860b !important}
+        html.dark .hover\:bg-red-600:hover{background-color:#b91c1c !important}
+        html.dark .hover\:border-sage-200:hover{border-color:#2e6b3a !important}
+        html.dark .hover\:border-sage-600:hover{border-color:#4ade80 !important}
+        html.dark .hover\:border-l-sage-600:hover{border-left-color:#4ade80 !important}
+        html.dark .hover\:bg-sage-50:hover{background-color:#1e3328 !important}
+        html.dark .hover\:shadow-lg:hover{box-shadow:0 8px 16px -4px rgba(0,0,0,0.5) !important}
         html.dark .hover\:text-\[\#1a2e1f\]:hover,html.dark .hover\:text-ink-800:hover,html.dark .hover\:text-ink-700:hover{color:#e7ece5 !important}
         html.dark .hover\:text-\[\#0e6a38\]:hover{color:#4ade80 !important}
         html.dark #page-loader{background:rgba(30,35,32,0.85) !important}
@@ -134,11 +143,17 @@
                         <a href="{{ route('notes.my') }}" class="px-3 py-1.5 rounded-lg text-[13px] transition {{ request()->routeIs('notes.my') ? 'text-[#0e6a38] font-bold' : 'text-[#6b7a6e] hover:text-[#1a2e1f] font-medium' }}">
                             ملاحظاتي
                         </a>
+                        <a href="{{ route('general-submissions.index') }}" class="px-3 py-1.5 rounded-lg text-[13px] transition {{ request()->routeIs('general-submissions.*') ? 'text-[#0e6a38] font-bold' : 'text-[#6b7a6e] hover:text-[#1a2e1f] font-medium' }}">
+                            الإرسالات العامة
+                        </a>
                         <a href="{{ route('ranking') }}" class="px-3 py-1.5 rounded-lg text-[13px] transition {{ request()->routeIs('ranking') ? 'text-[#0e6a38] font-bold' : 'text-[#6b7a6e] hover:text-[#1a2e1f] font-medium' }}">
                             الترتيب
                         </a>
                         <a href="{{ route('profile.show') }}" class="px-3 py-1.5 rounded-lg text-[13px] transition {{ request()->routeIs('profile.*') ? 'text-[#0e6a38] font-bold' : 'text-[#6b7a6e] hover:text-[#1a2e1f] font-medium' }}">
                             حسابي
+                        </a>
+                        <a href="{{ route('pwa') }}" class="pwa-install-link px-3 py-1.5 rounded-lg text-[13px] font-bold text-[#0e6a38] hover:bg-[#f6f7f5] transition">
+                            📱 تطبيق الجوال
                         </a>
                     </nav>
                 </div>
@@ -214,8 +229,10 @@
                 <nav class="grid gap-1 pt-2 border-t border-[#e6e9e1]">
                     <a href="{{ route('notes.index') }}" class="px-3 py-2.5 rounded-lg text-sm font-medium {{ request()->routeIs('notes.index') ? 'bg-[#f6f7f5] text-[#0e6a38] font-bold' : 'text-[#4a5a4f]' }}">الملاحظات</a>
                     <a href="{{ route('notes.my') }}" class="px-3 py-2.5 rounded-lg text-sm font-medium {{ request()->routeIs('notes.my') ? 'bg-[#f6f7f5] text-[#0e6a38] font-bold' : 'text-[#4a5a4f]' }}">ملاحظاتي</a>
+                    <a href="{{ route('general-submissions.index') }}" class="px-3 py-2.5 rounded-lg text-sm font-medium {{ request()->routeIs('general-submissions.*') ? 'bg-[#f6f7f5] text-[#0e6a38] font-bold' : 'text-[#4a5a4f]' }}">الإرسالات العامة</a>
                     <a href="{{ route('ranking') }}" class="px-3 py-2.5 rounded-lg text-sm font-medium {{ request()->routeIs('ranking') ? 'bg-[#f6f7f5] text-[#0e6a38] font-bold' : 'text-[#4a5a4f]' }}">الترتيب</a>
                     <a href="{{ route('profile.show') }}" class="px-3 py-2.5 rounded-lg text-sm font-medium {{ request()->routeIs('profile.*') ? 'bg-[#f6f7f5] text-[#0e6a38] font-bold' : 'text-[#4a5a4f]' }}">حسابي</a>
+                    <a href="{{ route('pwa') }}" class="pwa-install-link px-3 py-2.5 rounded-lg text-sm font-bold text-[#0e6a38]">📱 تطبيق الجوال — تثبيت</a>
                     <form method="POST" action="{{ route('logout') }}">
                         @csrf
                         <button type="submit" class="w-full text-right px-3 py-2.5 rounded-lg text-sm font-medium text-[#9aa99a] hover:text-red-600">خروج</button>
@@ -273,6 +290,58 @@
         @endif
         @yield('content')
     </main>
+
+    {{-- ╔══════════════════════════════════════════════════╗
+         ║  Developer Credits — SaaS footer strip          ║
+         ║  خفي · أنيق · لا يُزعج المستخدم                ║
+         ╚══════════════════════════════════════════════════╝ --}}
+    <footer class="w-full max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 pb-4 mt-auto select-none" aria-label="معلومات الفريق">
+        <div class="flex items-center justify-center gap-1.5 text-[11px] text-[#b0bab2] dark:text-[#4a5a4f]">
+            <span>صُنع بـ</span>
+            <svg class="w-3 h-3 text-[#c41e1e]/50" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true"><path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd"/></svg>
+            <span>بواسطة</span>
+
+            {{-- طارق — Backend --}}
+            <span class="group relative inline-flex items-center gap-1 cursor-default">
+                <span class="font-semibold text-[#6b7a6e] dark:text-[#7a8c7d] group-hover:text-[#0e6a38] dark:group-hover:text-[#4caf71] transition-colors duration-200">
+                    طارق عبد الرحمن
+                </span>
+                <span class="text-[10px] px-1 py-px rounded bg-[#f1f3f0] dark:bg-[#2a302b] text-[#9aa99a] dark:text-[#6b7a6e] font-mono leading-none">BE</span>
+
+                {{-- Tooltip --}}
+                <span class="pointer-events-none absolute bottom-full right-1/2 translate-x-1/2 mb-2 w-max
+                             opacity-0 group-hover:opacity-100 translate-y-1 group-hover:translate-y-0
+                             transition-all duration-200 ease-out z-50">
+                    <span class="block px-3 py-1.5 rounded-lg text-[11px] font-medium text-white
+                                 bg-[#1a2e1f]/90 dark:bg-[#0e1a10]/90 backdrop-blur-sm shadow-lg whitespace-nowrap">
+                        🖥 Backend · <a href="tel:0993832567" class="pointer-events-auto underline underline-offset-2 hover:text-emerald-300 transition-colors" onclick="event.stopPropagation()">0993832567</a>
+                    </span>
+                    <span class="block w-2 h-2 bg-[#1a2e1f]/90 dark:bg-[#0e1a10]/90 rotate-45 mx-auto -mt-1"></span>
+                </span>
+            </span>
+
+            <span class="text-[#d8ddd6] dark:text-[#343a34]">·</span>
+
+            {{-- هادي — Frontend --}}
+            <span class="group relative inline-flex items-center gap-1 cursor-default">
+                <span class="font-semibold text-[#6b7a6e] dark:text-[#7a8c7d] group-hover:text-[#0e6a38] dark:group-hover:text-[#4caf71] transition-colors duration-200">
+                    هادي السهلي
+                </span>
+                <span class="text-[10px] px-1 py-px rounded bg-[#f1f3f0] dark:bg-[#2a302b] text-[#9aa99a] dark:text-[#6b7a6e] font-mono leading-none">FE</span>
+
+                {{-- Tooltip --}}
+                <span class="pointer-events-none absolute bottom-full right-1/2 translate-x-1/2 mb-2 w-max
+                             opacity-0 group-hover:opacity-100 translate-y-1 group-hover:translate-y-0
+                             transition-all duration-200 ease-out z-50">
+                    <span class="block px-3 py-1.5 rounded-lg text-[11px] font-medium text-white
+                                 bg-[#1a2e1f]/90 dark:bg-[#0e1a10]/90 backdrop-blur-sm shadow-lg whitespace-nowrap">
+                        🎨 Frontend · <a href="tel:0962532331" class="pointer-events-auto underline underline-offset-2 hover:text-emerald-300 transition-colors" onclick="event.stopPropagation()">0962532331</a>
+                    </span>
+                    <span class="block w-2 h-2 bg-[#1a2e1f]/90 dark:bg-[#0e1a10]/90 rotate-45 mx-auto -mt-1"></span>
+                </span>
+            </span>
+        </div>
+    </footer>
 
     <script>
         // عرض أخطاء المرفقات القادمة من إرسال fetch (تُخزن في sessionStorage قبل التحويل)
@@ -361,15 +430,25 @@
                         newIds.forEach(id=>{
                             const n = notifications.find(x=>x.id===id);
                             if(n){
-                                const title = 'تم رفض ملاحظتك';
-                                const body = (n.data.reason || '').substring(0,120);
+                                const t = (n.data.type || n.type || '');
+                                let title = 'إشعار جديد';
+                                if(t.includes('reject')) title = 'تم رفض إرساليتك';
+                                else if(t.includes('accept')) title = 'تم قبول إرساليتك';
+                                else if(t.includes('sent')) title = 'إرسالية جديدة';
+                                else if(t.includes('note_rejected')) title = 'تم رفض ملاحظتك';
+                                else if(t.includes('note_accepted')) title = 'تم قبول ملاحظتك';
+                                const body = (n.data.message || n.data.reason || '').substring(0,120);
                                 const notif = new Notification(title, {
                                     body: body,
                                     icon: '/favicon.ico',
                                     tag: n.id,
                                     requireInteraction: false
                                 });
-                                notif.onclick = ()=>{ window.focus(); openModal('notification-'+n.id); };
+                                notif.onclick = ()=>{
+                                    window.focus();
+                                    const u = n.data.url;
+                                    if(u) window.location.href = u;
+                                };
                             }
                         });
                     }
@@ -379,20 +458,31 @@
                     if(notifications.length===0){
                         listEl.innerHTML = '<div class="p-8 text-center text-sm text-ink-400">لا توجد إشعارات</div>';
                     } else {
-                        listEl.innerHTML = notifications.map(n=>`
-                            <div class="p-4 hover:bg-[#f5f7f5] transition ${!n.read_at ? 'bg-[#eef4f0]/50' : ''}" data-id="${n.id}">
+                        listEl.innerHTML = notifications.map(n=>{
+                            const d = n.data || {};
+                            const t = (d.type || n.type || '').toLowerCase();
+                            const isReject = t.includes('reject');
+                            const isAccept = t.includes('accept');
+                            const isSent = t.includes('sent');
+                            const url = d.url || (d.note_id ? `/notes/${d.note_id}` : (d.submission_id ? `/general-submissions/${d.submission_id}` : (d.general_submission_id ? `/general-submissions/${d.general_submission_id}` : '/notifications')));
+                            const iconBg = !n.read_at ? (isReject ? 'bg-red-50 border border-red-200 text-red-500' : (isAccept ? 'bg-[#eef4f0] border border-[#cde7d6] text-[#0e6a38]' : 'bg-amber-50 border border-amber-200 text-amber-600')) : 'bg-surface-100 border border-surface-300 text-ink-400';
+                            const icon = isReject ? 'M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z' : (isAccept ? 'M5 13l4 4L19 7' : 'M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9');
+                            const reasonHtml = d.reason ? `<p class="mt-1 text-xs leading-5 text-ink-500 bg-white border border-surface-300 rounded-lg p-2.5">سبب الرفض: ${escapeHtml(d.reason)}</p>` : '';
+                            return `
+                            <a href="${escapeHtml(url)}" class="block p-4 hover:bg-[#f5f7f5] transition ${!n.read_at ? (isReject ? 'bg-red-50/30' : (isAccept ? 'bg-[#eef4f0]/50' : 'bg-amber-50/30')) : ''}" data-id="${n.id}">
                                 <div class="flex items-start gap-3">
-                                    <div class="w-8 h-8 rounded-lg ${!n.read_at ? 'bg-red-50 border border-red-200' : 'bg-surface-100 border border-surface-300'} flex items-center justify-center shrink-0">
-                                        <svg class="w-4 h-4 ${!n.read_at ? 'text-red-500' : 'text-ink-400'}" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                    <div class="w-8 h-8 rounded-lg ${iconBg} flex items-center justify-center shrink-0">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="${icon}"/></svg>
                                     </div>
                                     <div class="flex-1 min-w-0">
-                                        <p class="text-sm font-bold text-ink-800 leading-5">${escapeHtml(n.data.message || 'تم رفض ملاحظتك')}</p>
-                                        <p class="mt-1 text-xs leading-5 text-ink-500 bg-white border border-surface-300 rounded-lg p-2.5">سبب الرفض: ${escapeHtml(n.data.reason || '—')}</p>
+                                        <p class="text-sm font-bold text-ink-800 leading-5">${escapeHtml(d.message || 'إشعار جديد')}</p>
+                                        ${reasonHtml}
                                         <p class="mt-1.5 text-[11px] text-ink-400">${escapeHtml(n.created_at)} • ${n.read_at ? 'مقروء' : '<span class="text-red-500 font-bold">غير مقروء</span>'}</p>
                                     </div>
                                 </div>
-                            </div>
-                        `).join('');
+                            </a>
+                        `;
+                        }).join('');
                     }
                 }catch(e){ console.error(e); }
             }
@@ -423,12 +513,16 @@
                 await fetchNotifications(false);
             });
 
-            // Polling كل 20 ثانية + Browser Notification
+            // Polling كل 10 ثانية + Browser Notification + expose globally for instant update after actions
+            window.fetchNotifications = fetchNotifications;
+            window.refreshNotifications = () => fetchNotifications(false);
             ensureNotificationPermission();
             fetchNotifications(false);
-            setInterval(()=> fetchNotifications(true), 20000);
+            setInterval(()=> fetchNotifications(true), 10000);
             // عند العودة للتبويب
             document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) fetchNotifications(true); });
+            // Force refresh on focus
+            window.addEventListener('focus', ()=> fetchNotifications(false));
 
         })();
         const btn=document.getElementById('mobile-menu-btn'),menu=document.getElementById('mobile-menu');
@@ -514,6 +608,25 @@
         window.ajaxFilter = ajaxFilter;
     </script>
     @stack('scripts')
+    {{-- PWA install prompt — زر "تطبيق الجوال" يتحول لزر تثبيت مباشر عند توفره --}}
+    <script>
+    (function(){
+        var deferred = null;
+        window.addEventListener('beforeinstallprompt', function(e){
+            e.preventDefault();
+            deferred = e;
+            document.querySelectorAll('.pwa-install-link').forEach(function(a){
+                a.innerHTML = '⬇️ ثبّت التطبيق';
+                a.addEventListener('click', function(ev){
+                    if (!deferred) return;
+                    ev.preventDefault();
+                    deferred.prompt();
+                    deferred.userChoice.then(function(){ deferred = null; });
+                }, { once: true });
+            });
+        });
+    })();
+    </script>
     <!-- Print Root — مباشر تحت body لمنع 2 pages من ancestor display:none -->
     <div id="printable-a4-doc" class="hidden" data-print-root style="display:none;"></div>
     <div id="rasd-print-document" class="hidden" aria-hidden="true" style="display:none;"></div>

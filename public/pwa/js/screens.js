@@ -379,7 +379,7 @@ function renderCreate(container) {
           <div class="form-section">
             <div class="form-section-title">
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-              الرصد <span class="required">*</span>
+              الملاحظة <span class="required">*</span>
             </div>
             <div class="dt-box">
               <div class="input-group" style="margin-bottom:8px">
@@ -388,11 +388,11 @@ function renderCreate(container) {
               </div>
               <div class="dt-row">
                 <div class="input-group">
-                  <label>بداية الرصد</label>
+                  <label>بداية الملاحظة</label>
                   <input type="time" class="input" id="cr-time" value="${curTime}" required step="60" style="padding:10px 12px">
                 </div>
                 <div class="input-group">
-                  <label>انتهاء الرصد</label>
+                  <label>انتهاء الملاحظة</label>
                   <input type="time" class="input" id="cr-end" step="60" style="padding:10px 12px">
                 </div>
               </div>
@@ -595,7 +595,7 @@ async function renderEdit(container, noteId) {
             <div class="form-section">
               <div class="form-section-title">
                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                الرصد <span class="required">*</span>
+                الملاحظة <span class="required">*</span>
               </div>
               <div class="dt-box">
                 <div class="input-group" style="margin-bottom:8px">
@@ -604,11 +604,11 @@ async function renderEdit(container, noteId) {
                 </div>
                 <div class="dt-row">
                   <div class="input-group">
-                    <label>بداية الرصد</label>
+                    <label>بداية الملاحظة</label>
                     <input type="time" class="input" id="ed-time" value="${timeVal}" required step="60" style="padding:10px 12px">
                   </div>
                   <div class="input-group">
-                    <label>انتهاء الرصد</label>
+                    <label>انتهاء الملاحظة</label>
                     <input type="time" class="input" id="ed-end" value="${endVal}" step="60" style="padding:10px 12px">
                   </div>
                 </div>
@@ -812,7 +812,7 @@ async function renderDetail(container, noteId) {
           <div class="detail-stat"><div class="detail-stat-label">الكاميرا</div><div class="detail-stat-value">${n.camera_number}</div></div>
           <div class="detail-stat"><div class="detail-stat-label">الطابق</div><div class="detail-stat-value">${n.floor_number}</div></div>
           <div class="detail-stat">
-            <div class="detail-stat-label">وقت الرصد</div>
+            <div class="detail-stat-label">وقت الملاحظة</div>
             <div class="detail-stat-value">${formatTime(n.observed_at)}</div>
             <div class="detail-stat-sub">${n.observed_end_at ? 'حتى ' + formatTime(n.observed_end_at) : formatDate(n.observed_at)}</div>
           </div>

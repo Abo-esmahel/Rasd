@@ -338,7 +338,7 @@ const PwaShare = {
     if (note.observed_end_at) {
       endStr = ' — ' + new Date(note.observed_end_at).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
     }
-    const text = `الطابق: ${note.floor_number} — الكاميرا: ${note.camera_number}\nالرصد: ${dateStr} ${timeStr}${endStr}\n${note.description}`;
+    const text = `الطابق: ${note.floor_number} — الكاميرا: ${note.camera_number}\nالملاحظة: ${dateStr} ${timeStr}${endStr}\n${note.description}`;
 
     document.getElementById('share-text').value = text;
 

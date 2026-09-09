@@ -5,7 +5,7 @@
     <div class="flex items-center justify-between mb-6">
         <div>
             <h1 class="text-xl font-extrabold text-ink-800">الإشعارات</h1>
-            <p class="text-sm text-ink-400 mt-1">إشعارات رفض الملاحظات وأسبابها</p>
+            <p class="text-sm text-ink-400 mt-1">إشعارات الإرساليات والملاحظات — قبول ورفض وإرسال</p>
         </div>
         @if($unreadCount > 0)
             <form method="POST" action="{{ route('notifications.markRead') }}">
@@ -26,20 +26,48 @@
     @else
         <div class="space-y-3">
             @foreach($notifications as $notification)
-                <div class="bg-white rounded-xl border {{ is_null($notification->read_at) ? 'border-red-200 bg-red-50/30' : 'border-surface-300' }} p-4 flex gap-3">
-                    <div class="w-10 h-10 rounded-xl {{ is_null($notification->read_at) ? 'bg-red-50 border border-red-200 text-red-500' : 'bg-surface-100 border border-surface-300 text-ink-400' }} flex items-center justify-center shrink-0">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                @php
+                    $data = $notification->data;
+                    $type = $data['type'] ?? ($notification->type ?? '');
+                    $isRejected = str_contains($type, 'reject') || str_contains(strtolower($type), 'rejected') || isset($data['reason']);
+                    $isAccepted = str_contains($type, 'accept') || str_contains(strtolower($type), 'accepted');
+                    $isSent = str_contains($type, 'sent') || str_contains($type, 'dispatch_sent');
+                    $url = $data['url'] ?? null;
+                    if (!$url) {
+                        if (isset($data['note_id'])) $url = route('notes.show', $data['note_id']);
+                        elseif (isset($data['submission_id'])) $url = route('general-submissions.show', $data['submission_id']);
+                        elseif (isset($data['general_submission_id'])) $url = route('general-submissions.show', $data['general_submission_id']);
+                        else $url = route('notifications.index');
+                    }
+                    $iconBg = is_null($notification->read_at)
+                        ? ($isRejected ? 'bg-red-50 border border-red-200 text-red-500' : ($isAccepted ? 'bg-[#eef4f0] border border-[#cde7d6] text-[#0e6a38]' : 'bg-amber-50 border border-amber-200 text-amber-600'))
+                        : 'bg-surface-100 border border-surface-300 text-ink-400';
+                    $iconPath = $isRejected
+                        ? 'M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z'
+                        : ($isAccepted ? 'M5 13l4 4L19 7' : 'M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9' );
+                @endphp
+                <div class="bg-white rounded-xl border {{ is_null($notification->read_at) ? ($isRejected ? 'border-red-200 bg-red-50/30' : ($isAccepted ? 'border-[#cde7d6] bg-[#eef4f0]/30' : 'border-amber-200 bg-amber-50/30')) : 'border-surface-300' }} p-4 flex gap-3">
+                    <div class="w-10 h-10 rounded-xl {{ $iconBg }} flex items-center justify-center shrink-0">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="{{ $iconPath }}"/></svg>
                     </div>
                     <div class="flex-1 min-w-0">
-                        <p class="text-sm font-bold text-ink-800">{{ $notification->data['message'] ?? 'تم رفض ملاحظتك' }}</p>
+                        <p class="text-sm font-bold text-ink-800">{{ $data['message'] ?? 'إشعار جديد' }}</p>
+                        @if(!empty($data['reason']))
                         <div class="mt-2 p-3 rounded-xl bg-white border border-surface-300">
                             <div class="text-xs font-bold text-ink-500 mb-1">سبب الرفض:</div>
-                            <p class="text-sm leading-6 text-ink-700">{{ $notification->data['reason'] ?? '—' }}</p>
+                            <p class="text-sm leading-6 text-ink-700">{{ $data['reason'] }}</p>
                         </div>
+                        @endif
+                        @if(!empty($data['processor_name']) || !empty($data['sender_name']))
+                        <div class="mt-1 text-xs text-ink-500">
+                            @if(!empty($data['processor_name'])) بواسطة {{ $data['processor_name'] }} @endif
+                            @if(!empty($data['sender_name'])) من {{ $data['sender_name'] }} @endif
+                        </div>
+                        @endif
                         <div class="mt-2 flex items-center gap-3 text-xs text-ink-400">
                             <span>{{ \Carbon\Carbon::parse($notification->created_at)->diffForHumans() }}</span>
                             <span>•</span>
-                            <span>كاميرا {{ $notification->data['camera_number'] ?? '—' }} — الطابق {{ $notification->data['floor_number'] ?? '—' }}</span>
+                            <span>كاميرا {{ $data['camera_number'] ?? '—' }} — الطابق {{ $data['floor_number'] ?? '—' }}</span>
                             @if(is_null($notification->read_at))
                                 <span class="mr-auto inline-flex items-center gap-1 text-red-500 font-bold"><span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>غير مقروء</span>
                             @else
@@ -47,11 +75,11 @@
                             @endif
                         </div>
                         <div class="mt-3 flex gap-2">
-                            <a href="{{ route('notes.index') }}?status=rejected" class="px-3 py-1.5 rounded-lg bg-white border border-surface-300 text-ink-600 text-xs font-bold hover:bg-surface-100 transition">عرض الملاحظة</a>
+                            <a href="{{ $url }}" class="px-3 py-1.5 rounded-lg bg-[#0e6a38] text-white text-xs font-bold hover:bg-[#0a4d28] transition">عرض التفاصيل</a>
                             @if(is_null($notification->read_at))
                                 <form method="POST" action="{{ route('notifications.markOneRead', $notification->id) }}" class="inline">
                                     @csrf
-                                    <button type="submit" class="px-3 py-1.5 rounded-lg bg-sage-600 text-white text-xs font-bold hover:bg-sage-700 transition">تحديد كمقروء</button>
+                                    <button type="submit" class="px-3 py-1.5 rounded-lg bg-white border border-surface-300 text-ink-600 text-xs font-bold hover:bg-surface-100 transition">تحديد كمقروء</button>
                                 </form>
                             @endif
                         </div>

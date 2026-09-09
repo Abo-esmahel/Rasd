@@ -1,4 +1,4 @@
-const CACHE_STATIC = 'rasd-static-v3';
+const CACHE_STATIC = 'rasd-static-v4';
 const CACHE_API = 'rasd-api-v1';
 const STATIC_ASSETS = [
   '/pwa/',
@@ -10,6 +10,8 @@ const STATIC_ASSETS = [
   '/pwa/js/screens.js',
   '/pwa/manifest.json',
   '/pwa/icons/icon-192.png',
+  '/pwa/icons/icon-512.png',
+  '/pwa/icons/icon-maskable-512.png',
   'https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap'
 ];
 

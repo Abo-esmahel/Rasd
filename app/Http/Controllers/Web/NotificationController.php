@@ -14,6 +14,7 @@ class NotificationController extends Controller
         $notifications = $user->notifications()->latest()->limit(20)->get()->map(function ($n) {
             return [
                 'id' => $n->id,
+                'type' => $n->type,
                 'data' => $n->data,
                 'read_at' => $n->read_at?->toIso8601String(),
                 'created_at' => $n->created_at->diffForHumans(),

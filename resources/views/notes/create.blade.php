@@ -28,7 +28,7 @@
 
 <div class="max-w-4xl mx-auto">
     <div class="bg-[#fdfcfa] rounded-2xl border border-[#e6e9e1] overflow-hidden">
-        <form method="POST" action="{{ route('notes.store') }}" enctype="multipart/form-data" class="p-6 space-y-5" id="create-form" novalidate>
+        <form method="POST" action="{{ route('notes.store', [], false) }}" enctype="multipart/form-data" class="p-6 space-y-5" id="create-form" novalidate>
             @csrf
             <div id="form-errors" class="hidden p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700"></div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -49,8 +49,8 @@
             </div>
 
             <div class="rounded-xl border border-[#e6e9e1] bg-[#f5f7f5] p-4">
-                <label class="block text-sm font-bold text-ink-700 mb-1">الرصد <span class="text-red-500">*</span></label>
-                <p class="text-xs text-ink-400 mb-3">التاريخ والوقت الفعليين للرصد — وقت البداية ووقت الانتهاء</p>
+                <label class="block text-sm font-bold text-ink-700 mb-1">الملاحظة <span class="text-red-500">*</span></label>
+                <p class="text-xs text-ink-400 mb-3">التاريخ والوقت الفعليين للملاحظة — وقت البداية ووقت الانتهاء</p>
                 @php
                     $oldObserved = old('observed_at');
                     $oldDate = $oldObserved ? date('Y-m-d', strtotime($oldObserved)) : '';
@@ -67,13 +67,13 @@
                     </div>
                     <div class="grid grid-cols-2 gap-3">
                         <div>
-                            <div class="text-xs font-bold text-ink-500 mb-1.5">بداية الرصد</div>
+                            <div class="text-xs font-bold text-ink-500 mb-1.5">بداية الملاحظة</div>
                             <input type="time" id="observed_time" value="{{ $oldTime }}" required step="60"
                                 class="block w-full rounded-xl border border-[#e6e9e1] bg-white py-2.5 px-4 text-sm font-bold text-ink-800 focus:border-[#0e6a38] focus:ring-2 focus:ring-[#0e6a38]/10 outline-none transition cursor-pointer"
                                 style="color-scheme: light;">
                         </div>
                         <div>
-                            <div class="text-xs font-bold text-ink-500 mb-1.5">انتهاء الرصد</div>
+                            <div class="text-xs font-bold text-ink-500 mb-1.5">انتهاء الملاحظة</div>
                             <input type="time" id="observed_end_time" value="{{ $oldEndTime }}" step="60"
                                 class="block w-full rounded-xl border border-[#e6e9e1] bg-white py-2.5 px-4 text-sm font-bold text-ink-800 focus:border-[#0e6a38] focus:ring-2 focus:ring-[#0e6a38]/10 outline-none transition cursor-pointer"
                                 style="color-scheme: light;">
@@ -120,7 +120,6 @@
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
                             اختيار ملفات
                         </label>
-                        <span class="hidden sm:inline text-sm text-ink-400">أو اسحب وأفلت</span>
                         <span class="sm:hidden text-xs text-ink-400">أو</span>
                         <button type="button" id="open-camera-btn" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#fdfcfa] border border-[#e6e9e1] text-[#1a2e1f] font-bold text-sm hover:bg-[#f5f7f5] transition">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 13a3 3 0 100-6 3 3 0 000 6z"/></svg>
@@ -147,7 +146,6 @@
                         <audio id="audio-preview-player" class="hidden w-full mt-2 rounded-lg" controls></audio>
                         <div id="audio-preview-pending" class="hidden mt-2 text-[11px] text-[#0e6a38] font-bold">سيتم إرفاقه عند حفظ الملاحظة</div>
                     </div>
-                    <p class="mt-1 text-[11px] text-ink-400">على الجوال: تصوير/فيديو مباشر دون حفظ في الجهاز</p>
                     <input type="file" id="files" name="files[]" multiple accept="image/*,video/*,audio/*" class="hidden">
                     <div id="file-list" class="mt-3 hidden text-right space-y-1.5"></div>
                 </div>
@@ -299,10 +297,15 @@
     // ——— File handling with DataTransfer + Camera Live ———
     const input=document.getElementById('files'),zone=document.getElementById('drop-zone'),list=document.getElementById('file-list');
     let fileTransfer = new DataTransfer();
+    // UPLOAD INTENT — عدّاد مستقل عن مخازن النقل (fileTransfer/input.files).
+    // يُرسل كـ client_files_count دائماً، فيكشف الخادم أي فقدان حتى لو فُرّغت مخازن النقل — ROOT CAUSE FIX
+    let intendedFilesCount = 0;
     // حد الملفات من السيرفر (max_file_uploads) — تجاوزه يجعل PHP يسقط الملفات الزائدة بصمت
     const MAX_FILES = {{ max(1, (int) ini_get('max_file_uploads') ?: 20) }};
 
-    function syncInput(){ input.files = fileTransfer.files; }
+    // fileTransfer هو مصدر الحقيقة للإرسال؛ فشل تعيين input.files (بعض متصفحات الجوال)
+    // يجب ألا يقتل المعاينة ولا الإرسال — ROOT CAUSE FIX
+    function syncInput(){ try{ input.files = fileTransfer.files; }catch(e){ /* fileTransfer remains source of truth */ } }
     function renderFiles(){
         const files=Array.from(fileTransfer.files);
         if(!files.length){ list.classList.add('hidden'); list.innerHTML=''; return; }
@@ -330,7 +333,7 @@
                 const idx=parseInt(btn.dataset.remove);
                 const dt=new DataTransfer();
                 Array.from(fileTransfer.files).forEach((file,j)=>{ if(j!==idx) dt.items.add(file); });
-                fileTransfer=dt; syncInput(); renderFiles();
+                fileTransfer=dt; intendedFilesCount=Math.max(0, intendedFilesCount-1); syncInput(); renderFiles();
             });
         });
     }
@@ -343,10 +346,11 @@
             if(!['jpg','jpeg','png','webp','mp4','webm','mov','avi','3gp','mkv','m4v','mpg','3gpp'].includes(ext) && !file.type.startsWith('image/') && !file.type.startsWith('video/') && !isAudio){
                 alert('نوع غير مدعوم: '+file.name); continue;
             }
-            if(file.type.startsWith('image/') && file.size>5*1024*1024){ alert('حجم الصورة كبير (الحد 5MB): '+file.name); continue; }
-            if(file.type.startsWith('video/') && file.size>30*1024*1024){ alert('حجم الفيديو كبير (الحد 30MB): '+file.name); continue; }
+            if(file.type.startsWith('image/') && file.size>20*1024*1024){ alert('حجم الصورة كبير (الحد 20MB): '+file.name); continue; }
+            if(file.type.startsWith('video/') && file.size>500*1024*1024){ alert('حجم الفيديو كبير (الحد 500MB): '+file.name); continue; }
             if(isAudio && file.size>100*1024*1024){ alert('حجم الصوت كبير (الحد 100MB): '+file.name); continue; }
             fileTransfer.items.add(file);
+            intendedFilesCount++;
         }
         syncInput(); renderFiles();
     }
@@ -512,7 +516,7 @@
             const blob=new Blob(recordedChunks, { type: mediaRecorder.mimeType || 'video/webm' });
             const ext = blob.type.includes('mp4') ? 'mp4' : 'webm';
             const file=new File([blob], `camera-video-${Date.now()}.${ext}`, { type: blob.type });
-            if(file.size>30*1024*1024){ showStatus('حجم الفيديو كبير جداً', false); return; }
+            if(file.size>500*1024*1024){ showStatus('حجم الفيديو كبير جداً', false); return; }
             addFiles([file]);
             showStatus(`تم تسجيل الفيديو (${(file.size/1024/1024).toFixed(1)} MB) ✓`, true);
         };
@@ -566,7 +570,7 @@
         let clientErrors=[];
         if(!floorEl.value) clientErrors.push('رقم الطابق مطلوب');
         if(!camEl.value) clientErrors.push('رقم الكاميرا مطلوب');
-        if(!hiddenEl.value) clientErrors.push('تاريخ ووقت الرصد مطلوب');
+        if(!hiddenEl.value) clientErrors.push('تاريخ ووقت الملاحظة مطلوب');
         if(!descEl.value.trim()) clientErrors.push('الوصف مطلوب');
         if(clientErrors.length){
             e.preventDefault();
@@ -575,54 +579,96 @@
             formErrorsEl.scrollIntoView({behavior:'smooth', block:'center'});
             return;
         }
-        if(fileTransfer.files.length>0 || recordedAudioBlob){
+        if(fileTransfer.files.length>0 || recordedAudioBlob || intendedFilesCount>0){
             e.preventDefault();
             formErrorsEl.classList.add('hidden');
             const submitBtn=e.submitter || document.activeElement;
             if(submitBtn) submitBtn.disabled=true;
             const fd=new FormData(formEl);
             fd.delete('files[]');
-            Array.from(fileTransfer.files).forEach(f=> fd.append('files[]', f));
+            // Fallback: use input.files if fileTransfer is empty (handles DataTransfer sync failure)
+            const filesToSend = fileTransfer.files.length > 0 ? Array.from(fileTransfer.files) : Array.from(input.files);
+            filesToSend.forEach(f=> fd.append('files[]', f));
             if(recordedAudioBlob){
                 const ext=audioMimeToExt(recordedAudioBlob.type||'audio/webm');
                 fd.append('files[]', recordedAudioBlob, 'recording-'+Date.now()+'.'+ext);
             }
+            // UPLOAD INTEGRITY: إعلان النية من عدّاد مستقل (intendedFilesCount) لا من مخزن النقل،
+            // حتى لو فُرّغ fileTransfer/input.files يكشف الخادم الفقدان بدل النجاح الكاذب — ROOT CAUSE FIX
+            const clientFilesCount = intendedFilesCount + (recordedAudioBlob ? 1 : 0);
+            fd.append('client_files_count', String(clientFilesCount));
+            // UPLOAD FORENSIC (تشخيص فقط — لا يغيّر السلوك)
+            try{
+                console.debug('[UPLOAD FORENSIC] intent vs transport', {
+                    intended: intendedFilesCount,
+                    audio: recordedAudioBlob ? 1 : 0,
+                    announced: clientFilesCount,
+                    fileTransfer: fileTransfer.files.length,
+                    inputFiles: input.files ? input.files.length : -1,
+                    toSend: filesToSend.length,
+                    fdFiles: Array.from(fd.entries()).filter(([k,v])=>k==='files[]'&&v instanceof File).map(([k,v])=>({name:v.name,size:v.size,type:v.type}))
+                });
+            }catch(_){}
             fd.set('action', submitActionVal);
             try{
-                // --- Fetch with timeout ---
+                // --- Fetch with timeout + CSRF header (405 forensic) ---
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
-                
-                const res = await fetch(formEl.action, {
+                const timeoutId = setTimeout(() => controller.abort(), 600000); // 10min timeout (large videos)
+                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+
+                // Same-origin: explicit JSON contract (no CORS preflight for same-origin).
+                const formActionUrl = formEl.getAttribute('action');
+                console.debug('[CREATE SUBMIT] action='+formActionUrl+' method=POST filesToSend='+filesToSend.length+' clientCount='+clientFilesCount);
+                const res = await fetch(formActionUrl, {
                     method: 'POST',
                     body: fd,
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest',
-                        'Accept': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || document.querySelector('input[name="_token"]')?.value
-                    },
-                    signal: controller.signal
+                    signal: controller.signal,
+                    headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-TOKEN': csrfToken }
                 });
                 clearTimeout(timeoutId);
-                
-                if(res.ok){
+
+                let data=null, rawText='';
+                try{ rawText=await res.clone().text(); data=JSON.parse(rawText); }catch(_){ try{ data=JSON.parse(rawText); }catch(_){} }
+                const failLoud = (title, errs) => {
+                    const list=(errs&&errs.length?errs:['فشل رفع المرفقات. لم يتم حفظ الملاحظة.']).map(e=> typeof e==='string'?e:((e.file?e.file+': ':'')+(e.message||JSON.stringify(e)))).join('<br>');
+                    // STRICT: attachment failure MUST NEVER become note success — keep files, allow retry.
+                    formErrorsEl.innerHTML='<div class="font-bold mb-1 text-red-600">'+title+'</div><p class="text-xs">'+list+'</p><p class="mt-2 text-xs font-bold">الملفات المختارة محفوظة — صحح الخطأ ثم أعد المحاولة (لا تغلق الصفحة).</p>';
+                    formErrorsEl.classList.remove('hidden');
+                    formErrorsEl.scrollIntoView({behavior:'smooth', block:'center'});
+                    if(submitBtn) submitBtn.disabled=false;
+                };
+                if(data && data.success === false){
+                    failLoud('فشل رفع المرفقات. لم يتم حفظ الملاحظة.', data.attachment_errors);
+                    return;
+                }
+                if(data && typeof data.files_received==='number' && typeof data.attachments_saved==='number'){
+                    if(data.files_received !== data.attachments_saved){
+                        failLoud('فشل رفع المرفقات. لم يتم حفظ الملاحظة.', data.attachment_errors || ['عدد الملفات المحفوظة لا يطابق المرسلة.']);
+                        return;
+                    }
+                    if((data.attachment_errors||[]).length>0){
+                        failLoud('فشل رفع المرفقات. لم يتم حفظ الملاحظة.', data.attachment_errors);
+                        return;
+                    }
+                    if(data.files_received < clientFilesCount){
+                        failLoud('فشل رفع المرفقات. لم يتم حفظ الملاحظة.', ['أرسلت '+clientFilesCount+' ملف لكن استلم الخادم '+data.files_received+' فقط.']);
+                        return;
+                    }
+                }
+                if(res.ok && data && data.success !== false){
                     if(recordedAudioUrl) URL.revokeObjectURL(recordedAudioUrl);
                     recordedAudioBlob=null; recordedAudioUrl=null;
-                    let data=null;
-                    try{ data=await res.clone().json(); }catch(_){}
-                    // تمرير أخطاء المرفقات (إن وجدت) لعرضها بعد التحويل — بدل ضياعها بصمت
-                    try{
-                        if(data && data.attachment_errors && data.attachment_errors.length){
-                            sessionStorage.setItem('attach_errors', JSON.stringify(data.attachment_errors));
-                        }
-                    }catch(_){}
                     if(data && data.redirect) window.location.href=data.redirect;
-                    else window.location.href="{{ route('notes.index') }}";
+                    else window.location.href="{{ route('notes.index', [], false) }}";
                     return;
                 }
                 if(res.status===422){
-                    const data=await res.json();
-                    const errors=data.errors||{};
+                    // Attachment contract (success=false) already handled above; here = Laravel validation errors.
+                    if(data && (data.attachment_errors || data.success === false)){
+                        failLoud('فشل رفع المرفقات. لم يتم حفظ الملاحظة.', data.attachment_errors);
+                        return;
+                    }
+                    const errors=(data&&data.errors)||{};
                     let html='<div class="font-bold mb-1">يرجى تصحيح الحقول:</div><ul class="list-disc list-inside space-y-1">';
                     for(const [field,msgs] of Object.entries(errors)){
                         for(const msg of msgs) html+=`<li>${msg}</li>`;
@@ -632,14 +678,27 @@
                     formErrorsEl.classList.remove('hidden');
                     formErrorsEl.scrollIntoView({behavior:'smooth', block:'center'});
                 } else {
-                    // Show error instead of silent fallback
-                    formErrorsEl.innerHTML='<div class="font-bold mb-1 text-red-600">فشل الإرسال (كود: '+res.status+')</div><p class="text-xs">يرجى المحاولة مرة أخرى أو التواصل مع الدعم.</p>';
+                    // 405 FORENSIC — show real server body + allow header instead of generic
+                    let diag='';
+                    try{
+                        const allow=res.headers.get('Allow')||'';
+                        const bodySnippet=(rawText||'').substring(0,800).replace(/</g,'&lt;');
+                        console.error('[CREATE 405 FORENSIC]', {status:res.status, statusText:res.statusText, allow, url:formActionUrl, method:'POST', body:rawText});
+                        diag='<div class="mt-2 p-2 bg-white border border-red-200 rounded text-[11px] text-left dir-ltr break-all">'
+                            +'<div>URL: '+formActionUrl+'</div>'
+                            +'<div>Method: POST (spoof: none)</div>'
+                            +(allow?'<div>Allow: '+allow+'</div>':'')
+                            +(bodySnippet?'<div class="mt-1">Body: '+bodySnippet+'</div>':'')
+                            +'</div>'
+                            +'<p class="mt-2 text-xs">انسخ هذا التشخيص وأرسله. جرب أيضاً: Ctrl+F5 ثم أعد المحاولة. الملفات محفوظة.</p>';
+                    }catch(_){}
+                    formErrorsEl.innerHTML='<div class="font-bold mb-1 text-red-600">فشل الإرسال (كود: '+res.status+' '+ (res.statusText||'') +')</div><p class="text-xs">لم يتم حفظ الملاحظة. الملفات محفوظة — أعد المحاولة.</p>'+diag;
                     formErrorsEl.classList.remove('hidden');
                     formErrorsEl.scrollIntoView({behavior:'smooth', block:'center'});
                 }
             }catch(err){
                 if(err.name === 'AbortError'){
-                    formErrorsEl.innerHTML='<div class="font-bold mb-1 text-red-600">انتهت مهلة الإرسال (30 ثانية)</div><p class="text-xs">تحقق من اتصالك أو قلل حجم المرفقات.</p>';
+                    formErrorsEl.innerHTML='<div class="font-bold mb-1 text-red-600">انتهت مهلة الإرسال (10 دقائق)</div><p class="text-xs">تحقق من اتصالك أو قلل حجم المرفقات.</p>';
                 } else {
                     formErrorsEl.innerHTML='<div class="font-bold mb-1 text-red-600">خطأ في الشبكة</div><p class="text-xs">'+err.message+'</p>';
                 }

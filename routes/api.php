@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\GeneralSubmissionController;
 use App\Http\Controllers\Api\NoteController;
 use Illuminate\Support\Facades\Route;
 
@@ -24,7 +25,19 @@ Route::middleware('auth.api')->group(function () {
 
     Route::post('/notes/{note}/attachments', [NoteController::class, 'storeAttachment']);
     Route::delete('/notes/{note}/attachments/{attachment}', [NoteController::class, 'destroyAttachment']);
+
+    Route::get('/general-submissions', [GeneralSubmissionController::class, 'index']);
+    Route::post('/general-submissions', [GeneralSubmissionController::class, 'store']);
+    Route::get('/general-submissions/{generalSubmission}', [GeneralSubmissionController::class, 'show']);
+    Route::post('/general-submissions/{generalSubmission}/submit', [GeneralSubmissionController::class, 'submit']);
+    Route::post('/general-submissions/{generalSubmission}/accept', [GeneralSubmissionController::class, 'accept']);
+    Route::post('/general-submissions/{generalSubmission}/reject', [GeneralSubmissionController::class, 'reject']);
+
+    Route::get('/submission-attachments/{attachment}/view', [GeneralSubmissionController::class, 'viewAttachment']);
+    Route::get('/submission-attachments/{attachment}/download', [GeneralSubmissionController::class, 'downloadAttachment']);
 });
 
 Route::get('/attachments/{attachment}', [NoteController::class, 'downloadAttachment'])
+    ->middleware('auth.api');
+Route::get('/attachments/{attachment}/view', [NoteController::class, 'viewAttachment'])
     ->middleware('auth.api');

@@ -78,7 +78,7 @@
                 @endif
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                     <div>
-                        <label class="block text-xs font-bold text-[#525252] mb-1.5">تاريخ الرصد</label>
+                        <label class="block text-xs font-bold text-[#525252] mb-1.5">تاريخ الملاحظة</label>
                         <input type="date" name="date" value="{{ request('date') }}" class="w-full rounded-lg border border-[#e6e9e1] bg-white py-2 px-3 text-sm text-ink-800 focus:border-[#0e6a38] focus:ring-2 focus:ring-[#0e6a38]/10 outline-none transition">
                     </div>
                     <div>
@@ -205,7 +205,7 @@
                         $statusLabel = $note->isDraft() ? 'مسودة' : ($note->isPending() ? 'قيد المراجعة' : 'مقبولة');
                         $shareText = "ملاحظة #".str_pad($note->id, 4, '0', STR_PAD_LEFT)."\n";
                         $shareText .= "الطابق: {$note->floor_number} — الكاميرا: {$note->camera_number}\n";
-                        $shareText .= "الرصد: ".$note->observed_at->format('Y-m-d H:i');
+                        $shareText .= "الملاحظة: ".$note->observed_at->format('Y-m-d H:i');
                         if($note->observed_end_at) $shareText .= ' — '.$note->observed_end_at->format('H:i');
                         $shareText .= "\n".$note->description;
                         $shareText .= "\nالحالة: ".$statusLabel;
@@ -298,7 +298,7 @@
                                 $statusLabel = $note->isDraft() ? 'مسودة' : ($note->isPending() ? 'قيد المراجعة' : 'مقبولة');
                                 $shareText = "ملاحظة #".str_pad($note->id, 4, '0', STR_PAD_LEFT)."\n";
                                 $shareText .= "الطابق: {$note->floor_number} — الكاميرا: {$note->camera_number}\n";
-                                $shareText .= "الرصد: ".$note->observed_at->format('Y-m-d H:i');
+                                $shareText .= "الملاحظة: ".$note->observed_at->format('Y-m-d H:i');
                                 if($note->observed_end_at) $shareText .= ' — '.$note->observed_end_at->format('H:i');
                                 $shareText .= "\n".$note->description;
                                 $shareText .= "\nالحالة: ".$statusLabel;
@@ -432,7 +432,7 @@
                         <div class="text-lg font-extrabold text-ink-800">{{ $note->floor_number }}</div>
                     </div>
                     <div class="rounded-xl bg-[#f5f7f5] border border-[#e6e9e1] p-3 text-center">
-                        <div class="text-[11px] font-bold text-ink-300 mb-1">وقت الرصد</div>
+                        <div class="text-[11px] font-bold text-ink-300 mb-1">وقت الملاحظة</div>
                         <div class="text-sm font-bold text-ink-800">{{ $note->observed_at->format('H:i') }}{{ $note->observed_end_at ? ' — '.$note->observed_end_at->format('H:i') : '' }}</div>
                         <div class="text-[11px] text-[#737373]">{{ $note->observed_at->format('Y-m-d') }}</div>
                     </div>
@@ -544,7 +544,7 @@
                         $statusLabel = $note->isDraft() ? 'مسودة' : ($note->isPending() ? 'قيد المراجعة' : 'مقبولة');
                         $shareText = "ملاحظة #".str_pad($note->id, 4, '0', STR_PAD_LEFT)."\n";
                         $shareText .= "الطابق: {$note->floor_number} — الكاميرا: {$note->camera_number}\n";
-                        $shareText .= "الرصد: ".$note->observed_at->format('Y-m-d H:i');
+                        $shareText .= "الملاحظة: ".$note->observed_at->format('Y-m-d H:i');
                         if($note->observed_end_at) $shareText .= ' — '.$note->observed_end_at->format('H:i');
                         $shareText .= "\n".$note->description;
                         $shareText .= "\nالحالة: ".$statusLabel;
@@ -910,6 +910,7 @@ document.querySelectorAll('form[data-ajax]').forEach(form => {
             });
             const data = await res.json();
             if (res.ok && data.success) {
+                if(window.fetchNotifications) window.fetchNotifications(false);
                 // الحالة الجديدة — من الجذر أو من data (توافق)
                 const newStatus = data.status || (data.data && data.data.status);
                 const noteId = this.dataset.noteId;
