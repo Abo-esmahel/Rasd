@@ -381,13 +381,12 @@ class NoteService
                 'processed_at' => null,
             ]);
             $fresh = $note->fresh();
-            // Notify all report writers of new pending note (real-time)
+            // إشعار كل المستخدمين (مراقبين وكتّاب) عند إرسال ملاحظة — كان سابقاً للكتّاب فقط
             try {
-                $writers = User::where('role', 'report_writer')->get();
-                foreach ($writers as $writer) {
-                    if ($writer->id === $user->id) continue;
-                    if (!$this->hasNotification($writer, NoteSentNotification::class, $fresh->id, 'note_id', $fresh->sent_at)) {
-                        $writer->notify(new NoteSentNotification($fresh, $user->name));
+                $recipients = User::where('id','!=',$user->id)->get();
+                foreach ($recipients as $recipient) {
+                    if (!$this->hasNotification($recipient, NoteSentNotification::class, $fresh->id, 'note_id', $fresh->sent_at)) {
+                        $recipient->notify(new NoteSentNotification($fresh, $user->name));
                     }
                 }
             } catch (\Throwable $e) {

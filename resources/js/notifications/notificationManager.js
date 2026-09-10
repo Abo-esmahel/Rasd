@@ -448,10 +448,11 @@ export class NotificationManager {
           // Check if we should fallback to polling due to local disable
           // The server sends 204; EventSource will treat as error and close — we detect via polling fallback
           this.setConnectionState('DISCONNECTED');
-          // If we are on local, switch to polling instead of retrying SSE forever
+          // على HTTP أو 204 من الخادم الأحادي، حوّل لـ polling فوراً بدل إعادة محاولة SSE
+          const isHttp = location.protocol === 'http:' || !window.isSecureContext;
           const isLocal = location.hostname === '127.0.0.1' || location.hostname === 'localhost';
-          if (isLocal) {
-            this.log('[SSE] local 204 -> switching to polling');
+          if (isLocal || isHttp) {
+            this.log('[SSE] http/local 204 -> switching to polling');
             this.connectPolling();
             return;
           }
@@ -474,9 +475,10 @@ export class NotificationManager {
   }
 
   connectPolling() {
+    const isHttp = location.protocol === 'http:';
     const isLocal = location.hostname === '127.0.0.1' || location.hostname === 'localhost';
-    const interval = isLocal ? 5000 : 15000;
-    this.log(`[POLL] starting fallback polling (every ${interval/1000}s)${isLocal?' — local fast mode':''}`);
+    const interval = (isHttp || isLocal) ? 5000 : 15000;
+    this.log(`[POLL] starting fallback polling (every ${interval/1000}s)${isHttp?' — http fast':''}${isLocal?' — local':''}`);
     this.setConnectionState('CONNECTED'); // polling considered connected (degraded)
     if (this.pollTimer) clearInterval(this.pollTimer);
     this.pollTimer = setInterval(() => this.fetchNotifications({ silent: true }), interval);
@@ -1290,23 +1292,53 @@ export class NotificationManager {
       }
     }
 
-    // Global sound prompt — مرئي دائماً حتى يتم فك القفل (خارج الـ dropdown)
+    // Global sound prompt — يظهر مرة واحدة بعد مهلة قصيرة حتى لا يومض عند التحميل
     const globalBanner = document.getElementById('global-sound-banner');
     if (globalBanner && this.soundManager) {
       let dismissed = false;
-      try { dismissed = sessionStorage.getItem('global_sound_dismissed') === '1'; } catch {}
-      const needGlobal = (notUnlocked && this.soundManager.enabled && !dismissed) || soundBlocked;
-      // لا تُظهر إذا كان الصوت معطّل عمداً من الإعدادات
-      const showGlobal = needGlobal && this.soundManager.enabled && this.prefs.sound_enabled;
-      if (showGlobal) {
-        globalBanner.classList.remove('hidden');
-        const gText = document.getElementById('global-sound-text');
-        if (gText) {
-          if (soundBlocked) gText.textContent = 'المتصفح حجب الصوت — اضغط تفعيل';
-          else gText.textContent = 'فعّل الصوت ليصلك التنبيه فوراً';
-        }
-      } else {
+      let wasUnlockedBefore = false;
+      try {
+        dismissed = sessionStorage.getItem('global_sound_dismissed') === '1';
+        wasUnlockedBefore = sessionStorage.getItem('notif_unlocked') === '1';
+      } catch {}
+      // إذا كان المستخدم قد فك القفل سابقاً، لا تُظهر البانر فوراً — انتظر محاولة الفك التلقائي (400ms)
+      if (wasUnlockedBefore && notUnlocked && !soundBlocked) {
         globalBanner.classList.add('hidden');
+      } else {
+        const needGlobal = (notUnlocked && this.soundManager.enabled && !dismissed) || soundBlocked;
+        const showGlobal = needGlobal && this.soundManager.enabled && this.prefs.sound_enabled;
+        // تأخير بسيط لأول ظهور حتى لا يومض
+        const isFirstShow = !globalBanner.dataset.shown;
+        if (showGlobal) {
+          if (isFirstShow && !soundBlocked) {
+            // أجل الظهور 900ms لإعطاء AudioContext فرصة للفتح التلقائي
+            if (!globalBanner.dataset.pending) {
+              globalBanner.dataset.pending = '1';
+              setTimeout(() => {
+                delete globalBanner.dataset.pending;
+                // أعد التقييم بعد المهلة
+                if (this.soundManager && !this.soundManager.unlocked && this.soundManager.enabled && this.prefs.sound_enabled) {
+                  let d2 = false;
+                  try { d2 = sessionStorage.getItem('global_sound_dismissed') === '1'; } catch {}
+                  if (!d2) {
+                    globalBanner.classList.remove('hidden');
+                    globalBanner.dataset.shown = '1';
+                  }
+                }
+              }, 900);
+            }
+          } else {
+            globalBanner.classList.remove('hidden');
+            globalBanner.dataset.shown = '1';
+            const gText = document.getElementById('global-sound-text');
+            if (gText) {
+              if (soundBlocked) gText.textContent = 'المتصفح حجب الصوت — اضغط تفعيل';
+              else gText.textContent = 'فعّل الصوت ليصلك التنبيه فوراً';
+            }
+          }
+        } else {
+          globalBanner.classList.add('hidden');
+        }
       }
     }
 

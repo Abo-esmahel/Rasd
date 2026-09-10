@@ -1,4 +1,4 @@
-const CACHE_STATIC = 'rasd-root-v12-http-polling-fix';
+﻿const CACHE_STATIC = 'rasd-root-v13-notif-all-users';
 const CACHE_API = 'rasd-api-v1';
 const STATIC_ASSETS = [
   '/',
@@ -59,13 +59,13 @@ self.addEventListener('fetch', e => {
   if (isNeverCache(url)) return;
   if (e.request.headers.has('range')) return;
 
-  // POST/PUT/DELETE etc — network only (never cache uploads, auth, CSRF)
+  // POST/PUT/DELETE etc â€” network only (never cache uploads, auth, CSRF)
   if (e.request.method !== 'GET') {
     if (url.pathname.startsWith('/api/')) {
       e.respondWith(
         fetch(e.request).catch(() => {
           return new Response(JSON.stringify({
-            success: false, message: 'لا يوجد اتصال بالإنترنت'
+            success: false, message: 'Ù„Ø§ ÙŠÙˆØ¬Ø¯ Ø§ØªØµØ§Ù„ Ø¨Ø§Ù„Ø¥Ù†ØªØ±Ù†Øª'
           }), { headers: { 'Content-Type': 'application/json' }, status: 503 });
         })
       );
@@ -92,13 +92,13 @@ self.addEventListener('fetch', e => {
     return;
   }
 
-  // Attachments (Cloudinary) — network only
+  // Attachments (Cloudinary) â€” network only
   if (url.pathname.startsWith('/attachments/') || url.pathname.startsWith('/submission-attachments/')) {
     e.respondWith(fetch(e.request));
     return;
   }
 
-  // Navigation requests (Blade pages /, /login, /notes, etc.) — network first, offline fallback to cached shell
+  // Navigation requests (Blade pages /, /login, /notes, etc.) â€” network first, offline fallback to cached shell
   if (e.request.mode === 'navigate') {
     e.respondWith(
       fetch(e.request).then(resp => {
@@ -112,7 +112,7 @@ self.addEventListener('fetch', e => {
     return;
   }
 
-  // Static assets: /build/, /pwa/, /offline.html, /manifest.json, /favicon.ico, /css, /js — cache-first
+  // Static assets: /build/, /pwa/, /offline.html, /manifest.json, /favicon.ico, /css, /js â€” cache-first
   if (
     url.pathname.startsWith('/build/') ||
     url.pathname.startsWith('/pwa/') ||
@@ -152,3 +152,4 @@ self.addEventListener('notificationclick', e => {
     return clients.openWindow('/');
   }));
 });
+
