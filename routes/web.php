@@ -106,6 +106,9 @@ Route::middleware('auth')->group(function () {
     Route::put('/notifications/preferences', [NotificationController::class, 'updatePreferences'])->name('notifications.preferences.update');
     Route::post('/notifications/mark-read', [NotificationController::class, 'markAsRead'])->name('notifications.markRead');
     Route::post('/notifications/{id}/read', [NotificationController::class, 'markOneAsRead'])->name('notifications.markOneRead');
+    Route::post('/push/subscribe', [\App\Http\Controllers\PushSubscriptionController::class, 'store'])->name('push.subscribe');
+    Route::delete('/push/unsubscribe', [\App\Http\Controllers\PushSubscriptionController::class, 'destroy'])->name('push.unsubscribe');
+    Route::get('/push/vapid-public-key', function(){ return response()->json(['key'=> config('app.vapid_public_key') ?? env('VAPID_PUBLIC_KEY')]); });
 
     Route::get('/print-test', function(){ return view('print-test'); })->name('print.test');
 

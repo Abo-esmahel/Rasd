@@ -116,6 +116,13 @@ export class NotificationManager {
     // Connect real-time
     this.connect();
 
+    // Push subscribe for HTTPS (حتى لو الموقع مسكر والكروم مسكر — يلزم https://rasd.home.arpa)
+    if (window.isSecureContext && 'serviceWorker' in navigator && 'PushManager' in window) {
+      this.subscribePush().catch(e=>this.log('[PUSH] subscribe failed',e));
+    } else if (location.protocol === 'http:') {
+      this.log('[PUSH] skipped — HTTP لا يدعم Push عند الإغلاق (يلزم HTTPS)');
+    }
+
     // Listen to visibility/focus for adaptive behavior
     document.addEventListener('visibilitychange', () => {
       if (!document.hidden) {
@@ -1344,5 +1351,34 @@ export class NotificationManager {
 
     const stateDetail = this.soundManager?.getState();
     window.dispatchEvent(new CustomEvent('notification:permission-banner', { detail: { soundBlocked, desktopState, stateDetail } }));
+  }
+
+  async subscribePush(){
+    try{
+      const reg = await navigator.serviceWorker.ready;
+      const vapidRes = await fetch('/push/vapid-public-key', {headers:{Accept:'application/json'}});
+      if(!vapidRes.ok) throw new Error('no vapid key');
+      const {key} = await vapidRes.json();
+      if(!key) throw new Error('empty vapid');
+      const existing = await reg.pushManager.getSubscription();
+      if(existing) { this.log('[PUSH] already subscribed'); return existing; }
+      if(Notification.permission !== 'granted'){
+        const perm = await Notification.requestPermission();
+        if(perm !== 'granted') throw new Error('permission '+perm);
+      }
+      const sub = await reg.pushManager.subscribe({userVisibleOnly:true, applicationServerKey: this.urlBase64ToUint8Array(key)});
+      const token = document.querySelector('meta[name="csrf-token"]')?.content;
+      await fetch('/push/subscribe', {method:'POST', headers:{'Content-Type':'application/json','X-CSRF-TOKEN':token, Accept:'application/json'}, body: JSON.stringify(sub.toJSON())});
+      this.log('[PUSH] subscribed', sub.endpoint.substring(0,60));
+      return sub;
+    }catch(e){ this.log('[PUSH] subscribe failed', e); throw e; }
+  }
+  urlBase64ToUint8Array(base64String){
+    const padding='='.repeat((4-base64String.length%4)%4);
+    const base64=(base64String+padding).replace(/-/g,'+').replace(/_/g,'/');
+    const raw=atob(base64);
+    const out=new Uint8Array(raw.length);
+    for(let i=0;i<raw.length;i++) out[i]=raw.charCodeAt(i);
+    return out;
   }
 }

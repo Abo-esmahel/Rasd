@@ -1,4 +1,4 @@
-﻿const CACHE_STATIC = 'rasd-root-v13-notif-all-users';
+﻿const CACHE_STATIC = 'rasd-root-v14-push-http';
 const CACHE_API = 'rasd-api-v1';
 const STATIC_ASSETS = [
   '/',
@@ -145,11 +145,32 @@ self.addEventListener('fetch', e => {
   );
 });
 
-self.addEventListener('notificationclick', e => {
-  e.notification.close();
-  e.waitUntil(clients.matchAll({ type: 'window' }).then(list => {
-    for (const c of list) { if ('focus' in c) return c.focus(); }
-    return clients.openWindow('/');
+self.addEventListener('push', e => {
+  console.log('[SW] push received', e.data ? e.data.text().substring(0,200) : 'no data');
+  let data = {};
+  try { data = e.data ? e.data.json() : {}; } catch { try{ data = JSON.parse(e.data.text()); }catch{ data={}; } }
+  const title = data.title || data.data?.title || 'إشعار جديد';
+  const body = data.body || data.message || data.data?.message || 'لديك إشعار جديد';
+  const url = data.url || data.data?.url || '/notifications';
+  const tag = data.tag || 'rasd-' + Date.now();
+  e.waitUntil(self.registration.showNotification(title, {
+    body: body.substring(0,180),
+    icon: '/pwa/icons/icon-192.png',
+    badge: '/pwa/icons/icon-192.png',
+    tag: tag,
+    requireInteraction: true,
+    vibrate: [250, 100, 250],
+    data: { url: url }
   }));
 });
+
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  const url = e.notification.data?.url || '/';
+  e.waitUntil(clients.matchAll({ type: 'window' }).then(list => {
+    for (const c of list) { if ('focus' in c) return c.focus(); }
+    return clients.openWindow(url);
+  }));
+});
+
 
