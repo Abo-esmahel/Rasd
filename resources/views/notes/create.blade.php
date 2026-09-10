@@ -279,7 +279,12 @@
                 hidden.value='';
                 if(preview){ preview.textContent='— اختر التاريخ والوقت —'; }
             }
-            if(d && et){ hiddenEnd.value = d+'T'+et; }
+            if(d && et){
+                let endVal=d+'T'+et;
+                // إذا كان وقت الانتهاء أبكر من وقت البداية، اعتبره اليوم التالي
+                try{ if(t && et < t){ const nd=new Date(d+'T'+et); nd.setDate(nd.getDate()+1); const pad=n=>String(n).padStart(2,'0'); endVal=nd.getFullYear()+'-'+pad(nd.getMonth()+1)+'-'+pad(nd.getDate())+'T'+et; } }catch(_){}
+                hiddenEnd.value = endVal;
+            }
             else { hiddenEnd.value=''; }
         }
         dateEl?.addEventListener('change',sync); timeEl?.addEventListener('change',sync); endTimeEl?.addEventListener('change',sync);
@@ -614,6 +619,8 @@
         btn.addEventListener('click', ()=>{ submitActionVal = btn.value; });
     });
     formEl?.addEventListener('submit', async (e)=>{
+        // مزامنة وقت الملاحظة قبل أي تحقق — يمنع hidden قديم من إظهار خطأ كاذب
+        try{ if(typeof sync==='function') sync(); }catch(_){}
         const floorEl=document.getElementById('floor_number');
         const camEl=document.getElementById('camera_number');
         const descEl=document.getElementById('description');
@@ -621,8 +628,19 @@
         let clientErrors=[];
         if(!floorEl.value) clientErrors.push('رقم الطابق مطلوب');
         if(!camEl.value) clientErrors.push('رقم الكاميرا مطلوب');
-        if(!hiddenEl.value) clientErrors.push('تاريخ ووقت الملاحظة مطلوب');
+        if(!hiddenEl.value) clientErrors.push('تاريخ ووقت الملاحظة مطلوب — اختر التاريخ ووقت البداية');
         if(!descEl.value.trim()) clientErrors.push('الوصف مطلوب');
+        // تحقق إضافي: إذا كان وقت الانتهاء موجوداً ويسبق وقت البداية، اعتبره اليوم التالي (شائع عند المراقبة الليلية)
+        try{
+            const obs=document.getElementById('observed_at')?.value;
+            const obsEnd=document.getElementById('observed_end_at')?.value;
+            if(obs && obsEnd && new Date(obsEnd) < new Date(obs)){
+                // تلقائياً اعتبر الانتهاء في اليوم التالي — بدل رفض الفالديشن
+                const d=new Date(obsEnd); d.setDate(d.getDate()+1);
+                const pad=n=>String(n).padStart(2,'0');
+                document.getElementById('observed_end_at').value=d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'T'+pad(d.getHours())+':'+pad(d.getMinutes());
+            }
+        }catch(_){}
         if(clientErrors.length){
             e.preventDefault();
             formErrorsEl.innerHTML='<div class="font-bold mb-1">يرجى تصحيح الحقول:</div><ul class="list-disc list-inside space-y-1">'+clientErrors.map(m=>`<li>${m}</li>`).join('')+'</ul><p class="mt-2 text-xs">الملفات محفوظة ولن تضيع</p>';

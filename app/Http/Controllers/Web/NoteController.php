@@ -119,7 +119,7 @@ class NoteController extends Controller
             'floor_number' => ['required','integer','min:0'],
             'camera_number' => ['required','integer','min:1'],
             'observed_at' => ['required','date'],
-            'observed_end_at' => ['nullable','date','after_or_equal:observed_at'],
+            'observed_end_at' => ['nullable','date'],
             'description' => ['required','string','min:10','max:5000'],
             'files' => ['nullable','array','max:'.$maxFiles],
             'files.*' => ['file','max:'.$fileMaxKb],
@@ -134,6 +134,18 @@ class NoteController extends Controller
             'observed_end_at' => 'وقت انتهاء الملاحظة',
             'description' => 'الوصف',
         ]);
+
+        // إصلاح واجهة المراقبة الليلية: إذا كان وقت الانتهاء أبكر من وقت البداية لنفس التاريخ، اعتبره اليوم التالي
+        if (!empty($validated['observed_end_at']) && !empty($validated['observed_at'])) {
+            try {
+                $start = \Carbon\Carbon::parse($validated['observed_at']);
+                $end = \Carbon\Carbon::parse($validated['observed_end_at']);
+                if ($end->lt($start)) {
+                    $end->addDay();
+                    $validated['observed_end_at'] = $end->toDateTimeString();
+                }
+            } catch (\Throwable $e) {}
+        }
 
         $rawFiles = $request->file('files');
         $receivedFiles = is_array($rawFiles) ? array_values(array_filter($rawFiles)) : ($rawFiles ? [$rawFiles] : []);
@@ -252,7 +264,7 @@ class NoteController extends Controller
             'floor_number' => ['required','integer','min:0'],
             'camera_number' => ['required','integer','min:1'],
             'observed_at' => ['required','date'],
-            'observed_end_at' => ['nullable','date','after_or_equal:observed_at'],
+            'observed_end_at' => ['nullable','date'],
             'description' => ['required','string','min:10','max:5000'],
             'files' => ['nullable','array','max:'.$maxFiles],
             'files.*' => ['file','max:'.$fileMaxKb],
@@ -261,6 +273,17 @@ class NoteController extends Controller
             'files.max' => 'عدد الملفات يتجاوز الحد المسموح به من السيرفر (:max). أرسل على دفعات.',
             'files.*.max' => 'حجم الملف يتجاوز الحد الأقصى (:max كيلوبايت).',
         ]);
+
+        if (!empty($validated['observed_end_at']) && !empty($validated['observed_at'])) {
+            try {
+                $start = \Carbon\Carbon::parse($validated['observed_at']);
+                $end = \Carbon\Carbon::parse($validated['observed_end_at']);
+                if ($end->lt($start)) {
+                    $end->addDay();
+                    $validated['observed_end_at'] = $end->toDateTimeString();
+                }
+            } catch (\Throwable $e) {}
+        }
 
         $rawFiles = $request->file('files');
         $receivedFiles = is_array($rawFiles) ? array_values(array_filter($rawFiles)) : ($rawFiles ? [$rawFiles] : []);

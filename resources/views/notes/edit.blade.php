@@ -328,7 +328,11 @@
             const d=dateEl?.value, t=timeEl?.value, et=endTimeEl?.value;
             if(d && t){ hidden.value=d+'T'+t; const txt=toPreview(d,t); const endTxt=et?' — '+et:''; if(preview) preview.textContent=(txt||(d+' — '+t))+endTxt; hidden.setCustomValidity(''); }
             else { hidden.value=''; if(preview) preview.textContent='— اختر التاريخ والوقت —'; }
-            if(d && et){ hiddenEnd.value=d+'T'+et; } else { hiddenEnd.value=''; }
+            if(d && et){
+                let endVal=d+'T'+et;
+                try{ if(t && et < t){ const nd=new Date(d+'T'+et); nd.setDate(nd.getDate()+1); const pad=n=>String(n).padStart(2,'0'); endVal=nd.getFullYear()+'-'+pad(nd.getMonth()+1)+'-'+pad(nd.getDate())+'T'+et; } }catch(_){}
+                hiddenEnd.value=endVal;
+            } else { hiddenEnd.value=''; }
         }
         dateEl?.addEventListener('change',sync); timeEl?.addEventListener('change',sync); endTimeEl?.addEventListener('change',sync);
         dateEl?.addEventListener('input',sync); timeEl?.addEventListener('input',sync); endTimeEl?.addEventListener('input',sync);
@@ -596,6 +600,7 @@
     const formEdit=document.getElementById('edit-form');
     const formErrorsEdit=document.getElementById('form-errors-edit');
     formEdit?.addEventListener('submit', async (e)=>{
+        try{ if(typeof sync==='function') sync(); }catch(_){}
         const floorEl=formEdit.querySelector('input[name="floor_number"]');
         const camEl=formEdit.querySelector('input[name="camera_number"]');
         const descEl=formEdit.querySelector('textarea[name="description"]');
@@ -603,8 +608,17 @@
         let clientErrors=[];
         if(!floorEl.value) clientErrors.push('رقم الطابق مطلوب');
         if(!camEl.value) clientErrors.push('رقم الكاميرا مطلوب');
-        if(!hiddenEl.value) clientErrors.push('تاريخ ووقت الملاحظة مطلوب');
+        if(!hiddenEl.value) clientErrors.push('تاريخ ووقت الملاحظة مطلوب — اختر التاريخ ووقت البداية');
         if(!descEl.value.trim()) clientErrors.push('الوصف مطلوب');
+        try{
+            const obs=document.getElementById('observed_at_edit')?.value;
+            const obsEnd=document.getElementById('observed_end_at_edit')?.value;
+            if(obs && obsEnd && new Date(obsEnd) < new Date(obs)){
+                const d=new Date(obsEnd); d.setDate(d.getDate()+1);
+                const pad=n=>String(n).padStart(2,'0');
+                document.getElementById('observed_end_at_edit').value=d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'T'+pad(d.getHours())+':'+pad(d.getMinutes());
+            }
+        }catch(_){}
         if(clientErrors.length){
             e.preventDefault();
             formErrorsEdit.innerHTML='<div class="font-bold mb-1">يرجى تصحيح الحقول:</div><ul class="list-disc list-inside space-y-1">'+clientErrors.map(m=>`<li>${m}</li>`).join('')+'</ul><p class="mt-2 text-xs">الملفات الجديدة محفوظة</p>';
