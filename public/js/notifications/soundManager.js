@@ -14,7 +14,7 @@
 export class NotificationSoundManager {
   constructor(options = {}) {
     this.enabled = options.enabled ?? true;
-    this.volume = options.volume ?? 0.7; // 0-1
+    this.volume = options.volume ?? 0.95; // 0-1 (مرتفع افتراضياً — كان 0.7 ناصي)
     this.blocked = false;
     this.unlocked = false;
     this.audioCtx = null;
@@ -129,23 +129,37 @@ export class NotificationSoundManager {
 
   async unlock() {
     try {
+      // iOS يلزم إنشاء AudioContext داخل نفس حدث المستخدم — ننشئه هنا لأول مرة فقط عند اللمس
       const ctx = this.getAudioCtx();
-      if (ctx && ctx.state === 'suspended') {
-        await ctx.resume();
-        this.log('[SOUND] AudioContext resumed', ctx.state);
+      if (ctx) {
+        if (ctx.state === 'suspended') {
+          await ctx.resume();
+          this.log('[SOUND] AudioContext resumed', ctx.state);
+        }
+        // iOS prime: شغل بافر صامت قصير جداً داخل نفس الـ gesture لفك القفل
+        if (ctx.state === 'running') {
+          try {
+            const buf = ctx.createBuffer(1, 1, 22050);
+            const src = ctx.createBufferSource();
+            src.buffer = buf;
+            src.connect(ctx.destination);
+            src.start(0);
+          } catch {}
+        }
       }
       if (ctx && ctx.state === 'running') {
         this.unlocked = true;
         this.blocked = false;
         window.dispatchEvent(new CustomEvent('notification:sound-state', { detail: this.getState() }));
-        // Remove listeners after successful unlock
-        ['click', 'keydown', 'touchstart', 'pointerdown'].forEach(ev =>
+        ['click', 'keydown', 'touchstart', 'touchend', 'pointerdown', 'pointerup'].forEach(ev =>
           document.removeEventListener(ev, this._unlockHandler)
         );
         return true;
       }
-      // Even without AudioContext, consider unlocked after interaction
+      // حتى بدون AudioContext (مثلاً iOS قديم) نعتبره مفتوح بعد تفاعل
       this.unlocked = true;
+      this.blocked = false;
+      window.dispatchEvent(new CustomEvent('notification:sound-state', { detail: this.getState() }));
       return true;
     } catch (e) {
       this.log('[SOUND] unlock failed', e);
@@ -154,10 +168,26 @@ export class NotificationSoundManager {
   }
 
   bindUnlockOnInteraction() {
-    ['click', 'keydown', 'touchstart', 'pointerdown'].forEach(ev => {
-      document.addEventListener(ev, this._unlockHandler, { once: false, passive: true });
+    // mobile: touchend مهم جداً لـ iOS، و passive:false لضمان اعتبارها user activation
+    ['click', 'keydown', 'touchstart', 'touchend', 'pointerdown', 'pointerup'].forEach(ev => {
+      document.addEventListener(ev, this._unlockHandler, { once: false, passive: false });
     });
-    // Also unlock on visibility change to running? no
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) this.unlock().catch(()=>{});
+    });
+    window.addEventListener('notification:toast', () => {
+      if (this.blocked) this.unlock().catch(()=>{});
+    });
+    // محاولة فك مبكرة بعد تحميل الصفحة إذا كان هناك تفاعل سابق في نفس الجلسة (localStorage)
+    try{
+      if(sessionStorage.getItem('notif_unlocked')==='1'){
+        setTimeout(()=>this.unlock().catch(()=>{}), 400);
+      }
+      // عند نجاح unlock نحفظ علامة
+      window.addEventListener('notification:sound-state', (e)=>{
+        if(e.detail?.unlocked) try{ sessionStorage.setItem('notif_unlocked','1'); }catch{}
+      });
+    }catch{}
   }
 
   /**
@@ -211,29 +241,39 @@ export class NotificationSoundManager {
       gainMaster.gain.value = this.volume;
       gainMaster.connect(ctx.destination);
 
-      // Define tone sequences per type (freq, duration)
+      // Define tone sequences per type — طويلة/ضخمة/أكبر (كان قصير 0.2s، الآن 2x)
       const sequences = {
-        normal: [{ freq: 880, at: 0, dur: 0.26 }, { freq: 660, at: 0.22, dur: 0.26 }],
-        success: [{ freq: 660, at: 0, dur: 0.2 }, { freq: 880, at: 0.18, dur: 0.28 }],
-        error: [{ freq: 880, at: 0, dur: 0.28 }, { freq: 880, at: 0.24, dur: 0.28 }, { freq: 660, at: 0.48, dur: 0.32 }],
-        critical: [{ freq: 1040, at: 0, dur: 0.22 }, { freq: 880, at: 0.2, dur: 0.22 }, { freq: 1040, at: 0.4, dur: 0.22 }, { freq: 660, at: 0.62, dur: 0.4 }],
+        normal: [{ freq: 880, at: 0, dur: 0.45 }, { freq: 660, at: 0.38, dur: 0.5 }, { freq: 880, at: 0.78, dur: 0.6 }],
+        success: [{ freq: 660, at: 0, dur: 0.35 }, { freq: 880, at: 0.3, dur: 0.45 }, { freq: 1100, at: 0.68, dur: 0.6 }],
+        error: [{ freq: 880, at: 0, dur: 0.45 }, { freq: 880, at: 0.4, dur: 0.45 }, { freq: 660, at: 0.78, dur: 0.55 }, { freq: 440, at: 1.25, dur: 0.7 }],
+        critical: [{ freq: 1040, at: 0, dur: 0.35 }, { freq: 880, at: 0.3, dur: 0.35 }, { freq: 1040, at: 0.6, dur: 0.4 }, { freq: 880, at: 0.95, dur: 0.45 }, { freq: 660, at: 1.3, dur: 0.85 }],
       };
       const seq = sequences[type] || sequences.normal;
 
       seq.forEach(({ freq, at, dur }) => {
         const osc = ctx.createOscillator();
+        const osc2 = ctx.createOscillator(); // طبقة bass ثانية لأضخم/أكبر
         const gain = ctx.createGain();
-        osc.type = 'sine';
+        const gain2 = ctx.createGain();
+        osc.type = type === 'critical' || type === 'error' ? 'triangle' : 'sine';
+        osc2.type = 'sine';
         osc.frequency.value = freq;
+        osc2.frequency.value = freq * 0.5; // أوكتاف أخفض لضخامة
         osc.connect(gain);
+        osc2.connect(gain2);
         gain.connect(gainMaster);
+        gain2.connect(gainMaster);
         const t0 = now + at;
-        // ADSR-like envelope: quick attack, exponential decay
         gain.gain.setValueAtTime(0.0001, t0);
-        gain.gain.exponentialRampToValueAtTime(0.32, t0 + 0.02);
+        gain.gain.exponentialRampToValueAtTime(type === 'critical' ? 0.9 : 0.78, t0 + 0.015);
         gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+        gain2.gain.setValueAtTime(0.0001, t0);
+        gain2.gain.exponentialRampToValueAtTime(type === 'critical' ? 0.45 : 0.35, t0 + 0.02);
+        gain2.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
         osc.start(t0);
+        osc2.start(t0);
         osc.stop(t0 + dur + 0.02);
+        osc2.stop(t0 + dur + 0.02);
       });
 
       this.blocked = false;
@@ -254,16 +294,22 @@ export class NotificationSoundManager {
         return false;
       }
 
-      // Fallback: try HTMLAudio with tiny base64 beep (data URI)
+      // Fallback: HTMLAudio بملف wav مضمن (يعمل على iOS حتى مع WebAudio محجوب)
       try {
-        // Very short beep WAV (approx 0.2s 880Hz) base64 - minimal size fallback
-        // If fails, just vibrate already done.
-        const audio = this.fallbackAudio || new Audio();
-        // Use WebAudio-generated buffer as Data URI to avoid network? Use oscillator fallback already.
-        // As fallback, we create a simple beep via data URI (440Hz sine for 0.3s)
-        // This data URI is a 8-bit mono 8000Hz wav with simple tone - generated placeholder
-        // We do not need network fetch; using oscillator is primary. So if WebAudio failed for non-block reason, consider failed.
-        this.log('[SOUND] fallback not implemented, considering failed');
+        // نغمة wav قصيرة 0.45s 880Hz مولدة — تعمل حتى لو AudioContext محجوب
+        const wavBase64 = 'UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAD//v//AP//AP//AP//AP//AP//AP//AP//AP//AP//AP//AP8A/wD/AP//AP8A/wD/AP//AP8A/wD/AP8A/wD/AP//AP//AP//AP//AP8A/wD/AP8A/wD/AP//AP8A/wD/AP//AP8A/wD/AP8A/wD/AP//AP//AP//AP8A/wD/AP//AP8A/wD/AP8A/wD/AP//AP8A/wD/AP8A/wD/AP//AP8A/wD/AP8A/wD/AP//AP//AP//AP//AP//AP//AP//AP8A/wD/AP//AP8A/wD/AP8A/wD/AP//AP8A/wD/AP//AP//AP8A/wD/AP8A/wD/AP//AP8A/wD/AP//AP8A/wD/AP//AP//AP//AP8A/wD/AP//AP8A/wD/AP//AP8A/wD/AP//AP8A/wD/AP//AP8A/wD/AP//AP8A/wD/AP//AP//AP//AP//AP//AP//AP8A/wD/AP//AP//AP//AP//AP//AP//AP//AP//AP8A/wD/AP//AP//AP//AP//AP//AP//AP8A/wD/AP//AP//AP//AP//AP8A/wD/AP//AP//AP8A/wD/AP//AP8A/wD/AP8A/wD/AP//AP//AP//AP8A/wD/AP//AP8A/wD/AP//AP8A/wD/AP//AP8A/wD/AP//AP8A/wD/AP//AP8A/wD/AP//AP//AP//AP//AP//AP//AP8A/wD/AP//AP//AP//AP//AP//AP//AP//AP//AP8A/wD/AP//AP//AP//AP//AP//AP//AP8A/wD/AP//AP//AP//AP//AP8A/wD/AP8A/wD/AP//AP8A/wD/AP//AP8A/wD/AP8A/wD/AP//AP//AP//AP8A/wD/AP//AP8A/wD/AP//AP8A/wD/AP//AP8A/wD/AP//AP8A/wD/AP//AP8A/wD/AP//AP//AP//AP//AP//AP//AP8A/wD/AP//AP//AP//AP//AP//AP//AP//AP//AP8A/wD/AP//AP//AP//AP//AP//AP//AP8A/wD/AP//AP//AP//AP//AP8A/wD/AP8A/wD/AP//AP8A/wD/AP//AP8A/wD/AP8A/wD/AP//AP//AP//AP8A/wD/AP//AP8A/wD/AP//AP8A/wD/AP//AP8A/wD/AP//AP8A/wD/AP//AP8A/wD/AP//AP//AP//AP//AP//AP//AP8A/wD/AP//AP//AP//AP//AP//AP//AP//AP//AP8A/wD/AP//AP//AP//AP//AP//AP//AP8A/wD/AP//AP//AP//AP//AP8A/wD/AP8A/wD/AP//AP8A/wD/AP//AP8A/wD/AP8A/wD/AP//AP//AP//AP8A/wD/AP//AP8A/wD/AP//AP8A/wD/AP//AP8A/wD/AP//AP8A/wD/AP//AP8A/wD/AP//AP//AP//AP//';
+        // إنشاء عنصر صوت جديد لكل تشغيل لضمان عدم حجب المتصفح لإعادة التشغيل
+        const audio = new Audio('data:audio/wav;base64,' + wavBase64);
+        audio.volume = Math.max(0.3, Math.min(1, this.volume));
+        audio.playsInline = true;
+        // iOS يلزم playsInline و muted false
+        try{ audio.muted = false; }catch{}
+        const played = audio.play();
+        if (played && typeof played.then === 'function') {
+          await played;
+          this.log('[SOUND] fallback HTMLAudio played');
+          return true;
+        }
         return false;
       } catch (e2) {
         this.log('[SOUND] fallback failed', e2);

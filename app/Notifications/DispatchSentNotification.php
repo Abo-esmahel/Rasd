@@ -35,7 +35,7 @@ class DispatchSentNotification extends Notification
             'sender_id' => $this->submission->user_id,
             'observed_at' => $this->submission->observed_at?->toIso8601String(),
             'message' => "تم إرسال إرسالية جديدة #{$this->submission->id} إليك من {$this->senderName} (كاميرا {$this->submission->camera_number} - الطابق {$this->submission->floor_number})",
-            'url' => route('general-submissions.show', $this->submission->id),
+            'url' => '/general-submissions/'.$this->submission->id,
             'type' => 'dispatch_sent',
             'category' => 'dispatch',
             'priority' => 'normal',

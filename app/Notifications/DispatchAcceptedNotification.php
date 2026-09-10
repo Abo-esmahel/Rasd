@@ -34,7 +34,7 @@ class DispatchAcceptedNotification extends Notification
             'processor_name' => $this->processorName,
             'observed_at' => $this->submission->observed_at?->toIso8601String(),
             'message' => "تم قبول إرساليتك #{$this->submission->id} (كاميرا {$this->submission->camera_number} - الطابق {$this->submission->floor_number}) بواسطة {$this->processorName}",
-            'url' => route('general-submissions.show', $this->submission->id),
+            'url' => '/general-submissions/'.$this->submission->id,
             'type' => 'dispatch_accepted',
             'category' => 'dispatch',
             'priority' => 'normal',

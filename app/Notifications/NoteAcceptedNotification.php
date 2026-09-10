@@ -33,7 +33,7 @@ class NoteAcceptedNotification extends Notification
             'processor_name' => $this->processorName,
             'observed_at' => $this->note->observed_at?->toIso8601String(),
             'message' => "تم قبول ملاحظتك #{$this->note->id} (كاميرا {$this->note->camera_number} - الطابق {$this->note->floor_number}) بواسطة {$this->processorName}",
-            'url' => route('notes.show', $this->note->id),
+            'url' => '/notes/'.$this->note->id,
             'type' => 'note_accepted',
             'category' => 'note',
             'priority' => 'normal',

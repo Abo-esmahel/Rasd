@@ -34,7 +34,7 @@ class NoteSentNotification extends Notification
             'sender_id' => $this->note->user_id,
             'observed_at' => $this->note->observed_at?->toIso8601String(),
             'message' => "ملاحظة جديدة #{$this->note->id} من {$this->senderName} (كاميرا {$this->note->camera_number} - الطابق {$this->note->floor_number}) بانتظار المراجعة",
-            'url' => route('notes.show', $this->note->id),
+            'url' => '/notes/'.$this->note->id,
             'type' => 'note_sent',
             'category' => 'note',
             'priority' => 'normal',

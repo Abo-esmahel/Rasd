@@ -37,7 +37,7 @@ class DispatchRejectedNotification extends Notification
             'processor_name' => $this->processorName,
             'observed_at' => $this->submission->observed_at?->toIso8601String(),
             'message' => "تم رفض إرساليتك #{$this->submission->id} (كاميرا {$this->submission->camera_number} - الطابق {$this->submission->floor_number}) بواسطة {$this->processorName}",
-            'url' => route('general-submissions.show', $this->submission->id),
+            'url' => '/general-submissions/'.$this->submission->id,
             'type' => 'dispatch_rejected',
             'category' => 'dispatch',
             'priority' => 'high',

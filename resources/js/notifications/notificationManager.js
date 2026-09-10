@@ -320,14 +320,16 @@ export class NotificationManager {
   // ──────────────────────────────────────────────
 
   connect() {
-    // LOCAL FAST: php -S on Windows single-threaded cannot hold SSE 45s — detect local and use polling only
-    // This keeps http://127.0.0.1:8000 fast. LAN with Caddy (concurrent) still uses SSE.
+    // FAST HTTP: php -S أحادي الخيط على Windows لا يتحمل SSE طويل — على HTTP (غير آمن) استخدم polling دائماً
+    // هذا يشمل http://127.0.0.1 و http://10.150.2.29 و http://192.168.x.x — فقط https://rasd.home.arpa خلف Caddy يبقى SSE
     const isLocalSingleThread = (() => {
       try {
         if (new URLSearchParams(location.search).has('nosse')) return true;
-        if (location.hostname === '127.0.0.1' || location.hostname === 'localhost') {
-          // For php artisan serve (cli-server), skip SSE and use polling immediately
-          // Heuristic: if SSE endpoint previously returned 204 with X-SSE-Disabled, this flag will also trigger
+        // أي HTTP غير آمن أو localhost يجب أن يستخدم polling ليبقى single-worker حراً
+        if (location.protocol === 'http:') return true;
+        if (!window.isSecureContext) return true;
+        if (location.hostname === '127.0.0.1' || location.hostname === 'localhost' || location.hostname === '10.150.2.29' || location.hostname.endsWith('.lan') || location.hostname.endsWith('.home.arpa') === false && location.hostname.match(/^\d+\.\d+\.\d+\.\d+$/)) {
+          // LAN IP مباشر
           return true;
         }
       } catch {}
@@ -449,10 +451,12 @@ export class NotificationManager {
   }
 
   connectPolling() {
-    this.log('[POLL] starting fallback polling (every 15s)');
+    const isLocal = location.hostname === '127.0.0.1' || location.hostname === 'localhost';
+    const interval = isLocal ? 5000 : 15000;
+    this.log(`[POLL] starting fallback polling (every ${interval/1000}s)${isLocal?' — local fast mode':''}`);
     this.setConnectionState('CONNECTED'); // polling considered connected (degraded)
     if (this.pollTimer) clearInterval(this.pollTimer);
-    this.pollTimer = setInterval(() => this.fetchNotifications({ silent: true }), 15000);
+    this.pollTimer = setInterval(() => this.fetchNotifications({ silent: true }), interval);
     // immediate fetch
     this.fetchNotifications({ silent: true });
   }
@@ -616,14 +620,15 @@ export class NotificationManager {
       this.renderToast(notification);
     }
 
-    // Sound (if enabled and not muted)
+    // Sound (if enabled and not muted) — try unlock aggressively if blocked
     if (this.prefs.sound_enabled) {
       const cfg = getTypeConfig(notification.data?.type || notification.type);
       const soundType = this.mapSoundType(cfg.sound, notification.data?.priority);
-      const played = await this.soundManager?.play(soundType);
+      let played = await this.soundManager?.play(soundType);
       if (!played && this.soundManager?.blocked) {
-        this.log('[SOUND] blocked -> show banner');
-        this.updatePermissionBanner();
+        this.log('[SOUND] blocked -> trying unlock + retry');
+        try{ await this.soundManager?.unlock(); played = await this.soundManager?.play(soundType); }catch{}
+        if(!played) this.updatePermissionBanner();
       }
     }
 
@@ -1220,19 +1225,28 @@ export class NotificationManager {
     let desktopState = 'unknown';
     if (window.Notification) desktopState = Notification.permission;
 
+    // إظهار البانر على الجوال حتى قبل الحجب — المستخدم يحتاج نقرة واحدة لفك الصوت (iOS/Android)
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth < 768;
+    const notUnlocked = this.soundManager && !this.soundManager.unlocked;
+    const shouldShowMobilePrompt = isMobile && notUnlocked && this.soundManager?.enabled;
+
     // Show banner if any action needed and user hasn't dismissed recently
     // Conditions: sound blocked OR desktop default (prompt available)
     const shouldShow =
       (soundBlocked) ||
       (window.Notification && desktopState === 'default') ||
-      (!this.prefs.sound_enabled && !soundBlocked); // show gentle nudge if disabled? maybe not
+      (!this.prefs.sound_enabled && !soundBlocked) ||
+      shouldShowMobilePrompt; // mobile: show until unlocked
     // Actually spec wants banner to show "فعّل أصوات الإشعارات" when autoplay blocked.
     // So only show when blocked or desktop default and tab is visible
-    if (soundBlocked || (window.Notification && desktopState === 'default' && !document.hidden)) {
+    if (soundBlocked || shouldShowMobilePrompt || (window.Notification && desktopState === 'default' && !document.hidden)) {
       this.permissionBanner.classList.remove('hidden');
       const textEl = document.getElementById('notif-banner-text');
       const btn = document.getElementById('enable-notif-btn');
-      if (soundBlocked) {
+      if (shouldShowMobilePrompt && !soundBlocked) {
+        if (textEl) textEl.textContent = 'اضغط تفعيل الصوت مرة واحدة ليصلك التنبيه على الهاتف 🔊 — ضروري لنظام iOS/Android';
+        if (btn) btn.textContent = 'تفعيل الصوت الآن 🔊';
+      } else if (soundBlocked) {
         if (textEl) textEl.textContent = 'المتصفح منع تشغيل الصوت تلقائياً — اضغط تفعيل ليصلك التنبيه بالصوت';
         if (btn) btn.textContent = 'تفعيل الصوت 🔊';
       } else if (desktopState === 'default') {
