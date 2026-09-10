@@ -2,17 +2,17 @@
 
 @section('content')
 <div class="max-w-3xl mx-auto">
-    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+    <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-6">
         <div>
-            <h1 class="text-xl font-extrabold text-ink-800">الإشعارات</h1>
-            <p class="text-sm text-ink-400 mt-1">إشعارات الإرساليات والملاحظات — قبول ورفض وإرسال — تحديث حي بدون Refresh</p>
+            <h1 class="text-xl font-extrabold text-ink-800 tracking-tight">سجل الإشعارات</h1>
+            <p class="text-sm text-[#6b7a6e] mt-1">متابعة فورية لحالة ملاحظاتك — تحديث لحظي</p>
             <div id="notif-center-status" class="mt-1.5 text-xs text-ink-400" aria-live="polite"></div>
         </div>
         <div class="flex items-center gap-2 shrink-0">
             @if($unreadCount > 0)
-                <button type="button" id="center-mark-all" class="px-4 py-2 rounded-xl bg-white border border-surface-300 text-ink-600 text-sm font-bold hover:bg-surface-100 transition">تحديد الكل كمقروء</button>
+                <button type="button" id="center-mark-all" class="px-4 py-2 rounded-xl bg-white border border-[#e6e9e1] text-ink-600 text-sm font-bold hover:bg-[#f5f7f5] transition">تحديد الكل كمقروء</button>
             @endif
-            <a href="{{ route('notes.index') }}" class="px-4 py-2 rounded-xl bg-[#0e6a38] text-white text-sm font-bold hover:bg-[#0a4d28] transition">الملاحظات</a>
+            <a href="{{ route('notes.index') }}" class="px-4 py-2 rounded-xl bg-[#0e6a38] text-white text-sm font-bold hover:bg-[#0a4d28] transition shadow-sm">الملاحظات</a>
         </div>
     </div>
 
@@ -57,47 +57,47 @@
                         elseif (isset($data['general_submission_id'])) $url = route('general-submissions.show', $data['general_submission_id']);
                         else $url = route('notifications.index');
                     }
-                    $iconBg = is_null($notification->read_at)
-                        ? ($isRejected ? 'bg-red-50 border border-red-200 text-red-500' : ($isAccepted ? 'bg-[#eef4f0] border border-[#cde7d6] text-[#0e6a38]' : 'bg-amber-50 border border-amber-200 text-amber-600'))
-                        : 'bg-surface-100 border border-surface-300 text-ink-400';
+                    // عنوان قصير احترافي + أيقونة وثيقة للواردة
+                    $title = $data['title'] ?? ($isRejected ? 'مرفوض' : ($isAccepted ? 'تم القبول' : 'واردة'));
+                    $shortMsg = $data['message'] ?? 'إشعار جديد';
+                    $sender = $data['sender_name'] ?? $data['processor_name'] ?? null;
+                    $iconBg = $isRejected ? 'bg-white border border-red-200 text-red-600' : ($isAccepted ? 'bg-white border border-[#e6e9e1] text-[#0e6a38]' : 'bg-white border border-[#e6e9e1] text-amber-600');
+                    $accent = is_null($notification->read_at) ? ($isRejected ? 'border-r-red-500' : ($isAccepted ? 'border-r-[#0e6a38]' : 'border-r-amber-500')) : 'border-r-transparent';
                     $iconPath = $isRejected
                         ? 'M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z'
-                        : ($isAccepted ? 'M5 13l4 4L19 7' : 'M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9' );
+                        : ($isAccepted ? 'M5 13l4 4L19 7' : 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' );
                 @endphp
-                <div class="bg-white rounded-xl border {{ is_null($notification->read_at) ? ($isRejected ? 'border-red-200 bg-red-50/30' : ($isAccepted ? 'border-[#cde7d6] bg-[#eef4f0]/30' : 'border-amber-200 bg-amber-50/30')) : 'border-surface-300' }} p-4 flex gap-3 focus-within:ring-2 focus-within:ring-[#0e6a38] focus-within:ring-offset-1" tabindex="0" role="article" aria-labelledby="notif-{{ $notification->id }}-title">
-                    <div class="w-10 h-10 rounded-xl {{ $iconBg }} flex items-center justify-center shrink-0" aria-hidden="true">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="{{ $iconPath }}"/></svg>
-                    </div>
-                    <div class="flex-1 min-w-0">
-                        <p id="notif-{{ $notification->id }}-title" class="text-sm font-bold text-ink-800">{{ $data['message'] ?? 'إشعار جديد' }}</p>
-                        @if(!empty($data['reason']))
-                        <div class="mt-2 p-3 rounded-xl bg-white border border-surface-300">
-                            <div class="text-xs font-bold text-ink-500 mb-1">سبب الرفض:</div>
-                            <p class="text-sm leading-6 text-ink-700">{{ $data['reason'] }}</p>
+                <div class="group bg-white rounded-xl border border-[#e6e9e1] overflow-hidden hover:border-[#d4ddd3] hover:shadow-sm transition border-r-[3px] {{ $accent }} {{ is_null($notification->read_at) ? 'shadow-sm' : 'opacity-[0.96]' }} focus-within:ring-2 focus-within:ring-[#0e6a38]/20" tabindex="0" role="article" aria-labelledby="notif-{{ $notification->id }}-title">
+                    <div class="p-4 flex gap-3">
+                        <div class="w-9 h-9 rounded-xl {{ $iconBg }} flex items-center justify-center shrink-0 mt-0.5 shadow-sm" aria-hidden="true">
+                            <svg class="w-4.5 h-4.5 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.9"><path stroke-linecap="round" stroke-linejoin="round" d="{{ $iconPath }}"/></svg>
                         </div>
-                        @endif
-                        @if(!empty($data['processor_name']) || !empty($data['sender_name']))
-                        <div class="mt-1 text-xs text-ink-500">
-                            @if(!empty($data['processor_name'])) بواسطة {{ $data['processor_name'] }} @endif
-                            @if(!empty($data['sender_name'])) من {{ $data['sender_name'] }} @endif
-                            @if($isHigh) <span class="ml-2 inline-flex px-1.5 py-0.5 rounded bg-red-50 text-red-600 border border-red-200 text-[10px] font-bold">عالي</span> @endif
-                        </div>
-                        @endif
-                        <div class="mt-2 flex items-center gap-3 text-xs text-ink-400">
-                            <span>{{ \Carbon\Carbon::parse($notification->created_at)->diffForHumans() }}</span>
-                            <span>•</span>
-                            <span>كاميرا {{ $data['camera_number'] ?? '—' }} — الطابق {{ $data['floor_number'] ?? '—' }}</span>
-                            @if(is_null($notification->read_at))
-                                <span class="mr-auto inline-flex items-center gap-1 text-red-500 font-bold" aria-label="غير مقروء"><span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>غير مقروء</span>
-                            @else
-                                <span class="mr-auto text-ink-300">مقروء</span>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-start gap-2">
+                                <h3 id="notif-{{ $notification->id }}-title" class="text-[13px] font-extrabold text-ink-800 leading-5 truncate">{{ $title }}</h3>
+                                @if(is_null($notification->read_at))
+                                    <span class="w-1.5 h-1.5 rounded-full {{ $isRejected ? 'bg-red-500' : ($isAccepted ? 'bg-[#0e6a38]' : 'bg-amber-500') }} mt-1.5 shrink-0"></span>
+                                @endif
+                                <span class="text-[11px] text-ink-400 mr-auto shrink-0">{{ \Carbon\Carbon::parse($notification->created_at)->diffForHumans() }}</span>
+                            </div>
+                            <p class="text-xs font-medium text-ink-600 mt-1 leading-5 line-clamp-1">{{ $shortMsg }}</p>
+                            <p class="text-[11px] text-ink-400 mt-1 truncate">
+                                @if($sender) {{ $sender }} · @endif
+                                كاميرا {{ $data['camera_number'] ?? '—' }} · طابق {{ $data['floor_number'] ?? '—' }}
+                            </p>
+                            @if(!empty($data['reason']))
+                            <div class="mt-2.5 text-xs leading-5 text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2 line-clamp-2">
+                                {{ $data['reason'] }}
+                            </div>
                             @endif
-                        </div>
-                        <div class="mt-3 flex gap-2">
-                            <a href="{{ $url }}" class="px-3 py-1.5 rounded-lg bg-[#0e6a38] text-white text-xs font-bold hover:bg-[#0a4d28] transition" data-notif-action="open">عرض التفاصيل</a>
-                            @if(is_null($notification->read_at))
-                                <button type="button" data-notif-id="{{ $notification->id }}" class="notif-mark-one px-3 py-1.5 rounded-lg bg-white border border-surface-300 text-ink-600 text-xs font-bold hover:bg-surface-100 transition" aria-label="تحديد كمقروء">تحديد كمقروء</button>
-                            @endif
+                            <div class="mt-3 flex items-center gap-2">
+                                <a href="{{ $url }}" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#0e6a38] text-white text-xs font-bold hover:bg-[#0a4d28] transition shadow-sm" data-notif-action="open">عرض التفاصيل</a>
+                                @if(is_null($notification->read_at))
+                                    <button type="button" data-notif-id="{{ $notification->id }}" class="notif-mark-one px-3 py-1.5 rounded-lg bg-white border border-[#e6e9e1] text-ink-600 text-xs font-bold hover:bg-[#f5f7f5] transition" aria-label="تحديد كمقروء">تمت القراءة</button>
+                                @else
+                                    <span class="text-[11px] text-ink-300 mr-auto">مقروء</span>
+                                @endif
+                            </div>
                         </div>
                     </div>
                 </div>

@@ -1,4 +1,4 @@
-const CACHE_STATIC = 'rasd-root-v11-fix-loader-freeze';
+const CACHE_STATIC = 'rasd-root-v12-http-polling-fix';
 const CACHE_API = 'rasd-api-v1';
 const STATIC_ASSETS = [
   '/',

@@ -404,6 +404,17 @@
         </div>
     </footer>
 
+    {{-- Global Sound Prompt — يظهر حتى يتم فك القفل، خارج الـ dropdown ليكون مرئي دائماً --}}
+    <div id="global-sound-banner" class="hidden fixed bottom-4 left-4 right-4 sm:left-auto sm:right-4 sm:w-[360px] bg-amber-50 border border-amber-200 rounded-xl shadow-xl p-3 flex items-center gap-3 z-[65]" role="alert" aria-live="polite">
+        <div class="w-9 h-9 rounded-xl bg-amber-100 border border-amber-200 flex items-center justify-center shrink-0 text-amber-700">🔊</div>
+        <div class="flex-1 min-w-0">
+            <p class="text-xs font-bold text-amber-900 leading-4" id="global-sound-text">فعّل الصوت ليصلك التنبيه فوراً</p>
+            <p class="text-[11px] text-amber-700 leading-4">اضغط مرة واحدة — ضروري لـ iOS/Android</p>
+        </div>
+        <button type="button" id="global-sound-enable" class="shrink-0 px-3.5 py-2 rounded-lg bg-[#0e6a38] text-white text-xs font-bold hover:bg-[#0a4d28] shadow-sm">تفعيل</button>
+        <button type="button" id="global-sound-dismiss" class="shrink-0 w-7 h-7 rounded-full hover:bg-amber-100 flex items-center justify-center text-amber-600" aria-label="إغلاق">✕</button>
+    </div>
+
     <script>
         // عرض أخطاء المرفقات القادمة من إرسال fetch (تُخزن في sessionStorage قبل التحويل)
         (function(){

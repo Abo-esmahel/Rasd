@@ -1,4 +1,4 @@
-const CACHE_STATIC = 'rasd-root-v10';
+const CACHE_STATIC = 'rasd-root-v12-http-polling-fix';
 const CACHE_API = 'rasd-api-v1';
 const STATIC_ASSETS = [
   '/',
@@ -27,7 +27,7 @@ function isNeverCache(url) {
 }
 
 self.addEventListener('install', e => {
-  console.log('[SW root] install v10 scope /');
+  console.log('[SW root] install v11-fix-loader-freeze scope /');
   e.waitUntil(
     caches.open(CACHE_STATIC).then(function(cache){
       return Promise.allSettled(STATIC_ASSETS.map(function(url){
@@ -40,7 +40,7 @@ self.addEventListener('install', e => {
 });
 
 self.addEventListener('activate', e => {
-  console.log('[SW root] activate v10');
+  console.log('[SW root] activate v11-fix-loader-freeze');
   e.waitUntil(
     caches.keys().then(keys => Promise.all(
       keys.filter(k => k !== CACHE_STATIC && k !== CACHE_API).map(k => caches.delete(k))
