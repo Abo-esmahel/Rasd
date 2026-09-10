@@ -197,15 +197,38 @@ export class NotificationManager {
     // Permission banner actions
     const enableBtn = document.getElementById('enable-notif-btn');
     const testSoundBtn = document.getElementById('test-notif-sound');
-    enableBtn?.addEventListener('click', async () => {
+    const globalEnableBtn = document.getElementById('global-sound-enable');
+    const globalDismissBtn = document.getElementById('global-sound-dismiss');
+    const handleEnable = async () => {
       await this.soundManager?.unlock();
-      // Try to request Notification permission if needed
       if (window.Notification && Notification.permission === 'default') {
         try { await Notification.requestPermission(); } catch {}
       }
-      await this.soundManager?.play('normal');
+      const ok = await this.soundManager?.play('normal');
       this.updatePermissionBanner();
       this.sync();
+      // إخفاء البانر العام بعد النجاح
+      if (ok) {
+        document.getElementById('global-sound-banner')?.classList.add('hidden');
+        try { sessionStorage.setItem('global_sound_dismissed', '1'); } catch {}
+      }
+      // toast تأكيد
+      this.showToast({
+        id: 'enable-' + Date.now(),
+        type: 'Test',
+        data: {
+          message: ok ? 'تم تفعيل الصوت بنجاح ✅ — ستصلك النغمة عند الإشعار القادم' : 'تعذر تفعيل الصوت — تأكد من عدم كتم التبويب',
+          type: ok ? 'note_accepted' : 'note_rejected',
+          url: null,
+        },
+        created_at_human: 'الآن',
+      }, { force: true, sound: false });
+    };
+    enableBtn?.addEventListener('click', handleEnable);
+    globalEnableBtn?.addEventListener('click', handleEnable);
+    globalDismissBtn?.addEventListener('click', () => {
+      document.getElementById('global-sound-banner')?.classList.add('hidden');
+      try { sessionStorage.setItem('global_sound_dismissed', '1'); } catch {}
     });
     testSoundBtn?.addEventListener('click', async () => {
       await this.soundManager?.unlock();
@@ -496,8 +519,9 @@ export class NotificationManager {
   }
 
   syncIfNeeded() {
-    // Only sync if visible or if we suspect drift
-    if (!document.hidden) this.sync();
+    // على HTTP نزامن حتى لو مخفي (الـ polling هو المصدر الوحيد للإشعارات)
+    // المتصفح قد يخنق الـ interval في الخلفية لكن نحاول دائماً
+    this.sync();
   }
 
   setConnectionState(state) {
@@ -640,16 +664,17 @@ export class NotificationManager {
   }
 
   shouldPresentInThisTab(notification) {
-    // Hidden tabs never do toast/sound — only badge sync
+    // على HTTP وحتى لو التبويب مخفي/بالخلفية نريد الصوت — نستخدم BroadcastChannel لتجنب التكرار
+    // سابقاً كنا نمنع hidden/not focused تماماً مما يمنع الصوت على الهاتف عندما يكون التطبيق في الخلفية
+    const isHttp = location.protocol === 'http:';
     if (document.hidden) {
-      this.log('[MULTI-TAB] hidden -> skip present');
-      return false;
-    }
-    // Focus check: only focused tab presents (prevents 3 sounds when 3 tabs visible side-by-side, only focused wins)
-    // On some OS, multiple windows can have focus, but rare. We'll also use BroadcastChannel claim as tie-breaker.
-    if (!document.hasFocus()) {
-      this.log('[MULTI-TAB] not focused -> skip present');
-      return false;
+      // على HTTP نسمح لتبويب واحد مخفي بتشغيل الصوت (عبر الـ claim أدناه)، على HTTPS نعتمد على Push
+      // إذا كان هناك أكثر من تبويب مخفي، الـ claim يضمن تبويب واحد فقط يصدر الصوت
+      this.log('[MULTI-TAB] hidden -> still try claim for background sound (HTTP)');
+      // لا نرجع false مباشرة — نكمل للـ claim
+    } else if (!document.hasFocus()) {
+      // إذا كان هناك تبويب غير مركز لكن ليس مخفي (نافذتان جنباً إلى جنب) نستخدم الـ claim أيضاً
+      this.log('[MULTI-TAB] not focused -> try claim');
     }
 
     // Additional claim via localStorage to handle race where two windows both focused (unlikely but possible)
@@ -947,7 +972,7 @@ export class NotificationManager {
     if (!this.listEl) return;
 
     if (this.notifications.length === 0) {
-      this.listEl.innerHTML = '<div class="p-8 text-center text-sm text-ink-400">لا توجد إشعارات</div>';
+      this.listEl.innerHTML = '<div class="p-10 text-center"><div class="w-12 h-12 rounded-xl bg-[#f5f7f5] border border-[#e6e9e1] flex items-center justify-center mx-auto"><svg class="w-6 h-6 text-ink-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.313 6.022c1.543.94 3.31-.826 2.37-2.37a1.724 1.724 0 001.065-2.572"/></svg></div><p class="mt-3 text-sm font-bold text-ink-600">لا توجد إشعارات</p><p class="mt-1 text-xs text-ink-400">ستظهر الإشعارات الواردة هنا فور وصولها</p></div>';
       return;
     }
 
@@ -957,22 +982,34 @@ export class NotificationManager {
       const cfg = getTypeConfig(rawType);
       const isUnread = !n.read_at;
       const url = this.escapeHtml(this.resolveUrl(n));
-      const msg = this.escapeHtml(data.message || 'إشعار جديد');
+      const title = this.escapeHtml(data.title || cfg.label || 'إشعار');
+      const body = this.escapeHtml(data.message || '');
       const time = this.escapeHtml(n.created_at_human || 'الآن');
-      const reason = data.reason ? `<p class="mt-1 text-xs leading-5 text-ink-500 bg-white border border-surface-300 rounded-lg p-2.5">سبب الرفض: ${this.escapeHtml(data.reason)}</p>` : '';
-      const unreadClass = isUnread ? (cfg.priority === 'high' ? 'bg-red-50/40' : (cfg.color === 'green' ? 'bg-[#eef4f0]/60' : 'bg-amber-50/40')) : '';
-      const iconBg = isUnread ? cfg.bgClass : 'bg-surface-100 border border-surface-300 text-ink-400';
+      const sender = this.escapeHtml(data.sender_name || data.processor_name || '');
+      const meta = [];
+      if (data.camera_number) meta.push(`كاميرا ${this.escapeHtml(String(data.camera_number))}`);
+      if (data.floor_number) meta.push(`طابق ${this.escapeHtml(String(data.floor_number))}`);
+      const metaStr = meta.join(' · ');
+      const reason = data.reason ? `<div class="mt-2 text-xs leading-5 text-red-700 bg-red-50 border border-red-200 rounded-lg px-2.5 py-2 line-clamp-2">${this.escapeHtml(data.reason)}</div>` : '';
+      const accent = isUnread ? (cfg.priority === 'high' ? 'border-r-red-500' : cfg.color === 'green' ? 'border-r-[#0e6a38]' : cfg.color === 'amber' ? 'border-r-amber-500' : 'border-r-ink-300') : 'border-r-transparent';
+      const bg = isUnread ? 'bg-white' : 'bg-[#fdfcfa]/70';
+      const iconBg = cfg.bgClass;
 
       return `
-        <a href="${url}" data-id="${this.escapeHtml(n.id)}" class="block p-4 hover:bg-[#f5f7f5] transition ${unreadClass} focus:outline-none focus-visible:bg-[#f5f7f5]" tabindex="0">
-          <div class="flex items-start gap-3">
-            <div class="w-8 h-8 rounded-lg ${iconBg} flex items-center justify-center shrink-0" aria-hidden="true">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="${this.iconPathFor(cfg.icon)}"/></svg>
+        <a href="${url}" data-id="${this.escapeHtml(n.id)}" class="group flex items-stretch gap-0 hover:bg-[#f5f7f5] transition ${bg} border-b border-[#e6e9e1] last:border-0 border-r-[3px] ${accent} focus:outline-none focus-visible:bg-[#f5f7f5]" tabindex="0">
+          <div class="flex items-start gap-3 p-3 flex-1 min-w-0">
+            <div class="w-8 h-8 rounded-lg ${iconBg} flex items-center justify-center shrink-0 border mt-0.5" aria-hidden="true">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.9"><path stroke-linecap="round" stroke-linejoin="round" d="${this.iconPathFor(cfg.icon)}"/></svg>
             </div>
             <div class="flex-1 min-w-0">
-              <p class="text-sm font-bold text-ink-800 leading-5">${msg}</p>
+              <div class="flex items-center gap-2">
+                <span class="text-[13px] font-bold text-ink-800 leading-none truncate">${title}</span>
+                ${isUnread ? `<span class="w-1.5 h-1.5 rounded-full ${cfg.dotClass} shrink-0"></span>` : ''}
+                <span class="text-[11px] font-medium text-ink-400 mr-auto shrink-0">${time}</span>
+              </div>
+              ${body ? `<p class="text-xs font-medium text-ink-600 mt-1.5 leading-4 line-clamp-1">${body}</p>` : ''}
+              ${(metaStr || sender) ? `<p class="text-[11px] text-ink-400 mt-1 truncate">${sender ? sender + (metaStr ? ' · ' + metaStr : '') : metaStr}</p>` : ''}
               ${reason}
-              <p class="mt-1.5 text-[11px] text-ink-400">${time} • ${isUnread ? '<span class="text-red-500 font-bold">غير مقروء</span>' : 'مقروء'}</p>
             </div>
           </div>
         </a>
@@ -1215,67 +1252,64 @@ export class NotificationManager {
   // ──────────────────────────────────────────────
 
   updatePermissionBanner() {
-    if (!this.permissionBanner) return;
-
     const soundBlocked = this.soundManager?.blocked;
     const soundDisabled = this.soundManager && !this.soundManager.enabled;
-    const needSoundEnable = soundBlocked || soundDisabled;
-
-    // Also check desktop permission
     let desktopState = 'unknown';
     if (window.Notification) desktopState = Notification.permission;
-
-    // إظهار البانر على الجوال حتى قبل الحجب — المستخدم يحتاج نقرة واحدة لفك الصوت (iOS/Android)
     const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth < 768;
     const notUnlocked = this.soundManager && !this.soundManager.unlocked;
     const shouldShowMobilePrompt = isMobile && notUnlocked && this.soundManager?.enabled;
+    const shouldShowDropdown = soundBlocked || shouldShowMobilePrompt || (window.Notification && desktopState === 'default' && !document.hidden);
 
-    // Show banner if any action needed and user hasn't dismissed recently
-    // Conditions: sound blocked OR desktop default (prompt available)
-    const shouldShow =
-      (soundBlocked) ||
-      (window.Notification && desktopState === 'default') ||
-      (!this.prefs.sound_enabled && !soundBlocked) ||
-      shouldShowMobilePrompt; // mobile: show until unlocked
-    // Actually spec wants banner to show "فعّل أصوات الإشعارات" when autoplay blocked.
-    // So only show when blocked or desktop default and tab is visible
-    if (soundBlocked || shouldShowMobilePrompt || (window.Notification && desktopState === 'default' && !document.hidden)) {
-      this.permissionBanner.classList.remove('hidden');
-      const textEl = document.getElementById('notif-banner-text');
-      const btn = document.getElementById('enable-notif-btn');
-      if (shouldShowMobilePrompt && !soundBlocked) {
-        if (textEl) textEl.textContent = 'اضغط تفعيل الصوت مرة واحدة ليصلك التنبيه على الهاتف 🔊 — ضروري لنظام iOS/Android';
-        if (btn) btn.textContent = 'تفعيل الصوت الآن 🔊';
-      } else if (soundBlocked) {
-        if (textEl) textEl.textContent = 'المتصفح منع تشغيل الصوت تلقائياً — اضغط تفعيل ليصلك التنبيه بالصوت';
-        if (btn) btn.textContent = 'تفعيل الصوت 🔊';
-      } else if (desktopState === 'default') {
-        if (textEl) textEl.textContent = 'فعّل الإشعارات ليصلك التنبيه حتى عند تصفح تبويب آخر';
-        if (btn) btn.textContent = 'تفعيل الإشعارات 🔔';
-      } else if (desktopState === 'denied') {
-        if (textEl) textEl.textContent = 'الإشعارات محظورة في المتصفح — فعّلها من إعدادات الموقع';
-        if (btn) {
-          btn.textContent = 'تعليمات';
-          btn.onclick = () => alert('افتح أيقونة القفل بجانب العنوان > إعدادات الموقع > الإشعارات > سماح لـ ' + location.host);
+    // Dropdown banner
+    if (this.permissionBanner) {
+      if (shouldShowDropdown) {
+        this.permissionBanner.classList.remove('hidden');
+        const textEl = document.getElementById('notif-banner-text');
+        const btn = document.getElementById('enable-notif-btn');
+        if (shouldShowMobilePrompt && !soundBlocked) {
+          if (textEl) textEl.textContent = 'اضغط تفعيل الصوت مرة واحدة ليصلك التنبيه على الهاتف 🔊 — ضروري لنظام iOS/Android';
+          if (btn) btn.textContent = 'تفعيل الصوت الآن 🔊';
+        } else if (soundBlocked) {
+          if (textEl) textEl.textContent = 'المتصفح منع تشغيل الصوت تلقائياً — اضغط تفعيل ليصلك التنبيه بالصوت';
+          if (btn) btn.textContent = 'تفعيل الصوت 🔊';
+        } else if (desktopState === 'default') {
+          if (textEl) textEl.textContent = 'فعّل الإشعارات ليصلك التنبيه حتى عند تصفح تبويب آخر';
+          if (btn) btn.textContent = 'تفعيل الإشعارات 🔔';
+        } else if (desktopState === 'denied') {
+          if (textEl) textEl.textContent = 'الإشعارات محظورة في المتصفح — فعّلها من إعدادات الموقع';
+          if (btn) {
+            btn.textContent = 'تعليمات';
+            btn.onclick = () => alert('افتح أيقونة القفل بجانب العنوان > إعدادات الموقع > الإشعارات > سماح لـ ' + location.host);
+          }
         }
-      }
-    } else {
-      // Hide if previously shown due to blocked but now unlocked
-      if (soundBlocked === false && desktopState === 'granted') {
-        this.permissionBanner.classList.add('hidden');
-      } else if (!soundBlocked && desktopState !== 'default') {
-        // Keep hidden unless blocked
-        // But also hide if sound disabled? spec says show UI clear: "فعّل أصوات الإشعارات" with button enable
-        // We'll hide to avoid nagging if user explicitly disabled
-        this.permissionBanner.classList.add('hidden');
       } else {
-        // default hidden
-        // do not auto-hide if we previously showed for desktop default? hide after grant
-        if (desktopState === 'granted' && !soundBlocked) this.permissionBanner.classList.add('hidden');
+        if (soundBlocked === false && desktopState === 'granted') this.permissionBanner.classList.add('hidden');
+        else if (!soundBlocked && desktopState !== 'default') this.permissionBanner.classList.add('hidden');
+        else if (desktopState === 'granted' && !soundBlocked) this.permissionBanner.classList.add('hidden');
       }
     }
 
-    // Also update badge and sound state indicators elsewhere if present
+    // Global sound prompt — مرئي دائماً حتى يتم فك القفل (خارج الـ dropdown)
+    const globalBanner = document.getElementById('global-sound-banner');
+    if (globalBanner && this.soundManager) {
+      let dismissed = false;
+      try { dismissed = sessionStorage.getItem('global_sound_dismissed') === '1'; } catch {}
+      const needGlobal = (notUnlocked && this.soundManager.enabled && !dismissed) || soundBlocked;
+      // لا تُظهر إذا كان الصوت معطّل عمداً من الإعدادات
+      const showGlobal = needGlobal && this.soundManager.enabled && this.prefs.sound_enabled;
+      if (showGlobal) {
+        globalBanner.classList.remove('hidden');
+        const gText = document.getElementById('global-sound-text');
+        if (gText) {
+          if (soundBlocked) gText.textContent = 'المتصفح حجب الصوت — اضغط تفعيل';
+          else gText.textContent = 'فعّل الصوت ليصلك التنبيه فوراً';
+        }
+      } else {
+        globalBanner.classList.add('hidden');
+      }
+    }
+
     const stateDetail = this.soundManager?.getState();
     window.dispatchEvent(new CustomEvent('notification:permission-banner', { detail: { soundBlocked, desktopState, stateDetail } }));
   }
