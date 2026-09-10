@@ -1,0 +1,60 @@
+/**
+ * Public fallback bootstrap — works without Vite build.
+ * Loaded via <script type="module"> in Blade.
+ */
+import { NotificationSoundManager } from './soundManager.js';
+import { NotificationManager } from './notificationManager.js';
+
+function init() {
+  // إصلاح الجمود: تعطيل SSE في وضع artisan أحادي + السماح بـ ?nosse=1 أو localStorage nosse=1 للاختبار
+  try {
+    const qs = new URLSearchParams(location.search);
+    if (qs.has('nosse') || localStorage.getItem('nosse') === '1') {
+      console.warn('[NOTIFICATIONS] disabled via nosse');
+      return;
+    }
+    // على 127.0.0.1/192.168 مع artisan serve أحادي، الـ SSE يحجز الـ worker — نفضّل polling فقط
+    // نكتشف dev: إذا كان البورت 8000 و hostname ليس localhost الآمن، نوقف SSE تلقائياً
+    if (location.port === '8000' && (location.hostname === '192.168.10.138' || location.hostname === '127.0.0.1')) {
+      // لا نوقف تماماً بل نجعل notificationManager يستخدم polling فقط — نفرض ذلك عبر تعطيل EventSource مؤقتاً
+      // الحل الأخف: نترك manager لكنه سيكتشف أن SSE يحجز worker — نزيد العمال بدلاً من التعطيل
+      // للآن: نسمح لكن مع عمر قصير 45s (تم في PHP)
+    }
+  } catch {}
+  const userIdMeta = document.querySelector('meta[name="user-id"]')?.content || window.NOTIF_USER_ID || null;
+  const userId = userIdMeta ? parseInt(userIdMeta, 10) : null;
+  if (!userId) return;
+
+  const debug = (() => {
+    try {
+      if (localStorage.getItem('notif_debug') === '1') return true;
+      if (document.querySelector('meta[name="app-debug"]')?.content === '1') return true;
+      if (new URLSearchParams(location.search).has('notif_debug')) return true;
+    } catch {}
+    return false;
+  })();
+
+  const soundManager = new NotificationSoundManager({ enabled: true, volume: 0.7, debug });
+  soundManager.loadPersisted();
+  soundManager.bindUnlockOnInteraction();
+
+  const manager = new NotificationManager({ soundManager, userId, debug });
+  window.NotificationSoundManager = soundManager;
+  window.NotificationManagerInstance = manager;
+  window.RASDNotifications = manager;
+
+  manager.init().catch(e => console.error('[NOTIFICATIONS] init failed', e));
+
+  if (debug) console.log('[NOTIFICATIONS] debug enabled (public fallback)', soundManager.getState());
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
+
+window.testNotificationSound = async (type = 'normal') => {
+  const sm = window.NotificationSoundManager;
+  if (sm) return sm.test(type);
+};

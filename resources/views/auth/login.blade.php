@@ -4,16 +4,24 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="color-scheme" content="light dark">
+    <!-- PWA ROOT -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#1f6f4a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="ملاحظة">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="application-name" content="ملاحظة">
+    <meta name="description" content="نظام ملاحظة كاميرات المراقبة">
+    <link rel="icon" type="image/png" sizes="192x192" href="/pwa/icons/icon-192.png">
+    <link rel="apple-touch-icon" href="/pwa/icons/icon-192.png">
     <title>تسجيل الدخول — وزارة الإعلام السورية</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <script src="https://cdn.tailwindcss.com"></script>
+    {{-- Vite CSS — يمنع FOUC: التحميل المتزامن قبل الرسم --}}
+    @vite(['resources/css/app.css'])
     <script>(function(){try{var t=localStorage.getItem('theme')||localStorage.getItem('rasd_theme');var d=window.matchMedia('(prefers-color-scheme: dark)').matches;if(t==='dark'||(!t&&d))document.documentElement.classList.add('dark');}catch(e){}})();</script>
-    <style>
-        html:not(.hydrated) body{opacity:0} html.hydrated body{opacity:1;transition:opacity .18s ease}
-    </style>
-    <script>document.addEventListener('DOMContentLoaded',function(){ setTimeout(function(){document.documentElement.classList.add('hydrated')},30)}); window.addEventListener('load',function(){document.documentElement.classList.add('hydrated')});</script>
     <style>
         *{font-family:'Cairo','Segoe UI',sans-serif} body{-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;overflow-x:hidden}
         html.dark { color-scheme: dark; }
@@ -153,6 +161,25 @@
             window.addEventListener('pageshow', applyStoredTheme);
             window.addEventListener('storage', function(e){ if(e.key==='theme'||e.key==='rasd_theme') applyStoredTheme(); });
         })();
+    </script>
+    {{-- PWA ROOT SW --}}
+    <script>
+    (function(){
+      if (!('serviceWorker' in navigator)) return;
+      window.addEventListener('load', function(){
+        navigator.serviceWorker.register('/sw.js', {scope: '/'}).then(function(reg){
+          console.log('[PWA ROOT] SW registered scope=' + reg.scope);
+          return navigator.serviceWorker.ready;
+        }).then(function(){ console.log('[PWA ROOT] ready'); }).catch(function(e){ console.error('[PWA ROOT] SW fail', e); });
+      });
+      window.addEventListener('beforeinstallprompt', function(e){
+        console.log('[PWA ROOT] beforeinstallprompt fired');
+        e.preventDefault();
+        window.deferredRootPrompt = e;
+        window.__PWA_BEFOREINSTALLPROMPT_FIRED__ = true;
+      });
+      window.addEventListener('appinstalled', function(){ console.log('[PWA ROOT] appinstalled'); });
+    })();
     </script>
 </body>
 </html>

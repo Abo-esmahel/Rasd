@@ -5,31 +5,56 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="color-scheme" content="light dark">
-    <!-- PWA disabled -->
-    <meta name="apple-mobile-web-app-capable" content="no">
+    @auth
+    <meta name="user-id" content="{{ auth()->id() }}">
+    <meta name="app-debug" content="{{ config('app.debug') ? '1' : '0' }}">
+    @endauth
+    <!-- PWA ROOT — manifest + icons -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#1f6f4a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="ملاحظة">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="application-name" content="ملاحظة">
+    <meta name="description" content="نظام ملاحظة كاميرات المراقبة">
+    <link rel="icon" type="image/png" sizes="192x192" href="/pwa/icons/icon-192.png">
     <link rel="apple-touch-icon" href="/pwa/icons/icon-192.png">
     <script>(function(){try{var t=localStorage.getItem('theme')||localStorage.getItem('rasd_theme');if(t!=='light')document.documentElement.classList.add('dark');}catch(e){document.documentElement.classList.add('dark');}})();</script>
+    <script>
+    // تثبيت الزووم — يمنع pinch-zoom و Ctrl+wheel و Ctrl+/- مع الحفاظ على الريسبونسف
+    (function(){
+      try{
+        document.addEventListener('gesturestart', function(e){ e.preventDefault(); }, {passive:false});
+        document.addEventListener('gesturechange', function(e){ e.preventDefault(); }, {passive:false});
+        document.addEventListener('gestureend', function(e){ e.preventDefault(); }, {passive:false});
+        document.addEventListener('wheel', function(e){ if(e.ctrlKey) e.preventDefault(); }, {passive:false});
+        document.addEventListener('keydown', function(e){
+          if((e.ctrlKey||e.metaKey) && (e.key==='+'||e.key==='-'||e.key==='='||e.key==='0'|| e.keyCode===61|| e.keyCode===173|| e.keyCode===48)) e.preventDefault();
+        });
+        document.addEventListener('touchmove', function(e){ if(e.touches && e.touches.length>1) e.preventDefault(); }, {passive:false});
+        // منع double-tap zoom
+        let lastTouch=0;
+        document.addEventListener('touchend', function(e){
+          const now=Date.now();
+          if(now-lastTouch<=300) e.preventDefault();
+          lastTouch=now;
+        }, {passive:false});
+      }catch(e){}
+    })();
+    </script>
     <title>{{ $title ?? 'نظام ملاحظات كاميرات المراقبة' }} — وزارة الإعلام</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: { 'cairo': ['Cairo','Segoe UI','Tahoma','sans-serif'] },
-                }
-            }
-        }
-    </script>
-    <style>html body{opacity:1} html.hydrated body{opacity:1}</style>
-    <script>document.documentElement.classList.add('hydrated');</script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    {{-- Vite CSS — تحميل متزامن يمنع FOUC/تكسير الريسبونسيف عند الريفرش --}}
+    @vite(['resources/css/app.css'])
     <script type="module" src="/pwa/js/print-layout-engine.js?v=EDITORIAL-v4.2.1-N3-DESCRIPTION-FIX-2026-09-06"></script>
     <style>
+        /* تثبيت الزووم مع الحفاظ على الريسبونسف — يمنع pinch-zoom الحر */
+        html{scroll-behavior:smooth; scrollbar-gutter:stable; touch-action: pan-x pan-y; -ms-touch-action: pan-x pan-y; overscroll-behavior: contain;}
+        body{text-rendering:optimizeLegibility;-webkit-font-smoothing:antialiased; overflow-x:hidden; overscroll-behavior: contain; touch-action: pan-x pan-y;}
         *{font-family:'Cairo','Segoe UI',Tahoma,sans-serif}
-        html{scroll-behavior:smooth; scrollbar-gutter:stable}
-        body{text-rendering:optimizeLegibility;-webkit-font-smoothing:antialiased; overflow-x:hidden}
         :focus-visible{outline:2px solid #0e6a38; outline-offset:2px}
         ::-webkit-scrollbar{width:8px;height:8px}
         ::-webkit-scrollbar-track{background:#eceee9}
@@ -100,6 +125,19 @@
         .hidden .bg-ink-900\/40, .hidden .bg-ink-900\/60, .hidden .bg-ink-900\/70,
         .hidden.backdrop-blur-sm, [data-modal].hidden * { background:transparent !important; backdrop-filter:none !important; }
         #page-loader.hidden { display:none !important; opacity:0 !important; visibility:hidden !important; }
+        /* — Notifications: Toast & accessibility — */
+        #notification-toast-container { scrollbar-width: thin; }
+        @media (prefers-reduced-motion: reduce) {
+            #notification-toast-container [data-toast] { transition: none !important; animation: none !important; }
+            #notification-badge { animation: none !important; }
+        }
+        #notification-badge:not(.hidden) { animation: badgePulse 0.3s ease-out; }
+        @keyframes badgePulse { 0%{transform:scale(1)} 50%{transform:scale(1.18)} 100%{transform:scale(1)} }
+        .notif-enter { animation: notifSlideIn 0.32s ease-out forwards; }
+        @keyframes notifSlideIn { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+        #notification-dropdown { scrollbar-width: thin; }
+        /* Focus visible for a11y inside dropdown */
+        #notification-list a:focus-visible { outline:2px solid #0e6a38; outline-offset:-2px; }
     </style>
     <script>/* إخفاء قسري للـ loader فقط — لا تلمس المودالات */setTimeout(function(){var l=document.getElementById('page-loader');if(l){l.style.opacity='0';l.style.visibility='hidden';l.classList.add('hidden');}},700);</script>
 </head>
@@ -164,22 +202,61 @@
                         <svg class="w-4 h-4 moon-icon hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
                     </button>
 
-                    {{-- Notifications Bell — شريط الإشعارات (خارج الموقع) --}}
+                    {{-- Notifications Bell — نظام حي Real-Time --}}
                     <div class="relative">
-                        <button type="button" id="notification-bell" class="relative w-8 h-8 rounded-lg flex items-center justify-center text-[#6b7a6e] hover:text-[#1a2e1f] hover:bg-[#f6f7f5] transition" aria-label="الإشعارات">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
-                            <span id="notification-badge" class="hidden absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[11px] font-bold flex items-center justify-center border-2 border-[#fdfcfa]">0</span>
+                        <button type="button" id="notification-bell" class="relative w-8 h-8 rounded-lg flex items-center justify-center text-[#6b7a6e] hover:text-[#1a2e1f] hover:bg-[#f6f7f5] transition" aria-label="الإشعارات" aria-haspopup="true" aria-expanded="false" aria-controls="notification-dropdown">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+                            <span id="notification-badge" class="hidden absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[11px] font-bold flex items-center justify-center border-2 border-[#fdfcfa]" aria-live="polite" aria-atomic="true">0</span>
                         </button>
-                        <div id="notification-dropdown" class="hidden absolute left-0 mt-2 w-80 sm:w-96 bg-white rounded-2xl shadow-2xl border border-[#e6e9e1] overflow-hidden z-50">
+                        <div id="notification-dropdown" class="hidden absolute left-0 mt-2 w-80 sm:w-[420px] bg-white rounded-2xl shadow-2xl border border-[#e6e9e1] overflow-hidden z-50" role="dialog" aria-label="مركز الإشعارات">
                             <div class="px-4 py-3 border-b border-[#e6e9e1] flex items-center justify-between bg-[#f5f7f5]">
-                                <h3 class="text-sm font-extrabold text-ink-800">الإشعارات</h3>
-                                <button type="button" id="mark-all-read" class="text-xs font-bold text-[#0e6a38] hover:underline">تحديد الكل كمقروء</button>
+                                <div class="flex items-center gap-2">
+                                    <h3 class="text-sm font-extrabold text-ink-800">الإشعارات</h3>
+                                    <span id="notification-connection-status" class="hidden w-2 h-2 rounded-full bg-emerald-500" title="متصل"></span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <button type="button" id="notification-settings-toggle" class="w-7 h-7 rounded-lg flex items-center justify-center text-ink-400 hover:text-ink-700 hover:bg-white border border-transparent hover:border-[#e6e9e1] transition" aria-label="إعدادات الإشعارات" title="الإعدادات">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                                    </button>
+                                    <button type="button" id="mark-all-read" class="text-xs font-bold text-[#0e6a38] hover:underline">تحديد الكل كمقروء</button>
+                                </div>
                             </div>
-                            <div id="notification-list" class="max-h-96 overflow-y-auto divide-y divide-[#e6e9e1]">
-                                <div class="p-8 text-center text-sm text-ink-400">لا توجد إشعارات</div>
+                            {{-- Settings panel (hidden by default) --}}
+                            <div id="notification-settings-panel" class="hidden px-4 py-3 bg-white border-b border-[#e6e9e1] space-y-3">
+                                <div class="flex items-center justify-between gap-3">
+                                    <label for="notif-sound-toggle" class="text-xs font-bold text-ink-700 flex items-center gap-1.5 cursor-pointer">🔊 أصوات الإشعارات</label>
+                                    <label class="relative inline-flex items-center cursor-pointer">
+                                        <input type="checkbox" id="notif-sound-toggle" class="sr-only peer">
+                                        <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#0e6a38]"></div>
+                                    </label>
+                                </div>
+                                <div class="flex items-center gap-3">
+                                    <label for="notif-volume-slider" class="text-xs font-bold text-ink-700 shrink-0">مستوى الصوت</label>
+                                    <input type="range" id="notif-volume-slider" min="0" max="100" value="70" class="flex-1 accent-[#0e6a38]">
+                                    <span id="notif-volume-label" class="text-xs font-mono text-ink-500 w-8 text-left">70%</span>
+                                </div>
+                                <div class="flex items-center justify-between gap-3">
+                                    <label for="notif-toast-toggle" class="text-xs font-bold text-ink-700 flex items-center gap-1.5 cursor-pointer">💬 التوست الفوري</label>
+                                    <label class="relative inline-flex items-center cursor-pointer">
+                                        <input type="checkbox" id="notif-toast-toggle" class="sr-only peer" checked>
+                                        <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#0e6a38]"></div>
+                                    </label>
+                                </div>
+                                <p class="text-[11px] text-ink-400 leading-4">يتم حفظ اختيارك تلقائياً. عند كتم الصوت لن تسمع نغمة حتى لو وصل إشعار جديد.</p>
                             </div>
-                            <div class="px-4 py-2 border-t border-[#e6e9e1] bg-[#f5f7f5] text-center">
+                            <div id="notification-permission-banner" class="hidden px-4 py-2.5 bg-amber-50 border-b border-amber-200 flex items-center justify-between gap-2" role="alert" aria-live="assertive">
+                                <span id="notif-banner-text" class="text-xs font-bold text-amber-800">فعّل الصوت والإشعارات ليصلك التنبيه فوراً</span>
+                                <button type="button" id="enable-notif-btn" class="shrink-0 px-3 py-1.5 rounded-lg bg-[#0e6a38] text-white text-xs font-bold hover:bg-[#0a4d28] transition">تفعيل 🔔</button>
+                            </div>
+                            <div id="notification-list" class="max-h-[420px] overflow-y-auto divide-y divide-[#e6e9e1]" role="feed" aria-busy="false" aria-live="polite">
+                                <div class="p-8 text-center text-sm text-ink-400" role="status">لا توجد إشعارات</div>
+                            </div>
+                            <div class="px-3 py-2 border-t border-[#e6e9e1] bg-[#f5f7f5] flex items-center justify-between gap-2">
                                 <a href="{{ route('notifications.index') }}" class="text-xs font-bold text-[#0e6a38] hover:underline">عرض كل الإشعارات</a>
+                                <div class="flex items-center gap-2">
+                                    <span id="notification-status-text" class="hidden text-[11px] text-ink-400"></span>
+                                    <button type="button" id="test-notif-sound" class="text-[11px] text-ink-400 hover:text-ink-600" title="اختبار الصوت">اختبار الصوت 🔊</button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -291,52 +368,37 @@
     </main>
 
     {{-- ╔══════════════════════════════════════════════════╗
-         ║  Developer Credits — SaaS footer strip          ║
+         ║  Developer Credits — Minimal footer hint        ║
          ║  خفي · أنيق · لا يُزعج المستخدم                ║
          ╚══════════════════════════════════════════════════╝ --}}
     <footer class="w-full max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 pb-4 mt-auto select-none" aria-label="معلومات الفريق">
         <div class="flex items-center justify-center gap-1.5 text-[11px] text-[#b0bab2] dark:text-[#4a5a4f]">
-            <span>صُنع بـ</span>
             <svg class="w-3 h-3 text-[#c41e1e]/50" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true"><path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd"/></svg>
-            <span>بواسطة</span>
 
-            {{-- طارق — Backend --}}
-            <span class="group relative inline-flex items-center gap-1 cursor-default">
-                <span class="font-semibold text-[#6b7a6e] dark:text-[#7a8c7d] group-hover:text-[#0e6a38] dark:group-hover:text-[#4caf71] transition-colors duration-200">
-                    طارق عبد الرحمن
+            {{-- المطورون — Hover/Tap tooltip (responsive: centered on mobile via left-1/2, fixed width, no overflow) --}}
+            <span class="group relative inline-flex items-center gap-1 cursor-help"
+                  role="button" tabindex="0"
+                  aria-label="معلومات المطورين"
+                  aria-expanded="false"
+                  aria-controls="dev-tooltip"
+                  onclick="this.setAttribute('aria-expanded', this.getAttribute('aria-expanded')==='true'?'false':'true'); document.getElementById('dev-tooltip').classList.toggle('opacity-0'); document.getElementById('dev-tooltip').classList.toggle('translate-y-1');">
+                <span class="font-medium text-[#9aa99a] dark:text-[#6b7a6e] group-hover:text-[#6b7a6e] dark:group-hover:text-[#9aa99a] transition-colors duration-200 text-[11px]">
+                    المطورون
                 </span>
-                <span class="text-[10px] px-1 py-px rounded bg-[#f1f3f0] dark:bg-[#2a302b] text-[#9aa99a] dark:text-[#6b7a6e] font-mono leading-none">BE</span>
 
-                {{-- Tooltip --}}
-                <span class="pointer-events-none absolute bottom-full right-1/2 translate-x-1/2 mb-2 w-max
-                             opacity-0 group-hover:opacity-100 translate-y-1 group-hover:translate-y-0
-                             transition-all duration-200 ease-out z-50">
-                    <span class="block px-3 py-1.5 rounded-lg text-[11px] font-medium text-white
-                                 bg-[#1a2e1f]/90 dark:bg-[#0e1a10]/90 backdrop-blur-sm shadow-lg whitespace-nowrap">
-                        🖥 Backend · <a href="tel:0993832567" class="pointer-events-auto underline underline-offset-2 hover:text-emerald-300 transition-colors" onclick="event.stopPropagation()">0993832567</a>
+                {{-- Tooltip / Popover — responsive: mobile centered, prevents viewport overflow --}}
+                <span id="dev-tooltip"
+                      class="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-[170px] sm:w-max max-w-[calc(100vw-32px)]
+                               opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 group-active:opacity-100 translate-y-1 group-hover:translate-y-0 group-focus-within:translate-y-0
+                               transition-all duration-200 ease-out z-50"
+                      role="tooltip">
+                    <span class="block px-3 py-2.5 rounded-xl text-[11px] font-medium text-white text-center leading-5
+                                 bg-[#1a2e1f]/95 dark:bg-[#0e1a10]/95 backdrop-blur-sm shadow-lg border border-white/10">
+                        <span class="block">طارق عبد الرحمن</span>
+                        <span class="block w-6 h-px bg-white/20 mx-auto my-1"></span>
+                        <span class="block">هالة السهلي</span>
                     </span>
-                    <span class="block w-2 h-2 bg-[#1a2e1f]/90 dark:bg-[#0e1a10]/90 rotate-45 mx-auto -mt-1"></span>
-                </span>
-            </span>
-
-            <span class="text-[#d8ddd6] dark:text-[#343a34]">·</span>
-
-            {{-- هادي — Frontend --}}
-            <span class="group relative inline-flex items-center gap-1 cursor-default">
-                <span class="font-semibold text-[#6b7a6e] dark:text-[#7a8c7d] group-hover:text-[#0e6a38] dark:group-hover:text-[#4caf71] transition-colors duration-200">
-                    هادي السهلي
-                </span>
-                <span class="text-[10px] px-1 py-px rounded bg-[#f1f3f0] dark:bg-[#2a302b] text-[#9aa99a] dark:text-[#6b7a6e] font-mono leading-none">FE</span>
-
-                {{-- Tooltip --}}
-                <span class="pointer-events-none absolute bottom-full right-1/2 translate-x-1/2 mb-2 w-max
-                             opacity-0 group-hover:opacity-100 translate-y-1 group-hover:translate-y-0
-                             transition-all duration-200 ease-out z-50">
-                    <span class="block px-3 py-1.5 rounded-lg text-[11px] font-medium text-white
-                                 bg-[#1a2e1f]/90 dark:bg-[#0e1a10]/90 backdrop-blur-sm shadow-lg whitespace-nowrap">
-                        🎨 Frontend · <a href="tel:0962532331" class="pointer-events-auto underline underline-offset-2 hover:text-emerald-300 transition-colors" onclick="event.stopPropagation()">0962532331</a>
-                    </span>
-                    <span class="block w-2 h-2 bg-[#1a2e1f]/90 dark:bg-[#0e1a10]/90 rotate-45 mx-auto -mt-1"></span>
+                    <span class="block w-2.5 h-2.5 bg-[#1a2e1f]/95 dark:bg-[#0e1a10]/95 rotate-45 mx-auto -mt-1.5 border-r border-b border-white/10"></span>
                 </span>
             </span>
         </div>
@@ -396,191 +458,32 @@
             // — ثبات المود على مستوى النظام (bfcache + رجوع) —
             window.addEventListener('pageshow', applyStoredTheme);
             window.addEventListener('storage', function(e){ if(e.key==='theme'||e.key==='rasd_theme') applyStoredTheme(); });
-            // — Notifications — شريط الإشعارات خارج الموقع (Browser Notification) —
-            const bell = document.getElementById('notification-bell');
-            const badge = document.getElementById('notification-badge');
-            const dropdown = document.getElementById('notification-dropdown');
-            const listEl = document.getElementById('notification-list');
-            const markAllBtn = document.getElementById('mark-all-read');
-            let lastUnreadIds = new Set();
-
-            function escapeHtml(s){ const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
-
-            // صوت واهتزاز عند الإشعار الجديد
-            let isFirstFetch = true;
-            function playNotificationSound(){
-                try{
-                    if('vibrate' in navigator) navigator.vibrate([250,100,250]);
-                    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-                    if(ctx.state === 'suspended') ctx.resume();
-                    const o = ctx.createOscillator();
-                    const g = ctx.createGain();
-                    o.type = 'sine';
-                    o.frequency.value = 880;
-                    o.connect(g);
-                    g.connect(ctx.destination);
-                    g.gain.setValueAtTime(0.0001, ctx.currentTime);
-                    g.gain.exponentialRampToValueAtTime(0.3, ctx.currentTime + 0.01);
-                    g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.35);
-                    o.start();
-                    o.stop(ctx.currentTime + 0.36);
-                    setTimeout(()=>{
-                        const o2 = ctx.createOscillator();
-                        const g2 = ctx.createGain();
-                        o2.type = 'sine';
-                        o2.frequency.value = 660;
-                        o2.connect(g2);
-                        g2.connect(ctx.destination);
-                        g2.gain.setValueAtTime(0.0001, ctx.currentTime);
-                        g2.gain.exponentialRampToValueAtTime(0.25, ctx.currentTime + 0.01);
-                        g2.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.25);
-                        o2.start();
-                        o2.stop(ctx.currentTime + 0.26);
-                    }, 180);
-                }catch(e){}
-                // fallback audio element
-                try{
-                    const a = new Audio('data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAA==');
-                    a.volume = 0.6;
-                    a.play().catch(()=>{});
-                }catch(e){}
-            }
-
-            async function fetchNotifications(showBrowser = false){
-                try{
-                    const res = await fetch('{{ route('notifications.index') }}', { headers: { 'Accept':'application/json', 'X-Requested-With':'XMLHttpRequest' }});
-                    if(!res.ok) return;
-                    const data = await res.json();
-                    const unread = data.unread_count || 0;
-                    const notifications = data.notifications || [];
-
-                    if(unread > 0){
-                        badge.textContent = unread > 9 ? '9+' : unread;
-                        badge.classList.remove('hidden');
-                        badge.classList.add('flex');
-                    } else {
-                        badge.classList.add('hidden');
-                        badge.classList.remove('flex');
-                    }
-
-                    // Browser Notification — خارج الموقع (شريط النظام) + صوت واهتزاز
-                    const newIds = notifications.filter(n=>!n.read_at).map(n=>n.id).filter(id=>!lastUnreadIds.has(id));
-                    if(!isFirstFetch && newIds.length>0){
-                        playNotificationSound();
-                        // اهتزاز إضافي عند وصول ملاحظة جديدة حتى لو التبويب في المقدمة
-                        try{ if('vibrate' in navigator) navigator.vibrate([200,100,200,100,200]); }catch(e){}
-                    }
-                    if(showBrowser && window.Notification && Notification.permission === 'granted'){
-                        newIds.forEach(id=>{
-                            const n = notifications.find(x=>x.id===id);
-                            if(n){
-                                const t = (n.data.type || n.type || '');
-                                let title = 'إشعار جديد';
-                                if(t.includes('reject')) title = 'تم رفض إرساليتك';
-                                else if(t.includes('accept')) title = 'تم قبول إرساليتك';
-                                else if(t.includes('sent')) title = 'إرسالية جديدة';
-                                else if(t.includes('note_rejected')) title = 'تم رفض ملاحظتك';
-                                else if(t.includes('note_accepted')) title = 'تم قبول ملاحظتك';
-                                else if(t.includes('note_sent')) title = 'ملاحظة جديدة بانتظار المراجعة';
-                                const body = (n.data.message || n.data.reason || '').substring(0,120);
-                                try{
-                                    const notif = new Notification(title, {
-                                        body: body,
-                                        icon: '/favicon.ico',
-                                        tag: n.id,
-                                        requireInteraction: true,
-                                        silent: false,
-                                        vibrate: [250,100,250]
-                                    });
-                                    notif.onclick = ()=>{
-                                        window.focus();
-                                        const u = n.data.url;
-                                        if(u) window.location.href = u;
-                                    };
-                                    // صوت إضافي عند عرض الإشعار النظامي
-                                    notif.onshow = ()=>{ try{ playNotificationSound(); }catch(e){} };
-                                }catch(e){
-                                    // fallback بدون vibrate/silent إذا غير مدعوم
-                                    try{
-                                        const notif2 = new Notification(title, { body: body, icon: '/favicon.ico', tag: n.id });
-                                        notif2.onclick = ()=>{ window.focus(); const u=n.data.url; if(u) window.location.href=u; };
-                                    }catch(e2){}
-                                }
-                            }
-                        });
-                    }
-                    lastUnreadIds = new Set(notifications.filter(n=>!n.read_at).map(n=>n.id));
-                    isFirstFetch = false;
-
-                    // Render dropdown list
-                    if(notifications.length===0){
-                        listEl.innerHTML = '<div class="p-8 text-center text-sm text-ink-400">لا توجد إشعارات</div>';
-                    } else {
-                        listEl.innerHTML = notifications.map(n=>{
-                            const d = n.data || {};
-                            const t = (d.type || n.type || '').toLowerCase();
-                            const isReject = t.includes('reject');
-                            const isAccept = t.includes('accept');
-                            const isSent = t.includes('sent');
-                            const url = d.url || (d.note_id ? `/notes/${d.note_id}` : (d.submission_id ? `/general-submissions/${d.submission_id}` : (d.general_submission_id ? `/general-submissions/${d.general_submission_id}` : '/notifications')));
-                            const iconBg = !n.read_at ? (isReject ? 'bg-red-50 border border-red-200 text-red-500' : (isAccept ? 'bg-[#eef4f0] border border-[#cde7d6] text-[#0e6a38]' : 'bg-amber-50 border border-amber-200 text-amber-600')) : 'bg-surface-100 border border-surface-300 text-ink-400';
-                            const icon = isReject ? 'M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z' : (isAccept ? 'M5 13l4 4L19 7' : 'M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9');
-                            const reasonHtml = d.reason ? `<p class="mt-1 text-xs leading-5 text-ink-500 bg-white border border-surface-300 rounded-lg p-2.5">سبب الرفض: ${escapeHtml(d.reason)}</p>` : '';
-                            return `
-                            <a href="${escapeHtml(url)}" class="block p-4 hover:bg-[#f5f7f5] transition ${!n.read_at ? (isReject ? 'bg-red-50/30' : (isAccept ? 'bg-[#eef4f0]/50' : 'bg-amber-50/30')) : ''}" data-id="${n.id}">
-                                <div class="flex items-start gap-3">
-                                    <div class="w-8 h-8 rounded-lg ${iconBg} flex items-center justify-center shrink-0">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="${icon}"/></svg>
-                                    </div>
-                                    <div class="flex-1 min-w-0">
-                                        <p class="text-sm font-bold text-ink-800 leading-5">${escapeHtml(d.message || 'إشعار جديد')}</p>
-                                        ${reasonHtml}
-                                        <p class="mt-1.5 text-[11px] text-ink-400">${escapeHtml(n.created_at)} • ${n.read_at ? 'مقروء' : '<span class="text-red-500 font-bold">غير مقروء</span>'}</p>
-                                    </div>
-                                </div>
-                            </a>
-                        `;
-                        }).join('');
-                    }
-                }catch(e){ console.error(e); }
-            }
-
-            // طلب إذن الإشعارات — خارج الموقع
-            async function ensureNotificationPermission(){
-                if(!window.Notification) return;
-                if(Notification.permission === 'default'){
-                    try{ await Notification.requestPermission(); }catch(e){}
+            // — Theme persistence (already handled above) —
+            // Notifications handled by modular managers (SSE + NotificationManager)
+            // Light glue for settings toggle inside dropdown (decoupled from polling)
+            (function(){
+                const settingsBtn = document.getElementById('notification-settings-toggle');
+                const settingsPanel = document.getElementById('notification-settings-panel');
+                const bell = document.getElementById('notification-bell');
+                const dropdown = document.getElementById('notification-dropdown');
+                if(settingsBtn && settingsPanel){
+                    settingsBtn.addEventListener('click', (e)=>{
+                        e.stopPropagation();
+                        settingsPanel.classList.toggle('hidden');
+                    });
                 }
-            }
-
-            bell?.addEventListener('click', async (e)=>{
-                e.stopPropagation();
-                dropdown.classList.toggle('hidden');
-                if(!dropdown.classList.contains('hidden')){
-                    await fetchNotifications(false);
-                    ensureNotificationPermission();
-                }
-            });
-            document.addEventListener('click', (e)=>{
-                if(!bell.contains(e.target) && !dropdown.contains(e.target)){
-                    dropdown.classList.add('hidden');
-                }
-            });
-            markAllBtn?.addEventListener('click', async ()=>{
-                await fetch('{{ route('notifications.markRead') }}', { method:'POST', headers:{ 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content, 'Accept':'application/json' }, body: new URLSearchParams({})});
-                await fetchNotifications(false);
-            });
-
-            // Polling كل 10 ثانية + Browser Notification + expose globally for instant update after actions
-            window.fetchNotifications = fetchNotifications;
-            window.refreshNotifications = () => fetchNotifications(false);
-            ensureNotificationPermission();
-            fetchNotifications(false);
-            setInterval(()=> fetchNotifications(true), 10000);
-            // عند العودة للتبويب
-            document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) fetchNotifications(true); });
-            // Force refresh on focus
-            window.addEventListener('focus', ()=> fetchNotifications(false));
+                // Close dropdown on outside click (manager also handles but keep lightweight)
+                document.addEventListener('click', (e)=>{
+                    if(!bell?.contains(e.target) && !dropdown?.contains(e.target)){
+                        dropdown?.classList.add('hidden');
+                    }
+                });
+                // ARIA expanded sync (manager updates as well)
+                bell?.addEventListener('click', ()=>{
+                    const expanded = !dropdown?.classList.contains('hidden');
+                    bell.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+                });
+            })();
 
 
 
@@ -594,15 +497,20 @@
         function closeModal(id){const el=document.getElementById(id);if(!el)return;el.classList.add('hidden');el.style.display='';document.body.style.overflow='';}
         window.openModal=openModal;window.closeModal=closeModal;
         const loader=document.getElementById('page-loader');
-        function showLoader(){if(!loader)return;loader.classList.remove('hidden');loader.style.opacity='1';loader.style.visibility='visible';loader.style.display='flex'}
-        function hideLoader(){if(!loader)return;loader.style.opacity='0';loader.style.visibility='hidden';setTimeout(function(){loader.classList.add('hidden');loader.style.display='none'},200)}
-        // FOUC: إبقاء اللودر حتى اكتمال Tailwind والخطوط — مع إخفاء قسري
+        function showLoader(){if(!loader)return;loader.classList.remove('hidden');loader.style.opacity='1';loader.style.visibility='visible';loader.style.display='flex';loader.style.pointerEvents='none';}
+        function hideLoader(){if(!loader)return;try{loader.style.opacity='0';loader.style.visibility='hidden';loader.style.pointerEvents='none';document.body.style.overflow='';setTimeout(function(){try{loader.classList.add('hidden');loader.style.display='none';loader.style.visibility='hidden';}catch(e){}},200);}catch(e){}}
+        // إصلاح جمود اللودر الجذري: إخفاء قسري حتى لو فشل JS أو Tailwind CDN أو SW — لا يبقى يدور للأبد
+        setTimeout(hideLoader, 800);
+        setTimeout(hideLoader, 1500);
+        setTimeout(hideLoader, 3000);
         window.addEventListener('load', hideLoader);
         document.addEventListener('DOMContentLoaded', function(){
             setTimeout(hideLoader, 400);
             document.body.style.overflow='';
             setTimeout(()=>{ hideLoader(); }, 1000);
         });
+        // حتى لو حدث خطأ JS غير متوقع — أخفِ اللودر
+        window.addEventListener('error', hideLoader);
         document.addEventListener('click',function(e){
             const a=e.target.closest('a[href]');
             if(!a)return;
@@ -667,6 +575,64 @@
         window.ajaxSubmit = ajaxSubmit;
         window.ajaxFilter = ajaxFilter;
     </script>
+
+    @auth
+    <script>
+        window.NOTIF_USER_ID = {{ auth()->id() }};
+        window.NOTIF_BROADCAST_DRIVER = "{{ config('broadcasting.default') }}";
+    </script>
+    {{-- Real-Time Notifications: SSE + BroadcastChannel + SoundManager --}}
+    @if(file_exists(public_path('build/manifest.json')))
+        @vite(['resources/js/app.js'])
+    @else
+        <script type="module" src="/js/notifications/app-bootstrap.js"></script>
+    @endif
+    @endauth
+
+    {{-- PWA ROOT — register SW scope / (no fake install button, rely on beforeinstallprompt) --}}
+    <script>
+    (function(){
+      if (!('serviceWorker' in navigator)) { console.warn('[PWA ROOT] serviceWorker not supported'); return; }
+      window.addEventListener('load', function(){
+        navigator.serviceWorker.register('/sw.js', {scope: '/'}).then(function(reg){
+          console.log('[PWA ROOT] SW registered scope=' + reg.scope);
+          return navigator.serviceWorker.ready;
+        }).then(function(){
+          console.log('[PWA ROOT] ready controller=' + (navigator.serviceWorker.controller ? 'present' : 'none (reload to activate)'));
+        }).catch(function(err){
+          console.error('[PWA ROOT] SW registration failed', err);
+        });
+      });
+      window.addEventListener('beforeinstallprompt', function(e){
+        console.log('[PWA ROOT] beforeinstallprompt fired — installable');
+        e.preventDefault();
+        window.deferredRootPrompt = e;
+        window.__PWA_BEFOREINSTALLPROMPT_FIRED__ = true;
+        window.dispatchEvent(new CustomEvent('pwa:ready', {detail:e}));
+      });
+      window.addEventListener('appinstalled', function(){ console.log('[PWA ROOT] appinstalled'); });
+      // Light diag for ?diag=1
+      if (location.search.includes('diag=1')) {
+        setTimeout(function(){
+          var info = {
+            isSecureContext: window.isSecureContext,
+            hasSW: 'serviceWorker' in navigator,
+            standalone: window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone===true,
+            beforePrompt: !!window.__PWA_BEFOREINSTALLPROMPT_FIRED__
+          };
+          console.log('[PWA ROOT DIAG]', info);
+          try {
+            var div = document.createElement('div');
+            div.style.cssText='position:fixed;bottom:0;left:0;right:0;background:#0f172a;color:#e2e8f0;font:11px monospace;padding:8px;z-index:9999;border-top:2px solid #1f6f4a';
+            div.innerHTML='<b>PWA ROOT DIAG</b> isSecureContext='+info.isSecureContext+' hasSW='+info.hasSW+' standalone='+info.standalone+' beforeinstallprompt='+info.beforePrompt+' <button onclick="this.parentElement.remove()" style="float:left;background:#1f6f4a;color:#fff;border:none;padding:4px 8px;border-radius:6px">×</button><div>origin='+location.origin+' manifest=/manifest.json sw=/sw.js scope=/</div>';
+            if(!info.isSecureContext) div.innerHTML+='<div style="color:#fbbf24;margin-top:4px">⚠ SecureContext false — Chrome يمنع SW/PWA على http://192.168.x.x — استخدم localhost أو HTTPS أو chrome://flags</div>';
+            document.body.appendChild(div);
+          } catch(e){}
+        }, 3000);
+      }
+    })();
+    </script>
+
     @stack('scripts')
     <!-- Print Root — مباشر تحت body لمنع 2 pages من ancestor display:none -->
     <div id="printable-a4-doc" class="hidden" data-print-root style="display:none;"></div>

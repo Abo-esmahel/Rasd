@@ -79,7 +79,6 @@ class NotesList extends Component
         if ($this->mode === 'my') {
             $base = Note::where('user_id', $user->id);
         } else {
-            // خصوصية: الملاحظ يرى أعداده الخاصة فقط، الكاتب يرى الخاصة + كل غير المسودة
             if ($user->isReportWriter()) {
                 $base = Note::where(function ($q) use ($user) {
                     $q->where('user_id', $user->id)
@@ -90,18 +89,39 @@ class NotesList extends Component
             }
         }
 
-        return [
-            'total'    => (clone $base)->count(),
-            'draft'    => (clone $base)->where('status', Note::STATUS_DRAFT)->count(),
-            'pending'  => (clone $base)->where('status', Note::STATUS_PENDING)->count(),
-            'accepted' => (clone $base)->where('status', Note::STATUS_ACCEPTED)->count(),
-            'rejected' => (clone $base)->where('status', Note::STATUS_REJECTED)->count(),
-        ];
+        $statuses = [Note::STATUS_DRAFT, Note::STATUS_PENDING, Note::STATUS_ACCEPTED, Note::STATUS_REJECTED];
+        $counts = (clone $base)
+            ->selectRaw('status, COUNT(*) as count')
+            ->groupBy('status')
+            ->pluck('count', 'status')
+            ->toArray();
+
+        $result = ['total' => (clone $base)->count()];
+        foreach ($statuses as $status) {
+            $result[strtolower($status)] = $counts[$status] ?? 0;
+        }
+
+        return $result;
     }
 
     public function getObserversProperty()
     {
-        return User::where('role', 'monitor')->orderBy('name')->get();
+        try {
+            $cached = cache()->get('observers_list');
+            if ($cached instanceof \Illuminate\Database\Eloquent\Collection && $cached->first() instanceof User) {
+                return $cached;
+            }
+            if (is_array($cached) && isset($cached[0]['id'])) {
+                return collect($cached)->map(fn($r) => (object)$r);
+            }
+            if ($cached !== null) cache()->forget('observers_list');
+            $fresh = User::where('role', 'monitor')->orderBy('name')->get(['id', 'name']);
+            cache()->put('observers_list', $fresh->toArray(), 3600);
+            return $fresh;
+        } catch (\Throwable $e) {
+            cache()->forget('observers_list');
+            return User::where('role', 'monitor')->orderBy('name')->get(['id', 'name']);
+        }
     }
 
     public function send(int $noteId): void

@@ -1,4 +1,4 @@
-@extends('layouts.app')
+﻿@extends('layouts.app')
 
 @section('content')
 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
@@ -39,7 +39,7 @@
                 <div class="w-full bg-white rounded-full h-2.5 border border-[#e6e9e1] overflow-hidden">
                     <div id="upload-progress-bar" class="h-2.5 rounded-full bg-[#0e6a38] transition-all duration-300" style="width:0%"></div>
                 </div>
-                <div id="upload-progress-detail" class="mt-1 text-[11px] text-ink-400">يتم ضغط الصور ورفع الملفات — لا تغلق الصفحة</div>
+                <div id="upload-progress-detail" class="mt-1 text-[11px] text-ink-400">جاري رفع الملفات الأصلية دون تعديل (الجودة 100% محفوظة) — لا تغلق الصفحة</div>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
@@ -304,44 +304,8 @@
     const desc=document.getElementById('description'),cnt=document.getElementById('desc-count');
     if(desc&&cnt){const u=()=>cnt.textContent=desc.value.length;desc.addEventListener('input',u);u();}
 
-    // ——— ضغط الصور محلياً قبل الرفع — يقلل 60-80% ويُسرّع 5x (local optimized) ———
-    async function compressImageClient(file){
-        try{
-            if(!file.type.startsWith('image/') || file.type==='image/gif' || file.type==='image/svg+xml') return file;
-            if(file.size < 600*1024) return file; // صغير لا حاجة
-            // استخدم createImageBitmap إن وجد (أسرع)، وإلا Image
-            let bitmap=null, width=0, height=0;
-            if(window.createImageBitmap){
-                try{ bitmap = await createImageBitmap(file); width=bitmap.width; height=bitmap.height; }catch(e){ bitmap=null; }
-            }
-            if(!bitmap){
-                const url=URL.createObjectURL(file);
-                const img=await new Promise((res,rej)=>{ const i=new Image(); i.onload=()=>res(i); i.onerror=rej; i.src=url; });
-                width=img.naturalWidth||img.width; height=img.naturalHeight||img.height;
-                URL.revokeObjectURL(url);
-                // ارسم عبر canvas بدون bitmap
-                const maxDim=1920;
-                if(width<=maxDim && height<=maxDim && file.size<2*1024*1024) return file;
-                const ratio=Math.min(maxDim/width, maxDim/height,1);
-                const nw=Math.round(width*ratio), nh=Math.round(height*ratio);
-                const c=document.createElement('canvas'); c.width=nw; c.height=nh;
-                c.getContext('2d').drawImage(img,0,0,nw,nh);
-                const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',0.82));
-                if(!blob||blob.size>=file.size) return file;
-                return new File([blob], file.name.replace(/\.[^.]+$/,'')+'.jpg', {type:'image/jpeg'});
-            }
-            const maxDim=1920;
-            if(width<=maxDim && height<=maxDim && file.size<2*1024*1024){ bitmap.close(); return file; }
-            const ratio=Math.min(maxDim/width, maxDim/height,1);
-            const nw=Math.round(width*ratio), nh=Math.round(height*ratio);
-            const c=document.createElement('canvas'); c.width=nw; c.height=nh;
-            c.getContext('2d').drawImage(bitmap,0,0,nw,nh);
-            bitmap.close();
-            const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',0.82));
-            if(!blob||blob.size>=file.size) return file;
-            return new File([blob], file.name.replace(/\.[^.]+$/,'')+'.jpg', {type:'image/jpeg'});
-        }catch(e){ return file; }
-    }
+    // ——— Original File Preservation — الملف الأصلي يصل كما هو 100% بدون أي ضغط/إعادة ترميز/تغيير bytes ———
+    async function compressImageClient(file){ return file; } // NO-OP: يحافظ على الملف الأصلي byte-for-byte
     function setUploadProgress(pct, detail){
         const wrap=document.getElementById('upload-progress'), bar=document.getElementById('upload-progress-bar'), txt=document.getElementById('upload-progress-text'), det=document.getElementById('upload-progress-detail');
         if(!wrap) return;
@@ -360,7 +324,7 @@
             if(csrf) xhr.setRequestHeader('X-CSRF-TOKEN', csrf);
             xhr.timeout=600000;
             if(xhr.upload && onProgress){
-                xhr.upload.onprogress=(e)=>{ if(e.lengthComputable) onProgress(Math.round(e.loaded/e.total*100)); };
+                xhr.upload.onprogress=(e)=>{ if(e.lengthComputable){ const pct=Math.round(e.loaded/e.total*100); const loadedMB=(e.loaded/1024/1024).toFixed(1); const totalMB=(e.total/1024/1024).toFixed(1); onProgress(pct, e.loaded, e.total); } };
             }
             xhr.onload=()=>{ let data=null; try{ data=JSON.parse(xhr.responseText);}catch(_){} resolve({status:xhr.status, ok:xhr.status>=200&&xhr.status<300, data, raw:xhr.responseText, headers:xhr.getAllResponseHeaders()}); };
             xhr.onerror=()=>reject(new Error('فشل الشبكة'));
@@ -424,12 +388,7 @@
         for(let orig of newFiles){
             if(fileTransfer.files.length>=MAX_FILES){ alert('الحد الأقصى '+MAX_FILES+' ملف (حد السيرفر)'); break; }
             // ضغط الصور تلقائياً قبل الإضافة — يوفر الوقت والحجم
-            let file=orig;
-            if(file.type.startsWith('image/')){
-                const before=file.size;
-                file=await compressImageClient(file);
-                if(file.size!==before) console.log('[COMPRESS] '+orig.name+' '+ (before/1024/1024).toFixed(2)+'MB → '+(file.size/1024/1024).toFixed(2)+'MB');
-            }
+            let file=orig; // preserved 100% original - no client compression
             const ext=file.name.split('.').pop().toLowerCase();
             const audioExts=['mp3','wav','ogg','oga','m4a','aac','wma','flac','opus','aiff','aif','amr','3ga','awb','mid','midi','au','weba'];
             const isAudio=audioExts.includes(ext)||file.type.startsWith('audio/');
@@ -712,13 +671,23 @@
                 });
             }catch(_){}
             fd.set('action', submitActionVal);
+            // Total size early check vs post_max_size (120M safety margin, server is 128M) - prevent silent empty POST
+            const totalBytesCreate = filesToSend.reduce((s,f)=>s+f.size,0) + (recordedAudioBlob?recordedAudioBlob.size:0);
+            if(totalBytesCreate > 120*1024*1024){
+                formErrorsEl.innerHTML='<div class="font-bold mb-1 text-red-600">إجمالي المرفقات كبير جداً</div><p class="text-xs">الحجم الإجمالي '+(totalBytesCreate/1024/1024).toFixed(1)+' MB يتجاوز الحد الآمن 120M (حد الخادم 128M). قلل العدد أو حجم الملفات ثم أعد المحاولة — لم يُرسل شيء.</p>';
+                formErrorsEl.classList.remove('hidden');
+                formErrorsEl.scrollIntoView({behavior:'smooth',block:'center'});
+                if(submitBtn) submitBtn.disabled=false;
+                hideUploadProgress();
+                return;
+            }
             try{
                 const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
                 const formActionUrl = formEl.getAttribute('action');
                 console.debug('[CREATE SUBMIT] action='+formActionUrl+' method=POST filesToSend='+filesToSend.length+' clientCount='+clientFilesCount);
                 setUploadProgress(5, 'جاري رفع '+filesToSend.length+' ملف...');
-                const res = await xhrUpload(formActionUrl, fd, csrfToken, (pct)=> setUploadProgress(Math.max(5, Math.min(95, pct)), 'جاري الرفع '+pct+'% — لا تغلق الصفحة'));
-                setUploadProgress(98, 'تم الرفع، جاري الحفظ...');
+                const res = await xhrUpload(formActionUrl, fd, csrfToken, (pct, loaded, total)=> setUploadProgress(Math.max(5, Math.min(95, pct)), 'جاري الرفع '+pct+'%'+ (loaded ? ' ('+(loaded/1024/1024).toFixed(1)+' / '+(total/1024/1024).toFixed(1)+' MB)' : '') +' — لا تغلق الصفحة'));
+                setUploadProgress(98, 'تم الرفع 100%، جاري التحقق من الحفظ والتحقق من سلامة الملفات...');
                 let data=res.data, rawText=res.raw;
                 const failLoud = (title, errs) => {
                     const list=(errs&&errs.length?errs:['فشل رفع المرفقات. لم يتم حفظ الملاحظة.']).map(e=> typeof e==='string'?e:((e.file?e.file+': ':'')+(e.message||JSON.stringify(e)))).join('<br>');

@@ -1,3 +1,335 @@
+/* ============================================================
+   PWA INSTALL STATE MACHINE — HTTP LAN aware
+   States: UNSUPPORTED | NOT_READY | READY_TO_INSTALL | INSTALL_PROMPTED | INSTALLED
+   Single source of truth: PwaInstall.state
+   ============================================================ */
+const PwaInstall = {
+  // State machine
+  state: 'NOT_READY',
+  deferredPrompt: null,
+  _dismissedAt: 0,
+  _bannerEl: null,
+  _btnEl: null,
+  _subEl: null,
+
+  STATES: {
+    UNSUPPORTED: 'UNSUPPORTED',
+    NOT_READY: 'NOT_READY',
+    READY_TO_INSTALL: 'READY_TO_INSTALL',
+    INSTALL_PROMPTED: 'INSTALL_PROMPTED',
+    INSTALLED: 'INSTALLED'
+  },
+
+  isStandalone() {
+    try {
+      if (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) return true;
+      if (window.navigator.standalone === true) return true; // iOS
+      // Android TWA / etc.
+      if (document.referrer.includes('android-app://')) return true;
+    } catch(e){}
+    return false;
+  },
+
+  isIos() {
+    return /iphone|ipad|ipod/i.test(navigator.userAgent || '');
+  },
+
+  isSecureContextCheck() {
+    // Diagnostics: report true secure context vs HTTP LAN limitation
+    return window.isSecureContext;
+  },
+
+  init() {
+    this._bannerEl = document.getElementById('pwa-install-banner');
+    this._btnEl = document.getElementById('pwa-install-btn');
+    this._subEl = document.getElementById('pwa-banner-sub');
+    this._diagEl = document.getElementById('pwa-diag');
+
+    // check installed first
+    if (this.isStandalone()) {
+      this.setState(this.STATES.INSTALLED);
+      console.log('[PWA] isStandalone = true -> INSTALLED');
+      this.render();
+      return;
+    }
+
+    // SW registration — MUST NOT be blocked by https check (HTTP LAN needs to attempt)
+    if ('serviceWorker' in navigator) {
+      console.log('[PWA] registering service worker at /sw.js scope /');
+      console.log('[PWA] isSecureContext =', this.isSecureContextCheck(), ' protocol=', location.protocol, ' host=', location.hostname);
+      navigator.serviceWorker.register('/sw.js', { scope: '/' }).then(function(reg){
+        console.log('[PWA] SW registered scope=', reg.scope);
+        return navigator.serviceWorker.ready;
+      }).then(function(){
+        console.log('[PWA] SW ready controller=', navigator.serviceWorker.controller ? 'present' : 'none (reload to activate)');
+        if (!PwaInstall.isStandalone()) PwaInstall.evaluateReadiness();
+      }).catch(function(err){
+        console.error('[PWA ERROR] SW registration failed — likely SecureContext block on HTTP LAN:', err);
+        console.warn('[PWA] HTTP LAN (192.168.x.x) is NOT a secure context. Chrome requires HTTPS or localhost for SW/PWA. See chrome://flags #unsafely-treat-insecure-origin-as-secure');
+        // Still evaluate — maybe beforeinstallprompt could fire without SW on some browsers (unlikely)
+        PwaInstall.evaluateReadiness();
+        PwaInstall.maybeShowDiag('SW registration failed: ' + (err && err.message ? err.message : err) + ' — isSecureContext=' + window.isSecureContext);
+      });
+      navigator.serviceWorker.addEventListener('controllerchange', function(){ console.log('[PWA] controllerchange — new SW activated'); });
+      // Listen for update found
+      navigator.serviceWorker.addEventListener('message', function(e){ console.log('[PWA] SW message', e.data); });
+    } else {
+      console.warn('[PWA] serviceWorker not supported -> UNSUPPORTED');
+      this.setState(this.STATES.UNSUPPORTED);
+      this.render();
+    }
+
+    // beforeinstallprompt — the real installability signal (Chrome/Edge)
+    window.addEventListener('beforeinstallprompt', (e) => {
+      console.log('[PWA] beforeinstallprompt fired — installable!');
+      e.preventDefault(); // we control prompt timing
+      this.deferredPrompt = e;
+      window.deferredPWAInstallPrompt = e; // legacy compat
+      this.setState(this.STATES.READY_TO_INSTALL);
+      this.render();
+      this.maybeShowDiag('beforeinstallprompt captured — READY_TO_INSTALL');
+    });
+
+    window.addEventListener('appinstalled', () => {
+      console.log('[PWA] appinstalled event fired');
+      this.deferredPrompt = null;
+      window.deferredPWAInstallPrompt = null;
+      this.setState(this.STATES.INSTALLED);
+      this.render();
+      try { localStorage.setItem('pwa_installed', '1'); } catch(e){}
+    });
+
+    // display-mode change
+    try {
+      window.matchMedia('(display-mode: standalone)').addEventListener('change', (e) => {
+        if (e.matches) { this.setState(this.STATES.INSTALLED); this.render(); }
+        else { this.evaluateReadiness(); this.render(); }
+      });
+    } catch(e){}
+
+    // iOS standalone detection via page visibility
+    if (this.isIos() && !this.isStandalone()) {
+      // No beforeinstallprompt on iOS — show instructions after a delay, once per session
+      setTimeout(() => {
+        if (this.state !== this.STATES.INSTALLED) {
+          console.log('[PWA] iOS detected without beforeinstallprompt — showing install hint state');
+          // Keep state NOT_READY but allow user to see instruction sheet via profile install row
+          this.setState(this.STATES.NOT_READY);
+          this.render();
+        }
+      }, 2000);
+    }
+
+    // Fallback: if after 5s no beforeinstallprompt and not installed, stay NOT_READY (hide banner, show hint in profile)
+    setTimeout(() => { this.evaluateReadiness(); this.render(); }, 4000);
+
+    // Restore dismissed timestamp
+    try {
+      const d = parseInt(localStorage.getItem('pwa_banner_dismissed')||'0',10);
+      this._dismissedAt = isNaN(d)?0:d;
+    } catch(e){}
+
+    // ?diag=1 forces diagnostics visible
+    if (location.search.includes('diag=1') || (function(){ try{return localStorage.getItem('pwa_diag')==='1';}catch(e){return false} })()) {
+      this.showDiag();
+    }
+
+    this.render();
+    console.log('[PWA] initial state =', this.state, ' isSecureContext=', this.isSecureContextCheck(), ' isStandalone=', this.isStandalone(), ' isIos=', this.isIos());
+  },
+
+  setState(s) {
+    if (this.state !== s) {
+      console.log('[PWA] state ' + this.state + ' -> ' + s);
+      this.state = s;
+    }
+  },
+
+  evaluateReadiness() {
+    if (this.isStandalone()) { this.setState(this.STATES.INSTALLED); return; }
+    if (this.deferredPrompt) { this.setState(this.STATES.READY_TO_INSTALL); return; }
+    // Feature detect: if SW unsupported
+    if (!('serviceWorker' in navigator)) { this.setState(this.STATES.UNSUPPORTED); return; }
+    // If we are on iOS: no beforeinstallprompt — special UX
+    if (this.isIos()) { this.setState(this.STATES.NOT_READY); return; }
+    // Otherwise waiting for criteria: manifest + SW + engagement
+    this.setState(this.STATES.NOT_READY);
+  },
+
+  shouldShowBanner() {
+    if (this.state === this.STATES.INSTALLED) return false;
+    if (this.state === this.STATES.UNSUPPORTED) return false;
+    if (this.state !== this.STATES.READY_TO_INSTALL) return false;
+    // Don't show if dismissed within 24h
+    if (this._dismissedAt && (Date.now() - this._dismissedAt) < 24*60*60*1000) return false;
+    if (this.isStandalone()) return false;
+    return true;
+  },
+
+  render() {
+    if (!this._bannerEl) return;
+    const show = this.shouldShowBanner();
+    this._bannerEl.classList.toggle('show', show);
+    if (this._btnEl) {
+      if (this.state === this.STATES.READY_TO_INSTALL) {
+        this._btnEl.textContent = 'تثبيت';
+        this._btnEl.disabled = false;
+        if (this._subEl) this._subEl.textContent = 'ثبّت ملاحظة على هاتفك للوصول السريع';
+      } else if (this.state === this.STATES.INSTALL_PROMPTED) {
+        this._btnEl.textContent = '...';
+        this._btnEl.disabled = true;
+      }
+    }
+    // Also update any inline status badges in profile screens
+    document.querySelectorAll('[data-pwa-state]').forEach(el => {
+      el.textContent = this.getStatusLabel();
+      el.className = 'pwa-state-badge ' + this.getStatusClass();
+    });
+    // Update profile install row button if present
+    const rowBtn = document.getElementById('profile-pwa-btn');
+    if (rowBtn) this.updateProfileRow(rowBtn);
+  },
+
+  getStatusLabel() {
+    switch(this.state) {
+      case this.STATES.INSTALLED: return 'مثبت ✓';
+      case this.STATES.READY_TO_INSTALL: return 'جاهز للتثبيت';
+      case this.STATES.INSTALL_PROMPTED: return 'بانتظار التأكيد';
+      case this.STATES.UNSUPPORTED: return 'غير مدعوم';
+      default: return 'غير جاهز';
+    }
+  },
+  getStatusClass() {
+    switch(this.state) {
+      case this.STATES.INSTALLED: return 'pwa-state-installed';
+      case this.STATES.READY_TO_INSTALL: return 'pwa-state-ready';
+      case this.STATES.UNSUPPORTED: return 'pwa-state-unsupported';
+      default: return 'pwa-state-unsupported';
+    }
+  },
+
+  async prompt() {
+    if (this.isStandalone()) { toast('التطبيق مثبت بالفعل'); return; }
+    // iOS: show instruction sheet
+    if (this.isIos() && !this.deferredPrompt) {
+      this.openIosSheet();
+      return;
+    }
+    if (!this.deferredPrompt) {
+      // No deferred prompt — maybe already prompted or not installable
+      console.warn('[PWA] prompt() called but deferredPrompt is null, state=', this.state);
+      if (!window.isSecureContext) {
+        toast('التثبيت يتطلب HTTPS أو تفعيل chrome://flags — افتح التشخيص', 'error');
+        this.showDiag();
+        return;
+      }
+      // Show diagnostics
+      toast('التطبيق غير جاهز للتثبيت حالياً', 'error');
+      this.showDiag();
+      return;
+    }
+    this.setState(this.STATES.INSTALL_PROMPTED);
+    this.render();
+    try {
+      this.deferredPrompt.prompt();
+      const choice = await this.deferredPrompt.userChoice;
+      console.log('[PWA] userChoice =', choice.outcome);
+      if (choice.outcome === 'accepted') {
+        this.setState(this.STATES.INSTALLED);
+        toast('تم التثبيت بنجاح');
+      } else {
+        this.setState(this.STATES.READY_TO_INSTALL);
+        toast('تم إلغاء التثبيت');
+      }
+    } catch(e) {
+      console.error('[PWA] prompt() error', e);
+      this.setState(this.STATES.READY_TO_INSTALL);
+    } finally {
+      this.deferredPrompt = null;
+      window.deferredPWAInstallPrompt = null;
+      this.render();
+    }
+  },
+
+  dismiss() {
+    this._bannerEl?.classList.remove('show');
+    try { localStorage.setItem('pwa_banner_dismissed', String(Date.now())); this._dismissedAt = Date.now(); } catch(e){}
+    console.log('[PWA] banner dismissed');
+  },
+
+  openIosSheet() { document.getElementById('pwa-ios-sheet')?.classList.add('show'); },
+  closeIosSheet() { document.getElementById('pwa-ios-sheet')?.classList.remove('show'); },
+
+  maybeShowDiag(msg) {
+    if (location.search.includes('diag=1')) this.showDiag(msg);
+  },
+
+  showDiag(extra) {
+    if (!this._diagEl) return;
+    this._diagEl.style.display = 'block';
+    const info = {
+      state: this.state,
+      isSecureContext: window.isSecureContext,
+      protocol: location.protocol,
+      host: location.hostname + ':' + location.port,
+      origin: location.origin,
+      isStandalone: this.isStandalone(),
+      isIos: this.isIos(),
+      userAgent: navigator.userAgent.slice(0,120),
+      hasSW: 'serviceWorker' in navigator,
+      hasDeferredPrompt: !!this.deferredPrompt,
+      swController: navigator.serviceWorker?.controller ? 'present' : 'none',
+      swScope: navigator.serviceWorker?.controller?.scriptURL || 'n/a',
+      displayMode: window.matchMedia('(display-mode: standalone)').matches ? 'standalone' : 'browser',
+      installedFlag: (function(){try{return localStorage.getItem('pwa_installed');}catch(e){return 'err'}})()
+    };
+    let html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><b>PWA DIAG</b><button onclick="document.getElementById(\'pwa-diag\').style.display=\'none\'" style="background:#1f6f4a;color:#fff;border:none;padding:4px 8px;border-radius:6px;font-size:10px">إغلاق</button></div>';
+    html += '<div style="display:grid;grid-template-columns:110px 1fr;gap:2px 8px">';
+    for (const [k,v] of Object.entries(info)) html += `<div style="color:#94a3b8">${k}</div><div>${String(v)}</div>`;
+    html += '</div>';
+    if (extra) html += `<div style="margin-top:8px;color:#fbbf24">${extra}</div>`;
+    if (!window.isSecureContext) {
+      html += `<div style="margin-top:8px;background:#7f1d1d;padding:6px;border-radius:6px;color:#fecaca">⚠ SecureContext = false — Chrome يمنع SW/PWA على HTTP LAN (192.168.x.x). الحل: افتح <b>chrome://flags/#unsafely-treat-insecure-origin-as-secure</b> وأضف <b>${location.origin}</b> ثم أعد التشغيل. أو استخدم HTTPS.</div>`;
+    }
+    html += `<div style="margin-top:8px;display:flex;gap:6px"><button onclick="PwaInstall.checkInstallability()" style="background:#1f6f4a;color:#fff;border:none;padding:6px 10px;border-radius:8px;font-size:11px">فحص مرة أخرى</button><button onclick="localStorage.setItem('pwa_diag','1');location.reload()" style="background:#334155;color:#fff;border:none;padding:6px 10px;border-radius:8px;font-size:11px">تثبيت التشخيص</button></div>`;
+    this._diagEl.innerHTML = html;
+  },
+
+  async checkInstallability() {
+    // Force re-evaluate + try to fetch manifest
+    this.evaluateReadiness();
+    this.render();
+    this.showDiag('فحص يدوي…');
+    try {
+      const m = await fetch('/pwa/manifest.json', {cache:'no-store'}).then(r=>r.json());
+      console.log('[PWA] manifest fetch ok', m);
+      this.maybeShowDiag('manifest ok: ' + m.name);
+    } catch(e){ console.warn('[PWA] manifest fetch failed', e); this.maybeShowDiag('manifest fetch failed: '+e); }
+    if ('serviceWorker' in navigator) {
+      try { const regs = await navigator.serviceWorker.getRegistrations(); console.log('[PWA] registrations', regs.map(r=>r.scope)); this.maybeShowDiag('SW registrations: '+ regs.map(r=>r.scope).join(', ')); } catch(e){}
+    }
+  },
+
+  updateProfileRow(btn) {
+    if (this.isStandalone() || this.state === this.STATES.INSTALLED) {
+      btn.textContent = 'مثبت ✓';
+      btn.disabled = true;
+      btn.style.opacity = '.6';
+    } else if (this.state === this.STATES.READY_TO_INSTALL) {
+      btn.textContent = '📱 تثبيت الآن';
+      btn.disabled = false;
+      btn.style.opacity = '1';
+    } else if (this.isIos()) {
+      btn.textContent = 'طريقة التثبيت';
+      btn.disabled = false;
+    } else {
+      btn.textContent = 'غير جاهز';
+      btn.disabled = true;
+      btn.style.opacity = '.5';
+    }
+  }
+};
+
 const App = {
   container: null,
   history: [],
@@ -8,15 +340,12 @@ const App = {
     this.container = document.getElementById('screen-container');
     window.addEventListener('hashchange', () => this.route());
     window.addEventListener('popstate', (e) => this.handleBack(e));
-    // PWA install disabled - service worker not registered
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistrations().then(rs=>rs.forEach(r=>r.unregister()));
-    }
+    // PWA: centralized install & SW management
+    try { PwaInstall.init(); } catch(e){ console.warn('[PWA] PwaInstall init failed', e); }
     this.initTheme();
     await this.route();
     setTimeout(() => document.getElementById('splash')?.classList.add('hide'), 600);
     setTimeout(() => document.getElementById('splash')?.remove(), 1100);
-  },
   },
 
   navigate(screen, param, skipHistory = false) {

@@ -969,6 +969,24 @@ function renderProfile(container) {
           <div class="profile-item-text">${u?.role === 'monitor' ? 'مراقب' : 'كاتب تقارير'}</div>
         </div>
       </div>
+      <!-- PWA Install — visible state machine -->
+      <div class="profile-item" style="flex-direction:column;align-items:stretch;gap:8px;cursor:default" onclick="event.stopPropagation()">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+          <div style="display:flex;align-items:center;gap:10px">
+            <div class="profile-item-icon" style="background:var(--sage-50);border-color:var(--sage-200)"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M12 16v-8m0 8l-3-3m3 3l3-3M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg></div>
+            <div>
+              <div class="profile-item-text" style="font-size:13px">تثبيت التطبيق</div>
+              <div style="font-size:11px;color:var(--ink-400)" data-pwa-state class="pwa-state-badge">—</div>
+            </div>
+          </div>
+          <button id="profile-pwa-btn" class="btn btn-sm" style="background:var(--sage-600);color:#fff;border:none;padding:8px 14px;border-radius:10px;font-size:12px;font-weight:800" onclick="PwaInstall.prompt()">تثبيت</button>
+        </div>
+        <div style="font-size:11px;color:var(--ink-400);line-height:1.6">
+          ثبّت التطبيق على شاشتك للوصول السريع دون متصفح. <a href="#" onclick="event.preventDefault();PwaInstall.showDiag()" style="color:var(--sage-600);font-weight:700">التشخيص</a>
+        </div>
+        <div style="font-size:10px;color:var(--ink-300);font-family:monospace;word-break:break-all" id="profile-pwa-origin"></div>
+      </div>
+
       <div class="profile-item" onclick="doLogout()" style="margin-top:16px;border-color:var(--red-200)">
         <div class="profile-item-left">
           <div class="profile-item-icon" style="background:var(--red-50);border-color:var(--red-200)"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" style="color:var(--red-500)"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg></div>
@@ -984,6 +1002,20 @@ function renderProfile(container) {
     await Auth.logout();
     App.navigate('login');
   };
+
+  // Update PWA profile row after render
+  setTimeout(() => {
+    try {
+      const el = document.getElementById('profile-pwa-origin');
+      if (el) el.textContent = location.origin + ' — ' + (window.isSecureContext ? 'SecureContext ✓' : 'Non-Secure ✗');
+      const btn = document.getElementById('profile-pwa-btn');
+      if (btn && window.PwaInstall) PwaInstall.updateProfileRow(btn);
+      document.querySelectorAll('[data-pwa-state]').forEach(e=>{
+        e.textContent = PwaInstall.getStatusLabel();
+        e.className = 'pwa-state-badge ' + PwaInstall.getStatusClass();
+      });
+    } catch(e){}
+  }, 100);
 
   App.initTheme();
 }

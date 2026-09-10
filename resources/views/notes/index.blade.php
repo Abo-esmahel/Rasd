@@ -5,14 +5,17 @@
     $isMonitor = auth()->user()->isMonitor();
     $isWriter = !$isMonitor;
     $userId = auth()->id();
-    // السياسة الجديدة: قيد المراجعة/مقبولة/مرفوضة للجميع، المسودة لصاحبها فقط — app/Services/NoteService.php:606
-    $baseQuery = \App\Models\Note::query()->where(function($q) use ($userId){ $q->where('user_id',$userId)->orWhere('status','!=','draft'); });
-    $totalCount = (clone $baseQuery)->count();
-    $draftCount = \App\Models\Note::where('user_id',$userId)->where('status','draft')->count();
-    $pendingCount = (clone $baseQuery)->where('status','pending')->count();
-    $acceptedCount = (clone $baseQuery)->where('status','accepted')->count();
-    $rejectedCount = (clone $baseQuery)->where('status','rejected')->count();
+    // تجميع العدادات باستعلام واحد لتقليل قفل SQLite وملفات الجلسة — يمنع الجمود
     $currentStatus = request('status');
+    $counts = \App\Models\Note::query()
+        ->where(function($q) use ($userId){ $q->where('user_id',$userId)->orWhere('status','!=','draft'); })
+        ->selectRaw("COUNT(*) as total, SUM(CASE WHEN status='pending' THEN 1 ELSE 0 END) as pending, SUM(CASE WHEN status='accepted' THEN 1 ELSE 0 END) as accepted, SUM(CASE WHEN status='rejected' THEN 1 ELSE 0 END) as rejected")
+        ->first();
+    $totalCount = $counts->total ?? 0;
+    $pendingCount = $counts->pending ?? 0;
+    $acceptedCount = $counts->accepted ?? 0;
+    $rejectedCount = $counts->rejected ?? 0;
+    $draftCount = \App\Models\Note::where('user_id',$userId)->where('status','draft')->count();
 @endphp
 
 {{-- ===== 1. PAGE HEADER ===== --}}
@@ -96,7 +99,11 @@
                         <select name="observer" class="w-full rounded-lg border border-[#e6e9e1] bg-white py-2 px-3 text-sm text-ink-800 focus:border-[#0e6a38] focus:ring-2 focus:ring-[#0e6a38]/10 outline-none transition">
                             <option value="">الكل</option>
                             @foreach($observers as $obs)
-                                <option value="{{ $obs->id }}" {{ request('observer') == $obs->id ? 'selected' : '' }}>{{ $obs->name }}</option>
+                                @if(is_object($obs) && isset($obs->id))
+                                    <option value="{{ $obs->id }}" {{ request('observer') == $obs->id ? 'selected' : '' }}>{{ $obs->name }}</option>
+                                @elseif(is_array($obs) && isset($obs['id']))
+                                    <option value="{{ $obs['id'] }}" {{ request('observer') == $obs['id'] ? 'selected' : '' }}>{{ $obs['name'] }}</option>
+                                @endif
                             @endforeach
                         </select>
                     </div>

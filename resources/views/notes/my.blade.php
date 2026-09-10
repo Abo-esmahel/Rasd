@@ -5,14 +5,16 @@
     $isMonitor = auth()->user()->isMonitor();
     $isWriter = !$isMonitor;
     $userId = auth()->id();
-    // صفحة "ملاحظاتي": كل العدادات خاصة بالمستخدم الحالي فقط
-    $baseQuery = \App\Models\Note::where('user_id', $userId);
-    $totalCount = (clone $baseQuery)->count();
-    $draftCount = (clone $baseQuery)->where('status','draft')->count();
-    $pendingCount = (clone $baseQuery)->where('status','pending')->count();
-    $acceptedCount = (clone $baseQuery)->where('status','accepted')->count();
-    $rejectedCount = (clone $baseQuery)->where('status','rejected')->count();
     $currentStatus = request('status');
+    // استعلام واحد للعدادات — يقلل قفل الملفات
+    $counts = \App\Models\Note::where('user_id', $userId)
+        ->selectRaw("COUNT(*) as total, SUM(CASE WHEN status='draft' THEN 1 ELSE 0 END) as draft, SUM(CASE WHEN status='pending' THEN 1 ELSE 0 END) as pending, SUM(CASE WHEN status='accepted' THEN 1 ELSE 0 END) as accepted, SUM(CASE WHEN status='rejected' THEN 1 ELSE 0 END) as rejected")
+        ->first();
+    $totalCount = $counts->total ?? 0;
+    $draftCount = $counts->draft ?? 0;
+    $pendingCount = $counts->pending ?? 0;
+    $acceptedCount = $counts->accepted ?? 0;
+    $rejectedCount = $counts->rejected ?? 0;
 @endphp
 
 {{-- ===== 1. PAGE HEADER ===== --}}

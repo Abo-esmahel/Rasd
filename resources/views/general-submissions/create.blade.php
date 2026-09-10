@@ -1,4 +1,4 @@
-@extends('layouts.app')
+﻿@extends('layouts.app')
 
 @section('content')
 <div class="max-w-4xl mx-auto">
@@ -14,6 +14,16 @@
         <form method="POST" action="{{ route('general-submissions.store', [], false) }}" enctype="multipart/form-data" class="space-y-5" id="gs-create-form" novalidate>
             @csrf
             <div id="gs-form-errors" class="hidden p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700"></div>
+            <div id="gs-upload-progress" class="hidden p-4 bg-[#eef4f0] border border-[#cde7d6] rounded-xl">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-sm font-bold text-[#0e6a38] flex items-center gap-2"><span class="w-3 h-3 border-2 border-[#0e6a38] border-t-transparent rounded-full animate-spin"></span>جاري الرفع...</span>
+                    <span id="gs-upload-progress-text" class="text-xs font-bold text-ink-500">0%</span>
+                </div>
+                <div class="w-full bg-white rounded-full h-2.5 border border-[#e6e9e1] overflow-hidden">
+                    <div id="gs-upload-progress-bar" class="h-2.5 rounded-full bg-[#0e6a38] transition-all duration-300" style="width:0%"></div>
+                </div>
+                <div id="gs-upload-progress-detail" class="mt-1 text-[11px] text-ink-400">جاري رفع الملفات الأصلية دون تعديل (الجودة 100% محفوظة) — لا تغلق الصفحة</div>
+            </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
@@ -89,6 +99,30 @@
     const input=document.getElementById('gs-files'),zone=document.getElementById('gs-drop-zone'),list=document.getElementById('gs-file-list');
     const formEl=document.getElementById('gs-create-form'),errEl=document.getElementById('gs-form-errors');
     let transfer=new DataTransfer(),intended=0;
+    function setGsProgress(pct, detail){
+        const wrap=document.getElementById('gs-upload-progress'), bar=document.getElementById('gs-upload-progress-bar'), txt=document.getElementById('gs-upload-progress-text'), det=document.getElementById('gs-upload-progress-detail');
+        if(!wrap) return;
+        wrap.classList.remove('hidden');
+        if(bar) bar.style.width=pct+'%';
+        if(txt) txt.textContent=Math.round(pct)+'%';
+        if(det && detail) det.textContent=detail;
+    }
+    function hideGsProgress(){ const w=document.getElementById('gs-upload-progress'); if(w) w.classList.add('hidden'); }
+    function xhrUploadGs(url, fd, csrf, onProgress){
+        return new Promise((resolve, reject)=>{
+            const xhr=new XMLHttpRequest();
+            xhr.open('POST', url, true);
+            xhr.setRequestHeader('Accept','application/json');
+            xhr.setRequestHeader('X-Requested-With','XMLHttpRequest');
+            if(csrf) xhr.setRequestHeader('X-CSRF-TOKEN', csrf);
+            xhr.timeout=600000;
+            if(xhr.upload && onProgress) xhr.upload.onprogress=(e)=>{ if(e.lengthComputable){ const pct=Math.round(e.loaded/e.total*100); onProgress(pct, e.loaded, e.total); } };
+            xhr.onload=()=>{ let data=null; try{ data=JSON.parse(xhr.responseText);}catch(_){} resolve({status:xhr.status, ok:xhr.status>=200&&xhr.status<300, data, raw:xhr.responseText}); };
+            xhr.onerror=()=>reject(new Error('فشل الشبكة'));
+            xhr.ontimeout=()=>reject(Object.assign(new Error('انتهت مهلة الإرسال (10 دقائق)'),{name:'AbortError'}));
+            xhr.send(fd);
+        });
+    }
     const MAX_FILES={{ max(1, (int) ini_get('max_file_uploads') ?: 20) }};
     function sync(){ try{ input.files=transfer.files; }catch(e){} }
     function render(){
@@ -113,7 +147,7 @@
             const isAudio=audioExts.includes(ext)||file.type.startsWith('audio/');
             if(!['jpg','jpeg','png','webp','mp4','webm','mov','avi','3gp','mkv','m4v','mpg','3gpp'].includes(ext)&&!file.type.startsWith('image/')&&!file.type.startsWith('video/')&&!isAudio){ alert('نوع غير مدعوم: '+file.name); continue; }
             if(file.type.startsWith('image/')&&file.size>20*1024*1024){ alert('حجم الصورة كبير (20MB): '+file.name); continue; }
-            if(file.type.startsWith('video/')&&file.size>500*1024*1024){ alert('حجم الفيديو كبير (500MB): '+file.name); continue; }
+            if(file.type.startsWith('video/')&&file.size>100*1024*1024){ alert('حجم الفيديو كبير (100MB): '+file.name); continue; }
             if(isAudio&&file.size>100*1024*1024){ alert('حجم الصوت كبير (100MB): '+file.name); continue; }
             transfer.items.add(file); intended++;
         }
@@ -133,12 +167,23 @@
         const toSend=transfer.files.length>0?Array.from(transfer.files):Array.from(input.files);
         toSend.forEach(f=>fd.append('files[]',f));
         const announced=intended;
+        // Total size early check vs post_max_size (120M safety, server 128M)
+        const totalBytesGs = toSend.reduce((s,f)=>s+f.size,0);
+        if(totalBytesGs > 120*1024*1024){
+            errEl.innerHTML='<div class="font-bold mb-1 text-red-600">إجمالي المرفقات كبير جداً</div><p class="text-xs">الحجم الإجمالي '+(totalBytesGs/1024/1024).toFixed(1)+' MB يتجاوز الحد 128M. قلل المرفقات ثم أعد المحاولة.</p>';
+            errEl.classList.remove('hidden');
+            errEl.scrollIntoView({behavior:'smooth',block:'center'});
+            if(btn) btn.disabled=false;
+            hideGsProgress();
+            return;
+        }
         fd.append('client_files_count',String(announced));
         try{
-            const ctl=new AbortController(),tid=setTimeout(()=>ctl.abort(),600000); // 10min (large videos)
-            const res=await fetch(formEl.action,{method:'POST',body:fd,signal:ctl.signal,headers:{'Accept':'application/json','X-Requested-With':'XMLHttpRequest'}});
-            clearTimeout(tid);
-            let data=null; try{ data=await res.clone().json(); }catch(_){}
+            const csrfTokenGs=document.querySelector('meta[name="csrf-token"]')?.content || '';
+            setGsProgress(5, 'جاري رفع '+toSend.length+' ملف...');
+            const res=await xhrUploadGs(formEl.action, fd, csrfTokenGs, (pct, loaded, total)=> setGsProgress(Math.max(5, Math.min(95, pct)), 'جاري الرفع '+pct+'%'+ (loaded ? ' ('+(loaded/1024/1024).toFixed(1)+' / '+(total/1024/1024).toFixed(1)+' MB)' : '')+' — لا تغلق الصفحة'));
+            setGsProgress(98, 'تم الرفع 100%، جاري التحقق من الحفظ...');
+            let data=res.data
             const fail=(t,errs)=>{
                 const list=(errs&&errs.length?errs:['فشل رفع المرفقات. لم يتم حفظ الإرسالية.']).map(x=>typeof x==='string'?x:((x.file?x.file+': ':'')+(x.message||JSON.stringify(x)))).join('<br>');
                 errEl.innerHTML='<div class="font-bold mb-1 text-red-600">'+t+'</div><p class="text-xs">'+list+'</p><p class="mt-2 text-xs font-bold">الملفات محفوظة — أعد المحاولة.</p>';
@@ -158,9 +203,14 @@
                 html+='</ul>'; errEl.innerHTML=html; errEl.classList.remove('hidden');
             } else { fail('فشل الإرسال (كود: '+res.status+')',[]); }
         }catch(err){
-            errEl.innerHTML='<div class="font-bold text-red-600">خطأ في الشبكة</div><p class="text-xs">'+(err.message||'')+'</p>';
+            hideGsProgress();
+            if(err.name === 'AbortError'){
+                errEl.innerHTML='<div class="font-bold mb-1 text-red-600">انتهت مهلة الإرسال (10 دقائق)</div><p class="text-xs">تحقق من اتصالك أو قلل حجم المرفقات.</p>';
+            } else {
+                errEl.innerHTML='<div class="font-bold text-red-600">خطأ في الشبكة</div><p class="text-xs">'+(err.message||'''')+'</p>';
+            }
             errEl.classList.remove('hidden');
-        }finally{ if(btn) btn.disabled=false; }
+        }finally{ hideGsProgress(); if(btn) btn.disabled=false; }
     });
 })();
 </script>

@@ -4,10 +4,9 @@ namespace App\Notifications;
 
 use App\Models\GeneralSubmission;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
 
-class DispatchAcceptedNotification extends Notification implements ShouldQueue
+class DispatchAcceptedNotification extends Notification
 {
     use Queueable;
 
@@ -37,6 +36,8 @@ class DispatchAcceptedNotification extends Notification implements ShouldQueue
             'message' => "تم قبول إرساليتك #{$this->submission->id} (كاميرا {$this->submission->camera_number} - الطابق {$this->submission->floor_number}) بواسطة {$this->processorName}",
             'url' => route('general-submissions.show', $this->submission->id),
             'type' => 'dispatch_accepted',
+            'category' => 'dispatch',
+            'priority' => 'normal',
         ];
     }
 

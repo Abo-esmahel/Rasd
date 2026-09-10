@@ -4,10 +4,9 @@ namespace App\Notifications;
 
 use App\Models\GeneralSubmission;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
 
-class DispatchRejectedNotification extends Notification implements ShouldQueue
+class DispatchRejectedNotification extends Notification
 {
     use Queueable;
 
@@ -40,6 +39,8 @@ class DispatchRejectedNotification extends Notification implements ShouldQueue
             'message' => "تم رفض إرساليتك #{$this->submission->id} (كاميرا {$this->submission->camera_number} - الطابق {$this->submission->floor_number}) بواسطة {$this->processorName}",
             'url' => route('general-submissions.show', $this->submission->id),
             'type' => 'dispatch_rejected',
+            'category' => 'dispatch',
+            'priority' => 'high',
         ];
     }
 

@@ -1,4 +1,4 @@
-@extends('layouts.app')
+﻿@extends('layouts.app')
 
 @section('content')
 @php
@@ -65,7 +65,7 @@
                 <div class="w-full bg-white rounded-full h-2.5 border border-[#e6e9e1] overflow-hidden">
                     <div id="upload-progress-bar-edit" class="h-2.5 rounded-full bg-[#0e6a38] transition-all duration-300" style="width:0%"></div>
                 </div>
-                <div class="mt-1 text-[11px] text-ink-400">يتم ضغط الصور ورفع الملفات — لا تغلق الصفحة</div>
+                <div class="mt-1 text-[11px] text-ink-400">جاري رفع الملفات الأصلية دون تعديل (الجودة 100% محفوظة) — لا تغلق الصفحة</div>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
@@ -345,42 +345,8 @@
         document.getElementById('clear-datetime-edit')?.addEventListener('click',()=>{ if(dateEl) dateEl.value=''; if(timeEl) timeEl.value=''; if(endTimeEl) endTimeEl.value=''; sync(); });
         sync();
     })();
-    // ——— ضغط الصور محلياً — local optimized ———
-    async function compressImageClientEdit(file){
-        try{
-            if(!file.type.startsWith('image/') || file.type==='image/gif' || file.type==='image/svg+xml') return file;
-            if(file.size < 600*1024) return file;
-            let bitmap=null, width=0, height=0;
-            if(window.createImageBitmap){
-                try{ bitmap = await createImageBitmap(file); width=bitmap.width; height=bitmap.height; }catch(e){ bitmap=null; }
-            }
-            if(!bitmap){
-                const url=URL.createObjectURL(file);
-                const img=await new Promise((res,rej)=>{ const i=new Image(); i.onload=()=>res(i); i.onerror=rej; i.src=url; });
-                width=img.naturalWidth||img.width; height=img.naturalHeight||img.height;
-                URL.revokeObjectURL(url);
-                const maxDim=1920;
-                if(width<=maxDim && height<=maxDim && file.size<2*1024*1024) return file;
-                const ratio=Math.min(maxDim/width, maxDim/height,1);
-                const nw=Math.round(width*ratio), nh=Math.round(height*ratio);
-                const c=document.createElement('canvas'); c.width=nw; c.height=nh;
-                c.getContext('2d').drawImage(img,0,0,nw,nh);
-                const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',0.82));
-                if(!blob||blob.size>=file.size) return file;
-                return new File([blob], file.name.replace(/\.[^.]+$/,'')+'.jpg', {type:'image/jpeg'});
-            }
-            const maxDim=1920;
-            if(width<=maxDim && height<=maxDim && file.size<2*1024*1024){ bitmap.close(); return file; }
-            const ratio=Math.min(maxDim/width, maxDim/height,1);
-            const nw=Math.round(width*ratio), nh=Math.round(height*ratio);
-            const c=document.createElement('canvas'); c.width=nw; c.height=nh;
-            c.getContext('2d').drawImage(bitmap,0,0,nw,nh);
-            bitmap.close();
-            const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',0.82));
-            if(!blob||blob.size>=file.size) return file;
-            return new File([blob], file.name.replace(/\.[^.]+$/,'')+'.jpg', {type:'image/jpeg'});
-        }catch(e){ return file; }
-    }
+    // \u2014\u2014\u2014 \u0627\u0644\u062d\u0641\u0627\u0638 \u0639\u0644\u0649 \u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u0623\u0635\u0644\u064a 100% \u2014 \u0644\u0627 \u0636\u063a\u0637\u060c \u0644\u0627 resize\u060c \u0644\u0627 transcoding \u2014 byte-for-byte \u2014\u2014\u2014
+    async function compressImageClientEdit(file){ return file; } // preserved 100% original - no compression
     function setUploadProgressEdit(pct, detail){
         const wrap=document.getElementById('upload-progress-edit'), bar=document.getElementById('upload-progress-bar-edit'), txt=document.getElementById('upload-progress-text-edit');
         if(!wrap) return;
@@ -397,7 +363,7 @@
             xhr.setRequestHeader('X-Requested-With','XMLHttpRequest');
             if(csrf) xhr.setRequestHeader('X-CSRF-TOKEN', csrf);
             xhr.timeout=600000;
-            if(xhr.upload && onProgress) xhr.upload.onprogress=(e)=>{ if(e.lengthComputable) onProgress(Math.round(e.loaded/e.total*100)); };
+            if(xhr.upload && onProgress) xhr.upload.onprogress=(e)=>{ if(e.lengthComputable){ const pct=Math.round(e.loaded/e.total*100); const loadedMB=(e.loaded/1024/1024).toFixed(1); const totalMB=(e.total/1024/1024).toFixed(1); onProgress(pct, e.loaded, e.total); } };
             xhr.onload=()=>{ let data=null; try{ data=JSON.parse(xhr.responseText);}catch(_){} resolve({status:xhr.status, ok:xhr.status>=200&&xhr.status<300, data, raw:xhr.responseText}); };
             xhr.onerror=()=>reject(new Error('فشل الشبكة'));
             xhr.ontimeout=()=>reject(Object.assign(new Error('انتهت مهلة الإرسال'),{name:'AbortError'}));
@@ -444,12 +410,7 @@
     async function addFilesEdit(newFiles){
         for(let orig of newFiles){
             if(fileTransferEdit.files.length>=MAX_FILES_EDIT){ alert('الحد الأقصى '+MAX_FILES_EDIT+' ملف (حد السيرفر)'); break; }
-            let file=orig;
-            if(file.type.startsWith('image/')){
-                const before=file.size;
-                file=await compressImageClientEdit(file);
-                if(file.size!==before) console.log('[COMPRESS-EDIT] '+orig.name+' '+(before/1024/1024).toFixed(2)+'MB → '+(file.size/1024/1024).toFixed(2)+'MB');
-            }
+            let file=orig; // preserved 100% original - no client compression
             const ext=file.name.split('.').pop().toLowerCase();
             const audioExts=['mp3','wav','ogg','oga','m4a','aac','wma','flac','opus','aiff','aif','amr','3ga','awb','mid','midi','au','weba'];
             const isAudio=audioExts.includes(ext)||file.type.startsWith('audio/');
@@ -694,8 +655,22 @@
                 const formEditActionUrl = formEdit.getAttribute('action');
                 console.debug('[EDIT SUBMIT] action='+formEditActionUrl+' method=POST files='+filesToSendEdit.length+' count='+clientFilesCountEdit);
                 setUploadProgressEdit(5);
-                const res = await xhrUploadEdit(formEditActionUrl, fd, csrfTokenE, (pct)=> setUploadProgressEdit(Math.max(5, Math.min(95,pct))));
-                setUploadProgressEdit(98);
+                // Total size early check vs post_max_size (120M)
+            let totalEditCheck = 0;
+            try{ totalEditCheck = (typeof pendingFilesEdit !== 'undefined' && pendingFilesEdit?pendingFilesEdit.reduce((s,f)=>s+f.size,0):0); }catch(e){}
+            if(totalEditCheck > 120*1024*1024){
+                const errElEdit2 = document.getElementById('form-errors-edit');
+                if(errElEdit2){
+                    errElEdit2.innerHTML='<div class="font-bold mb-1 text-red-600">??? ??????? ???? ??? ????? ??????</div><p class="text-xs">?????? '+(totalEditCheck/1024/1024).toFixed(1)+' MB ?????? ?? ?????? 128M.</p>';
+                    errElEdit2.classList.remove('hidden');
+                }
+                const btnE2 = document.querySelector('#edit-form button[type="submit"]');
+                if(btnE2) btnE2.disabled=false;
+                if(typeof hideUploadProgressEdit === 'function') hideUploadProgressEdit();
+                return;
+            }
+            const res = await xhrUploadEdit(formEditActionUrl, fd, csrfTokenE, (pct, loaded, total)=> setUploadProgressEdit(Math.max(5, Math.min(95, pct)), 'جاري الرفع '+pct+'%'+ (loaded ? ' ('+(loaded/1024/1024).toFixed(1)+' / '+(total/1024/1024).toFixed(1)+' MB)' : '') +' — لا تغلق الصفحة'));
+                setUploadProgressEdit(98, 'تم الرفع 100%، جاري التحقق من الحفظ...');
                 let data=res.data, rawTextE=res.raw;
                 const failLoudEdit = (title, errs) => {
                     const list=(errs&&errs.length?errs:['فشل رفع المرفقات. لم يتم حفظ التعديلات.']).map(e=> typeof e==='string'?e:((e.file?e.file+': ':'')+(e.message||JSON.stringify(e)))).join('<br>');

@@ -57,7 +57,9 @@ class NoteController extends Controller
         }
 
         $notes = $query->paginate(15)->withQueryString();
-        $observers = User::where('role', 'monitor')->orderBy('name')->get();
+        // إصلاح جمود الموقع: استعلام مباشر بدون file cache (file cache + SQLite + file session = تـنافس على قفل الملف)
+        // 4 صفوف فقط — الاستعلام أسرع من قراءة/كتابة cache
+        $observers = User::where('role', 'monitor')->orderBy('name')->get(['id', 'name']);
 
         $observerUser = null;
         if ($request->filled('observer')) {
@@ -124,7 +126,7 @@ class NoteController extends Controller
             'client_files_count' => ['nullable','integer','min:0','max:100'],
         ], [
             'files.max' => 'عدد الملفات يتجاوز الحد المسموح به من السيرفر (:max). أرسل على دفعات.',
-            'files.*.max' => 'حجم الملف يتجاوز الحد الأقصى (:max كيلوبايت). قلل الحجم أو اضغط الصورة.',
+            'files.*.max' => 'حجم الملف يتجاوز الحد الأقصى (:max كيلوبايت).',
         ], [
             'floor_number' => 'رقم الطابق',
             'camera_number' => 'رقم الكاميرا',
@@ -257,7 +259,7 @@ class NoteController extends Controller
             'client_files_count' => ['nullable','integer','min:0','max:100'],
         ], [
             'files.max' => 'عدد الملفات يتجاوز الحد المسموح به من السيرفر (:max). أرسل على دفعات.',
-            'files.*.max' => 'حجم الملف يتجاوز الحد الأقصى (:max كيلوبايت). قلل الحجم أو اضغط الصورة.',
+            'files.*.max' => 'حجم الملف يتجاوز الحد الأقصى (:max كيلوبايت).',
         ]);
 
         $rawFiles = $request->file('files');

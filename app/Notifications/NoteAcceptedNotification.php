@@ -4,10 +4,9 @@ namespace App\Notifications;
 
 use App\Models\Note;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
 
-class NoteAcceptedNotification extends Notification implements ShouldQueue
+class NoteAcceptedNotification extends Notification
 {
     use Queueable;
 
@@ -36,6 +35,8 @@ class NoteAcceptedNotification extends Notification implements ShouldQueue
             'message' => "تم قبول ملاحظتك #{$this->note->id} (كاميرا {$this->note->camera_number} - الطابق {$this->note->floor_number}) بواسطة {$this->processorName}",
             'url' => route('notes.show', $this->note->id),
             'type' => 'note_accepted',
+            'category' => 'note',
+            'priority' => 'normal',
         ];
     }
 

@@ -4,10 +4,9 @@ namespace App\Notifications;
 
 use App\Models\Note;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
 
-class NoteSentNotification extends Notification implements ShouldQueue
+class NoteSentNotification extends Notification
 {
     use Queueable;
 
@@ -37,6 +36,8 @@ class NoteSentNotification extends Notification implements ShouldQueue
             'message' => "ملاحظة جديدة #{$this->note->id} من {$this->senderName} (كاميرا {$this->note->camera_number} - الطابق {$this->note->floor_number}) بانتظار المراجعة",
             'url' => route('notes.show', $this->note->id),
             'type' => 'note_sent',
+            'category' => 'note',
+            'priority' => 'normal',
         ];
     }
 

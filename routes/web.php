@@ -17,10 +17,62 @@ Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
-// PWA — نسخة الجوال القابلة للتثبيت (عامة، بدون تسجيل دخول)
+// PWA legacy alias — redirect to root (ROOT is the PWA, no separate /pwa/ app)
 Route::get('/pwa', function () {
-    return response()->file(public_path('pwa/index.html'));
+    return redirect('/', 301);
 })->name('pwa');
+Route::get('/pwa/', function () {
+    return redirect('/', 301);
+});
+
+// PWA ROOT — manifest & service worker (single source of truth: / = PWA)
+Route::get('/pwa/manifest.json', function () {
+    return response()->file(public_path('manifest.json'), [
+        'Content-Type' => 'application/manifest+json',
+        'Cache-Control' => 'public, max-age=0, must-revalidate',
+    ]);
+});
+Route::get('/pwa/sw.js', function () {
+    return response()->file(public_path('sw.js'), [
+        'Content-Type' => 'application/javascript',
+        'Service-Worker-Allowed' => '/',
+        'Cache-Control' => 'no-cache, no-store, must-revalidate',
+    ]);
+});
+Route::get('/sw.js', function () {
+    return response()->file(public_path('sw.js'), [
+        'Content-Type' => 'application/javascript',
+        'Service-Worker-Allowed' => '/',
+        'Cache-Control' => 'no-cache, no-store, must-revalidate',
+    ]);
+});
+Route::get('/manifest.json', function () {
+    return response()->file(public_path('manifest.json'), [
+        'Content-Type' => 'application/manifest+json',
+        'Cache-Control' => 'public, max-age=0, must-revalidate',
+    ]);
+});
+Route::get('/offline.html', function () {
+    return response()->file(public_path('offline.html'), [
+        'Content-Type' => 'text/html',
+        'Cache-Control' => 'public, max-age=0, must-revalidate',
+    ]);
+});
+Route::get('/health', function () {
+    return response('OK '.now()->toIso8601String().' views:'.count(glob(storage_path('framework/views/*.php'))), 200)->header('Content-Type','text/plain');
+});
+Route::get('/health/nojs', function () {
+    return response('<html><body><h1>OK '.now()->toIso8601String().'</h1><p>no JS test - if you see this, server is fast</p><a href="/login">go login</a></body></html>',200)->header('Content-Type','text/html');
+});
+Route::get('/notes-minimal', function () {
+    if (!auth()->check()) return redirect()->route('login');
+    $user = auth()->user();
+    $notes = \App\Models\Note::with(['owner'])->latest()->limit(15)->get();
+    $html = '<html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>minimal</title><style>body{font-family:sans-serif;padding:20px}table{width:100%;border-collapse:collapse}td,th{border:1px solid #ccc;padding:8px}</style></head><body><h1>اختبار سرعة بدون JS/CSS</h1><p>وقت: '.now()->toIso8601String().' | مستخدم: '.e($user->name).' | عدد: '.$notes->count().'</p><table><tr><th>#</th><th>كاميرا</th><th>طابق</th><th>وصف</th></tr>';
+    foreach($notes as $n) $html .= '<tr><td>'.$n->id.'</td><td>'.$n->camera_number.'</td><td>'.$n->floor_number.'</td><td>'.e(\Illuminate\Support\Str::limit($n->description,80)).'</td></tr>';
+    $html .= '</table><p><a href="/notes?nosse=1">اختبار بدون SSE</a> | <a href="/login">login</a></p></body></html>';
+    return response($html);
+})->middleware('auth');
 
 Route::middleware('auth')->group(function () {
     Route::get('/dashboard', function () {
@@ -48,6 +100,10 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
     Route::get('/notifications/unread-count', [NotificationController::class, 'unreadCount'])->name('notifications.unreadCount');
+    Route::get('/notifications/stream', [\App\Http\Controllers\Web\NotificationStreamController::class, 'stream'])->name('notifications.stream');
+    Route::get('/notifications/feed', [\App\Http\Controllers\Web\NotificationStreamController::class, 'feed'])->name('notifications.feed');
+    Route::get('/notifications/preferences', [NotificationController::class, 'preferences'])->name('notifications.preferences');
+    Route::put('/notifications/preferences', [NotificationController::class, 'updatePreferences'])->name('notifications.preferences.update');
     Route::post('/notifications/mark-read', [NotificationController::class, 'markAsRead'])->name('notifications.markRead');
     Route::post('/notifications/{id}/read', [NotificationController::class, 'markOneAsRead'])->name('notifications.markOneRead');
 

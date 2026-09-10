@@ -75,9 +75,10 @@ class User extends Authenticatable
 
     public function getAvatarUrlAttribute(): ?string
     {
-        // Local avatar first (offline)
+        // Local avatar first (offline). Relative URL so it works on both
+        // localhost (PC) and LAN IP (phone) without depending on APP_URL.
         if ($this->avatar_path && \Illuminate\Support\Facades\Storage::disk('public')->exists($this->avatar_path)) {
-            return \Illuminate\Support\Facades\Storage::disk('public')->url($this->avatar_path);
+            return '/storage/'.ltrim($this->avatar_path, '/');
         }
         if ($this->avatar_secure_url) {
             return $this->avatar_secure_url;

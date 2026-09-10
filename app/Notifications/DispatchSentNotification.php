@@ -4,10 +4,9 @@ namespace App\Notifications;
 
 use App\Models\GeneralSubmission;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
 
-class DispatchSentNotification extends Notification implements ShouldQueue
+class DispatchSentNotification extends Notification
 {
     use Queueable;
 
@@ -38,6 +37,8 @@ class DispatchSentNotification extends Notification implements ShouldQueue
             'message' => "تم إرسال إرسالية جديدة #{$this->submission->id} إليك من {$this->senderName} (كاميرا {$this->submission->camera_number} - الطابق {$this->submission->floor_number})",
             'url' => route('general-submissions.show', $this->submission->id),
             'type' => 'dispatch_sent',
+            'category' => 'dispatch',
+            'priority' => 'normal',
         ];
     }
 

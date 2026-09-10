@@ -48,7 +48,11 @@
                     <select wire:model.live="observer" class="w-full rounded-lg border border-[#e6e9e1] bg-white py-2 px-3 text-sm text-ink-800 focus:border-[#0e6a38] focus:ring-2 focus:ring-[#0e6a38]/10 outline-none transition">
                         <option value="">الكل</option>
                         @foreach($observers as $obs)
-                            <option value="{{ $obs->id }}">{{ $obs->name }}</option>
+                            @if(is_object($obs) && isset($obs->id))
+                                <option value="{{ $obs->id }}">{{ $obs->name }}</option>
+                            @elseif(is_array($obs) && isset($obs['id']))
+                                <option value="{{ $obs['id'] }}">{{ $obs['name'] }}</option>
+                            @endif
                         @endforeach
                     </select>
                 </div>

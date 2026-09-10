@@ -102,6 +102,28 @@ class AttachmentStorageService
             );
         }
 
+        // Integrity: verify copied file size/hash matches source (byte-for-byte)
+        try {
+            $srcSize = $this->disk()->size($sourcePath);
+            $destSize = $this->disk()->size($destPath);
+            if ($srcSize !== $destSize) {
+                Log::error('[ATTACHMENT] copy size mismatch', ['source' => $sourcePath, 'dest' => $destPath, 'srcSize' => $srcSize, 'destSize' => $destSize]);
+                $this->delete($destPath);
+                throw new AttachmentUploadException('تعذّر التحقق من نسخة المرفق (حجم غير متطابق).', stage: 'verification');
+            }
+            $srcAbs = $this->absolutePath($sourcePath);
+            $destAbs = $this->absolutePath($destPath);
+            if (file_exists($srcAbs) && file_exists($destAbs)) {
+                $srcHash = @hash_file('sha256', $srcAbs);
+                $destHash = @hash_file('sha256', $destAbs);
+                if ($srcHash && $destHash && $srcHash !== $destHash) {
+                    Log::error('[ATTACHMENT] copy hash mismatch', ['source' => $sourcePath, 'dest' => $destPath]);
+                    $this->delete($destPath);
+                    throw new AttachmentUploadException('تعذّر التحقق من نسخة المرفق (محتوى غير متطابق).', stage: 'verification');
+                }
+            }
+        } catch (AttachmentUploadException $e) { throw $e; } catch (\Throwable $e) { Log::warning('[ATTACHMENT] copy integrity warning', ['message' => $e->getMessage()]); }
+
         return $destPath;
     }
 
@@ -126,7 +148,7 @@ class AttachmentStorageService
             );
         }
 
-        // 2. Safe unique name — never use original name for storage.
+        // 2. Safe unique name — never use original name for storage (preserve original content byte-for-byte, no compression/resize/transcoding).
         $extension = strtolower((string) $file->getClientOriginalExtension());
         if ($extension === '') {
             $extension = strtolower((string) ($file->guessExtension() ?: 'bin'));
@@ -135,32 +157,10 @@ class AttachmentStorageService
         $storedName = (string) Str::uuid().'.'.$extension;
         $relativePath = "{$directory}/{$storedName}";
 
-        // 2.5 ضغط الصور محلياً قبل التخزين لتسريع الرفع وتوفير المساحة (لو GD متاح)
-        $fileToStore = $file;
-        $tempCompressedPath = null;
-        if (str_starts_with((string) $file->getMimeType(), 'image/') && $extension !== 'svg' && $extension !== 'gif') {
-            $optimized = $this->tryOptimizeImage($file);
-            if ($optimized) {
-                $fileToStore = $optimized['file'];
-                $tempCompressedPath = $optimized['tempPath'];
-                $storedName = (string) Str::uuid().'.'.$optimized['ext'];
-                $relativePath = "{$directory}/{$storedName}";
-            }
-        }
-
-        // 3. Write via Laravel Storage API — استخدم stream للسرعة
+        // 3. Write via Laravel Storage API — preserve original bytes exactly, no modification
         try {
-            // putFileAs يستخدم move بشكل محسن، لكن نستخدم writeStream للملفات المضغوطة
-            if ($tempCompressedPath) {
-                $stream = fopen($fileToStore->getRealPath(), 'r');
-                $this->disk()->writeStream($relativePath, $stream);
-                if (is_resource($stream)) fclose($stream);
-                $stored = $relativePath;
-            } else {
-                $stored = $this->disk()->putFileAs($directory, $fileToStore, $storedName);
-            }
+            $stored = $this->disk()->putFileAs($directory, $file, $storedName);
         } catch (\Throwable $e) {
-            if ($tempCompressedPath && file_exists($tempCompressedPath)) @unlink($tempCompressedPath);
             Log::error('[ATTACHMENT] storage write exception', array_merge([
                 'original_name' => $originalName,
                 'stage' => 'storage',
@@ -176,8 +176,6 @@ class AttachmentStorageService
             );
         }
 
-        if ($tempCompressedPath && file_exists($tempCompressedPath)) @unlink($tempCompressedPath);
-
         if ($stored === false || $stored === null) {
             Log::error('[ATTACHMENT] storage write returned false', array_merge([
                 'original_name' => $originalName,
@@ -192,7 +190,7 @@ class AttachmentStorageService
             );
         }
 
-        // 4. Physical verification before returning — file MUST exist.
+        // 4. Physical verification before returning — file MUST exist and size/hash must match original (byte-for-byte).
         if (!$this->exists($relativePath)) {
             Log::error('[ATTACHMENT] physical verification failed after write', array_merge([
                 'original_name' => $originalName,
@@ -205,6 +203,50 @@ class AttachmentStorageService
                 stage: 'verification',
                 originalName: $originalName,
             );
+        }
+
+        // Integrity: size check (mandatory, fast) + hash check (when possible)
+        try {
+            $originalSize = $file->getSize();
+            $storedSize = $this->disk()->size($relativePath);
+            if ($originalSize !== null && $storedSize !== $originalSize) {
+                Log::error('[ATTACHMENT] size mismatch after write', array_merge([
+                    'original_name' => $originalName,
+                    'stage' => 'verification',
+                    'path' => $relativePath,
+                    'original_size' => $originalSize,
+                    'stored_size' => $storedSize,
+                ], $context));
+                $this->delete($relativePath);
+                throw new AttachmentUploadException(
+                    "تم حفظ الملف {$originalName} لكن حجمه غير متطابق (الأصل {$originalSize} بايت، المخزن {$storedSize} بايت).",
+                    stage: 'verification',
+                    originalName: $originalName,
+                );
+            }
+            $originalReal = $file->getRealPath();
+            $storedAbsolute = $this->absolutePath($relativePath);
+            if ($originalReal && file_exists($originalReal) && file_exists($storedAbsolute)) {
+                $origHash = @hash_file('sha256', $originalReal);
+                $storedHash = @hash_file('sha256', $storedAbsolute);
+                if ($origHash && $storedHash && $origHash !== $storedHash) {
+                    Log::error('[ATTACHMENT] hash mismatch after write', array_merge([
+                        'original_name' => $originalName,
+                        'stage' => 'verification',
+                        'path' => $relativePath,
+                    ], $context));
+                    $this->delete($relativePath);
+                    throw new AttachmentUploadException(
+                        "تم حفظ الملف {$originalName} لكن محتواه غير متطابق (فشل التحقق عبر hash).",
+                        stage: 'verification',
+                        originalName: $originalName,
+                    );
+                }
+            }
+        } catch (AttachmentUploadException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            Log::warning('[ATTACHMENT] integrity check warning', ['path' => $relativePath, 'message' => $e->getMessage()]);
         }
 
         return $relativePath;
@@ -375,90 +417,6 @@ class AttachmentStorageService
         $name = basename(str_replace('\\', '/', $name));
 
         return $name !== '' ? $name : 'attachment';
-    }
-
-    /**
-     * ضغط الصورة محلياً باستخدام GD (لو متاح) — يقلل الحجم 60-80% بدون فقدان ملحوظ
-     * يعيد UploadedFile جديد مضغوط أو null لو فشل
-     */
-    private function tryOptimizeImage(UploadedFile $file): ?array
-    {
-        if (!extension_loaded('gd')) return null;
-        $realPath = $file->getRealPath();
-        if (!$realPath || !file_exists($realPath)) return null;
-        $size = $file->getSize() ?: 0;
-        // لا تضغط الصور الصغيرة جداً (<500KB) — لا فائدة
-        if ($size < 500 * 1024) return null;
-        try {
-            $info = @getimagesize($realPath);
-            if (!$info) return null;
-            [$width, $height, $type] = $info;
-            // لو الصورة أصغر من 1920px لا داعي لتغيير الأبعاد، فقط إعادة ضغط
-            $maxDim = 1920;
-            $needResize = $width > $maxDim || $height > $maxDim;
-            if (!$needResize && $size < 2 * 1024 * 1024) return null; // <2MB وصغيرة الأبعاد = اتركها
-
-            $src = match ($type) {
-                IMAGETYPE_JPEG => @imagecreatefromjpeg($realPath),
-                IMAGETYPE_PNG => @imagecreatefrompng($realPath),
-                IMAGETYPE_WEBP => function_exists('imagecreatefromwebp') ? @imagecreatefromwebp($realPath) : null,
-                IMAGETYPE_AVIF => function_exists('imagecreatefromavif') ? @imagecreatefromavif($realPath) : null,
-                default => null,
-            };
-            if (!$src) return null;
-
-            if ($needResize) {
-                $ratio = min($maxDim / $width, $maxDim / $height);
-                $newW = (int) round($width * $ratio);
-                $newH = (int) round($height * $ratio);
-                $dst = imagecreatetruecolor($newW, $newH);
-                // حافظ على الشفافية لـ PNG/WebP
-                if (in_array($type, [IMAGETYPE_PNG, IMAGETYPE_WEBP])) {
-                    imagealphablending($dst, false);
-                    imagesavealpha($dst, true);
-                    $transparent = imagecolorallocatealpha($dst, 0, 0, 0, 127);
-                    imagefilledrectangle($dst, 0, 0, $newW, $newH, $transparent);
-                }
-                imagecopyresampled($dst, $src, 0, 0, 0, 0, $newW, $newH, $width, $height);
-                imagedestroy($src);
-                $src = $dst;
-            }
-
-            $tmpPath = sys_get_temp_dir() . '/' . Str::uuid() . '.jpg';
-            // احفظ كـ JPEG بجودة 82 — أفضل توازن حجم/جودة، أو WebP لو الأصل WebP
-            $ok = false;
-            $ext = 'jpg';
-            if ($type === IMAGETYPE_PNG && function_exists('imagepng')) {
-                // حاول WebP لو متاح (أصغر)
-                if (function_exists('imagewebp')) {
-                    $tmpPath = sys_get_temp_dir() . '/' . Str::uuid() . '.webp';
-                    $ok = @imagewebp($src, $tmpPath, 80);
-                    $ext = 'webp';
-                    if (!$ok) {
-                        $tmpPath = sys_get_temp_dir() . '/' . Str::uuid() . '.jpg';
-                        $ok = @imagejpeg($src, $tmpPath, 82);
-                        $ext = 'jpg';
-                    }
-                } else {
-                    $ok = @imagejpeg($src, $tmpPath, 82);
-                }
-            } elseif ($type === IMAGETYPE_WEBP && function_exists('imagewebp')) {
-                $tmpPath = sys_get_temp_dir() . '/' . Str::uuid() . '.webp';
-                $ok = @imagewebp($src, $tmpPath, 80);
-                $ext = 'webp';
-            } else {
-                $ok = @imagejpeg($src, $tmpPath, 82);
-            }
-            imagedestroy($src);
-            if (!$ok || !file_exists($tmpPath) || filesize($tmpPath) >= $size) {
-                if (file_exists($tmpPath)) @unlink($tmpPath);
-                return null;
-            }
-            $newFile = new UploadedFile($tmpPath, $file->getClientOriginalName(), $ext === 'webp' ? 'image/webp' : 'image/jpeg', null, true);
-            return ['file' => $newFile, 'tempPath' => $tmpPath, 'ext' => $ext];
-        } catch (\Throwable $e) {
-            return null;
-        }
     }
 
     private function uploadErrorMessage(int $code, string $name): string
