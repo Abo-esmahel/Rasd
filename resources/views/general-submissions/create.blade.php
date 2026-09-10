@@ -79,7 +79,7 @@
                 <label class="block text-sm font-bold text-ink-700 mb-1.5">المرفقات <span class="text-ink-300 font-medium text-xs">— اختياري (صور / فيديو / صوت)</span></label>
                 <div class="rounded-xl border-2 border-dashed border-[#e6e9e1] bg-[#f5f7f5] hover:border-[#0e6a38] transition p-5 text-center" id="gs-drop-zone">
                     <label for="gs-files" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#0e6a38] text-white font-bold text-sm cursor-pointer hover:bg-[#0a4d28] transition">اختيار ملفات</label>
-                    <input type="file" id="gs-files" name="files[]" multiple accept="image/*,video/*,audio/*" class="hidden">
+                    <input type="file" id="gs-files" name="files[]" multiple accept="image/*,video/*,audio/*,.aac,.m4a,.mp3,.wav,.ogg,.flac,.opus,.wma,.aiff,.amr,.3ga,.weba" class="hidden">
                     <div id="gs-file-list" class="mt-3 hidden text-right space-y-1.5"></div>
                 </div>
                 @error('files') <p class="text-xs text-red-500 mt-1">{{ $message }}</p> @enderror

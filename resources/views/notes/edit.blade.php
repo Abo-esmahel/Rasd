@@ -214,7 +214,7 @@
                             <audio id="audio-preview-player-edit" class="hidden w-full mt-2 rounded-lg" controls></audio>
                             <div id="audio-preview-pending-edit" class="hidden mt-2 text-[11px] text-[#0e6a38] font-bold">سيتم إرفاقه عند حفظ الملاحظة</div>
                         </div>
-                        <input type="file" id="edit-files" name="files[]" multiple accept="image/*,video/*,audio/*" class="hidden">
+                        <input type="file" id="edit-files" name="files[]" multiple accept="image/*,video/*,audio/*,.aac,.m4a,.mp3,.wav,.ogg,.flac,.opus,.wma,.aiff,.amr,.3ga,.weba" class="hidden">
                         <div id="edit-file-list" class="mt-3 hidden space-y-1.5 text-right"></div>
                     </div>
 
