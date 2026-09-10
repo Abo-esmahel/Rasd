@@ -179,26 +179,22 @@
 
         @foreach($notes as $note)
             <div class="note-row grid grid-cols-[auto_1fr_auto_auto] gap-4 items-center px-5 py-3.5 border-b border-surface-300 last:border-b-0 cursor-pointer" onclick="openModal('detail-{{ $note->id }}')">
-                {{-- ID --}}
-                <div class="w-20">
-                    <span class="text-sm font-bold text-[#737373] font-mono">#{{ str_pad($note->id, 4, '0', STR_PAD_LEFT) }}</span>
+                {{-- ID — تصغير غير مزعج --}}
+                <div class="w-14">
+                    <span class="text-[11px] font-mono text-ink-300">#{{ $note->id }}</span>
                 </div>
 
-                {{-- Main info --}}
+                {{-- Main info — عنوان ذكي مختصر --}}
                 <div class="min-w-0">
                     <div class="flex items-center gap-2 flex-wrap">
-                        <span class="inline-flex items-center gap-1 text-sm font-bold text-ink-800">
-                            <svg class="w-3.5 h-3.5 text-[#0e6a38]" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
-                            كاميرا {{ $note->camera_number }}
+                        <span class="inline-flex items-center gap-1.5 text-sm font-extrabold text-ink-800">
+                            <span class="w-2 h-2 rounded-full {{ $note->isAccepted() ? 'bg-sage-600' : ($note->isRejected() ? 'bg-red-400' : ($note->isPending() ? 'bg-amber-400' : 'bg-ink-300')) }}"></span>
+                            كاميرا {{ $note->camera_number }} · طابق {{ $note->floor_number }}
                         </span>
-                        <span class="text-ink-200">·</span>
-                        <span class="text-sm text-[#525252]">الطابق {{ $note->floor_number }}</span>
-                        <span class="text-ink-200">·</span>
-                        <span class="text-sm text-[#737373]">{{ $note->observed_at->toTime12() }}{{ $note->observed_end_at ? ' — '.$note->observed_end_at->toTime12() : '' }}</span>
-                        <span class="text-ink-200">·</span>
-                        <span class="text-sm text-[#737373]">{{ $note->created_at->diffForHumans() }}</span>
+                        <span class="text-xs px-1.5 py-0.5 rounded bg-surface-100 border border-surface-300 text-ink-500 font-mono">{{ $note->observed_at->toTime12() }}{{ $note->observed_end_at ? '→'.$note->observed_end_at->toTime12() : '' }}</span>
+                        <span class="text-xs text-ink-300">{{ $note->created_at->diffForHumans() }}</span>
                     </div>
-                    <p class="mt-1 text-sm text-[#737373] line-clamp-1 leading-relaxed">{{ \Illuminate\Support\Str::limit($note->description, 120) }}</p>
+                    <p class="mt-1 text-sm font-medium text-ink-700 line-clamp-1 leading-relaxed">{{ \Illuminate\Support\Str::limit($note->description, 90) }}</p>
                     <div class="mt-1.5 flex items-center gap-2 text-xs text-ink-300">
                         <a href="{{ route('profile.showUser', $note->owner->id) }}" onclick="event.stopPropagation()" class="inline-flex items-center gap-1.5 hover:opacity-80 hover:text-ink-700 transition">
                             @if($note->owner->avatar_url)
@@ -296,7 +292,7 @@
             <div class="bg-white rounded-xl border border-[#e6e9e1] shadow-sm p-4 hover:shadow-md hover:border-[#d4ddd3] transition" onclick="openModal('detail-{{ $note->id }}')" role="button">
                 <div class="flex items-start justify-between gap-2 mb-2">
                     <div class="flex items-center gap-2">
-                        <span class="text-xs font-bold text-[#737373] font-mono">#{{ str_pad($note->id, 4, '0', STR_PAD_LEFT) }}</span>
+                        <span class="text-[11px] font-mono text-ink-300">#{{ $note->id }}</span>
                         @if($note->isDraft())
                             <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-ink-100 text-[#525252]">مسودة</span>
                         @elseif($note->isPending())
@@ -425,7 +421,7 @@
                     </a>
                     <div class="min-w-0">
                         <div class="flex items-center gap-2 flex-wrap">
-                            <h2 class="text-base font-extrabold text-ink-800">ملاحظة #{{ str_pad($note->id, 4, '0', STR_PAD_LEFT) }}</h2>
+                            <h2 class="text-base font-extrabold text-ink-800">كاميرا {{ $note->camera_number }} · طابق {{ $note->floor_number }} <span class="text-xs font-mono text-ink-300">#{{ $note->id }}</span></h2>
                             @if($note->isDraft())
                             <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-ink-100 text-ink-600">مسودة</span>
                             @elseif($note->isPending())

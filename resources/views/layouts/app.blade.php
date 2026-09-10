@@ -67,11 +67,13 @@
         html.dark ::-webkit-scrollbar-thumb:hover{background:#404840}
         html.dark{color-scheme:dark}
         html.dark body{background:#1e2320 !important;color:#e7ece5 !important}
-        html.dark .bg-\[\#fdfcfa\],html.dark .bg-white,html.dark .bg-white\/80{background-color:#252b26 !important}
-        html.dark .bg-\[\#f1f3f0\],html.dark .bg-surface-100{background-color:#1e2320 !important}
-        html.dark .bg-\[\#f6f7f5\],html.dark .bg-\[\#f5f7f5\],html.dark .bg-surface-50,html.dark .bg-surface-200{background-color:#2a302b !important}
+        html.dark .bg-\[\#fdfcfa\],html.dark .bg-white,html.dark .bg-white\/80,html.dark .bg-white\/90{background-color:#252b26 !important}
+        html.dark .bg-\[\#f1f3f0\],html.dark .bg-surface-100,html.dark .bg-surface-50\/50{background-color:#1e2320 !important}
+        html.dark .bg-\[\#f6f7f5\],html.dark .bg-\[\#f5f7f5\],html.dark .bg-surface-50,html.dark .bg-surface-200,html.dark .bg-\[\#f5f7f5\]\/50{background-color:#2a302b !important}
         html.dark .bg-\[\#eceee9\]{background-color:#1e2320 !important}
-        html.dark .bg-surface-300{background-color:#2e352e !important}
+        html.dark .bg-surface-300,html.dark .border-surface-300\/50{background-color:#2e352e !important}
+        html.dark .prose,html.dark pre,html.dark code,html.dark .log-panel{background-color:#1e2320 !important;color:#e7ece5 !important;border-color:#2e352e !important}
+        html.dark .bg-white pre,html.dark .bg-\[\#fdfcfa\] pre{background-color:#1a1f1a !important}
         html.dark .bg-sage-50{background-color:#1e2e22 !important}
         html.dark .bg-sage-100{background-color:#1e3328 !important}
         html.dark .bg-sage-600{background-color:#1a7a3f !important}
@@ -396,7 +398,7 @@
                                  bg-[#1a2e1f]/95 dark:bg-[#0e1a10]/95 backdrop-blur-sm shadow-lg border border-white/10">
                         <span class="block">طارق عبد الرحمن</span>
                         <span class="block w-6 h-px bg-white/20 mx-auto my-1"></span>
-                        <span class="block">هادي السهلي</span>
+                        <span class="block">هاد لسهلي</span>
                     </span>
                     <span class="block w-2.5 h-2.5 bg-[#1a2e1f]/95 dark:bg-[#0e1a10]/95 rotate-45 mx-auto -mt-1.5 border-r border-b border-white/10"></span>
                 </span>
