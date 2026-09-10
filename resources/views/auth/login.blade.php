@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="color-scheme" content="light dark">
-    <!-- PWA ROOT -->
+    
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#1f6f4a">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -13,13 +13,14 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="application-name" content="ملاحظة">
     <meta name="description" content="نظام ملاحظة كاميرات المراقبة">
+    <link rel="icon" type="image/svg+xml" href="{{ asset('images/eagle-emblem.svg') }}">
     <link rel="icon" type="image/png" sizes="192x192" href="/pwa/icons/icon-192.png">
     <link rel="apple-touch-icon" href="/pwa/icons/icon-192.png">
     <title>تسجيل الدخول — وزارة الإعلام السورية</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    {{-- Vite CSS — يمنع FOUC: التحميل المتزامن قبل الرسم --}}
+    
     @vite(['resources/css/app.css'])
     <script>(function(){try{var t=localStorage.getItem('theme')||localStorage.getItem('rasd_theme');var d=window.matchMedia('(prefers-color-scheme: dark)').matches;if(t==='dark'||(!t&&d))document.documentElement.classList.add('dark');}catch(e){}})();</script>
     <style>
@@ -57,19 +58,20 @@
     </div>
 
     <div class="flex-1 flex items-center justify-center p-4 sm:p-6 lg:p-8">
-        <div class="w-full max-w-[480px]">
-            <div class="flex flex-col justify-center min-w-0">
-                <div class="flex justify-center mb-4">
-                    <div class="inline-flex items-center gap-3 bg-[#fdfcfa] border border-[#e6e9e1] rounded-2xl px-5 py-3 shadow-sm">
-                        <div class="w-10 h-10 rounded-xl bg-white border border-[#e6e9e1] flex items-center justify-center overflow-hidden">
-                            <svg width="28" height="28" viewBox="0 0 36 36" fill="none"><rect x="2" y="4" width="32" height="28" rx="6" fill="white" stroke="#e3ebe5"/><path d="M6 9.5C6 8.672 6.672 8 7.5 8H28.5C29.328 8 30 8.672 30 9.5V13H6V9.5Z" fill="#0e6a38"/><rect x="6" y="13" width="24" height="6" fill="white"/><g fill="#ce1126"><circle cx="12" cy="15.5" r="1.1"/><circle cx="18" cy="15.5" r="1.1"/><circle cx="24" cy="15.5" r="1.1"/></g><path d="M6 19H30V26.5C30 27.328 29.328 28 28.5 28H7.5C6.672 28 6 27.328 6 26.5V19Z" fill="#0f1a13"/></svg>
-                        </div>
-                        <div class="text-right">
-                            <div class="text-[11px] font-extrabold tracking-widest text-[#94a8a0]">وزارة الإعلام</div>
-                            <div class="text-[14px] font-extrabold text-[#0f1e14] leading-none">نظام ملاحظات المراقبة</div>
-                        </div>
+        <div class="w-full max-w-[480px] -mt-4 sm:-mt-6">
+            <div class="flex flex-col items-center text-center min-w-0 px-2 mb-5 sm:mb-6">
+                <div class="relative -translate-y-7 sm:-translate-y-2">
+                    <div class="absolute inset-0 -m-4 rounded-full bg-[#0e6a38]/10 blur-2xl" aria-hidden="true"></div>
+                    <div class="absolute inset-0 -m-1.5 rounded-full border border-[#0e6a38]/20" aria-hidden="true"></div>
+                    <div class="relative w-32 h-32 sm:w-[160px] sm:h-[160px] rounded-full bg-white border border-[#e6e9e1] shadow-lg shadow-[#0e6a38]/10 flex items-center justify-center overflow-hidden ring-1 ring-[#0e6a38]/25">
+                        <img src="{{ asset('images/eagle-emblem.svg') }}" alt="شعار النسر السوري" class="h-24 sm:h-[112px] w-auto max-w-none shrink-0 translate-x-[2%] translate-y-[3%] object-contain drop-shadow-md" loading="eager" fetchpriority="high" decoding="async">
                     </div>
+                    <span class="absolute -bottom-2.5 left-1/2 -translate-x-1/2 flex w-12 h-[4px] rounded-full overflow-hidden shadow-sm" aria-hidden="true">
+                        <i class="flex-1 bg-[#0e6a38]"></i><i class="flex-1 bg-white border-y border-black/5"></i><i class="flex-1 bg-[#0f1a13]"></i>
+                    </span>
                 </div>
+                <h1 class="sr-only">وزارة الإعلام — تسجيل الدخول</h1>
+            </div>
 
                 <div class="bg-[#fdfcfa] rounded-[24px] shadow-sm border border-[#e6e9e1] overflow-hidden">
                     <div class="h-[4px] w-full flex">
@@ -162,7 +164,7 @@
             window.addEventListener('storage', function(e){ if(e.key==='theme'||e.key==='rasd_theme') applyStoredTheme(); });
         })();
     </script>
-    {{-- PWA ROOT SW --}}
+    
     <script>
     (function(){
       if (!('serviceWorker' in navigator)) return;

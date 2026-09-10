@@ -11,7 +11,7 @@
     </div>
 
     <div class="bg-white rounded-2xl border border-[#e6e9e1] p-6">
-        <form method="POST" action="{{ route('general-submissions.store', [], false) }}" enctype="multipart/form-data" class="space-y-5" id="gs-create-form" novalidate>
+        <form method="POST" action="{{ route('general-submissions.store', [], false) }}" enctype="multipart/form-data" class="space-y-5" id="gs-create-form" data-no-loader novalidate>
             @csrf
             <div id="gs-form-errors" class="hidden p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700"></div>
             <div id="gs-upload-progress" class="hidden p-4 bg-[#eef4f0] border border-[#cde7d6] rounded-xl">
@@ -23,29 +23,6 @@
                     <div id="gs-upload-progress-bar" class="h-2.5 rounded-full bg-[#0e6a38] transition-all duration-300" style="width:0%"></div>
                 </div>
                 <div id="gs-upload-progress-detail" class="mt-1 text-[11px] text-ink-400">جاري رفع الملفات الأصلية دون تعديل (الجودة 100% محفوظة) — لا تغلق الصفحة</div>
-            </div>
-
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-sm font-bold text-ink-700 mb-1.5">رقم الطابق <span class="text-red-500">*</span></label>
-                    <input type="number" name="floor_number" value="{{ old('floor_number') }}" min="0" required class="block w-full rounded-xl border border-[#e6e9e1] bg-white py-3 px-4 text-sm focus:border-[#0e6a38] focus:ring-2 focus:ring-[#0e6a38]/10 outline-none @error('floor_number') border-red-400 @enderror">
-                    @error('floor_number') <p class="text-xs text-red-500 mt-1">{{ $message }}</p> @enderror
-                </div>
-                <div>
-                    <label class="block text-sm font-bold text-ink-700 mb-1.5">رقم الكاميرا <span class="text-red-500">*</span></label>
-                    <input type="number" name="camera_number" value="{{ old('camera_number') }}" min="1" required class="block w-full rounded-xl border border-[#e6e9e1] bg-white py-3 px-4 text-sm focus:border-[#0e6a38] focus:ring-2 focus:ring-[#0e6a38]/10 outline-none @error('camera_number') border-red-400 @enderror">
-                    @error('camera_number') <p class="text-xs text-red-500 mt-1">{{ $message }}</p> @enderror
-                </div>
-            </div>
-
-            <div>
-                <label class="block text-sm font-bold text-ink-700 mb-1.5">وقت الملاحظة <span class="text-red-500">*</span></label>
-                <input type="datetime-local" name="observed_at" value="{{ old('observed_at') }}" required class="block w-full rounded-xl border border-[#e6e9e1] bg-white py-3 px-4 text-sm focus:border-[#0e6a38] focus:ring-2 focus:ring-[#0e6a38]/10 outline-none @error('observed_at') border-red-400 @enderror">
-                @error('observed_at') <p class="text-xs text-red-500 mt-1">{{ $message }}</p> @enderror
-            </div>
-            <div>
-                <label class="block text-sm font-bold text-ink-700 mb-1.5">وقت انتهاء الملاحظة</label>
-                <input type="datetime-local" name="observed_end_at" value="{{ old('observed_end_at') }}" class="block w-full rounded-xl border border-[#e6e9e1] bg-white py-3 px-4 text-sm focus:border-[#0e6a38] focus:ring-2 focus:ring-[#0e6a38]/10 outline-none">
             </div>
 
             <div>
@@ -65,7 +42,7 @@
                                 <label class="flex items-center gap-3 p-3 rounded-xl bg-white border border-[#e6e9e1] hover:border-[#0e6a38] cursor-pointer transition has-[:checked]:border-[#0e6a38] has-[:checked]:bg-[#eef4f0]">
                                     <input type="checkbox" name="report_writer_ids[]" value="{{ $writer->id }}" {{ in_array($writer->id, old('report_writer_ids', [])) ? 'checked' : '' }} class="w-4 h-4 rounded border-[#e6e9e1] text-[#0e6a38] focus:ring-[#0e6a38]">
                                     <span class="text-sm font-bold text-ink-700">{{ $writer->name }}</span>
-                                    <span class="text-xs text-ink-400 mr-auto">@{{ $writer->username }}</span>
+                                    <span class="text-xs text-ink-400 mr-auto">{{ '@' . $writer->username }}</span>
                                 </label>
                             @endforeach
                         </div>
@@ -79,6 +56,10 @@
                 <label class="block text-sm font-bold text-ink-700 mb-1.5">المرفقات <span class="text-ink-300 font-medium text-xs">— اختياري (صور / فيديو / صوت)</span></label>
                 <div class="rounded-xl border-2 border-dashed border-[#e6e9e1] bg-[#f5f7f5] hover:border-[#0e6a38] transition p-5 text-center" id="gs-drop-zone">
                     <label for="gs-files" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#0e6a38] text-white font-bold text-sm cursor-pointer hover:bg-[#0a4d28] transition">اختيار ملفات</label>
+                    <button type="button" id="gs-cam-photo-btn" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-white border border-[#e6e9e1] text-ink-700 font-bold text-sm hover:border-[#0e6a38] hover:text-[#0e6a38] transition">📷 تصوير</button>
+                    <button type="button" id="gs-cam-video-btn" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-white border border-[#e6e9e1] text-ink-700 font-bold text-sm hover:border-[#0e6a38] hover:text-[#0e6a38] transition">🎥 فيديو</button>
+                    <input type="file" id="gs-cam-photo-input" accept="image/*" capture="environment" class="hidden">
+                    <input type="file" id="gs-cam-video-input" accept="video/*" capture="environment" class="hidden">
                     <input type="file" id="gs-files" name="files[]" multiple accept="image/*,video/*,audio/*,.aac,.m4a,.mp3,.wav,.ogg,.flac,.opus,.wma,.aiff,.amr,.3ga,.weba" class="hidden">
                     <div id="gs-file-list" class="mt-3 hidden text-right space-y-1.5"></div>
                 </div>
@@ -99,6 +80,7 @@
     const input=document.getElementById('gs-files'),zone=document.getElementById('gs-drop-zone'),list=document.getElementById('gs-file-list');
     const formEl=document.getElementById('gs-create-form'),errEl=document.getElementById('gs-form-errors');
     let transfer=new DataTransfer(),intended=0;
+    let pendingGs=[];
     function setGsProgress(pct, detail){
         const wrap=document.getElementById('gs-upload-progress'), bar=document.getElementById('gs-upload-progress-bar'), txt=document.getElementById('gs-upload-progress-text'), det=document.getElementById('gs-upload-progress-detail');
         if(!wrap) return;
@@ -129,14 +111,27 @@
         const files=Array.from(transfer.files);
         if(!files.length){ list.classList.add('hidden'); list.innerHTML=''; return; }
         list.classList.remove('hidden');
+        const counters={img:0,vid:0,aud:0,other:0};
+        const escAttr=s=>String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+        const friendlyName=f=>{
+            if(f.type.startsWith('audio/')) return 'مقطع صوتي '+ (++counters.aud);
+            if(f.type.startsWith('video/')) return 'فيديو '+ (++counters.vid);
+            if(f.type.startsWith('image/')) return 'صورة '+ (++counters.img);
+            const ext=(f.name.split('.').pop()||'').toLowerCase();
+            return 'مرفق '+ (++counters.other) + (ext && ext.length<=5 ? ' (.'+ext+')' : '');
+        };
         list.innerHTML=files.map((f,i)=>{
             const sz=(f.size/1024/1024).toFixed(2)+' MB';
-            return `<div class="flex items-center gap-2.5 p-2.5 bg-white border border-[#e6e9e1] rounded-lg text-sm"><div class="flex-1 min-w-0 text-right"><div class="font-bold text-ink-700 truncate">${f.name}</div><div class="text-xs text-ink-400">${sz} • ${f.type||'—'}</div></div><button type="button" data-rm="${i}" class="shrink-0 w-7 h-7 rounded-lg hover:bg-red-50 text-ink-300 hover:text-red-500">✕</button></div>`;
+            return `<div class="flex items-center gap-2.5 p-2.5 bg-white border border-[#e6e9e1] rounded-lg text-sm"><div class="flex-1 min-w-0 text-right"><div class="font-bold text-ink-700 truncate" title="${escAttr(f.name)}">${friendlyName(f)}</div><div class="text-xs text-ink-400">${sz} • ${f.type||'—'}</div></div><button type="button" data-rm="${i}" class="shrink-0 w-7 h-7 rounded-lg hover:bg-red-50 text-ink-300 hover:text-red-500">✕</button></div>`;
         }).join('');
         list.querySelectorAll('[data-rm]').forEach(b=>b.addEventListener('click',()=>{
             const idx=parseInt(b.dataset.rm),dt=new DataTransfer();
+            const removedFile=Array.from(transfer.files)[idx];
             Array.from(transfer.files).forEach((f,j)=>{ if(j!==idx) dt.items.add(f); });
-            transfer=dt; intended=Math.max(0,intended-1); sync(); render();
+            transfer=dt; intended=Math.max(0,intended-1);
+            if(removedFile) pendingGs=pendingGs.filter(f=>f!==removedFile);
+            else pendingGs.splice(idx,1);
+            sync(); render();
         }));
     }
     function addFiles(arr){
@@ -149,25 +144,30 @@
             if(file.type.startsWith('image/')&&file.size>20*1024*1024){ alert('حجم الصورة كبير (20MB): '+file.name); continue; }
             if(file.type.startsWith('video/')&&file.size>100*1024*1024){ alert('حجم الفيديو كبير (100MB): '+file.name); continue; }
             if(isAudio&&file.size>100*1024*1024){ alert('حجم الصوت كبير (100MB): '+file.name); continue; }
-            transfer.items.add(file); intended++;
+            transfer.items.add(file); pendingGs.push(file); intended++;
         }
         sync(); render();
     }
     input?.addEventListener('change',e=>{ addFiles(Array.from(e.target.files)); input.value=''; sync(); });
+    const camPhoto=document.getElementById('gs-cam-photo-input'),camVideo=document.getElementById('gs-cam-video-input');
+    document.getElementById('gs-cam-photo-btn')?.addEventListener('click',()=>camPhoto?.click());
+    document.getElementById('gs-cam-video-btn')?.addEventListener('click',()=>camVideo?.click());
+    camPhoto?.addEventListener('change',e=>{ addFiles(Array.from(e.target.files)); camPhoto.value=''; sync(); });
+    camVideo?.addEventListener('change',e=>{ addFiles(Array.from(e.target.files)); camVideo.value=''; sync(); });
     ['dragenter','dragover'].forEach(ev=>zone?.addEventListener(ev,e=>{e.preventDefault();}));
     zone?.addEventListener('drop',e=>{ e.preventDefault(); if(e.dataTransfer?.files?.length) addFiles(Array.from(e.dataTransfer.files)); });
     formEl?.addEventListener('submit',async e=>{
-        if(!(transfer.files.length>0||intended>0)) return; // no files → normal submit
+        if(!(transfer.files.length>0||intended>0)) return; 
         e.preventDefault();
         errEl.classList.add('hidden');
         const btn=e.submitter||document.activeElement;
         if(btn) btn.disabled=true;
         const fd=new FormData(formEl);
         fd.delete('files[]');
-        const toSend=transfer.files.length>0?Array.from(transfer.files):Array.from(input.files);
+        const toSend=transfer.files.length>0?Array.from(transfer.files):(pendingGs.length>0?pendingGs.slice():Array.from(input.files));
         toSend.forEach(f=>fd.append('files[]',f));
         const announced=intended;
-        // Total size early check vs post_max_size (120M safety, server 128M)
+        
         const totalBytesGs = toSend.reduce((s,f)=>s+f.size,0);
         if(totalBytesGs > 120*1024*1024){
             errEl.innerHTML='<div class="font-bold mb-1 text-red-600">إجمالي المرفقات كبير جداً</div><p class="text-xs">الحجم الإجمالي '+(totalBytesGs/1024/1024).toFixed(1)+' MB يتجاوز الحد 128M. قلل المرفقات ثم أعد المحاولة.</p>';
@@ -181,10 +181,12 @@
         try{
             const csrfTokenGs=document.querySelector('meta[name="csrf-token"]')?.content || '';
             setGsProgress(5, 'جاري رفع '+toSend.length+' ملف...');
+            document.getElementById('gs-upload-progress')?.scrollIntoView({behavior:'smooth',block:'center'});
             const res=await xhrUploadGs(formEl.action, fd, csrfTokenGs, (pct, loaded, total)=> setGsProgress(Math.max(5, Math.min(95, pct)), 'جاري الرفع '+pct+'%'+ (loaded ? ' ('+(loaded/1024/1024).toFixed(1)+' / '+(total/1024/1024).toFixed(1)+' MB)' : '')+' — لا تغلق الصفحة'));
             setGsProgress(98, 'تم الرفع 100%، جاري التحقق من الحفظ...');
             let data=res.data
             const fail=(t,errs)=>{
+                hideGsProgress();
                 const list=(errs&&errs.length?errs:['فشل رفع المرفقات. لم يتم حفظ الإرسالية.']).map(x=>typeof x==='string'?x:((x.file?x.file+': ':'')+(x.message||JSON.stringify(x)))).join('<br>');
                 errEl.innerHTML='<div class="font-bold mb-1 text-red-600">'+t+'</div><p class="text-xs">'+list+'</p><p class="mt-2 text-xs font-bold">الملفات محفوظة — أعد المحاولة.</p>';
                 errEl.classList.remove('hidden'); errEl.scrollIntoView({behavior:'smooth',block:'center'});
@@ -207,7 +209,7 @@
             if(err.name === 'AbortError'){
                 errEl.innerHTML='<div class="font-bold mb-1 text-red-600">انتهت مهلة الإرسال (10 دقائق)</div><p class="text-xs">تحقق من اتصالك أو قلل حجم المرفقات.</p>';
             } else {
-                errEl.innerHTML='<div class="font-bold text-red-600">خطأ في الشبكة</div><p class="text-xs">'+(err.message||'''')+'</p>';
+                errEl.innerHTML='<div class="font-bold text-red-600">خطأ في الشبكة</div><p class="text-xs">'+(err.message||'')+'</p>';
             }
             errEl.classList.remove('hidden');
         }finally{ hideGsProgress(); if(btn) btn.disabled=false; }

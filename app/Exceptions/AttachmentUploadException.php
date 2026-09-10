@@ -5,12 +5,6 @@ namespace App\Exceptions;
 use RuntimeException;
 use Throwable;
 
-/**
- * Explicit failure for any stage of the attachment pipeline.
- *
- * Invariant enforced by callers:
- *   FILE SENT + FILE NOT SAVED = REQUEST FAILED (never silent success).
- */
 class AttachmentUploadException extends RuntimeException
 {
     public function __construct(

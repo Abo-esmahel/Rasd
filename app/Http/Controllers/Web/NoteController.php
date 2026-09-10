@@ -56,9 +56,13 @@ class NoteController extends Controller
             $query->orderByDesc('created_at');
         }
 
+        // Live signature for silent 1s polling (list refreshes only on change).
+        if ($request->boolean('live')) {
+            return response()->json($this->notesSignature($query));
+        }
+
         $notes = $query->paginate(15)->withQueryString();
-        // إصلاح جمود الموقع: استعلام مباشر بدون file cache (file cache + SQLite + file session = تـنافس على قفل الملف)
-        // 4 صفوف فقط — الاستعلام أسرع من قراءة/كتابة cache
+
         $observers = User::where('role', 'monitor')->orderBy('name')->get(['id', 'name']);
 
         $observerUser = null;
@@ -72,7 +76,7 @@ class NoteController extends Controller
     public function myNotes(Request $request)
     {
         $user = $request->user();
-        $query = Note::with(['owner','processor','attachments'])->where('user_id', $user->id);
+        $query = Note::with(['owner','processor','attachments'])->where('user_id', $user->id)->whereNull('notes.general_submission_id');
 
         if ($request->filled('status') && in_array($request->status, ['draft','pending','accepted','rejected'], true)) {
             $query->where('status', $request->status);
@@ -85,6 +89,11 @@ class NoteController extends Controller
         }
         if ($request->filled('camera_number') && is_numeric($request->camera_number)) {
             $query->where('camera_number', (int) $request->camera_number);
+        }
+
+        // Live signature for silent 1s polling (list refreshes only on change).
+        if ($request->boolean('live')) {
+            return response()->json($this->notesSignature($query));
         }
 
         $notes = $query->orderByDesc('created_at')->paginate(15)->withQueryString();
@@ -107,7 +116,7 @@ class NoteController extends Controller
         $this->authorize('create', Note::class);
 
         $maxFiles = max(1, (int) ini_get('max_file_uploads') ?: 20);
-        // حد الملف الواحد = أصغر بين حد PHP وحد التطبيق — أسرع فشل مبكر ورسالة واضحة
+        
         $phpMaxKb = (int) ($this->parseBytes((string) ini_get('upload_max_filesize')) / 1024);
         $appMaxKb = max(
             (int) config('attachments.max_image_size', 20480),
@@ -135,7 +144,7 @@ class NoteController extends Controller
             'description' => 'الوصف',
         ]);
 
-        // إصلاح واجهة المراقبة الليلية: إذا كان وقت الانتهاء أبكر من وقت البداية لنفس التاريخ، اعتبره اليوم التالي
+        
         if (!empty($validated['observed_end_at']) && !empty($validated['observed_at'])) {
             try {
                 $start = \Carbon\Carbon::parse($validated['observed_at']);
@@ -151,7 +160,7 @@ class NoteController extends Controller
         $receivedFiles = is_array($rawFiles) ? array_values(array_filter($rawFiles)) : ($rawFiles ? [$rawFiles] : []);
         $clientFilesCount = max(0, (int) $request->input('client_files_count', 0));
 
-        // Explicit per-file PHP upload check BEFORE any DB write (fail fast, no silent success).
+        
         foreach ($receivedFiles as $f) {
             if (!$f->isValid()) {
                 $msg = $this->uploadErrorMessage($f->getError(), $f->getClientOriginalName());
@@ -397,10 +406,7 @@ class NoteController extends Controller
         return redirect()->route('notes.index')->with('success', 'تمت إعادة إرسال الملاحظة');
     }
 
-    /**
-     * رفع مرفق واحد بعد إنشاء الملاحظة — يستخدم للرفع المتدرج (Progressive Upload)
-     * يسمح برفع ملفات كبيرة واحدة تلو الأخرى بدلاً من طلب واحد ضخم، أسرع وأكثر استقراراً
-     */
+    
     public function storeAttachment(Request $request, Note $note)
     {
         $this->authorize('update', $note);
@@ -447,12 +453,7 @@ class NoteController extends Controller
         return back()->with('success', 'تم حذف المرفق');
     }
 
-    /**
-     * Secure view route:
-     *   local exists → stream from local disk (auth already checked)
-     *   else legacy secure_url → redirect (read-only fallback)
-     *   else → controlled 404 (never silent broken image)
-     */
+    
     public function viewAttachment(Attachment $attachment)
     {
         $user = auth()->user();
@@ -463,17 +464,6 @@ class NoteController extends Controller
             return $this->storage->fileResponse($attachment, false);
         }
 
-        // Legacy Cloudinary fallback: secure_url only (new local files have null secure_url).
-        if (!empty($attachment->secure_url)) {
-            return redirect()->away($attachment->secure_url);
-        }
-
-        // Fallback for very old records without secure_url but with a resolvable Cloudinary URL.
-        $url = $attachment->url;
-        if ($url && $this->storage->storageType($attachment) === 'cloudinary_legacy') {
-            return redirect()->away($url);
-        }
-
         abort(404, 'الملف غير موجود');
     }
 
@@ -482,28 +472,79 @@ class NoteController extends Controller
         $user = auth()->user();
         $note = $attachment->note;
         if (!$user->can('view', $note)) abort(403, 'غير مصرح لك بتحميل هذا المرفق');
-        // التنزيل لكاتب التقرير فقط — حتى صاحب الملاحظة لا يمكنه التنزيل (حسب سياسة المشروع)
+
         if (!$user->isReportWriter()) abort(403, 'التنزيل مسموح لكاتب التقرير فقط');
 
         if ($this->storage->isLocal($attachment)) {
             return $this->storage->fileResponse($attachment, true);
         }
 
-        if (!empty($attachment->secure_url)) {
-            return redirect()->away($attachment->secure_url);
-        }
-
-        $url = $attachment->url;
-        if ($url && $this->storage->storageType($attachment) === 'cloudinary_legacy') {
-            return redirect()->away($url);
-        }
-
         abort(404, 'الملف غير موجود');
+    }
+
+    /**
+     * Shared viewer page for WhatsApp sharing: login required (auth middleware).
+     * Renders a dedicated page with a proper player (image / video / audio).
+     * Download button is shown to report writers only.
+     */
+    public function sharedViewAttachment(int $attachment)
+    {
+        // Guests always go to login first (even for unknown ids) — never a bare 404.
+        if (!auth()->check()) {
+            return redirect()->guest(route('login'));
+        }
+        $model = Attachment::findOrFail($attachment);
+        if (!$this->storage->isLocal($model)) {
+            abort(404, 'الملف غير موجود');
+        }
+
+        return view('shared.attachment', [
+            'name' => $model->original_name,
+            'mime' => $model->mime_type,
+            'size' => $model->file_size,
+            'fileUrl' => route('shared.attachments.file', $model),
+            'downloadUrl' => route('notes.attachments.download', $model),
+            'canDownload' => auth()->user()->isReportWriter(),
+        ]);
+    }
+
+    /**
+     * Raw file bytes for the share viewer player (login required).
+     * Always streams inline (view only, never download).
+     */
+    public function sharedFileAttachment(int $attachment)
+    {
+        if (!auth()->check()) {
+            return redirect()->guest(route('login'));
+        }
+        $model = Attachment::findOrFail($attachment);
+        if (!$this->storage->isLocal($model)) {
+            abort(404, 'الملف غير موجود');
+        }
+
+        return $this->storage->fileResponse($model, false);
     }
 
     private function wantsJsonResponse(Request $request): bool
     {
         return $request->expectsJson() || $request->ajax() || $request->wantsJson();
+    }
+
+    /**
+     * Lightweight fingerprint of the currently filtered notes list.
+     * Used by silent 1s polling: two columns only, no relations, no views.
+     */
+    private function notesSignature($query): array
+    {
+        $fp = (clone $query)->reorder()->orderByDesc('notes.updated_at')->limit(60)
+            ->pluck('notes.updated_at', 'notes.id');
+        $total = (clone $query)->reorder()->count();
+        $sig = sha1(
+            $fp->map(fn ($t, $id) => $id . '@' . ($t instanceof \DateTimeInterface ? $t->getTimestamp() : strtotime((string) $t)))->implode('|')
+            . '#' . $total
+        );
+
+        return ['sig' => $sig, 'total' => $total];
     }
 
     private function flattenErrors(array $errors): array
@@ -520,9 +561,7 @@ class NoteController extends Controller
         return $out;
     }
 
-    /**
-     * UPLOAD INTEGRITY — رسالة عربية مفهومة لكل رمز خطأ رفع من PHP.
-     */
+    
     private function uploadErrorMessage(int $code, string $name): string
     {
         $safe = trim($name) !== '' ? $name : 'الملف';
@@ -538,10 +577,7 @@ class NoteController extends Controller
         };
     }
 
-    /**
-     * UPLOAD INTEGRITY — تجاوز post_max_size يفرّغ POST وFILES معاً بصمت.
-     * نكتشفه عبر Content-Length قبل أي معالجة. يعيد Response أو null.
-     */
+    
     private function postOverflowResponse(Request $request)
     {
         $postMax = $this->parseBytes((string) ini_get('post_max_size'));

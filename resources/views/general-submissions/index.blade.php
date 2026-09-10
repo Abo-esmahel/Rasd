@@ -14,6 +14,27 @@
         @endcan
     </div>
 
+    @php
+        $periodTabs = [
+            ['key' => null, 'label' => 'الكل'],
+            ['key' => 'today', 'label' => 'اليوم'],
+            ['key' => 'yesterday', 'label' => 'أمس'],
+            ['key' => 'week', 'label' => 'آخر 7 أيام'],
+            ['key' => 'month', 'label' => 'آخر 30 يوم'],
+        ];
+    @endphp
+    <div class="flex gap-2 mb-4 overflow-x-auto pb-1" role="group" aria-label="فلترة حسب الوقت">
+        @foreach($periodTabs as $tab)
+            @php
+                $isActive = ($period ?? null) === $tab['key'];
+                $url = $tab['key'] === null
+                    ? route('general-submissions.index', request()->except(['period', 'page']))
+                    : route('general-submissions.index', array_merge(request()->except(['period', 'page']), ['period' => $tab['key']]));
+            @endphp
+            <a href="{{ $url }}" class="shrink-0 px-4 py-1.5 rounded-full text-[13px] border transition {{ $isActive ? 'bg-[#0e6a38] border-[#0e6a38] text-white font-bold shadow-sm' : 'bg-white border-[#e6e9e1] text-ink-600 font-medium hover:border-[#0e6a38] hover:text-[#0e6a38]' }}">{{ $tab['label'] }}</a>
+        @endforeach
+    </div>
+
     @if($submissions->isEmpty())
         <div class="bg-white rounded-2xl border border-[#e6e9e1] p-10 text-center">
             <div class="w-14 h-14 rounded-2xl bg-[#f5f7f5] flex items-center justify-center mx-auto mb-3">📋</div>
@@ -38,11 +59,12 @@
                                     <span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-red-50 text-red-700">مرفوضة</span>
                                 @endif
                                 <span class="text-xs text-ink-400">{{ $submission->created_at->diffForHumans() }}</span>
+                                <span class="hidden md:inline text-xs text-ink-200">·</span>
+                                <span class="hidden md:inline text-[11px] text-ink-400/80 font-mono" dir="ltr" title="وقت الإنشاء">{{ $submission->created_at->format('Y-m-d H:i') }}</span>
                             </div>
                             <p class="text-sm text-ink-700 mt-2 line-clamp-2">{{ Str::limit($submission->description, 140) }}</p>
                             <div class="flex items-center gap-3 mt-2 text-xs text-ink-400">
-                                <span>الطابق {{ $submission->floor_number }}</span>
-                                <span>•</span>
+                                @if($submission->floor_number > 0)<span>الطابق {{ $submission->floor_number }}</span><span>•</span>@endif
                                 <span>كاميرا {{ $submission->camera_number }}</span>
                                 <span>•</span>
                                 <span>{{ $submission->observed_at->format('Y-m-d H:i') }}</span>

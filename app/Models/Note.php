@@ -19,6 +19,7 @@ class Note extends Model
 
     protected $fillable = [
         'user_id',
+        'general_submission_id',
         'floor_number',
         'camera_number',
         'observed_at',

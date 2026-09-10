@@ -11,7 +11,7 @@ return new class extends Migration
         Schema::create('general_submission_attachments', function (Blueprint $table) {
             $table->id();
             $table->foreignId('general_submission_id')->constrained()->cascadeOnDelete();
-            // Local disk relative path: submissions/{submission_id}/{uuid}.{ext}
+            
             $table->string('file_path');
             $table->string('original_name');
             $table->string('mime_type');

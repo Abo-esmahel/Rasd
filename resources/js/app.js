@@ -1,14 +1,10 @@
-/**
- * RASD Notifications — Vite Entry
- * Imports managers and initializes real-time system.
- */
+
 
 import { NotificationSoundManager } from './notifications/soundManager.js';
 import { NotificationManager } from './notifications/notificationManager.js';
 
-// Optional: Laravel Echo / Reverb (if configured). Keep but fail gracefully.
 try {
-  // Dynamically import echo only if env indicates reverb
+  
   if (import.meta.env.VITE_REVERB_APP_KEY) {
     await import('./echo.js');
   }
@@ -16,12 +12,11 @@ try {
   console.warn('[ECHO] not loaded', e);
 }
 
-// Initialize when DOM ready and auth exists
 function initNotifications() {
   const userIdMeta = document.querySelector('meta[name="user-id"]')?.content || window.NOTIF_USER_ID || null;
   const userId = userIdMeta ? parseInt(userIdMeta, 10) : null;
   if (!userId) {
-    // Not authenticated, nothing to init
+    
     return;
   }
 
@@ -47,7 +42,7 @@ function initNotifications() {
     debug,
   });
 
-  // Expose for debugging / external triggers
+  
   window.NotificationSoundManager = soundManager;
   window.NotificationManagerInstance = manager;
   window.RASDNotifications = manager;
@@ -66,7 +61,6 @@ if (document.readyState === 'loading') {
   initNotifications();
 }
 
-// Expose helper for manual testing
 window.testNotificationSound = async (type = 'normal') => {
   const sm = window.NotificationSoundManager;
   if (sm) return sm.test(type);

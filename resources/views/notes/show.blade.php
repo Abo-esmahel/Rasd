@@ -27,7 +27,7 @@
 
 @section('content')
 <div class="max-w-4xl mx-auto space-y-6">
-    {{-- Header --}}
+    
     <div class="flex items-center gap-3">
         <a href="{{ route('notes.index') }}" class="w-9 h-9 rounded-lg bg-white border border-[#e6e9e1] flex items-center justify-center text-ink-400 hover:text-ink-700 hover:bg-[#f5f7f5] transition" aria-label="العودة">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
@@ -45,7 +45,7 @@
         </span>
     </div>
 
-    {{-- Meta grid --}}
+    
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div class="rounded-xl bg-[#f5f7f5] border border-[#e6e9e1] p-3 text-center">
             <div class="text-[11px] font-bold text-ink-300 mb-1">رقم الكاميرا</div>
@@ -67,16 +67,18 @@
         </div>
     </div>
 
-    {{-- Owner & dates --}}
+    
     <div class="flex items-center gap-3 p-3 rounded-xl bg-[#f5f7f5] border border-[#e6e9e1]">
+        <a href="{{ route('profile.showUser', $note->owner->id) }}" class="shrink-0 hover:opacity-80 transition" aria-label="عرض الملف الشخصي">
         @if($note->owner->avatar_url)
             <img src="{{ $note->owner->avatar_url }}" alt="{{ $note->owner->name }}" class="w-9 h-9 rounded-lg object-cover border border-[#e6e9e1] shadow-sm">
         @else
             <div class="w-9 h-9 rounded-lg bg-[#eef4f0] text-[#0e6a38] flex items-center justify-center font-bold text-sm">{{ $note->owner->initial }}</div>
         @endif
+        </a>
         <div>
             <div class="text-[11px] font-bold text-ink-300">المُلاحظ</div>
-            <div class="text-sm font-bold text-ink-800">{{ $note->owner->name }}</div>
+            <div class="text-sm font-bold text-ink-800"><a href="{{ route('profile.showUser', $note->owner->id) }}" class="hover:text-[#0e6a38] hover:underline transition">{{ $note->owner->name }}</a></div>
         </div>
         <div class="mr-auto text-left">
             <div class="text-[11px] font-bold text-ink-300">تاريخ الإنشاء</div>
@@ -84,7 +86,7 @@
         </div>
     </div>
 
-    {{-- Description --}}
+    
     <div class="bg-white rounded-2xl border border-[#e6e9e1] p-6">
         <h3 class="text-sm font-bold text-ink-700 mb-3 flex items-center gap-2">
             <svg class="w-4 h-4 text-[#0e6a38]" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
@@ -106,7 +108,7 @@
         @endif
     </div>
 
-    {{-- Attachments --}}
+    
     @if($note->attachments->count() > 0)
     <div class="bg-white rounded-2xl border border-[#e6e9e1] p-6">
         <h3 class="text-sm font-bold text-ink-700 mb-3 flex items-center gap-2">
@@ -115,7 +117,7 @@
         </h3>
         <div class="space-y-2">
             @foreach($note->attachments as $attachment)
-                {{-- معاينة مرئية مباشرة للصور — DISPLAY PIPELINE: <img> ظاهر بدون نقر --}}
+                
                 @if(str_starts_with($attachment->mime_type, 'image/'))
                     <button type="button" onclick="openAttachmentView('{{ route('notes.attachments.view', $attachment) }}', '{{ $attachment->mime_type }}', '{{ addslashes($attachment->original_name) }}')" class="block w-full rounded-xl border border-[#e6e9e1] hover:border-[#cde7d6] overflow-hidden transition group" title="اضغط للعرض الكامل">
                         <img src="{{ route('notes.attachments.view', $attachment) }}" alt="{{ $attachment->original_name }}" data-testid="attachment-image" data-attachment-id="{{ $attachment->id }}" class="w-full max-h-96 object-contain bg-[#f5f7f5]" loading="lazy" oncontextmenu="return false;" draggable="false">
@@ -147,7 +149,7 @@
     </div>
     @endif
 
-    {{-- Actions footer --}}
+    
     <div class="flex flex-wrap items-center gap-2 p-4 bg-white rounded-xl border border-[#e6e9e1]">
         @if($isOwner && $note->isDraft())
             <a href="{{ route('notes.edit', $note) }}" class="px-4 py-2 rounded-lg bg-surface-50 border border-[#e6e9e1] text-ink-600 text-sm font-bold hover:bg-surface-100 transition">تعديل</a>
@@ -167,7 +169,7 @@
     </div>
 </div>
 
-{{-- Reject modal --}}
+
 @if(auth()->user()->isReportWriter() && $note->isPending())
 <div id="reject-modal" data-modal class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
     <div class="absolute inset-0 bg-ink-900/40 backdrop-blur-sm" onclick="closeModal('reject-modal')"></div>
@@ -180,7 +182,7 @@
 
 @include('notes.partials.print_modal')
 
-{{-- ===== ATTACHMENT VIEW MODAL — عرض فقط بدون تنزيل (مطابق لـ notes/index) ===== --}}
+
 <div id="attachment-view-modal" data-modal class="hidden fixed inset-0 z-[60] flex items-center justify-center p-4">
     <div class="absolute inset-0 bg-ink-900/70 backdrop-blur-sm" onclick="closeModal('attachment-view-modal')"></div>
     <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden">
@@ -238,7 +240,7 @@ function openAttachmentView(url, mime, name){
     img.oncontextmenu = () => false;
     video.oncontextmenu = () => false;
 }
-// منع السحب والحفظ
+
 document.addEventListener('contextmenu', e=>{
     const modal = document.getElementById('attachment-view-modal');
     if(modal && !modal.classList.contains('hidden') && (e.target.tagName==='IMG' || e.target.tagName==='VIDEO')){

@@ -2,7 +2,7 @@
 
 @section('content')
 <div class="max-w-4xl mx-auto">
-    {{-- Header — نفس لغة notes/index --}}
+    
     <div class="flex items-center gap-3 mb-5">
         <a href="{{ route('profile.show') }}" class="w-9 h-9 rounded-lg bg-white border border-surface-300 flex items-center justify-center text-ink-400 hover:text-ink-700 hover:bg-surface-100 transition shrink-0" aria-label="رجوع">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
@@ -14,7 +14,7 @@
         <span class="shrink-0 px-2.5 py-1.5 rounded-lg bg-white border border-surface-300 text-xs font-bold text-ink-500 tabular-nums">{{ $monitors->count() }} مراقب</span>
     </div>
 
-    {{-- Overview — بطاقة واحدة هادئة بدل 5 بطاقات ملونة --}}
+    
     <div class="bg-white rounded-2xl border border-surface-300 overflow-hidden mb-5">
         <div class="grid grid-cols-2 sm:grid-cols-4 divide-x divide-x-reverse divide-surface-300">
             @php
@@ -44,7 +44,7 @@
         </div>
     </div>
 
-    {{-- Podium — الأول فقط مميز بهدوء، بدون ذهبي صارخ --}}
+    
     @if($monitors->count() >= 1 && ($monitors->first()->accepted_notes ?? 0) > 0)
         @php $top = $monitors->first(); $topRate = $top->total_notes > 0 ? round($top->accepted_notes / $top->total_notes * 100) : 0; @endphp
         <a href="{{ route('profile.showUser', $top->id) }}" class="block bg-white rounded-2xl border border-sage-200 overflow-hidden mb-5 hover:border-sage-300 transition group">
@@ -72,7 +72,7 @@
         </a>
     @endif
 
-    {{-- List — صفوف هادئة قابلة للنقر بالكامل --}}
+    
     <div class="bg-white rounded-2xl border border-surface-300 overflow-hidden">
         <div class="px-5 py-3 border-b border-surface-300 bg-surface-50">
             <h2 class="text-[13px] font-extrabold text-ink-700">كل المراقبين</h2>
@@ -94,7 +94,7 @@
                         $isTopThree = $index < 3;
                     @endphp
                     <a href="{{ route('profile.showUser', $monitor->id) }}" class="flex items-center gap-3.5 px-4 sm:px-5 py-3.5 hover:bg-surface-50 transition group">
-                        {{-- Rank — رقم هادئ، حلقة خضراء خفيفة للأوائل فقط --}}
+                        
                         <span class="w-7 h-7 rounded-lg flex items-center justify-center text-[13px] font-extrabold tabular-nums shrink-0 border {{ $isTopThree ? 'bg-sage-50 text-sage-700 border-sage-200' : 'bg-white text-ink-400 border-surface-300' }}">{{ $index + 1 }}</span>
 
                         @if($monitor->avatar_url)

@@ -1,0 +1,178 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Royal Golden Eagle Emblem — 100% hand-built vector (no tracing, no raster data,
+  no embedded images of any kind).
+  Palette control via CSS variables (eagle-hi, eagle-light, eagle-mid,
+  eagle-deep, eagle-dark, eagle-line). Scales with width/height/max-width/etc.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+     viewBox="10 45 980 730" role="img" aria-labelledby="eagleTitle">
+  <title id="eagleTitle">Golden eagle emblem</title>
+  <style>
+    :root{
+      --eagle-hi:#ffedb0; --eagle-light:#f4d67c; --eagle-mid:#d9ab3c;
+      --eagle-deep:#a37c1c; --eagle-dark:#6e4f0e; --eagle-line:#5f440a;
+    }
+    .s-hi{stop-color:var(--eagle-hi)} .s-light{stop-color:var(--eagle-light)}
+    .s-mid{stop-color:var(--eagle-mid)} .s-deep{stop-color:var(--eagle-deep)}
+    .s-dark{stop-color:var(--eagle-dark)}
+    .ln{stroke:var(--eagle-line)}
+  </style>
+  <defs>
+    <linearGradient id="gPrim" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" class="s-light"/><stop offset=".55" class="s-mid"/><stop offset="1" class="s-dark"/>
+    </linearGradient>
+    <linearGradient id="gCov" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" class="s-hi"/><stop offset=".6" class="s-light"/><stop offset="1" class="s-mid"/>
+    </linearGradient>
+    <linearGradient id="gBody" gradientUnits="userSpaceOnUse" x1="500" y1="205" x2="500" y2="585">
+      <stop offset="0" class="s-light"/><stop offset=".5" class="s-mid"/><stop offset="1" class="s-deep"/>
+    </linearGradient>
+    <radialGradient id="gHead" gradientUnits="userSpaceOnUse" cx="500" cy="128" r="118">
+      <stop offset="0" class="s-hi"/><stop offset=".55" class="s-light"/>
+      <stop offset=".85" class="s-mid"/><stop offset="1" class="s-deep"/>
+    </radialGradient>
+    <linearGradient id="gBeak" gradientUnits="userSpaceOnUse" x1="475" y1="112" x2="475" y2="222">
+      <stop offset="0" class="s-hi"/><stop offset=".55" class="s-mid"/><stop offset="1" class="s-deep"/>
+    </linearGradient>
+    <linearGradient id="gTail" gradientUnits="userSpaceOnUse" x1="500" y1="540" x2="500" y2="768">
+      <stop offset="0" class="s-mid"/><stop offset=".6" class="s-deep"/><stop offset="1" class="s-dark"/>
+    </linearGradient>
+    <linearGradient id="gLeg" gradientUnits="userSpaceOnUse" x1="0" y1="515" x2="0" y2="600">
+      <stop offset="0" class="s-mid"/><stop offset="1" class="s-dark"/>
+    </linearGradient>
+    <!-- Primary / secondary feather prototype: tapered blade along +X, base at origin, length 400 -->
+    <g id="primF">
+      <path d="M0,-21 C140,-25 300,-17 390,-7 C401,-6 401,6 390,7 C300,17 140,25 0,21 C-11,14 -11,-14 0,-21 Z"
+            fill="url(#gPrim)" class="ln" stroke-width="2.5"/>
+      <path d="M16,0 L382,0" fill="none" class="ln" stroke-width="2" opacity=".55"/>
+    </g>
+  </defs>
+
+  <g id="eagle" stroke-linejoin="round" stroke-linecap="round">
+    <!-- ================= TAIL (behind body) ================= -->
+    <g id="tail">
+      <g fill="url(#gTail)" class="ln" stroke-width="2.5">
+        <path d="M426,550 L370,703 Q386,719 406,711 L466,550 Z"/>
+        <path d="M444,550 L408,716 Q424,732 444,724 L484,550 Z"/>
+        <path d="M462,550 L446,729 Q462,745 482,737 L502,550 Z"/>
+        <path d="M480,550 L484,742 Q500,758 516,742 L520,550 Z"/>
+        <path d="M498,550 L518,737 Q538,745 554,729 L538,550 Z"/>
+        <path d="M516,550 L556,724 Q576,732 592,716 L556,550 Z"/>
+        <path d="M534,550 L594,711 Q614,719 630,703 L574,550 Z"/>
+      </g>
+      <g fill="none" class="ln" stroke-width="2" opacity=".55">
+        <path d="M446,562 L388,708"/><path d="M464,562 L426,720"/><path d="M482,562 L464,733"/>
+        <path d="M500,562 L500,746"/><path d="M518,562 L536,733"/>
+        <path d="M536,562 L574,720"/><path d="M554,562 L612,708"/>
+      </g>
+      <path d="M438,538 Q500,576 562,538 L550,586 Q500,612 450,586 Z"
+            fill="url(#gTail)" class="ln" stroke-width="2.5"/>
+    </g>
+
+    <!-- ================= RIGHT WING (mirrored for left) ================= -->
+    <g id="wingR">
+      <!-- primaries: longest/outermost drawn last (on top) -->
+      <use xlink:href="#primF" href="#primF" transform="translate(640 330) rotate(-17.4) scale(.35 .90)"/>
+      <use xlink:href="#primF" href="#primF" transform="translate(640 330) rotate(-23.2) scale(.457 .92)"/>
+      <use xlink:href="#primF" href="#primF" transform="translate(640 330) rotate(-27.7) scale(.57 .95)"/>
+      <use xlink:href="#primF" href="#primF" transform="translate(640 330) rotate(-31.4) scale(.69 1)"/>
+      <use xlink:href="#primF" href="#primF" transform="translate(640 330) rotate(-34.5) scale(.81 1)"/>
+      <use xlink:href="#primF" href="#primF" transform="translate(640 330) rotate(-36.9) scale(.925 1)"/>
+      <use xlink:href="#primF" href="#primF" transform="translate(640 330) rotate(-39.0) scale(1.02 1)"/>
+      <!-- secondaries fanning down toward body -->
+      <use xlink:href="#primF" href="#primF" transform="translate(644 352) rotate(76) scale(.30 .85)"/>
+      <use xlink:href="#primF" href="#primF" transform="translate(644 352) rotate(62) scale(.325 .85)"/>
+      <use xlink:href="#primF" href="#primF" transform="translate(644 352) rotate(48) scale(.35 .90)"/>
+      <use xlink:href="#primF" href="#primF" transform="translate(644 352) rotate(34) scale(.375 .90)"/>
+      <use xlink:href="#primF" href="#primF" transform="translate(644 352) rotate(20) scale(.40 .90)"/>
+      <!-- alula tuft at wrist -->
+      <use xlink:href="#primF" href="#primF" transform="translate(655 305) rotate(-52) scale(.20 .80)"/>
+      <use xlink:href="#primF" href="#primF" transform="translate(665 312) rotate(-40) scale(.17 .75)"/>
+      <!-- scapular leaves over secondary bases -->
+      <g fill="url(#gCov)" class="ln" stroke-width="2.5">
+        <path d="M648,310 C664,348 670,396 664,442 C650,420 642,362 648,310 Z"/>
+        <path d="M664,306 C682,340 690,384 686,428 C670,408 662,356 664,306 Z"/>
+      </g>
+      <!-- covert bands -->
+      <g fill="url(#gCov)" class="ln" stroke-width="2.5">
+        <path d="M592,252 C655,228 720,228 775,252 L760,284 C710,264 650,262 600,280 Z"/>
+        <path d="M604,286 C662,274 722,282 772,306 L758,362 C712,344 658,338 606,344 Z"/>
+        <path d="M580,252 C630,222 700,212 762,232 C745,262 695,288 640,294 C610,297 584,278 580,252 Z"/>
+      </g>
+    </g>
+    <use xlink:href="#wingR" href="#wingR" transform="translate(1000 0) scale(-1 1)"/>
+
+    <!-- ================= BODY ================= -->
+    <path id="torso" d="M500,205 C430,205 380,250 360,320 C340,390 350,470 410,530
+                        C445,567 475,580 500,580 C525,580 555,567 590,530
+                        C650,470 660,390 640,320 C620,250 570,205 500,205 Z"
+          fill="url(#gBody)" class="ln" stroke-width="3"/>
+    <ellipse cx="500" cy="408" rx="82" ry="100" fill="#ffedb0" opacity=".30"/>
+    <path d="M500,300 C500,380 500,460 500,545" fill="none" class="ln" stroke-width="2" opacity=".30"/>
+    <!-- chest scale rows -->
+    <g fill="#a37c1c" fill-opacity=".35" stroke="#6e4f0e" stroke-opacity=".8" stroke-width="2">
+      <path d="M390,335 q22.5,26 45,0 q22.5,26 45,0 q22.5,26 45,0 q22.5,26 45,0 q22.5,26 45,0"/>
+      <path d="M368,392 q22.5,26 45,0 q22.5,26 45,0 q22.5,26 45,0 q22.5,26 45,0 q22.5,26 45,0 q22.5,26 45,0"/>
+      <path d="M374,449 q22,26 44,0 q22,26 44,0 q22,26 44,0 q22,26 44,0 q22,26 44,0 q22,26 44,0"/>
+      <path d="M408,503 q23,26 46,0 q23,26 46,0 q23,26 46,0 q23,26 46,0"/>
+    </g>
+
+    <!-- ================= NECK RUFF ================= -->
+    <path d="M398,218 L424,258 L450,238 L474,272 L500,246 L526,272 L550,238 L574,258 L602,218
+             C560,200 440,200 398,218 Z"
+          fill="#b08a24" class="ln" stroke-width="2.5"/>
+    <polyline points="470,228 480,246 490,230 500,248 510,230 520,246 530,228"
+              fill="none" class="ln" stroke-width="3"/>
+
+    <!-- ================= HEAD (slight turn to viewer's left) ================= -->
+    <g id="head">
+      <path d="M500,58 C456,58 428,94 425,138 C423,168 431,194 448,214
+               C468,234 532,234 552,214 C569,194 577,168 575,138 C572,94 544,58 500,58 Z"
+            fill="url(#gHead)" class="ln" stroke-width="3"/>
+      <path d="M462,90 Q500,76 538,90" fill="none" class="ln" stroke-width="2" opacity=".45"/>
+      <!-- nape feather lines (back of head, viewer's right) -->
+      <g fill="none" class="ln" stroke-width="2" opacity=".4">
+        <path d="M532,150 Q546,180 539,210"/>
+        <path d="M547,140 Q563,175 553,212"/>
+      </g>
+      <path d="M573,182 l13,17 l-15,3 l9,15 l-19,-7 Z" fill="#d9ab3c" class="ln" stroke-width="2"/>
+      <!-- heavy brow ridge -->
+      <path d="M486,120 L528,111" fill="none" class="ln" stroke-width="6"/>
+      <!-- fierce eye (profile) -->
+      <path d="M490,133 Q505,122 523,131 Q507,141 490,133 Z" fill="#2e2006"/>
+      <circle cx="508" cy="130" r="2.6" fill="#fff" opacity=".9"/>
+      <!-- cere (fleshy beak base) -->
+      <ellipse cx="484" cy="122" rx="9" ry="6" fill="#ffedb0" opacity=".7"/>
+      <!-- upper mandible: powerful hook in left profile -->
+      <path d="M507,110 C478,108 452,120 439,143 C429,161 427,181 433,197
+               C427,198 423,203 425,209 C427,214 434,215 441,211 L456,202
+               C476,190 492,168 498,144 C500,132 503,120 507,110 Z"
+            fill="url(#gBeak)" class="ln" stroke-width="2.5"/>
+      <ellipse cx="462" cy="138" rx="5" ry="3.2" transform="rotate(-25 462 138)" fill="#5f440a" opacity=".85"/>
+      <!-- mouth line + lower mandible wedge -->
+      <path d="M440,190 Q468,198 496,190" fill="none" class="ln" stroke-width="2"/>
+      <path d="M440,190 L496,190 L470,212 Z" fill="#a37c1c" class="ln" stroke-width="2"/>
+      <!-- throat feather ticks into the ruff -->
+      <polyline points="455,215 465,228 475,216 485,230" fill="none" class="ln" stroke-width="2.5"/>
+    </g>
+
+    <!-- ================= LEGS + TALONS ================= -->
+    <g id="legR">
+      <path d="M556,520 C578,518 594,536 592,560 C590,582 576,594 563,591 C549,588 543,542 556,520 Z"
+            fill="url(#gLeg)" class="ln" stroke-width="2.5"/>
+      <path d="M566,584 L588,584 L586,624 L568,624 Z" fill="#8a6414" class="ln" stroke-width="2"/>
+      <g fill="none" stroke="#6e4f0e" stroke-width="9">
+        <path d="M577,624 L577,652"/>
+        <path d="M570,626 L550,644"/>
+        <path d="M584,626 L604,642"/>
+      </g>
+      <g fill="#2e2006">
+        <path d="M571,652 L583,652 L577,666 Z"/>
+        <path d="M544,641 L555,647 L546,655 Z"/>
+        <path d="M609,639 L599,645 L608,653 Z"/>
+      </g>
+    </g>
+    <use xlink:href="#legR" href="#legR" transform="translate(1000 0) scale(-1 1)"/>
+  </g>
+</svg>

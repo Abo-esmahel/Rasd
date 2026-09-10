@@ -4,32 +4,6 @@ console.log(
 );
 console.log("🔥 print-layout-engine.js LOADED — v4.2.1 N3 Description Fix", new Date().toISOString());
 if(typeof window !== 'undefined'){ window.__PRINT_LAYOUT_ENGINE_VERSION__ = 'EDITORIAL-v4.2.1-N3-DESCRIPTION-FIX-2026-09-06'; console.log('[VERSION MARKER]', window.__PRINT_LAYOUT_ENGINE_VERSION__); }
-/**
- * Editorial Visual Composition Engine — v4.2.1 N3 Description Fix
- * ================================================
- * N=1: Hero fill (unchanged)
- * N=2: Full-width vertical stack only, dynamic height 35/65..65/35, no rotation (v4.1)
- * N=3: HERO + STACKED PAIR + INTEGRATED DESCRIPTION (dynamic height, no cap)
- *      ┌───────────────┬──────────┐
- *      │               │ IMAGE 2  │
- *      │    HERO       ├──────────┤
- *      │               │ IMAGE 3  │
- *      ├───────────────┴──────────┤
- *      │ DESCRIPTION              │
- *      └──────────────────────────┘
- *      Hero 62-68% width (0.64 default), gap 3mm, rotation 0, full-width, deterministic
- *      Description: full-width, dynamic height based on content, NO overflow:hidden, RTL
- * N=4: HERO + THREE SUPPORTING (stacked right)
- *      ┌──────────────────────┬─────────┐
- *      │                      │ IMG 2   │
- *      │       HERO           ├─────────┤
- *      │                      │ IMG 3   │
- *      │                      ├─────────┤
- *      │                      │ IMG 4   │
- *      └──────────────────────┴─────────┘
- *      + DESCRIPTION (cap 0.35), hero 58-68% (0.64 default), gap 3mm, minSupportHeight guard
- * No Print CSS/Renderer changes, N=1/N=2 untouched
- */
 
 export const DEFAULT_WEIGHTS = {
   imageCoverage: -2.8,
@@ -44,13 +18,12 @@ export const DEFAULT_WEIGHTS = {
   kappa: 0.22,
   lambda: 0.45,
   mu: 0.38,
-  nu: 0.68, // increased for stronger visual-weight dominance (editorial asymmetric)
+  nu: 0.68, 
 };
 
 const EPS = 1e-7;
 const MM_PER_PT = 0.3528;
 
-// ---------- Math ----------
 export function aspectCost(sr, tr) {
   if (sr <= EPS || tr <= EPS) return 1e6;
   const v = Math.log(tr / sr);
@@ -68,7 +41,6 @@ export function qualityCost(W, H, w, h) {
   return c;
 }
 
-// ---------- Image Profile & Visual Weight ----------
 export function analyzeImageProfile(img) {
   const area = img.width * img.height;
   const ar = img.width / img.height;
@@ -81,7 +53,6 @@ export function analyzeImageProfile(img) {
   return { index: img._idx ?? 0, naturalWidth: img.width, naturalHeight: img.height, aspectRatio: ar, orientation, area, importance, visualWeight, landscapeScore, portraitScore, extremeAspectScore: extreme };
 }
 
-// ---------- Description ----------
 export function estimateDescriptionMetrics(text, availableWidthMm, opts = {}) {
   const fontSizePt = opts.fontSizePt ?? 8.2;
   const lineHeight = opts.lineHeight ?? 1.45;
@@ -92,7 +63,7 @@ export function estimateDescriptionMetrics(text, availableWidthMm, opts = {}) {
   const avgCW = fontSizeMm * 0.56;
   const usableW = Math.max(10, availableWidthMm - paddingMm * 2);
   const cpl = Math.max(1, Math.floor(usableW / avgCW));
-  // Respect explicit line breaks (\n) for RTL mixed content
+  
   const paragraphs = text.split('\n');
   let lines = 0;
   for (const para of paragraphs) {
@@ -112,7 +83,6 @@ export function estimateDescriptionMetrics(text, availableWidthMm, opts = {}) {
   return { width: availableWidthMm, height: Math.ceil(h), lines, fontSizePt, lineHeight, paddingMm, textH };
 }
 
-// ---------- Editorial Helpers ----------
 function cloneRect(r) { return { x: r.x, y: r.y, w: r.w, h: r.h }; }
 function splitRect(rect, dir, ratio) {
   ratio = Math.max(0.15, Math.min(0.85, ratio));
@@ -130,50 +100,49 @@ function sampleRatios(start, end, step) {
   return out;
 }
 
-// ---------- Editorial Composition Generator — Phase 1 ----------
 function editorialCompositions(n, area, profiles) {
   const seeds = [];
   const add = (name, cells, family) => seeds.push({ name, cells, family });
 
-  // Helper to classify orientation mix
+  
   const orientMix = profiles.map(p=> p.orientation).join('+');
 
   if (n === 1) {
-    // Hero: fill available area — editorial single image maximizes impact
+    
     add('hero-fill', [cloneRect(area)], 'HERO');
-    // Slight inset alternative for heavy description? Not needed — one hero is enough, optimizer keeps full.
+    
     return seeds;
   }
 
   if (n === 2) {
-    // N=2 — STRICT EDITORIAL: Stack vertical only (Image1 top / Image2 bottom / Description)
-    // No side-by-side, no columns, no grid, no rotation rescue. Ratio is dynamic based on content.
-    // Description is already subtracted from imageArea (usablePageHeight = A4 - margins - descriptionHeight)
-    // Generate continuous stack ratios 35/65 → 65/35, sampled 0.35..0.65 step 0.03 + fine step around ideal
+    
+    
+    
+    
     const ratios = [...sampleRatios(0.35, 0.65, 0.05), ...sampleRatios(0.38, 0.62, 0.04)];
-    // Deduplicate and sort
+    
     const uniq = [...new Set(ratios.map(r=>r.toFixed(2)))].map(s=>parseFloat(s)).sort((a,b)=>a-b);
-    // Compute ideal ratio from visual weight + aspect + resolution to bias sampling near ideal
-    // This makes 45/55, 40/60, 35/65 appear naturally when weights differ, not fixed 50/50
+    
+    
     let idealRatio = 0.50;
     if(profiles && profiles.length===2){
       const w0 = profiles[0].visualWeight, w1 = profiles[1].visualWeight;
       const total = w0 + w1;
-      // Weight-based ideal: larger weight gets larger height
+      
       idealRatio = w0 / total;
-      // Clamp to editorial range 0.35-0.65 to avoid tiny images (<22mm)
+      
       idealRatio = Math.max(0.35, Math.min(0.65, idealRatio));
-      // Fine-tune with aspect: if one image is extreme portrait (tall needs more height at full width), adjust slightly
+      
       const ar0 = profiles[0].aspectRatio, ar1 = profiles[1].aspectRatio;
-      // For stack with full width, cell aspect = width/height, height = area.w / arCell, but width fixed.
-      // Tall image (small ar) needs more height to preserve aspect at full width, so bias ratio toward taller image
+      
+      
       const idealH0 = area.w / ar0;
       const idealH1 = area.w / ar1;
       const aspectRatio = idealH0 / (idealH0 + idealH1);
-      // Blend weight and aspect 70/30
+      
       idealRatio = idealRatio*0.70 + aspectRatio*0.30;
       idealRatio = Math.max(0.35, Math.min(0.65, idealRatio));
-      // Add fine samples around ideal ±0.04 step 0.02 for continuous optimization
+      
       for(const d of [-0.04,-0.02,0,0.02,0.04]){
         const r = Math.round((idealRatio+d)*100)/100;
         if(r>=0.35 && r<=0.65 && !uniq.includes(r)) uniq.push(r);
@@ -182,18 +151,18 @@ function editorialCompositions(n, area, profiles) {
     }
     for(const r of uniq){
       const [top,bot]=splitRect(area,'horizontal',r);
-      // Name reflects dynamic editorial ratio, not fixed grid
+      
       add(`2-stack-${Math.round(r*100)}/${Math.round((1-r)*100)}`, [top,bot], 'STACK');
     }
     return seeds;
   }
 
   if (n === 3) {
-    // N=3 — ADAPTIVE EDITORIAL: Multiple candidates, engine picks best by scoring
-    // No single forced layout. Candidates are generated deterministically and scored for:
-    // area utilization, bounding box coverage, aspect compatibility, crop penalty, visual weight, balance, min size
+    
+    
+    
     const GAP = 3;
-    // Helper: score a candidate's aspect/crop/balance quickly (lower is better)
+    
     const scoreCandidate = (cells, assignedImages) => {
       let aspect = 0, crop = 0, balance = 0, tiny = 0;
       let minW = Infinity, minH = Infinity, maxArea = 0, minArea = Infinity;
@@ -207,25 +176,25 @@ function editorialCompositions(n, area, profiles) {
         const area = c.w*c.h;
         maxArea = Math.max(maxArea, area); minArea = Math.min(minArea, area);
       }
-      // Balance: variance of areas (lower variance = more balanced, but hero should be larger)
+      
       const avg = cells.reduce((s,c)=> s + c.w*c.h, 0)/cells.length;
       let varSum = 0; for(const c of cells) varSum += Math.pow(c.w*c.h - avg,2);
       balance = Math.sqrt(varSum/cells.length)/Math.max(avg,1);
-      // Tiny penalty if any cell too small vs others
+      
       const areaRatio = minArea / Math.max(maxArea,1);
       if(areaRatio < 0.45) tiny = (0.45 - areaRatio)*1.5;
-      // Bounding box coverage: for our candidates, we always fill imageArea, so 0
-      // Whitespace: 0 if we fill, else penalty (not needed here)
+      
+      
       return aspect*0.55 + crop*0.35 + balance*0.45 + tiny;
     };
 
-    // Determine hero candidate based on visualWeight (highest weight = hero)
+    
     let heroIdx = 0;
     if(profiles && profiles.length===3){
       let maxW = -1;
       for(let i=0;i<profiles.length;i++) if(profiles[i].visualWeight > maxW){ maxW = profiles[i].visualWeight; heroIdx = i; }
     }
-    // Helper to get hero ratio adaptive (0.60-0.68) based on weight and aspect
+    
     const getHeroRatio = () => {
       let r = 0.64;
       if(profiles && profiles.length===3){
@@ -246,9 +215,9 @@ function editorialCompositions(n, area, profiles) {
     const baseHeroRatio = getHeroRatio();
     const heroRatios = [...new Set([baseHeroRatio, baseHeroRatio-0.02, baseHeroRatio+0.02].map(v=> Math.round(Math.max(0.60,Math.min(0.68,v))*100)/100 ))].sort((a,b)=>a-b);
 
-    // Candidate A — Hero + Stacked (Left/Right)
+    
     for(const r of heroRatios){
-      // Hero Left
+      
       {
         const heroW = (area.w - GAP) * r;
         const secW = area.w - heroW - GAP;
@@ -257,10 +226,10 @@ function editorialCompositions(n, area, profiles) {
         const secH = (area.h - GAP) / 2;
         const topSec = { x: secX, y: area.y, w: secW, h: secH };
         const botSec = { x: secX, y: area.y + secH + GAP, w: secW, h: secH };
-        // Validate min size
+        
         if(secH >= 32 && heroW >= 55 && secW >= 45) add(`3-hero-left-${r.toFixed(2)}`, [hero, topSec, botSec], 'HERO_STACK');
       }
-      // Hero Right
+      
       {
         const heroW = (area.w - GAP) * r;
         const secW = area.w - heroW - GAP;
@@ -274,9 +243,9 @@ function editorialCompositions(n, area, profiles) {
       }
     }
 
-    // Candidate B — Top Hero + Bottom Pair (adaptive)
-    // Hero full-width top, two images side-by-side bottom
-    // Suitable when hero is landscape and can fill width without extreme crop
+    
+    
+    
     {
       const heroRatiosB = [0.42, 0.45, 0.50];
       for(const hr of heroRatiosB){
@@ -287,21 +256,21 @@ function editorialCompositions(n, area, profiles) {
         const botW = (area.w - GAP) / 2;
         const left = { x: area.x, y: area.y + heroH + GAP, w: botW, h: botH };
         const right = { x: area.x + botW + GAP, y: area.y + heroH + GAP, w: botW, h: botH };
-        // Validate min size and aspect suitability (hero should not be extremely cropped)
+        
         if(botW < 45 || botH < 32) continue;
-        // Score quickly: prefer when hero is landscape (aspect >1.2) and bottom pair are not extreme
+        
         add(`3-hero-top-${hr.toFixed(2)}`, [hero, left, right], 'HERO_TOP');
       }
     }
 
-    // Candidate D — Balanced Three-Panel (equal columns, only if suitable)
-    // Only allowed if all three images have moderate aspect (0.7-1.5) and area is not too tall
-    // This prevents extreme crop for portrait-heavy sets
+    
+    
+    
     {
       const avgAR = profiles && profiles.length===3 ? (profiles.reduce((s,p)=> s+p.aspectRatio,0)/3) : 1;
       const allModerate = profiles ? profiles.every(p=> p.aspectRatio > 0.65 && p.aspectRatio < 1.6 && !p.extremeAspectScore) : false;
       const areaAR = area.w / area.h;
-      // Only generate equal columns if area is relatively wide (landscape imageArea) and images are moderate
+      
       if(allModerate && areaAR > 1.2 && area.w > 150){
         const colW = (area.w - 2*GAP) / 3;
         if(colW >= 45){
@@ -313,7 +282,7 @@ function editorialCompositions(n, area, profiles) {
       }
     }
 
-    // Fallback: if no candidate (should not happen), ensure at least one
+    
     if(seeds.length===0){
       const heroW = (area.w - GAP) * 0.64;
       const secW = area.w - heroW - GAP;
@@ -328,46 +297,46 @@ function editorialCompositions(n, area, profiles) {
   }
 
   if (n === 4) {
-    // N=4 — ADAPTIVE EDITORIAL: Zero distortion, image integrity first
-    // Candidates are generated deterministically and scored for aspect, crop, balance, coverage
+    
+    
     const GAP = 3;
     const MIN_W = 45, MIN_H = 32, MIN_AREA = 45*32;
 
-    // Helper: compute hero suitability = visualWeight + aspect compatibility + crop safety
-    // Hero should be the image that can occupy the largest area with minimal crop
+    
+    
     const heroScores = profiles ? profiles.map((p,i)=>{
-      // For each possible hero cell size (estimate), compute aspect mismatch and crop risk
-      // Use area's aspect as proxy for hero cell aspect (hero will be ~60% width, full height)
-      const heroCellAR = (area.w * 0.62) / area.h; // approx hero left cell
+      
+      
+      const heroCellAR = (area.w * 0.62) / area.h; 
       const mismatch = Math.abs(Math.log(p.aspectRatio / heroCellAR));
       const cropRisk = mismatch > 0.7 ? 1 : mismatch > 0.4 ? 0.5 : 0;
-      // Visual weight is primary, but penalize high crop
+      
       const score = p.visualWeight - cropRisk*0.4 - (p.extremeAspectScore ? 0.3 : 0);
       return { idx:i, score, mismatch, cropRisk, vw: p.visualWeight, ar: p.aspectRatio };
     }).sort((a,b)=> b.score - a.score) : images.map((_,i)=> ({idx:i, score:0, mismatch:0, cropRisk:0, vw:1, ar:1}));
 
-    // Generate candidates for each possible hero (top 2 by suitability) and each ratio
+    
     const heroCandidates = heroScores.slice(0,2).map(h=>h.idx);
-    const heroRatios = [0.58, 0.62, 0.65]; // adaptive 58-65% for hero width, will be tuned per hero
+    const heroRatios = [0.58, 0.62, 0.65]; 
 
     for(const heroIdx of heroCandidates){
       const heroProfile = profiles ? profiles.find(p=> p.index===heroIdx) : null;
       let baseRatio = 0.62;
       if(heroProfile){
-        // Adaptive: if hero is landscape (wide) vs tall area, give more width
+        
         const heroAR = heroProfile.aspectRatio;
         const areaAR = area.w / area.h;
-        // If hero is landscape and area is portrait, hero needs more width to avoid crop
+        
         const arDiff = Math.log(heroAR / areaAR);
         baseRatio = 0.62 + Math.max(-0.04, Math.min(0.04, arDiff * 0.06));
-        // Visual weight also influences: heavier hero gets slightly more width
+        
         baseRatio += (heroProfile.visualWeight - 0.8) * 0.05;
         baseRatio = Math.max(0.55, Math.min(0.68, baseRatio));
         baseRatio = Math.round(baseRatio*100)/100;
       }
       const ratios = [...new Set([baseRatio, baseRatio-0.03, baseRatio+0.03].map(r=> Math.round(Math.max(0.55,Math.min(0.68,r))*100)/100 ))].sort((a,b)=>a-b);
       for(const r of ratios){
-        // Hero Left
+        
         {
           const heroW = (area.w - GAP) * r;
           const secW = area.w - heroW - GAP;
@@ -378,13 +347,13 @@ function editorialCompositions(n, area, profiles) {
             const s1 = { x: secX, y: area.y, w: secW, h: secH };
             const s2 = { x: secX, y: area.y + secH + GAP, w: secW, h: secH };
             const s3 = { x: secX, y: area.y + 2*secH + 2*GAP, w: secW, h: secH };
-            // Order cells so hero gets heroIdx image (largest area), others by visualWeight
+            
             const cells = [hero, s1, s2, s3];
-            // We will let _compose handle pairing by area vs visualWeight, but ensure hero cell is largest
+            
             add(`4-hero-left-${r.toFixed(2)}-h${heroIdx}`, cells, 'HERO_STACK');
           }
         }
-        // Hero Right
+        
         {
           const heroW = (area.w - GAP) * r;
           const secW = area.w - heroW - GAP;
@@ -402,8 +371,8 @@ function editorialCompositions(n, area, profiles) {
         }
       }
     }
-    // Candidate B — Top Hero + 3 Bottom (adaptive, for landscape hero)
-    // Suitable when hero is landscape and can fill width
+    
+    
     for(const hr of [0.42, 0.48, 0.55]){
       const heroH = area.h * hr;
       const botH = area.h - heroH - GAP;
@@ -417,8 +386,8 @@ function editorialCompositions(n, area, profiles) {
       add(`4-hero-top3-${hr.toFixed(2)}`, [hero, b1, b2, b3], 'HERO_TOP');
     }
 
-    // Candidate C — 2x2 Grid (balanced, for 4 similar aspects)
-    // Only if all 4 have moderate aspect and not extreme
+    
+    
     {
       const allModerate = profiles ? profiles.every(p=> p.aspectRatio > 0.7 && p.aspectRatio < 1.5 && !p.extremeAspectScore) : false;
       const areaAR = area.w / area.h;
@@ -435,14 +404,14 @@ function editorialCompositions(n, area, profiles) {
       }
     }
 
-    // Candidate D — Hero top + 2 side + 1 bottom (original alt)
-    // ┌──────────────────────────────┐
-    // │           HERO               │
-    // ├──────────────┬───────────────┤
-    // │   IMAGE 2    │    IMAGE 3    │
-    // ├──────────────┴───────────────┤
-    // │           IMAGE 4            │
-    // Generated with lower priority, scoring will prefer primary unless tiny
+    
+    
+    
+    
+    
+    
+    
+    
     {
       const heroH = area.h * 0.38;
       const midH = (area.h - heroH - 2*GAP) * 0.50;
@@ -458,7 +427,7 @@ function editorialCompositions(n, area, profiles) {
         add(`4-hero-top-alt`, [hero, s2, s3, s4], 'HERO_TOP_ALT');
       }
     }
-    // Fallback very constrained 2x2 only if no valid seeds (should not happen) — kept hidden, not scored highly
+    
     if(seeds.length===0){
       const [l,r]=splitRect(area,'vertical',0.50);
       const [l1,l2]=splitRect(l,'horizontal',0.50);
@@ -469,7 +438,7 @@ function editorialCompositions(n, area, profiles) {
   }
 
   if (n === 5) {
-    // N=5: Hero + 4 — editorial standard
+    
     for(const hr of sampleRatios(0.30, 0.40, 0.05)){
       const [top,bot]=splitRect(area,'horizontal',hr);
       const [l,r]=splitRect(bot,'vertical',0.50);
@@ -477,7 +446,7 @@ function editorialCompositions(n, area, profiles) {
       const [r1,r2]=splitRect(r,'horizontal',0.50);
       add(`5-hero-top-${hr.toFixed(2)}`, [top,l1,l2,r1,r2], 'HERO');
     }
-    // Alternative: hero left + 4 grid right (hero 38% width)
+    
     for(const lr of [0.36,0.40]){
       const [left,right]=splitRect(area,'vertical',lr);
       const [t,b]=splitRect(right,'horizontal',0.50);
@@ -488,7 +457,7 @@ function editorialCompositions(n, area, profiles) {
     return seeds;
   }
 
-  // Fallback BSP for n>5 (not expected, but keep)
+  
   return [
     { name:'bsp-v', cells: bspPartition(area,n,0,['vertical','horizontal']), family:'BSP' },
     { name:'bsp-h', cells: bspPartition(area,n,0,['horizontal','vertical']), family:'BSP' },
@@ -504,15 +473,14 @@ function bspPartition(rect, n, depth=0, pattern=null){
   return [...bspPartition(a,ln,depth+1,pattern), ...bspPartition(b,rn,depth+1,pattern)];
 }
 
-// ---------- Image Boundary Safety Layer (N=1..8, post-processing only) ----------
 function clampCellToArea(cell, area){
   const EPS = 0.01;
   let {x, y, width, height} = cell;
-  // SMART FIX: clamping position must preserve the opposite edge —
-  // shifting x/y without shrinking w/h used to CREATE neighbor overlaps.
+  
+  
   if(x < area.x){ const dx = area.x - x; x = area.x; width = width - dx; }
   if(y < area.y){ const dy = area.y - y; y = area.y; height = height - dy; }
-  // Uniform scale to fit if exceeds right/bottom — preserve aspect, no crop, no stretch
+  
   if(x + width > area.x + area.w + EPS){
     const maxW = area.x + area.w - x;
     if(maxW < width){
@@ -544,7 +512,6 @@ function validateImageBounds(cells, area){
   }
 }
 
-// ---------- Engine ----------
 export class PrintLayoutEngine {
   constructor(weights={}, opts={}) {
     this.weights = { ...DEFAULT_WEIGHTS, ...weights };
@@ -584,7 +551,7 @@ export class PrintLayoutEngine {
         };
     }
     const margin = opts.margin ?? 6;
-    const topOffset = opts.topOffset ?? 0; // header offset for renderer (e.g. 14mm)
+    const topOffset = opts.topOffset ?? 0; 
     const orientations = opts.orientation ? [opts.orientation] : ['portrait', 'landscape'];
     const all = [];
     const profiles = images.map((im,i)=> analyzeImageProfile({ ...im, _idx:i }));
@@ -592,21 +559,21 @@ export class PrintLayoutEngine {
       const pw = orient === 'landscape' ? paper.height : paper.width;
       const ph = orient === 'landscape' ? paper.width : paper.height;
       const innerW = pw - margin * 2;
-      const innerH = ph - margin * 2 - topOffset; // subtract header offset for available space
+      const innerH = ph - margin * 2 - topOffset; 
       const descM = estimateDescriptionMetrics(description, innerW, opts.descOpts);
       let descH;
       if (images.length === 3 && description) {
-        // N=3 FIX — Description is full-width A4 block, not tiny strip
-        // Order: A4 inner → real desc height → reserve desc → remaining for images → validate
-        // Use real metrics with correct render width (innerW), MIN 24, no small cap, no overflow
+        
+        
+        
         const MIN_DESC_H = 24;
-        // descM already measured with innerW (which equals render width = printableW)
+        
         descH = Math.max(MIN_DESC_H, descM.height);
-        // No cap at innerH*0.40 and no maxDescH squeeze — if desc is longer, images shrink gracefully (priority: Full Description)
-        // imageAreaH = innerH - descH - GAP will be computed next, keeping hero+stack composition untouched
+        
+        
         if (images.length===3) console.log('[N3 TRACE][ENGINE] descM', {height:descM.height, lines:descM.lines, width:descM.width, textLen:description.length, innerW, innerH}, 'descH final', descH, 'will be used for layout');
       } else if (description) {
-        // N=4 cap 0.35, others 0.40 — images remain visually dominant
+        
         const capRatio = (images.length===4 ? 0.35 : 0.40);
         descH = Math.min(descM.height, innerH * capRatio);
       } else {
@@ -627,14 +594,14 @@ export class PrintLayoutEngine {
     let best = beam[0];
     best = this._continuousBoundaryOptimize(best);
     best = this._normalize(best);
-    // Image Boundary Safety Layer — post-processing only, no re-score, no new composition
+    
     try{
       const dbgArea = best._debug?.imageArea;
       if(dbgArea){
         const area = { x: dbgArea.x, y: dbgArea.y, w: dbgArea.w, h: dbgArea.h };
-        // Validate first, if fails due to floating point, clamp
+        
         try{ validateImageBounds(best.images, area); }catch(e){
-          // Minimal safe correction: clamp each cell uniformly
+          
           best.images = best.images.map(c=> clampCellToArea(c, area));
           validateImageBounds(best.images, area);
           console.warn('[BOUNDARY SAFETY] clamped images to imageArea', e.message);
@@ -667,25 +634,25 @@ export class PrintLayoutEngine {
     return best;
   }
 
-  // Phase 1+2: Generate meaningful compositions then optimize geometry
+  
   _generateCandidates(images, profiles, description, descM, descH, imageArea, pw, ph, orient, margin, opts) {
     const n = images.length;
     if (n === 0) return [this._compose(images, imageArea, descH, pw, ph, orient, description, descM, margin, [])];
     const out = [];
     const orders = n <= 4 ? this._permute(images) : this._heuristicOrders(images, profiles);
-    // N=2, N=3, N=4: no rotation rescue — editorial hierarchy requires original orientation
+    
     let rotSets;
     if(n===2){
       rotSets = [[0,0]];
     } else if(n===3){
-      rotSets = [[0,0,0]]; // N=3 hero+stack, rotation=0 only per contract §11
+      rotSets = [[0,0,0]]; 
     } else if(n===4){
-      rotSets = [[0,0,0,0]]; // N=4 hero+3stack, rotation=0 only per spec
+      rotSets = [[0,0,0,0]]; 
     } else {
       rotSets = n <= 4 ? this._rotationCombos(n) : this._heuristicRotations(images, imageArea);
     }
     const families = editorialCompositions(n, imageArea, profiles);
-    // For each family, try orders and rotations, but keep diversity
+    
     for (const order of orders) {
       for (const rots of rotSets) {
         const rotated = order.map((im,i)=>{
@@ -693,7 +660,7 @@ export class PrintLayoutEngine {
           return r ? { ...im, width: im.height, height: im.width, _rot:90, _srcW:im.width, _srcH:im.height, _profile: profiles.find(p=>p.index===images.indexOf(im)) } : { ...im, _rot:0, _srcW:im.width, _srcH:im.height, _profile: profiles.find(p=>p.index===images.indexOf(im)) };
         });
         for (const fam of families) {
-          // Phase 2: continuous geometry is already sampled via family ratios; _compose will evaluate each
+          
           out.push(this._compose(rotated, imageArea, descH, pw, ph, orient, description, descM, margin, fam.cells, fam.name));
         }
       }
@@ -719,7 +686,7 @@ export class PrintLayoutEngine {
   _compose(images, imageArea, descH, pw, ph, orientation, description, descM, margin, cells, topoName='') {
     const n = images.length;
     const rects = cells && cells.length===n ? cells : [cloneRect(imageArea)];
-    // Pair by visualWeight — editorial: important image gets largest cell
+    
     const sRects=[...rects].sort((a,b)=> b.w*b.h - a.w*a.h);
     const sImgs=[...images].sort((a,b)=>{
       const wa = a._profile?.visualWeight ?? (a.width*a.height);
@@ -740,7 +707,7 @@ export class PrintLayoutEngine {
     const isN3 = images.length === 3;
     const descRect = {
       x: margin,
-      y: imageArea.y + imageArea.h + 3, // N=3 TRACE: y should be imageArea bottom +3mm gap
+      y: imageArea.y + imageArea.h + 3, 
       width: imageArea.w,
       height: descH,
       fontSize: descM.fontSizePt,
@@ -757,7 +724,7 @@ export class PrintLayoutEngine {
     const descArea=descRect.width*descRect.height;
     const whitespace=Math.max(0, paperArea - imagesArea - descArea);
     const wsRatio=whitespace/paperArea;
-    // Whitespace editorial: allow 5-10% cheap, beyond expensive but not as harsh as before — whitespace can be intentional
+    
     const wsCost = wsRatio < 0.10 ? wsRatio*0.35 : Math.pow(wsRatio,1.30)*2.4;
     const avg=imagesArea/Math.max(n,1);
     let varSum=0; for(const r of placed) varSum+=Math.pow(r.width*r.height-avg,2);
@@ -771,26 +738,26 @@ export class PrintLayoutEngine {
             const w = p._profile?.visualWeight ?? 1;
             const expected = (w/totalW) * imagesArea;
             const actual = p.width*p.height;
-            // Editorial: tighter slack for N=2 so dominant weight gets larger cell
+            
             const slackFactor = n===2 ? 0.08 : 0.15;
             const slack = expected*slackFactor;
             const diff = Math.abs(actual - expected);
             if(diff > slack) dominanceMismatch += (diff - slack)/expected * (n===2 ? 0.55 : 0.35);
         }
     }
-    // Rotation penalty — editorial prefers original orientation unless large benefit
+    
     let rotationPenalty=0;
     for(const r of placed){ if(r.rotation===90) rotationPenalty += 0.14; }
-    // N=2 stack-only: no orientation bonus/penalty — editorial stack is the only composition
+    
     let orientationBonus=0;
-    // N=3/4 keep editorial diversity without N=2 orientation bias
+    
     let alignmentScore=0;
     for(let i=0;i<placed.length;i++) for(let j=i+1;j<placed.length;j++){
       const a=placed[i], b=placed[j];
       if(Math.abs(a.x - b.x) < 0.5 || Math.abs((a.x+a.width) - (b.x+b.width)) < 0.5) alignmentScore+=0.05;
       if(Math.abs(a.y - b.y) < 0.5 || Math.abs((a.y+a.height) - (b.y+b.height)) < 0.5) alignmentScore+=0.05;
     }
-    // Grid penalty — penalize boring 2x2 / equal grid if not editorially justified
+    
     let gridPenalty=0;
     if(topoName==='4-2x2' || topoName==='bsp-v' || topoName==='bsp-h'){
       const areas = placed.map(p=>p.width*p.height);
@@ -808,7 +775,7 @@ export class PrintLayoutEngine {
     const frag=n>4?(n-4)*0.06:0;
     const w=this.weights;
     const globalCost = w.imageCoverage*imageCoverageRatio + w.alpha*totalAspect + w.beta*totalQual + w.gamma*wsCost + w.delta*imbalance*1.6 + w.epsilon*descPenalty + w.zeta*upscale + w.eta*downscale + w.theta*totalAniso + w.kappa*frag - w.lambda*alignmentScore + w.mu*tinyPenalty + w.nu*dominanceMismatch + gridPenalty + rotationPenalty - orientationBonus;
-    // topOffset already applied via imageArea.y = margin + topOffset in layout()
+    
     return {
       paper:{width:pw,height:ph,orientation},
       images: placed,
@@ -849,7 +816,7 @@ export class PrintLayoutEngine {
   }
 
   _continuousBoundaryOptimize(layout){
-    // N=2, N=3, N=4 are strict editorial — do not nudge geometry (would break full-width guard §10)
+    
     if([2,3,4].includes(layout.images.length)) return layout;
     let cur = this._clone(layout);
     let bestCost = cur.metrics.globalCost;
@@ -868,8 +835,8 @@ export class PrintLayoutEngine {
             if(prop==='width') im.width += delta;
             if(prop==='height') im.height += delta;
             if(im.width < 22 || im.height < 18) continue;
-            // SMART FIX: respect the real imageArea top/left (margin+topOffset),
-            // not hardcoded 6 — otherwise area-violating moves get clamped into overlaps later.
+            
+            
             const dbgA = cand._debug?.imageArea;
             const aL = dbgA ? dbgA.x : 6, aT = dbgA ? dbgA.y : 6;
             const aR = dbgA ? dbgA.x + dbgA.w : cand.paper.width - 6;
@@ -950,7 +917,7 @@ export class PrintLayoutEngine {
     }
     const d=layout.description;
     if(d && d.height>0 && (d.x+d.width > layout.paper.width+EPS || d.y+d.height > layout.paper.height+EPS)) e.push('Description overflow');
-    // N=3 isolated assertions — Description must be full-width, min 24, below images, not clipped
+    
     if(layout.images.length===3 && d && d.height>0){
       const margin = 6;
       const innerW = layout.paper.width - margin*2;
@@ -1010,33 +977,33 @@ export function runTests(){
     if(o.metrics.whitespaceRatio > 0.32) throw new Error('whitespace huge');
     if(o.metrics.compositionScore < -2) throw new Error('composition low');
   });
-  // Editorial specific: N=2 should not be forced 50/50 grid when mixed orientations
+  
   test('N=2 editorial mixed chooses asymmetric',()=>{
     const o=eng.layout([mk('a',1080,1920), mk('b',1920,1080)], 'وصف تحريري', {width:210,height:297});
-    // Should have some asymmetric ratio, not exactly 50/50 symmetrical for mixed
+    
     const w0=o.images[0].width, w1=o.images[1].width;
     const h0=o.images[0].height, h1=o.images[1].height;
-    // Check not all cells identical (which would be 2x2 grid artifact)
+    
     const same = Math.abs(w0-w1)<1 && Math.abs(h0-h1)<1;
-    // For mixed, allow either side or stack but not forced equal grid penalty should make it editorial
+    
     eng.validateLayout(o);
   });
 
-  // ===== N=3 DESCRIPTION FIX TESTS =====
+  
   test('N=3 short desc — images large, desc full-width, no clipping', ()=>{
     const o=eng.layout([mk('a',4000,3000),mk('b',2000,3000),mk('c',2000,3000)], 'وصف قصير', {width:210,height:297});
     eng.validateLayout(o);
-    // Description must exist and have reasonable height
+    
     if(o.description.height < 5) throw new Error('desc too small: '+o.description.height);
-    // Description must be full width (innerW = 198mm)
+    
     if(o.description.width < 190) throw new Error('desc not full-width: '+o.description.width);
-    // No clipping: desc text height should match actual content
+    
     const descM = estimateDescriptionMetrics('وصف قصير', 198);
     if(o.description.lines !== descM.lines) throw new Error('lines mismatch: '+o.description.lines+' vs '+descM.lines);
-    // Images should still be large (hero > 100mm wide)
+    
     const hero = o.images.reduce((a,b)=> a.width>b.width ? a : b);
     if(hero.width < 100) throw new Error('hero too narrow: '+hero.width.toFixed(1));
-    // N=3 must use HERO_STACK family
+    
     if(!o.metrics.topoName.startsWith('3-hero')) throw new Error('wrong topo: '+o.metrics.topoName);
   });
 
@@ -1044,13 +1011,13 @@ export function runTests(){
     const midDesc = 'تم رصد الحالة عند الساعة 14:35 عبر كاميرا المراقبة في الطابق الثالث. ';
     const o=eng.layout([mk('a',4000,3000),mk('b',2000,3000),mk('c',2000,3000)], midDesc, {width:210,height:297});
     eng.validateLayout(o);
-    // Description should have multiple lines
+    
     if(o.description.lines < 2) throw new Error('medium desc should have >=2 lines, got '+o.description.lines);
-    // Description must be full-width
+    
     if(o.description.width < 190) throw new Error('desc not full-width');
-    // No overflow
+    
     if(o.description.y + o.description.height > 297 + 0.1) throw new Error('desc overflows page');
-    // Images area should still be valid
+    
     const imgArea = o.images.reduce((s,im)=> s + im.width*im.height, 0);
     if(imgArea < 5000) throw new Error('image area too small: '+imgArea);
     if(!o.metrics.topoName.startsWith('3-hero')) throw new Error('wrong topo: '+o.metrics.topoName);
@@ -1060,21 +1027,21 @@ export function runTests(){
     const longDesc = 'تم رصد الحالة عبر كاميرا المراقبة_IP_192.168.1.20 في الطابق الثالث عند الساعة 14:35. ';
     const o=eng.layout([mk('a',4000,3000),mk('b',2000,3000),mk('c',2000,3000)], longDesc.repeat(8), {width:210,height:297});
     eng.validateLayout(o);
-    // Description must NOT be clipped: actual lines should be close to what full content requires
+    
     const fullDescM = estimateDescriptionMetrics(longDesc.repeat(8), 198);
-    // Allow 15% tolerance due to min-height guard reducing available space
+    
     if(o.description.lines < fullDescM.lines * 0.50) throw new Error('desc clipped: '+o.description.lines+' vs expected ~'+fullDescM.lines);
-    // Description must stay inside A4
+    
     if(o.description.y + o.description.height > 297.1) throw new Error('desc overflows A4: y='+o.description.y.toFixed(1)+' h='+o.description.height.toFixed(1)+' total='+(o.description.y+o.description.height).toFixed(1));
-    // Description must have grown compared to short desc
+    
     const shortO=eng.layout([mk('a',4000,3000),mk('b',2000,3000),mk('c',2000,3000)], 'وصف', {width:210,height:297});
     if(o.description.height <= shortO.description.height) throw new Error('desc did not grow: '+o.description.height+' <= '+shortO.description.height);
-    // All images must still be above minimum size (not thumbnails)
+    
     for(const im of o.images){
       if(im.width < 22) throw new Error('image '+im.id+' too narrow: '+im.width.toFixed(1));
       if(im.height < 18) throw new Error('image '+im.id+' too short: '+im.height.toFixed(1));
     }
-    // Composition must remain HERO_STACK
+    
     if(!o.metrics.topoName.startsWith('3-hero')) throw new Error('wrong topo: '+o.metrics.topoName);
   });
 
@@ -1082,28 +1049,28 @@ export function runTests(){
     const mixedDesc = 'تم رصد الحالة عند الساعة 14:35\nCamera ID: CAM-03\nIP: 192.168.1.20\nالغرفة: غرفة التحكم الرئيسية - الطابق الثالث';
     const o=eng.layout([mk('a',4000,3000),mk('b',2000,3000),mk('c',2000,3000)], mixedDesc, {width:210,height:297});
     eng.validateLayout(o);
-    // RTL metadata must be set
+    
     if(o.description.direction !== 'rtl') throw new Error('direction not rtl: '+o.description.direction);
     if(o.description.textAlign !== 'right') throw new Error('textAlign not right: '+o.description.textAlign);
     if(o.description.unicodeBidi !== 'plaintext') throw new Error('unicodeBidi not plaintext: '+o.description.unicodeBidi);
-    // Full text must be preserved
+    
     if(o.description.text !== mixedDesc) throw new Error('text altered');
-    // Description must have reasonable height (> short desc)
+    
     const shortO=eng.layout([mk('a',4000,3000),mk('b',2000,3000),mk('c',2000,3000)], 'وصف', {width:210,height:297});
     if(o.description.height <= shortO.description.height) throw new Error('mixed desc not taller than short');
     if(!o.metrics.topoName.startsWith('3-hero')) throw new Error('wrong topo: '+o.metrics.topoName);
   });
 
   test('N=3 regression — N1/N2/N4 unchanged', ()=>{
-    // N=1
+    
     const o1=eng.layout([mk('a',4000,3000)], 'وصف', {width:210,height:297});
     eng.validateLayout(o1);
     if(o1.description.height > 0 && o1.description.width < 190) throw new Error('N1 desc changed');
-    // N=2
+    
     const o2=eng.layout([mk('a',1920,1080),mk('b',2000,1200)], 'وصف', {width:210,height:297});
     eng.validateLayout(o2);
     if(o2.description.lines < 1) throw new Error('N2 desc changed');
-    // N=4
+    
     const o4=eng.layout([mk('a',1920,1080),mk('b',1080,1920),mk('c',2500,1600),mk('d',800,600)], 'وصف', {width:210,height:297});
     eng.validateLayout(o4);
     if(o4.description.lines < 1) throw new Error('N4 desc changed');

@@ -13,10 +13,10 @@ return new class extends Migration
             $table->foreignId('user_id')->unique()->constrained()->cascadeOnDelete();
             $table->boolean('sound_enabled')->default(true);
             $table->boolean('desktop_enabled')->default(true);
-            $table->integer('volume')->default(70); // 0-100
+            $table->integer('volume')->default(70); 
             $table->boolean('toast_enabled')->default(true);
-            $table->string('sound_theme')->default('default'); // default, subtle, urgent
-            $table->json('muted_types')->nullable(); // e.g., ["note_sent"]
+            $table->string('sound_theme')->default('default'); 
+            $table->json('muted_types')->nullable(); 
             $table->timestamps();
         });
     }

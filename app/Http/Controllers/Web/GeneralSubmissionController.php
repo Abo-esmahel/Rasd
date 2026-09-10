@@ -28,9 +28,24 @@ class GeneralSubmissionController extends Controller
             $query->where('status', $request->status);
         }
 
+        // Quick time presets on submission date.
+        $period = $request->input('period');
+        $today = \Carbon\Carbon::today();
+        if ($period === 'today') {
+            $query->whereDate('created_at', $today);
+        } elseif ($period === 'yesterday') {
+            $query->whereDate('created_at', $today->copy()->subDay());
+        } elseif ($period === 'week') {
+            $query->where('created_at', '>=', $today->copy()->subDays(6)->startOfDay());
+        } elseif ($period === 'month') {
+            $query->where('created_at', '>=', $today->copy()->subDays(29)->startOfDay());
+        } elseif (!in_array($period, [null, '', 'all'], true)) {
+            $period = null;
+        }
+
         $submissions = $query->orderByDesc('created_at')->paginate(15)->withQueryString();
 
-        return view('general-submissions.index', compact('submissions'));
+        return view('general-submissions.index', compact('submissions', 'period'));
     }
 
     public function create(Request $request)
@@ -49,8 +64,12 @@ class GeneralSubmissionController extends Controller
         }
 
         $maxFiles = max(1, (int) ini_get('max_file_uploads') ?: 20);
+        // Simplified form (description + writers only): auto-fill the rest.
+        if (!$request->filled('floor_number')) $request->merge(['floor_number' => 0]);
+        if (!$request->filled('camera_number')) $request->merge(['camera_number' => 1]);
+        if (!$request->filled('observed_at')) $request->merge(['observed_at' => now()->format('Y-m-d\TH:i')]);
         $validated = $request->validate([
-            'floor_number' => ['required','integer','min:1'],
+            'floor_number' => ['required','integer','min:0'],
             'camera_number' => ['required','integer','min:1'],
             'observed_at' => ['required','date'],
             'observed_end_at' => ['nullable','date','after_or_equal:observed_at'],
@@ -66,7 +85,7 @@ class GeneralSubmissionController extends Controller
             'report_writer_ids' => 'كتّاب التقارير',
         ]);
 
-        // server-side validation: all must be report_writer role
+        
         $writers = User::whereIn('id', $validated['report_writer_ids'])->get();
         $invalid = $writers->filter(fn($u) => !$u->isReportWriter());
         if ($invalid->count() > 0 || $writers->count() !== count($validated['report_writer_ids'])) {
@@ -169,9 +188,7 @@ class GeneralSubmissionController extends Controller
         return redirect()->route('general-submissions.show', $generalSubmission)->with('success', 'تم رفض الإرسالية');
     }
 
-    /**
-     * Secure view: local disk only (submissions have no Cloudinary legacy).
-     */
+    
     public function viewAttachment(GeneralSubmissionAttachment $attachment)
     {
         $submission = $attachment->submission;
@@ -201,6 +218,40 @@ class GeneralSubmissionController extends Controller
         }
 
         return $this->storage->fileResponseSubmission($attachment, true);
+    }
+
+    public function sharedViewAttachment(int $attachment)
+    {
+        // Guests always go to login first (even for unknown ids) — never a bare 404.
+        if (!auth()->check()) {
+            return redirect()->guest(route('login'));
+        }
+        $model = GeneralSubmissionAttachment::findOrFail($attachment);
+        if (!$this->storage->isLocalSubmission($model)) {
+            abort(404, 'الملف غير موجود');
+        }
+
+        return view('shared.attachment', [
+            'name' => $model->original_name,
+            'mime' => $model->mime_type,
+            'size' => $model->file_size,
+            'fileUrl' => route('shared.submission-attachments.file', $model),
+            'downloadUrl' => route('submission-attachments.download', $model),
+            'canDownload' => auth()->user()->isReportWriter(),
+        ]);
+    }
+
+    public function sharedFileAttachment(int $attachment)
+    {
+        if (!auth()->check()) {
+            return redirect()->guest(route('login'));
+        }
+        $model = GeneralSubmissionAttachment::findOrFail($attachment);
+        if (!$this->storage->isLocalSubmission($model)) {
+            abort(404, 'الملف غير موجود');
+        }
+
+        return $this->storage->fileResponseSubmission($model, false);
     }
 
     private function wantsJson(Request $request): bool

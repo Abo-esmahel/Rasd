@@ -14,7 +14,7 @@ class AttachmentFactory extends Factory
     {
         return [
             'note_id' => Note::factory(),
-            // Local path format: notes/{note_id}/{uuid}.jpg — new uploads use UUID + extension on attachments disk.
+            
             'file_path' => 'notes/1/'.fake()->uuid().'.jpg',
             'original_name' => fake()->word() . '.jpg',
             'mime_type' => 'image/jpeg',

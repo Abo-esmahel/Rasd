@@ -9,7 +9,6 @@ use App\Models\User;
 use App\Notifications\NoteAcceptedNotification;
 use App\Notifications\NoteRejectedNotification;
 use App\Notifications\NoteSentNotification;
-use App\Services\Media\CloudinaryMediaService;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -17,13 +16,10 @@ use InvalidArgumentException;
 
 class NoteService
 {
-    /**
-     * Local disk storage is currently active.
-     * Cloudinary storage temporarily disabled — kept only as LEGACY READ-ONLY fallback.
-     */
+    
     public function __construct(
         private AttachmentStorageService $storage,
-        private ?CloudinaryMediaService $legacyMedia = null,
+        private ?WebPushService $push = null,
     ) {}
 
     public function createDraft(User $user, array $data): Note
@@ -43,21 +39,14 @@ class NoteService
         return Note::create($allowed);
     }
 
-    /**
-     * Atomic creation: Note + every uploaded file must persist, else NOTHING persists.
-     *
-     * @param  UploadedFile[]  $files
-     * @return array{note: Note, files_received: int, attachments_saved: int, attachment_errors: array}
-     *
-     * @throws AttachmentUploadException on any attachment failure (rollback + cleanup already done)
-     */
+    
     public function createNoteWithAttachments(User $user, array $data, array $files, int $clientFilesCount = 0): array
     {
         $received = array_values(array_filter($files, fn ($f) => $f instanceof UploadedFile));
         $filesReceived = count($received);
         $clientFilesCount = max(0, $clientFilesCount);
 
-        // Transport-loss detection BEFORE creating the note: declared > received = failure, no note.
+        
         if ($clientFilesCount > 0 && $filesReceived < $clientFilesCount) {
             $msg = $filesReceived === 0
                 ? "تم إعلان {$clientFilesCount} ملف لكن لم يصل أي مرفق إلى الخادم. يرجى إعادة رفع الملف."
@@ -117,7 +106,7 @@ class NoteService
                 }
             }
 
-            // Business-level invariant: received MUST equal saved, else fail loud.
+            
             $attachmentsSaved = count($attachments);
             if ($filesReceived !== $attachmentsSaved) {
                 throw new AttachmentUploadException(
@@ -129,7 +118,7 @@ class NoteService
                 );
             }
 
-            // Physical + DB verification before commit.
+            
             foreach ($attachments as $attachment) {
                 $fresh = Attachment::where('id', $attachment->id)->where('note_id', $note->id)->first();
                 if (!$fresh || !$this->storage->exists($fresh->file_path)) {
@@ -186,11 +175,7 @@ class NoteService
         }
     }
 
-    /**
-     * Atomic update: note fields + new files must all persist, else rollback to original.
-     *
-     * @param  UploadedFile[]  $files
-     */
+    
     public function updateNoteWithAttachments(User $user, Note $note, array $data, array $files, int $clientFilesCount = 0): array
     {
         $received = array_values(array_filter($files, fn ($f) => $f instanceof UploadedFile));
@@ -340,14 +325,8 @@ class NoteService
         $attachments = $note->attachments()->get();
         DB::transaction(function () use ($note, $attachments) {
             foreach ($attachments as $attachment) {
-                // Local files are deleted; legacy Cloudinary assets are RETAINED (read-only).
-                if ($this->storage->isLocal($attachment)) {
+                if ($attachment->file_path) {
                     $this->storage->delete($attachment->file_path);
-                } else {
-                    Log::info('[ATTACHMENT] legacy cloudinary asset retained on draft delete', [
-                        'attachment_id' => $attachment->id,
-                        'file_path' => $attachment->file_path,
-                    ]);
                 }
                 $attachment->delete();
             }
@@ -381,13 +360,15 @@ class NoteService
                 'processed_at' => null,
             ]);
             $fresh = $note->fresh();
-            // إشعار كل المستخدمين (مراقبين وكتّاب) عند إرسال ملاحظة — كان سابقاً للكتّاب فقط
+            
             try {
                 $recipients = User::where('id','!=',$user->id)->get();
                 foreach ($recipients as $recipient) {
                     if (!$this->hasNotification($recipient, NoteSentNotification::class, $fresh->id, 'note_id', $fresh->sent_at)) {
                         $recipient->notify(new NoteSentNotification($fresh, $user->name));
                     }
+                    
+                    try { $this->push?->sendToUser($recipient->id, ['title'=>'ملاحظة واردة','body'=>"ملاحظة #{$fresh->id} · كاميرا {$fresh->camera_number}","url"=>'/notes/'.$fresh->id]); } catch(\Throwable $e){}
                 }
             } catch (\Throwable $e) {
                 Log::warning('فشل إرسال إشعار ملاحظة جديدة: '.$e->getMessage());
@@ -466,7 +447,7 @@ class NoteService
             'processed_at' => null,
         ]);
         $fresh = $note->fresh();
-        // Notify report writers on resend as well
+        
         try {
             $writers = User::where('role', 'report_writer')->get();
             foreach ($writers as $writer) {
@@ -481,19 +462,13 @@ class NoteService
         return $fresh;
     }
 
-    /**
-     * Single attachment upload → Local Disk ONLY.
-     * Cloudinary upload is DISABLED for new files (legacy read-only fallback only).
-     */
+    
     public function addAttachment(User $user, Note $note, UploadedFile $file): Attachment
     {
         return $this->storeSingleAttachment($user, $note, $file);
     }
 
-    /**
-     * Core single-file pipeline: auth → limit → php_upload → validation → store → DB → verify.
-     * Any failure throws (AttachmentUploadException or InvalidArgumentException) — never silent.
-     */
+    
     private function storeSingleAttachment(User $user, Note $note, UploadedFile $file): Attachment
     {
         if ($note->user_id !== $user->id) {
@@ -510,7 +485,7 @@ class NoteService
             throw new InvalidArgumentException("الحد الأقصى للمرفقات هو $maxAttachments");
         }
 
-        // PHP upload stage first (UPLOAD_ERR_* must fail loud).
+        
         if (!$file->isValid()) {
             $code = (int) $file->getError();
             Log::warning('[ATTACHMENT] php upload invalid in addAttachment', [
@@ -529,23 +504,20 @@ class NoteService
 
         $this->validateFile($file);
 
-        // Cloudinary storage temporarily disabled.
-        // Local disk storage is currently active.
+        
+        
         $relativePath = $this->storage->store($file, $note->id);
 
         try {
             $attachment = Attachment::create([
                 'note_id' => $note->id,
                 'file_path' => $relativePath,
-                'cloudinary_resource_type' => null,
-                'cloudinary_format' => null,
-                'secure_url' => null,
                 'original_name' => $file->getClientOriginalName(),
                 'mime_type' => $file->getMimeType() ?: $file->getClientMimeType() ?: 'application/octet-stream',
                 'file_size' => $file->getSize() ?? 0,
             ]);
         } catch (\Throwable $e) {
-            // Compensation: cleanup orphan local file if DB fails.
+            
             $this->storage->delete($relativePath);
             Log::error('[ATTACHMENT] DB create failed, local file cleaned', [
                 'note_id' => $note->id,
@@ -555,7 +527,7 @@ class NoteService
             throw $e;
         }
 
-        // DB + physical verification: record must exist AND file must exist.
+        
         $existsDb = Attachment::where('id', $attachment->id)->where('note_id', $note->id)->exists();
         $existsFile = $this->storage->exists($relativePath);
         if (!$existsDb || !$existsFile) {
@@ -603,12 +575,6 @@ class NoteService
                 if (!$deleted) {
                     Log::warning('[ATTACHMENT] local file delete reported failure', ['path' => $path]);
                 }
-            } else {
-                // Legacy Cloudinary asset: delete DB record only, retain remote asset (non-destructive).
-                Log::info('[ATTACHMENT] legacy cloudinary asset retained on attachment delete', [
-                    'attachment_id' => $attachment->id,
-                    'file_path' => $path,
-                ]);
             }
             $attachment->delete();
         });
@@ -616,8 +582,9 @@ class NoteService
 
     public function getVisibleNotesQuery(User $user)
     {
-        $query = Note::with(['owner', 'attachments']);
-        // السياسة الجديدة: قيد المراجعة/مقبولة/مرفوضة مرئية للجميع، المسودة لصاحبها فقط
+        // Frontend separation: notes converted from general submissions live only in submissions lists.
+        $query = Note::with(['owner', 'attachments'])->whereNull('notes.general_submission_id');
+        
         $query->where(function ($q) use ($user) {
             $q->where('user_id', $user->id)
                 ->orWhere('status', '!=', Note::STATUS_DRAFT);
@@ -659,10 +626,7 @@ class NoteService
         };
     }
 
-    /**
-     * Forensic snapshot for transport-loss diagnosis (limits, body size, files keys).
-     * Safe outside HTTP context (returns []).
-     */
+    
     private function transportForensics(): array
     {
         try {
@@ -683,9 +647,9 @@ class NoteService
     private function hasNotification(User $user, string $type, int $id, string $key = 'note_id', mixed $since = null): bool
     {
         try {
-            // فحص idempotent ضمن الدورة الحالية فقط: إشعارات الدورات السابقة
-            // (created_at <= بداية الدورة الحالية sent_at) لا تُحتسب، حتى يصل
-            // إشعار جديد عند كل رفض/قبول بعد إعادة الإرسال.
+            
+            
+            
             $query = $user->notifications()->where('type', $type);
             if ($since) {
                 $query->where('created_at', '>', $since);
@@ -699,9 +663,9 @@ class NoteService
                 if (($data[$key] ?? null) == $id) {
                     return true;
                 }
-                // دعم مفاتيح بديلة
+                
                 if (($data['note_id'] ?? null) == $id || ($data['submission_id'] ?? null) == $id || ($data['general_submission_id'] ?? null) == $id) {
-                    // تحقق إضافي للنوع
+                    
                     if ($n->type === $type) {
                         return true;
                     }
@@ -730,8 +694,8 @@ class NoteService
             throw new InvalidArgumentException('امتداد الملف غير مدعوم. الامتدادات المدعومة: ' . implode(', ', $allowedMimes));
         }
         $realPath = $file->getRealPath();
-        // ROOT CAUSE FIX: تهيئة افتراضية من Symfony guesser حتى لا يُستخدم متغير غير معرّف
-        // (TypeError) لو تعذّر finfo — مع بقاء فحص الامتداد هو الحارس الأول
+        
+        
         $realMime = $file->getMimeType();
         if ($realPath && function_exists('finfo_open')) {
             $finfo = finfo_open(FILEINFO_MIME_TYPE);
@@ -746,11 +710,11 @@ class NoteService
                 }
             }
         }
-        // الحدود ديناميكية من config — رسائل الخطأ تعرض القيمة الفعلية (لا أرقام ثابتة مضللة)
+        
         $maxImageSize = (int) config('attachments.max_image_size', 5120) * 1024;
         $maxVideoSize = (int) config('attachments.max_video_size', 30720) * 1024;
         $maxAudioSize = (int) config('attachments.max_audio_size', 100 * 1024 * 1024);
-        // احترام حد PHP الفعلي أيضاً (upload_max_filesize)
+        
         $phpMax = $this->parseBytes((string) ini_get('upload_max_filesize'));
         if ($phpMax > 0) {
             $maxImageSize = min($maxImageSize, $phpMax);

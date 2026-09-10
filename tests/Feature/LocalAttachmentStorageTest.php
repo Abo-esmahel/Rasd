@@ -7,16 +7,11 @@ use App\Models\Attachment;
 use App\Models\Note;
 use App\Models\User;
 use App\Services\AttachmentStorageService;
-use App\Services\Media\CloudinaryMediaService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
-/**
- * Mandatory migration tests: UploadedFile → Laravel → Storage Disk → DB → Fresh query → View route.
- * No Cloudinary mocks for success paths (real local pipeline). Cloudinary = legacy read-only only.
- */
 class LocalAttachmentStorageTest extends TestCase
 {
     use RefreshDatabase;
@@ -103,7 +98,7 @@ class LocalAttachmentStorageTest extends TestCase
         $this->assertStringStartsWith("notes/{$noteId}/", $attachment->file_path);
         Storage::disk('attachments')->assertExists($attachment->file_path);
 
-        // View route serves the real bytes (BinaryFileResponse streams from disk).
+        
         $view = $this->actingAs($user)->get("/attachments/{$attachment->id}/view");
         $view->assertOk();
         $this->assertStringStartsWith('image/', $view->headers->get('Content-Type'));
@@ -128,7 +123,7 @@ class LocalAttachmentStorageTest extends TestCase
         $noteId = $res->json('note_id');
         $this->assertEquals(3, Attachment::where('note_id', $noteId)->count());
         $paths = Attachment::where('note_id', $noteId)->pluck('file_path');
-        // Unique storage names — no collisions.
+        
         $this->assertEquals(3, $paths->unique()->count());
         foreach ($paths as $p) {
             Storage::disk('attachments')->assertExists($p);
@@ -189,7 +184,7 @@ class LocalAttachmentStorageTest extends TestCase
         $this->assertEquals(1, $fresh->attachments->count());
         Storage::disk('attachments')->assertExists($fresh->attachments->first()->file_path);
 
-        // Full page reload twice — still visible.
+        
         $this->actingAs($user)->get("/notes/{$noteId}")->assertOk()->assertSee($fresh->attachments->first()->original_name);
         $reloaded = Note::with('attachments')->find($noteId);
         $this->assertEquals(1, $reloaded->attachments->count());
@@ -204,7 +199,7 @@ class LocalAttachmentStorageTest extends TestCase
         file_put_contents($tmp, 'plain text must fail allow-list');
         $bad = new UploadedFile($tmp, 'note.txt', 'text/plain', null, true);
 
-        // First valid, second invalid → atomic rollback + cleanup of first file.
+        
         $res = $this->actingAs($user)->post('/notes',
             $this->payload(['files' => [$this->jpeg('ok.jpg'), $bad], 'client_files_count' => 2]),
             $this->headers());
@@ -223,7 +218,7 @@ class LocalAttachmentStorageTest extends TestCase
             'Simulated disk failure', stage: 'storage', originalName: 'photo.jpg',
             filesReceived: 1, attachmentsSaved: 0, attachmentErrors: ['Simulated disk failure'],
         ));
-        // Service verification helpers delegate to real disk (no files exist).
+        
         $mock->shouldReceive('exists')->andReturn(false);
         $mock->shouldReceive('delete')->andReturn(true);
         $mock->shouldReceive('isLocal')->andReturn(false);
@@ -256,31 +251,25 @@ class LocalAttachmentStorageTest extends TestCase
         Storage::disk('attachments')->assertMissing($path);
     }
 
-    public function test_legacy_cloudinary_fallback_still_works(): void
+    public function test_missing_local_file_returns_404(): void
     {
         $user = $this->monitor();
         $note = Note::factory()->draft()->create(['user_id' => $user->id]);
         $legacy = Attachment::factory()->create([
             'note_id' => $note->id,
-            'file_path' => 'legacy/notes/'.$note->id.'/old-public-id',
-            'cloudinary_resource_type' => 'image',
-            'secure_url' => 'https://res.cloudinary.com/demo/image/upload/v1/notes/sample.jpg',
+            'file_path' => 'legacy/notes/'.$note->id.'/old-file',
             'original_name' => 'old.jpg',
             'mime_type' => 'image/jpeg',
         ]);
 
         $this->assertFalse($legacy->fresh()->isLocal());
-        $this->assertTrue($legacy->fresh()->isLegacyCloudinary());
 
         $res = $this->actingAs($user)->get("/attachments/{$legacy->id}/view");
-        $res->assertRedirect('https://res.cloudinary.com/demo/image/upload/v1/notes/sample.jpg');
+        $res->assertNotFound();
     }
 
-    public function test_new_uploads_never_call_cloudinary(): void
+    public function test_new_uploads_are_stored_locally(): void
     {
-        $cloud = $this->mock(CloudinaryMediaService::class);
-        $cloud->shouldNotReceive('upload');
-
         $user = $this->monitor();
         $res = $this->actingAs($user)->post('/notes',
             $this->payload(['files' => [$this->jpeg()], 'client_files_count' => 1]),
@@ -288,8 +277,8 @@ class LocalAttachmentStorageTest extends TestCase
 
         $res->assertCreated()->assertJsonPath('success', true);
         $attachment = Attachment::where('note_id', $res->json('note_id'))->first();
-        $this->assertNull($attachment->secure_url);
-        $this->assertNull($attachment->cloudinary_resource_type);
+        $this->assertNotNull($attachment);
+        $this->assertTrue(Storage::disk('attachments')->exists($attachment->file_path));
     }
 
     public function test_update_with_new_attachments_is_atomic(): void
@@ -331,8 +320,6 @@ class LocalAttachmentStorageTest extends TestCase
         $ghost = Attachment::factory()->create([
             'note_id' => $note->id,
             'file_path' => 'notes/'.$note->id.'/ghost-uuid.jpg',
-            'secure_url' => null,
-            'cloudinary_resource_type' => null,
         ]);
         $this->assertFalse(Storage::disk('attachments')->exists($ghost->file_path));
 

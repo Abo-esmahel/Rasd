@@ -12,10 +12,6 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
-/**
- * General-submission media: local disk only (submissions/{id}/{uuid}.ext).
- * Atomic, no silent failure. Accept copies media → new Note (notes/{id}/).
- */
 class GeneralSubmissionMediaTest extends TestCase
 {
     use RefreshDatabase;
@@ -193,7 +189,7 @@ class GeneralSubmissionMediaTest extends TestCase
         $this->assertEquals(0, GeneralSubmission::count());
     }
 
-    public function test_accept_copies_media_to_note(): void
+    public function test_accept_keeps_media_on_submission_only(): void
     {
         $monitor = $this->monitor();
         $writer = $this->writer();
@@ -207,17 +203,16 @@ class GeneralSubmissionMediaTest extends TestCase
 
         $service = app(\App\Services\GeneralSubmissionService::class);
         $submission = GeneralSubmission::find($subId);
-        $note = $service->accept($submission, $writer);
+        $result = $service->accept($submission, $writer);
 
-        $this->assertNotNull($note);
-        $this->assertEquals(Note::STATUS_ACCEPTED, $note->status);
-        $this->assertEquals(1, $note->attachments->count());
-        $noteAtt = $note->attachments->first();
-        $this->assertEquals('copy.jpg', $noteAtt->original_name);
-        $this->assertStringStartsWith("notes/{$note->id}/", $noteAtt->file_path);
-        Storage::disk('attachments')->assertExists($noteAtt->file_path);
-        $this->assertEquals($originalBytes, Storage::disk('attachments')->get($noteAtt->file_path));
-        // Submission source retained.
+        // No Note record is created on accept — submissions are not notes.
+        $this->assertInstanceOf(GeneralSubmission::class, $result);
+        $this->assertEquals(GeneralSubmission::STATUS_ACCEPTED, $result->status);
+        $this->assertEquals(0, Note::count());
+        // Original submission media stays untouched.
+        Storage::disk('attachments')->assertExists($subAtt->file_path);
+        $this->assertEquals($originalBytes, Storage::disk('attachments')->get($subAtt->file_path));
+        
         Storage::disk('attachments')->assertExists($subAtt->file_path);
     }
 

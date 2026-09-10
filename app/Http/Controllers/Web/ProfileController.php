@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
-use App\Services\Media\CloudinaryMediaService;
 use App\Support\SyrianPhone;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -14,7 +13,6 @@ use Illuminate\Validation\Rule;
 
 class ProfileController extends Controller
 {
-    public function __construct(private CloudinaryMediaService $media) {}
 
     public function show(Request $request, ?int $id = null)
     {
@@ -108,64 +106,35 @@ class ProfileController extends Controller
         $user->name = $validated['name'];
         $user->username = $validated['username'];
         $user->personal_number = $normalized;
-        if ($request->boolean('remove_avatar') && ($user->avatar_path || $user->avatar_public_id)) {
+        if ($request->boolean('remove_avatar') && $user->avatar_path) {
             try {
-                $publicId = $user->avatar_public_id ?: $user->getCloudinaryPath();
-                $resourceType = $user->avatar_resource_type ?: 'image';
-                $this->media->delete($publicId, $resourceType);
+                if (\Illuminate\Support\Facades\Storage::disk('public')->exists($user->avatar_path)) {
+                    \Illuminate\Support\Facades\Storage::disk('public')->delete($user->avatar_path);
+                }
             } catch (\Throwable $e) {
-                Log::warning('Cloudinary avatar delete failed: '.$e->getMessage(), ['userId' => $user->id]);
+                Log::warning('Avatar delete failed: '.$e->getMessage(), ['userId' => $user->id]);
             }
             $user->avatar_path = null;
-            $user->avatar_public_id = null;
-            $user->avatar_resource_type = null;
-            $user->avatar_secure_url = null;
         }
         if ($request->hasFile('avatar')) {
             $avatarFile = $request->file('avatar');
-            // محلي أولاً (يعمل بدون إنترنت) - fallback إلى Cloudinary إذا توفر
-            $localPath = null;
             try {
                 $localPath = $avatarFile->store('avatars', 'public');
             } catch (\Throwable $e) {
-                Log::warning('Local avatar store failed, trying Cloudinary', ['message'=>$e->getMessage()]);
+                Log::error('Avatar upload failed', [
+                    'userId' => $user->id,
+                    'exception' => get_class($e),
+                    'message' => $e->getMessage(),
+                ]);
+
+                return back()
+                    ->withErrors(['avatar' => 'تعذّر رفع الصورة. حاول بصورة أصغر (حتى 10MB) بصيغة JPG/PNG/WEBP.'])
+                    ->withInput();
             }
-            if ($localPath) {
-                // حذف القديم المحلي إن وجد
-                if ($user->avatar_path && \Illuminate\Support\Facades\Storage::disk('public')->exists($user->avatar_path)) {
-                    try { \Illuminate\Support\Facades\Storage::disk('public')->delete($user->avatar_path); } catch (\Throwable $e) {}
-                }
-                // حذف القديم السحابي إن وجد
-                if ($user->avatar_public_id) {
-                    try { $this->media->delete($user->avatar_public_id, $user->avatar_resource_type ?: 'image'); } catch (\Throwable $e) {}
-                }
-                $user->avatar_path = $localPath;
-                $user->avatar_public_id = null;
-                $user->avatar_resource_type = null;
-                $user->avatar_secure_url = null;
-            } else {
-                try {
-                    $result = $this->media->upload($avatarFile, 'avatars');
-                    $oldPublicId = $user->avatar_public_id ?: $user->getCloudinaryPath();
-                    $oldResourceType = $user->avatar_resource_type ?: 'image';
-                    if ($oldPublicId && $oldPublicId !== $result->publicId) {
-                        try { $this->media->delete($oldPublicId, $oldResourceType); } catch (\Throwable $e) {}
-                    }
-                    $user->avatar_path = $result->publicId;
-                    $user->avatar_public_id = $result->publicId;
-                    $user->avatar_resource_type = $result->resourceType;
-                    $user->avatar_secure_url = $result->secureUrl;
-                } catch (\Throwable $e) {
-                    Log::error('Avatar upload failed (local+cloudinary)', [
-                        'userId' => $user->id,
-                        'exception' => get_class($e),
-                        'message' => $e->getMessage(),
-                    ]);
-                    return back()
-                        ->withErrors(['avatar' => 'تعذّر رفع الصورة. حاول بصورة أصغر (حتى 10MB) بصيغة JPG/PNG/WEBP.'])
-                        ->withInput();
-                }
+            if ($user->avatar_path && \Illuminate\Support\Facades\Storage::disk('public')->exists($user->avatar_path)) {
+                try { \Illuminate\Support\Facades\Storage::disk('public')->delete($user->avatar_path); } catch (\Throwable $e) {}
             }
+            $user->avatar_path = $localPath;
         }
         $user->save();
         return redirect()->route('profile.show')->with('success', 'تم تحديث الملف الشخصي بنجاح');

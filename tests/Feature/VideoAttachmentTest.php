@@ -10,10 +10,6 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
-/**
- * Video attachments end-to-end: upload (API + Web), MOV + Arabic names,
- * and Range streaming required by <video> players.
- */
 class VideoAttachmentTest extends TestCase
 {
     use RefreshDatabase;
@@ -41,7 +37,7 @@ class VideoAttachmentTest extends TestCase
         return [$monitor, $this->jwtService->generateToken($monitor)];
     }
 
-    /** @test */
+    
     public function test_api_accepts_mp4_video_upload(): void
     {
         [$monitor, $token] = $this->authMonitor();
@@ -55,7 +51,7 @@ class VideoAttachmentTest extends TestCase
         Storage::disk('attachments')->assertExists($res->json('data.file_path'));
     }
 
-    /** @test */
+    
     public function test_api_accepts_mov_with_arabic_filename(): void
     {
         [$monitor, $token] = $this->authMonitor();
@@ -70,7 +66,7 @@ class VideoAttachmentTest extends TestCase
         $res->assertJsonPath('data.original_name', 'فيديو الملاحظة 12.MOV');
     }
 
-    /** @test */
+    
     public function test_web_note_create_with_video(): void
     {
         $monitor = User::factory()->monitor()->create();
@@ -88,7 +84,7 @@ class VideoAttachmentTest extends TestCase
         $res->assertJsonPath('attachments_saved', 1);
     }
 
-    /** @test */
+    
     public function test_video_view_supports_range_requests(): void
     {
         [$monitor, $token] = $this->authMonitor();
@@ -103,7 +99,7 @@ class VideoAttachmentTest extends TestCase
         $headers = ['Authorization' => 'Bearer '.$token];
         $this->withHeaders($headers)->get("/api/attachments/{$attId}/view")->assertStatus(200);
 
-        // What every <video> player sends — must be 206, not 200
+        
         $range = $this->withHeaders($headers + ['Range' => 'bytes=0-1023'])->get("/api/attachments/{$attId}/view");
         $range->assertStatus(206);
         $range->assertHeader('Content-Range', 'bytes 0-1023/'.(3 * 1024 * 1024));

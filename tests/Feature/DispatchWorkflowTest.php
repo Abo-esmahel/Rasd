@@ -43,7 +43,7 @@ class DispatchWorkflowTest extends TestCase
         return User::factory()->reportWriter()->create(['name' => $name ?? fake()->name()]);
     }
 
-    /** @test */
+    
     public function test_A_send_dispatch_notification_targeted(): void
     {
         $monitorA = $this->createMonitor('Monitor A');
@@ -51,7 +51,7 @@ class DispatchWorkflowTest extends TestCase
         $recipientB = $this->createWriter('Recipient B');
         $otherMonitor = $this->createMonitor('Other Monitor');
 
-        // Monitor A creates draft and submits to Recipient A + B
+        
         $submission = $this->dispatchService->createDraft($monitorA, [
             'floor_number' => 1,
             'camera_number' => 10,
@@ -63,32 +63,32 @@ class DispatchWorkflowTest extends TestCase
 
         $this->assertEquals(GeneralSubmission::STATUS_PENDING, $submission->status);
 
-        // Recipient A should have notification
+        
         $this->assertTrue(
             $recipientA->notifications()->where('type', DispatchSentNotification::class)->get()
                 ->contains(fn($n) => ($n->data['submission_id'] ?? $n->data['general_submission_id'] ?? null) == $submission->id),
             'Recipient A should have dispatch sent notification'
         );
 
-        // Recipient B should have notification
+        
         $this->assertTrue(
             $recipientB->notifications()->where('type', DispatchSentNotification::class)->get()
                 ->contains(fn($n) => ($n->data['submission_id'] ?? $n->data['general_submission_id'] ?? null) == $submission->id),
             'Recipient B should have dispatch sent notification'
         );
 
-        // Other Monitor should NOT have notification
+        
         $this->assertFalse(
             $otherMonitor->notifications()->where('type', DispatchSentNotification::class)->get()
                 ->contains(fn($n) => ($n->data['submission_id'] ?? null) == $submission->id),
             'Other Monitor should NOT have dispatch sent notification'
         );
 
-        // Other Monitor and unassigned writer should have zero dispatch notifications
+        
         $this->assertEquals(0, $otherMonitor->notifications()->where('type', DispatchSentNotification::class)->count());
     }
 
-    /** @test */
+    
     public function test_B_writer_accept_notification_to_monitor(): void
     {
         $monitorA = $this->createMonitor('Monitor A');
@@ -102,34 +102,36 @@ class DispatchWorkflowTest extends TestCase
         ]);
         $submission = $this->dispatchService->submit($submission, $monitorA, [$writer->id]);
 
-        // Clear previous sent notifications to isolate accept notification
-        // Writer accepts
-        $note = $this->dispatchService->accept($submission, $writer);
+        
+        
+        $notesBefore = Note::count();
+        $result = $this->dispatchService->accept($submission, $writer);
 
         $submission->refresh();
         $this->assertEquals(GeneralSubmission::STATUS_ACCEPTED, $submission->status);
-        $this->assertNotNull($note);
-        $this->assertEquals(Note::STATUS_ACCEPTED, $note->status);
+        // Submissions are NOT notes: acceptance must not create any Note record.
+        $this->assertInstanceOf(GeneralSubmission::class, $result);
+        $this->assertEquals($notesBefore, Note::count());
 
-        // Monitor A should receive accept notification
+        
         $monitorNotifications = $monitorA->notifications()->where('type', DispatchAcceptedNotification::class)->get();
         $this->assertTrue(
             $monitorNotifications->contains(fn($n) => ($n->data['submission_id'] ?? null) == $submission->id),
             'Monitor A should receive accept notification'
         );
 
-        // Check message contains قبول
+        
         $notif = $monitorNotifications->first(fn($n) => ($n->data['submission_id'] ?? null) == $submission->id);
         $this->assertStringContainsString('قبول', $notif->data['message'] ?? '');
 
-        // Check url exists
+        
         $this->assertNotEmpty($notif->data['url'] ?? null);
 
-        // Writer should NOT receive accept notification (only monitor)
+        
         $this->assertEquals(0, $writer->notifications()->where('type', DispatchAcceptedNotification::class)->count());
     }
 
-    /** @test */
+    
     public function test_C_writer_reject_notification_to_monitor_with_reason(): void
     {
         $monitorA = $this->createMonitor('Monitor A');
@@ -149,7 +151,7 @@ class DispatchWorkflowTest extends TestCase
         $this->assertEquals(GeneralSubmission::STATUS_REJECTED, $submission->status);
         $this->assertEquals($reason, $submission->rejection_reason);
 
-        // Monitor should receive reject notification with reason
+        
         $notif = $monitorA->notifications()->where('type', DispatchRejectedNotification::class)->get()
             ->first(fn($n) => ($n->data['submission_id'] ?? null) == $submission->id);
 
@@ -158,11 +160,11 @@ class DispatchWorkflowTest extends TestCase
         $this->assertStringContainsString('رفض', $notif->data['message'] ?? '');
         $this->assertNotEmpty($notif->data['url'] ?? null);
 
-        // Ensure accept notification NOT sent on reject
+        
         $this->assertEquals(0, $monitorA->notifications()->where('type', DispatchAcceptedNotification::class)->count());
     }
 
-    /** @test */
+    
     public function test_D_privacy_other_monitors_blocked(): void
     {
         $monitorA = $this->createMonitor('Monitor A');
@@ -179,38 +181,38 @@ class DispatchWorkflowTest extends TestCase
         ]);
         $submission = $this->dispatchService->submit($submission, $monitorA, [$recipientA->id]);
 
-        // Sender can view
+        
         $this->assertTrue($monitorA->can('view', $submission), 'Monitor A (sender) should view own dispatch');
-        // Recipient can view
+        
         $this->assertTrue($recipientA->can('view', $submission), 'Recipient A should view assigned dispatch');
-        // Other monitors cannot view
+        
         $this->assertFalse($monitorB->can('view', $submission), 'Monitor B should NOT view Monitor A dispatch');
         $this->assertFalse($monitorC->can('view', $submission), 'Monitor C should NOT view Monitor A dispatch');
-        // Unassigned writer cannot view
+        
         $this->assertFalse($unassignedWriter->can('view', $submission), 'Unassigned writer should NOT view dispatch');
 
-        // Direct API check: Monitor B tries to GET dispatch
+        
         $tokenB = $this->jwtService->generateToken($monitorB);
         $response = $this->getJson("/api/general-submissions/{$submission->id}", [
             'Authorization' => "Bearer $tokenB",
         ]);
         $response->assertForbidden();
 
-        // Recipient A can GET
+        
         $tokenA = $this->jwtService->generateToken($recipientA);
         $response = $this->getJson("/api/general-submissions/{$submission->id}", [
             'Authorization' => "Bearer $tokenA",
         ]);
         $response->assertOk();
 
-        // Monitor A can GET
+        
         $tokenSender = $this->jwtService->generateToken($monitorA);
         $response = $this->getJson("/api/general-submissions/{$submission->id}", [
             'Authorization' => "Bearer $tokenSender",
         ]);
         $response->assertOk();
 
-        // Test getVisibleSubmissions filtering
+        
         $visibleForB = $this->dispatchService->getVisibleSubmissions($monitorB)->get();
         $this->assertFalse($visibleForB->contains('id', $submission->id), 'Monitor B visible query should NOT contain submission');
 
@@ -218,7 +220,7 @@ class DispatchWorkflowTest extends TestCase
         $this->assertTrue($visibleForRecipient->contains('id', $submission->id), 'Recipient should see in visible query');
     }
 
-    /** @test */
+    
     public function test_note_privacy_other_monitors_blocked(): void
     {
         $monitorA = $this->createMonitor('Monitor A');
@@ -228,22 +230,22 @@ class DispatchWorkflowTest extends TestCase
 
         $note = Note::factory()->pending()->create(['user_id' => $monitorA->id]);
 
-        // Sender sees
+        
         $this->assertTrue($monitorA->can('view', $note));
-        // Other monitors can view pending (الملاحظات قيد المراجعة للجميع)
+        
         $this->assertTrue($monitorB->can('view', $note));
         $this->assertTrue($monitorC->can('view', $note));
-        // Writer can see pending
+        
         $this->assertTrue($writer->can('view', $note));
 
-        // Direct URL allowed for other monitor (pending visible to all)
+        
         $tokenB = $this->jwtService->generateToken($monitorB);
         $response = $this->getJson("/api/notes/{$note->id}", [
             'Authorization' => "Bearer $tokenB",
         ]);
         $response->assertOk();
 
-        // Sender can view via API
+        
         $tokenA = $this->jwtService->generateToken($monitorA);
         $response = $this->getJson("/api/notes/{$note->id}", [
             'Authorization' => "Bearer $tokenA",
@@ -251,7 +253,7 @@ class DispatchWorkflowTest extends TestCase
         $response->assertOk();
     }
 
-    /** @test */
+    
     public function test_writer_access_only_assigned_dispatch(): void
     {
         $monitor = $this->createMonitor();
@@ -266,20 +268,20 @@ class DispatchWorkflowTest extends TestCase
         ]);
         $submission = $this->dispatchService->submit($submission, $monitor, [$writerAssigned->id]);
 
-        // Assigned can accept
+        
         $this->assertTrue($writerAssigned->can('accept', $submission));
         $this->assertTrue($writerAssigned->can('reject', $submission));
 
-        // Unassigned cannot accept/reject
+        
         $this->assertFalse($writerUnassigned->can('accept', $submission));
         $this->assertFalse($writerUnassigned->can('reject', $submission));
 
-        // Unassigned tries to accept should throw
+        
         $this->expectException(\InvalidArgumentException::class);
         $this->dispatchService->accept($submission, $writerUnassigned);
     }
 
-    /** @test */
+    
     public function test_note_accept_notification_to_monitor(): void
     {
         $monitor = $this->createMonitor();
@@ -294,11 +296,11 @@ class DispatchWorkflowTest extends TestCase
         $this->assertStringContainsString('قبول', $notif->data['message']);
         $this->assertNotEmpty($notif->data['url']);
 
-        // Reject notification should NOT be sent on accept
+        
         $this->assertEquals(0, $monitor->notifications()->where('type', NoteRejectedNotification::class)->count());
     }
 
-    /** @test */
+    
     public function test_note_reject_notification_with_reason(): void
     {
         $monitor = $this->createMonitor();
@@ -316,7 +318,7 @@ class DispatchWorkflowTest extends TestCase
         $this->assertNotEmpty($notif->data['url']);
     }
 
-    /** @test */
+    
     public function test_duplicate_notification_idempotent_dispatch_accept(): void
     {
         $monitor = $this->createMonitor();
@@ -330,23 +332,23 @@ class DispatchWorkflowTest extends TestCase
         ]);
         $submission = $this->dispatchService->submit($submission, $monitor, [$writer->id]);
 
-        // First accept succeeds
+        
         $this->dispatchService->accept($submission, $writer);
         $countAfterFirst = $monitor->notifications()->where('type', DispatchAcceptedNotification::class)->count();
         $this->assertEquals(1, $countAfterFirst);
 
-        // Second accept should fail because status no longer pending, thus no duplicate notification
+        
         try {
             $this->dispatchService->accept($submission->fresh(), $writer);
             $this->fail('Second accept should throw InvalidArgumentException');
         } catch (\InvalidArgumentException $e) {
-            // expected
+            
         }
 
         $countAfterSecond = $monitor->notifications()->where('type', DispatchAcceptedNotification::class)->count();
         $this->assertEquals(1, $countAfterSecond, 'Duplicate accept should not create second notification');
 
-        // Simulate double click on reject (different submission)
+        
         $submission2 = $this->dispatchService->createDraft($monitor, [
             'floor_number' => 2,
             'camera_number' => 2,
@@ -367,7 +369,7 @@ class DispatchWorkflowTest extends TestCase
         $this->assertEquals(1, $countRejectSecond);
     }
 
-    /** @test */
+    
     public function test_duplicate_notification_idempotent_note(): void
     {
         $monitor = $this->createMonitor();
@@ -386,7 +388,7 @@ class DispatchWorkflowTest extends TestCase
         $count2 = $monitor->notifications()->where('type', NoteAcceptedNotification::class)->count();
         $this->assertEquals(1, $count2);
 
-        // Reject duplicate
+        
         $note2 = Note::factory()->pending()->create(['user_id' => $monitor->id]);
         $this->noteService->rejectNote($writer, $note2, 'سبب');
         $countR1 = $monitor->notifications()->where('type', NoteRejectedNotification::class)->count();
@@ -401,7 +403,7 @@ class DispatchWorkflowTest extends TestCase
         $this->assertEquals(1, $countR2);
     }
 
-    /** @test */
+    
     public function test_attachments_security(): void
     {
         $monitorA = $this->createMonitor('Monitor A');
@@ -412,30 +414,30 @@ class DispatchWorkflowTest extends TestCase
         $note = Note::factory()->pending()->create(['user_id' => $monitorA->id]);
         $attachment = Attachment::factory()->create(['note_id' => $note->id]);
 
-        // Owner can view attachment via policy check (can view note)
+        
         $this->assertTrue($monitorA->can('view', $note));
 
-        // Other monitor can view pending note (قيد المراجعة للجميع) => can view attachment
+        
         $this->assertTrue($monitorB->can('view', $note));
 
-        // Writer can view note => can view attachment (but download only for writer)
+        
         $this->assertTrue($writer->can('view', $note));
 
-        // Test actual HTTP endpoint for view - now allowed for other monitor
+        
         $tokenB = $this->jwtService->generateToken($monitorB);
-        // Web route requires auth, but we test API view logic: viewAttachment checks can view
-        // Simulate web request
+        
+        
         $response = $this->actingAs($monitorB)->get("/attachments/{$attachment->id}/view");
         $this->assertNotEquals(403, $response->getStatusCode());
 
         $response = $this->actingAs($monitorA)->get("/attachments/{$attachment->id}/view");
-        // Should redirect to cloudinary url (302) or success, not 403
+        
         $this->assertNotEquals(403, $response->getStatusCode());
 
         $response = $this->actingAs($writer)->get("/attachments/{$attachment->id}/view");
         $this->assertNotEquals(403, $response->getStatusCode());
 
-        // Download only for writer
+        
         $response = $this->actingAs($monitorA)->get("/attachments/{$attachment->id}/download");
         $response->assertForbidden();
 
@@ -443,7 +445,7 @@ class DispatchWorkflowTest extends TestCase
         $this->assertNotEquals(403, $response->getStatusCode());
     }
 
-    /** @test */
+    
     public function test_sender_can_see_own_dispatch_status_and_rejection_reason(): void
     {
         $monitor = $this->createMonitor();
@@ -457,21 +459,21 @@ class DispatchWorkflowTest extends TestCase
         ]);
         $submission = $this->dispatchService->submit($submission, $monitor, [$writer->id]);
 
-        // Sender sees pending
+        
         $this->assertTrue($monitor->can('view', $submission));
         $this->assertEquals('pending', $submission->status);
 
-        // Writer rejects
+        
         $reason = 'سبب مفصل للرفض يجب أن يكون واضحاً';
         $submission = $this->dispatchService->reject($submission, $writer, $reason);
 
-        // Sender still sees and can see reason
+        
         $this->assertTrue($monitor->can('view', $submission->fresh()));
         $this->assertEquals('rejected', $submission->fresh()->status);
         $this->assertEquals($reason, $submission->fresh()->rejection_reason);
     }
 
-    /** @test */
+    
     public function test_dispatch_sent_idempotent_no_duplicate_on_double_submit(): void
     {
         $monitor = $this->createMonitor();
@@ -492,7 +494,7 @@ class DispatchWorkflowTest extends TestCase
         $this->assertEquals(1, $countA);
         $this->assertEquals(1, $countB);
 
-        // Attempt second submit should fail and not create duplicate
+        
         try {
             $this->dispatchService->submit($submission->fresh(), $monitor, [$writerA->id]);
             $this->fail('Second submit should throw');

@@ -8,7 +8,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class GeneralSubmissionAttachment extends Model
 {
 
-
     protected $fillable = [
         'general_submission_id',
         'file_path',
@@ -27,9 +26,7 @@ class GeneralSubmissionAttachment extends Model
         return $this->belongsTo(GeneralSubmission::class, 'general_submission_id');
     }
 
-    /**
-     * Local disk only (no Cloudinary legacy for submissions — feature is new).
-     */
+    
     public function isLocal(): bool
     {
         if (!$this->file_path) {

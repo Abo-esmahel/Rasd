@@ -22,7 +22,7 @@ class NoteNotificationCycleTest extends TestCase
         $this->noteService = app(NoteService::class);
     }
 
-    /** @test */
+    
     public function test_second_rejection_after_resend_sends_new_notification_with_new_reason(): void
     {
         $monitor = User::factory()->monitor()->create();
@@ -37,11 +37,11 @@ class NoteNotificationCycleTest extends TestCase
             $monitor->notifications()->where('type', NoteRejectedNotification::class)->get()
         );
 
-        // Owner fixes and resends → new pending cycle with fresh sent_at
+        
         $note = $this->noteService->resendRejectedNote($monitor, $note->fresh());
         $this->assertEquals(Note::STATUS_PENDING, $note->status);
 
-        // Writer rejects again with a different reason → must notify again
+        
         $this->noteService->rejectNote($writer, $note->fresh(), 'السبب الثاني للرفض');
 
         $rejections = $monitor->notifications()->where('type', NoteRejectedNotification::class)->get();
@@ -50,7 +50,7 @@ class NoteNotificationCycleTest extends TestCase
         $this->assertEqualsCanonicalizing(['السبب الأول للرفض', 'السبب الثاني للرفض'], $reasons);
     }
 
-    /** @test */
+    
     public function test_resend_notifies_writers_again(): void
     {
         $monitor = User::factory()->monitor()->create();

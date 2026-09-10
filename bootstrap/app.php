@@ -25,7 +25,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
         );
-        // 405 FORENSIC — log every Method Not Allowed with full context (URL, method, Allow header)
+        
         $exceptions->report(function (MethodNotAllowedHttpException $e) {
             try {
                 $req = request();

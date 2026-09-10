@@ -7,7 +7,6 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Tests\TestCase;
 
-// TEMP 405 FORENSIC — Case A vs B vs C
 class Forensic405TmpTest extends TestCase
 {
     use RefreshDatabase;
@@ -15,7 +14,7 @@ class Forensic405TmpTest extends TestCase
     private function jpeg(string $name = 'f405.jpg'): UploadedFile
     {
         $tmp = tempnam(sys_get_temp_dir(), 'f405_');
-        file_put_contents($tmp, base64_decode('/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////2wBDAf//////////////////////////////////////////////wAARCAABAAEDASIAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAAAP/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AH//Z'));
+        file_put_contents($tmp, base64_decode('/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP'));
         return new UploadedFile($tmp, $name, 'image/jpeg', null, true);
     }
 
@@ -31,11 +30,6 @@ class Forensic405TmpTest extends TestCase
 
     public function test_405_forensic_abc(): void
     {
-        $this->mock(\App\Services\Media\CloudinaryMediaService::class, function ($m) {
-            $m->shouldReceive('upload')->andReturn(new \App\Services\Media\CloudinaryMedia(
-                publicId: 't/p', resourceType: 'image', format: 'jpg',
-                secureUrl: 'https://x.test/t.jpg', assetId: 'a', bytes: 1, originalFilename: 'f.jpg'));
-        });
         $user = User::factory()->monitor()->create();
         $ajax = ['Accept' => 'application/json', 'X-Requested-With' => 'XMLHttpRequest'];
 

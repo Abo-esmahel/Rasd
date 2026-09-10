@@ -357,6 +357,15 @@
         const files=Array.from(fileTransfer.files);
         if(!files.length){ list.classList.add('hidden'); list.innerHTML=''; return; }
         list.classList.remove('hidden');
+        const counters={img:0,vid:0,aud:0,other:0};
+        const escAttr=s=>String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+        const friendlyName=f=>{
+            if(f.type.startsWith('audio/')) return 'مقطع صوتي '+ (++counters.aud);
+            if(f.type.startsWith('video/')) return 'فيديو '+ (++counters.vid);
+            if(f.type.startsWith('image/')) return 'صورة '+ (++counters.img);
+            const ext=(f.name.split('.').pop()||'').toLowerCase();
+            return 'مرفق '+ (++counters.other) + (ext && ext.length<=5 ? ' (.'+ext+')' : '');
+        };
         list.innerHTML=files.map((f,i)=>{
             const isV=f.type.startsWith('video/');
             const isA=f.type.startsWith('audio/');
@@ -366,7 +375,7 @@
             return `<div class="flex items-center gap-2.5 p-2.5 bg-white border border-[#e6e9e1] rounded-lg text-sm group">
                 <span class="text-sm">${isA?'🎤':isV?'🎬':'🖼️'}</span>
                 <div class="flex-1 min-w-0 text-right">
-                    <div class="font-bold text-ink-700 truncate flex items-center gap-1.5">${f.name} ${camBadge} ${recBadge}</div>
+                    <div class="font-bold text-ink-700 truncate flex items-center gap-1.5" title="${escAttr(f.name)}">${friendlyName(f)} ${camBadge} ${recBadge}</div>
                     <div class="text-xs text-ink-400">${sz} • ${f.type||'—'}</div>
                 </div>
                 <button type="button" data-remove="${i}" class="shrink-0 w-7 h-7 rounded-lg hover:bg-red-50 text-ink-300 hover:text-red-500 flex items-center justify-center transition" title="حذف">
@@ -704,6 +713,7 @@
                 const formActionUrl = formEl.getAttribute('action');
                 console.debug('[CREATE SUBMIT] action='+formActionUrl+' method=POST filesToSend='+filesToSend.length+' clientCount='+clientFilesCount);
                 setUploadProgress(5, 'جاري رفع '+filesToSend.length+' ملف...');
+                document.getElementById('upload-progress')?.scrollIntoView({behavior:'smooth',block:'center'});
                 const res = await xhrUpload(formActionUrl, fd, csrfToken, (pct, loaded, total)=> setUploadProgress(Math.max(5, Math.min(95, pct)), 'جاري الرفع '+pct+'%'+ (loaded ? ' ('+(loaded/1024/1024).toFixed(1)+' / '+(total/1024/1024).toFixed(1)+' MB)' : '') +' — لا تغلق الصفحة'));
                 setUploadProgress(98, 'تم الرفع 100%، جاري التحقق من الحفظ والتحقق من سلامة الملفات...');
                 let data=res.data, rawText=res.raw;

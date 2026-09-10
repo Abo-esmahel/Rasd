@@ -47,7 +47,7 @@ function runTest(t){
   } else if(t==='C'){
     page.innerHTML = '<img src="https://picsum.photos/800/600" style="position:absolute; left:10mm; top:10mm; width:190mm; height:130mm; object-fit:fill; display:block;" onload="console.log(\"C loaded\", this.naturalWidth)">';
   } else if(t==='D'){
-    // Real layout: use actual note image if available
+    
     fetch('/notes', {headers:{'X-Requested-With':'XMLHttpRequest'}}).then(r=>r.text()).then(html=>{
       console.log('fetched notes length', html.length);
       alert('افتح نافذة طباعة الملاحظة الحقيقية للمقارنة');

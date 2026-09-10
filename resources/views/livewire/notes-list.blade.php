@@ -4,7 +4,7 @@
     $isWriter = !$isMonitor;
 @endphp
 
- {{-- STATUS TABS --}}
+
 <div class="border-b border-[#e6e9e1] mb-6 -mx-4 sm:mx-0 px-4 sm:px-0 overflow-x-auto scrollbar-hide">
     <nav class="flex gap-6 min-w-max" aria-label="حالات الملاحظات">
         @php
@@ -29,13 +29,12 @@
     </nav>
 </div>
 
- {{-- FILTERS --}}
+
 @if($mode === 'all')
 <div class="mb-5">
     <details class="group">
         <summary class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium text-[#737373] hover:text-ink-700 hover:bg-[#eceee9] cursor-pointer transition list-none">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
-            فلاتر وترتيب
             @if($observer || $date || $floor_number || $camera_number || $sort)
                 <span class="w-1.5 h-1.5 rounded-full bg-[#0e6a38]"></span>
             @endif
@@ -86,7 +85,7 @@
 </div>
 @endif
 
- {{-- NOTES LIST --}}
+
 @if($notes->count() === 0)
     <div class="bg-surface-50 rounded-xl border border-surface-300 p-10 text-center">
         <div class="w-14 h-14 rounded-2xl bg-surface-100 flex items-center justify-center mx-auto">
@@ -96,7 +95,7 @@
         <p class="mt-1.5 text-sm text-[#737373]">جرّب تغيير معايير الفلترة أو أنشئ ملاحظة جديدة.</p>
     </div>
 @else
-    {{-- Desktop --}}
+
     <div wire:poll.30s class="bg-white rounded-xl border border-[#e6e9e1] shadow-sm overflow-hidden hidden sm:block">
         <div class="grid grid-cols-[auto_1fr_auto_auto] gap-4 items-center px-5 py-2.5 bg-[#f5f7f5] border-b border-[#e6e9e1] text-xs font-bold text-ink-400">
             <div class="w-20">#</div>
@@ -188,7 +187,7 @@
         @endforeach
     </div>
 
-    {{-- Mobile --}}
+
     <div wire:poll.30s class="sm:hidden space-y-3">
         @foreach($notes as $note)
             <div class="bg-white rounded-xl border border-surface-300 shadow-sm p-4 hover:shadow-lg hover:border-sage-600 transition-all duration-200">
@@ -247,7 +246,7 @@
         @endforeach
     </div>
 
-    {{-- Pagination --}}
+
     @if($notes->hasPages())
         <div class="mt-5 flex flex-col sm:flex-row items-center justify-between gap-3">
             <div class="text-sm text-[#737373]">

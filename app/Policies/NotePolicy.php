@@ -19,17 +19,17 @@ class NotePolicy
 
     public function view(User $user, Note $note): bool
     {
-        // المالك يرى دائماً
+        
         if ($note->user_id === $user->id) {
             return true;
         }
-        // قيد المراجعة/مقبولة/مرفوضة (مع سبب الرفض) مرئية للجميع، المسودة لصاحبها فقط
+        
         return $note->status !== Note::STATUS_DRAFT;
     }
 
     public function update(User $user, Note $note): bool
     {
-        // التعديل فقط لصاحب الملاحظة
+        
         if ($note->user_id !== $user->id) {
             return false;
         }
@@ -39,7 +39,7 @@ class NotePolicy
         if (!$note->isAccepted()) {
             return true;
         }
-        // بعد القبول: فقط إذا كان المالك هو من اعتمدها
+        
         return $note->processed_by === $user->id;
     }
 
@@ -79,7 +79,7 @@ class NotePolicy
         if (!$note->isAccepted()) {
             return true;
         }
-        // بعد القبول: فقط إذا كان المالك هو نفسه من اعتمدها (كاتب التقرير يكتب ملاحظته الخاصة)
+        
         return $note->processed_by === $user->id;
     }
 

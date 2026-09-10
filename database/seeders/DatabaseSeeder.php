@@ -12,13 +12,13 @@ class DatabaseSeeder extends Seeder
     {
         $password = Hash::make('password');
 
-        // ——— المراقبون (6) ———
+
         User::create(['name' => 'طارق عبد الرحمن', 'username' => 'tariq', 'password' => $password, 'role' => 'monitor']);
-        User::create(['name' => 'هادي السهلي',     'username' => 'hadi',  'password' => $password, 'role' => 'monitor']);
+        User::create(['name' => 'هادي سهلي',     'username' => 'hadi',  'password' => $password, 'role' => 'monitor']);
         User::create(['name' => 'حمزة الحاج قاسم', 'username' => 'hamza', 'password' => $password, 'role' => 'monitor']);
         User::create(['name' => 'رامي حموري',      'username' => 'rami',  'password' => $password, 'role' => 'monitor']);
 
-        // ——— كتاب التقارير (2) ———
+
         User::create(['name' => 'زهير العبد الله', 'username' => 'writer',  'password' => $password, 'role' => 'report_writer']);
     }
 }

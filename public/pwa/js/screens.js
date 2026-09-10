@@ -1,8 +1,4 @@
-/* ===== CAMERA HELPER =====
-   Works everywhere:
-   - HTTPS / localhost → getUserMedia (full camera UI)
-   - HTTP LAN / any HTTP → <input type="file"> (shows camera option on Android/iOS)
-   - Desktop → file picker (webcam if available) */
+
 function openCamera(fileInput, onFiles) {
   const isSecure = location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
   const hasMedia = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
@@ -72,7 +68,7 @@ function tryCameraModal(fileInput, onFiles) {
   });
 }
 
-/* ===== HELPER: Bottom Nav ===== */
+
 function bottomNav(active) {
   const items = [
     { key: 'notes', label: 'الملاحظات', icon: '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>' },
@@ -85,7 +81,7 @@ function bottomNav(active) {
     </div>`).join('')}</nav>`;
 }
 
-/* ===== LOGIN SCREEN ===== */
+
 function renderLogin(container) {
   container.innerHTML = `
     <div class="login-page">
@@ -137,7 +133,7 @@ function renderLogin(container) {
   });
 }
 
-/* ===== NOTES LIST SCREEN ===== */
+
 let notesPage = 1, notesFilter = {}, notesData = null, notesLoading = false, notesSearch = '', notesMineMode = false;
 
 async function loadNotes(page = 1, append = false) {
@@ -319,7 +315,7 @@ function renderNotes(container) {
     });
   });
 
-  // Infinite Scroll
+  
   const observer = new IntersectionObserver((entries) => {
     if (entries[0].isIntersecting && notesData && notesData.current_page < notesData.last_page && !notesLoading) {
       loadNotes(notesData.current_page + 1, true);
@@ -329,7 +325,7 @@ function renderNotes(container) {
   if (sentinel) observer.observe(sentinel);
 
   loadNotes(1);
-  // Load "my notes" count in background
+  
   API.myNotes({ per_page: 1 }).then(res => {
     if (res.success) {
       const el = document.getElementById('cnt-mine');
@@ -338,7 +334,7 @@ function renderNotes(container) {
   }).catch(() => {});
 }
 
-/* ===== CREATE SCREEN ===== */
+
 function renderCreate(container) {
   const now = new Date();
   const pad = n => String(n).padStart(2, '0');
@@ -432,115 +428,7 @@ function renderCreate(container) {
                   الكاميرا
                 </button>
               </div>
-              <input type="file" id="cr-files" multiple accept="image/*,video/*,audio/*" style="display:none">
-              <input type="file" id="cr-camera" accept="image/*" style="display:none">
-              <div style="font-size:11px;color:var(--ink-300);margin-top:6px">صور/فيديو/صوت — حتى 10 ملفات (20MB صورة، 100MB فيديو/صوت)</div>
-              <div class="file-list" id="cr-file-list"></div>
-            </div>
-          </div>
-
-          <div style="display:flex;gap:10px;padding-top:16px;border-top:1px solid var(--border)">
-            <button type="button" class="btn btn-secondary" onclick="App.goBack()" style="flex:0">إلغاء</button>
-            ${Auth.user?.role === 'report_writer'
-              ? '<button type="submit" name="action" value="save" class="btn btn-primary" style="flex:1">حفظ الملاحظة</button>'
-              : '<button type="submit" name="action" value="save" class="btn btn-secondary" style="flex:1">حفظ كمسودة</button><button type="submit" name="action" value="send" class="btn btn-primary" style="flex:1">إرسال للمراجعة</button>'}
-          </div>
-        </form>
-      </div>
-    </div>
-    ${bottomNav('create')}`;
-
-  // DateTime
-  const dateEl = document.getElementById('cr-date');
-  const timeEl = document.getElementById('cr-time');
-  const endEl = document.getElementById('cr-end');
-  const previewEl = document.getElementById('cr-preview');
-  function updatePreview() {
-    const d = dateEl.value, t = timeEl.value, e = endEl.value;
-    if (d && t) {
-      const dt = new Date(d + 'T' + t);
-      let txt = dt.toLocaleDateString('ar-EG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true });
-      if (e) txt += ' — ' + e;
-      previewEl.textContent = txt;
-    } else { previewEl.textContent = '— اختر الوقت —'; }
-  }
-  dateEl.addEventListener('change', updatePreview);
-  timeEl.addEventListener('change', updatePreview);
-  endEl.addEventListener('change', updatePreview);
-  document.querySelectorAll('.dt-preset').forEach(btn => {
-    btn.addEventListener('click', () => {
-      App.haptic('light');
-      const now = new Date();
-      if (btn.dataset.p === 'hour') now.setHours(now.getHours() - 1);
-      else if (btn.dataset.p === 'morning') now.setHours(8, 0, 0, 0);
-      dateEl.value = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
-      timeEl.value = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
-      document.querySelectorAll('.dt-preset').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      updatePreview();
-    });
-  });
-
-  const descEl = document.getElementById('cr-desc');
-  const cntEl = document.getElementById('cr-desc-cnt');
-  descEl.addEventListener('input', () => cntEl.textContent = descEl.value.length);
-
-  // Files
-  let crFiles = [];
-  const crFileInput = document.getElementById('cr-files');
-  const crCameraInput = document.getElementById('cr-camera');
-  const crFileList = document.getElementById('cr-file-list');
-  const crFileZone = document.getElementById('cr-file-zone');
-
-  document.getElementById('cr-camera-btn')?.addEventListener('click', () => openCamera(crCameraInput, files => { crFiles = [...crFiles, ...files].slice(0, 5); renderCrFiles(); }));
-
-  function renderCrFiles() {
-    if (!crFiles.length) { crFileList.innerHTML = ''; return; }
-    crFileList.innerHTML = crFiles.map((f, i) => `
-      <div class="file-item">
-        <span style="font-size:14px">${f.type.startsWith('video/') ? '🎬' : '🖼️'}</span>
-        <div class="file-item-info"><div class="file-item-name">${escHtml(f.name)}</div><div class="file-item-size">${(f.size/1024/1024).toFixed(2)} MB</div></div>
-        <div class="file-item-remove" onclick="crRemoveFile(${i})"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></div>
-      </div>`).join('');
-  }
-  window.crRemoveFile = i => { crFiles.splice(i, 1); renderCrFiles(); App.haptic('light'); };
-
-  function addFiles(files) { crFiles = [...crFiles, ...Array.from(files)].slice(0, 5); renderCrFiles(); }
-  crFileInput.addEventListener('change', e => addFiles(e.target.files));
-  crCameraInput.addEventListener('change', e => addFiles(e.target.files));
-  ['dragenter', 'dragover'].forEach(ev => crFileZone.addEventListener(ev, e => { e.preventDefault(); crFileZone.classList.add('dragover'); }));
-  ['dragleave', 'drop'].forEach(ev => crFileZone.addEventListener(ev, e => { e.preventDefault(); crFileZone.classList.remove('dragover'); }));
-  crFileZone.addEventListener('drop', e => addFiles(e.dataTransfer.files));
-
-  document.getElementById('create-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const btn = e.submitter;
-    const action = btn?.value || 'save';
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spinner"></span>';
-    App.haptic('medium');
-    try {
-      const data = {
-        floor_number: parseInt(e.target.floor_number.value),
-        camera_number: parseInt(e.target.camera_number.value),
-        observed_at: dateEl.value + 'T' + timeEl.value,
-        description: descEl.value.trim(),
-      };
-      if (endEl.value) data.observed_end_at = dateEl.value + 'T' + endEl.value;
-      const res = await App.apiAction(() => API.createNote(data));
-      if (res.success) {
-        for (const f of crFiles) { await App.apiAction(() => API.uploadAttachment(res.data.id, f)); }
-        if (action === 'send') await App.apiAction(() => API.sendNote(res.data.id));
-        toast(action === 'send' ? 'تم الإرسال للمراجعة' : 'تم الحفظ كمسودة');
-        App.navigate('notes');
-      }
-    } catch (err) { toast(err?.message || 'حدث خطأ', 'error'); App.haptic('error'); }
-    finally { btn.disabled = false; btn.textContent = action === 'send' ? 'إرسال للمراجعة' : 'حفظ كمسودة'; }
-  });
-  updatePreview();
-}
-
-/* ===== EDIT SCREEN ===== */
+              <input type="file" id="cr-files" multiple accept="image
 async function renderEdit(container, noteId) {
   container.innerHTML = skDetail();
   try {
@@ -653,105 +541,7 @@ async function renderEdit(container, noteId) {
                   <label class="file-zone-btn" for="ed-files">اختيار ملفات</label>
                   <button type="button" class="file-zone-btn" id="ed-camera-btn" style="background:var(--ink-600)">الكاميرا</button>
                 </div>
-              <input type="file" id="ed-files" multiple accept="image/*,video/*,audio/*" style="display:none">
-              <input type="file" id="ed-camera" accept="image/*" style="display:none">
-                <div class="file-list" id="ed-file-list"></div>
-              </div>
-            </div>
-
-            <div style="display:flex;gap:10px;padding-top:16px;border-top:1px solid var(--border)">
-              <button type="button" class="btn btn-secondary" onclick="App.goBack()">إلغاء</button>
-              <button type="submit" class="btn btn-primary" style="flex:1">حفظ التعديلات</button>
-            </div>
-          </form>
-        </div>
-      </div>`;
-
-    // DateTime
-    const dateEl = document.getElementById('ed-date');
-    const timeEl = document.getElementById('ed-time');
-    const endEl = document.getElementById('ed-end');
-    const previewEl = document.getElementById('ed-preview');
-    function updatePreview() {
-      const d = dateEl.value, t = timeEl.value, e = endEl.value;
-      if (d && t) {
-        const dt2 = new Date(d + 'T' + t);
-        let txt = dt2.toLocaleDateString('ar-EG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true });
-        if (e) txt += ' — ' + e;
-        previewEl.textContent = txt;
-      }
-    }
-    dateEl.addEventListener('change', updatePreview);
-    timeEl.addEventListener('change', updatePreview);
-    endEl.addEventListener('change', updatePreview);
-    document.querySelectorAll('.dt-preset').forEach(btn => {
-      btn.addEventListener('click', () => {
-        App.haptic('light');
-        const now = new Date();
-        if (btn.dataset.p === 'hour') now.setHours(now.getHours() - 1);
-        else if (btn.dataset.p === 'morning') now.setHours(8, 0, 0, 0);
-        dateEl.value = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
-        timeEl.value = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
-        updatePreview();
-      });
-    });
-    updatePreview();
-
-    // Files
-    let edFiles = [];
-    const edFileInput = document.getElementById('ed-files');
-    const edCameraInput = document.getElementById('ed-camera');
-    const edFileList = document.getElementById('ed-file-list');
-    document.getElementById('ed-camera-btn')?.addEventListener('click', () => openCamera(edCameraInput, files => { edFiles = [...edFiles, ...files].slice(0, 5); renderEdFiles(); }));
-    function renderEdFiles() {
-      edFileList.innerHTML = edFiles.map((f, i) => `
-        <div class="file-item">
-          <span style="font-size:14px">${f.type.startsWith('video/') ? '🎬' : '🖼️'}</span>
-          <div class="file-item-info"><div class="file-item-name">${escHtml(f.name)}</div></div>
-          <div class="file-item-remove" onclick="edRemoveFile(${i})"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></div>
-        </div>`).join('');
-    }
-    window.edRemoveFile = i => { edFiles.splice(i, 1); renderEdFiles(); App.haptic('light'); };
-    function addEdFiles(files) { edFiles = [...edFiles, ...Array.from(files)].slice(0, 5); renderEdFiles(); }
-    edFileInput.addEventListener('change', e => addEdFiles(e.target.files));
-    edCameraInput.addEventListener('change', e => addEdFiles(e.target.files));
-
-    window.deleteAtt = async (nid, aid) => {
-      if (!confirm('هل أنت متأكد من حذف المرفق؟')) return;
-      try { await API.deleteAttachment(nid, aid); document.getElementById('att-' + aid)?.remove(); toast('تم الحذف'); App.haptic('medium'); }
-      catch (e) { toast('خطأ في الحذف', 'error'); }
-    };
-
-    document.getElementById('edit-form').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const btn = e.submitter;
-      btn.disabled = true;
-      btn.innerHTML = '<span class="spinner"></span>';
-      App.haptic('medium');
-      try {
-        const data = {
-          floor_number: parseInt(e.target.floor_number.value),
-          camera_number: parseInt(e.target.camera_number.value),
-          observed_at: dateEl.value + 'T' + timeEl.value,
-          description: document.getElementById('ed-desc').value.trim(),
-        };
-        if (endEl.value) data.observed_end_at = dateEl.value + 'T' + endEl.value;
-        await App.apiAction(() => API.updateNote(note.id, data));
-        for (const f of edFiles) { await App.apiAction(() => API.uploadAttachment(note.id, f)); }
-        toast('تم حفظ التعديلات');
-        App.navigate('detail', note.id);
-      } catch (err) { toast(err?.message || 'حدث خطأ', 'error'); App.haptic('error'); }
-      finally { btn.disabled = false; btn.textContent = 'حفظ التعديلات'; }
-    });
-  } catch (e) {
-    container.innerHTML = `<div class="empty-state">
-      <div class="empty-title">خطأ في تحميل الملاحظة</div>
-      <button class="btn btn-primary btn-sm" style="margin-top:12px" onclick="App.goBack()">العودة</button>
-    </div>`;
-  }
-}
-
-/* ===== DETAIL SCREEN ===== */
+              <input type="file" id="ed-files" multiple accept="image
 async function renderDetail(container, noteId) {
   container.innerHTML = skDetail();
   try {
@@ -927,7 +717,7 @@ async function renderDetail(container, noteId) {
   }
 }
 
-/* ===== PROFILE SCREEN ===== */
+
 function renderProfile(container) {
   const u = Auth.user;
   container.innerHTML = `
@@ -1003,7 +793,7 @@ function renderProfile(container) {
     App.navigate('login');
   };
 
-  // Update PWA profile row after render
+  
   setTimeout(() => {
     try {
       const el = document.getElementById('profile-pwa-origin');

@@ -14,7 +14,7 @@ class NotificationController extends Controller
         $user = Auth::user();
         $page = max(1, (int) $request->query('page', 1));
         $perPage = min(50, max(1, (int) $request->query('per_page', 20)));
-        $filter = $request->query('filter'); // unread|read|all
+        $filter = $request->query('filter'); 
 
         $query = $user->notifications()->latest();
         if ($filter === 'unread') $query->whereNull('read_at');
@@ -38,7 +38,7 @@ class NotificationController extends Controller
             ]);
         }
 
-        // For Blade view, pass paginator-like
+        
         $viewNotifications = $paginator->getCollection()->map(fn($n) => (object)[
             'id' => $n->id,
             'type' => $n->type,
@@ -67,7 +67,7 @@ class NotificationController extends Controller
         if (empty($ids)) {
             $user->unreadNotifications->markAsRead();
         } else {
-            // sanitize: ensure ids belong to user
+            
             $user->notifications()->whereIn('id', $ids)->get()->markAsRead();
         }
         $unread = $user->unreadNotifications()->count();

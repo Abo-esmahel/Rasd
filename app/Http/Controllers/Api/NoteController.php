@@ -340,7 +340,7 @@ class NoteController extends Controller
                 'attachments_saved' => 0,
             ], 400);
         } catch (\Throwable $e) {
-            // فشل تخزين محلي — التفاصيل في السجلات فقط (لا Cloudinary في المسار الجديد)
+            
             \Illuminate\Support\Facades\Log::error('[ATTACHMENT] local storage upload failed', [
                 'userId' => $user->id,
                 'noteId' => $note->id,
@@ -401,7 +401,7 @@ class NoteController extends Controller
             ], 403);
         }
 
-        // التنزيل لكاتب التقرير فقط — حتى صاحب الملاحظة لا يمكنه التنزيل (حسب سياسة المشروع)
+        
         if (!$user->isReportWriter()) {
             return response()->json([
                 'success' => false,
@@ -409,7 +409,7 @@ class NoteController extends Controller
             ], 403);
         }
 
-        // Local first, legacy Cloudinary (secure_url) second, else controlled 404.
+        
         if ($this->storage->isLocal($attachment)) {
             return $this->storage->fileResponse($attachment, true);
         }

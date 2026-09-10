@@ -9,18 +9,6 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
-/**
- * Local disk storage for note + general-submission attachments.
- *
- * Disk:      attachments (root: storage/app/private)
- * Paths:     notes/{note_id}/{uuid}.{ext}
- *            submissions/{submission_id}/{uuid}.{ext}
- * Truth:     Disk + file_path (never secure_url for new files)
- * Access:    only via secure view routes (auth + stream)
- *
- * Cloudinary is LEGACY READ-ONLY fallback (old note secure_url records).
- * New uploads MUST NEVER call Cloudinary.
- */
 class AttachmentStorageService
 {
     public const DISK = 'attachments';
@@ -30,33 +18,19 @@ class AttachmentStorageService
         return Storage::disk(self::DISK);
     }
 
-    /**
-     * Store an uploaded file for the given note.
-     *
-     * @throws AttachmentUploadException on any failure (php_upload / validation / storage / verification)
-     */
+    
     public function store(UploadedFile $file, int $noteId): string
     {
         return $this->storeIn($file, "notes/{$noteId}", ['note_id' => $noteId]);
     }
 
-    /**
-     * Store an uploaded file for the given general submission.
-     *
-     * @throws AttachmentUploadException
-     */
+    
     public function storeSubmission(UploadedFile $file, int $submissionId): string
     {
         return $this->storeIn($file, "submissions/{$submissionId}", ['submission_id' => $submissionId]);
     }
 
-    /**
-      * Copy a stored file to a new directory with a fresh UUID name.
-      * محسن للسرعة: يستخدم stream بدلاً من تحميل الملف كاملاً في الذاكرة.
-      * Used when a submission is accepted → its media is copied to the new note.
-      *
-      * @throws AttachmentUploadException
-      */
+    
     public function copyToNotes(string $sourcePath, int $noteId): string
     {
         if (!$this->exists($sourcePath)) {
@@ -72,7 +46,7 @@ class AttachmentStorageService
         $destPath = "{$destDir}/{$storedName}";
 
         try {
-            // استخدم stream لتجنب استهلاك الذاكرة مع الفيديوهات الكبيرة — أسرع بـ 3-5x
+            
             $readStream = $this->disk()->readStream($sourcePath);
             if ($readStream === null) {
                 throw new \RuntimeException('تعذر فتح stream المصدر');
@@ -102,7 +76,7 @@ class AttachmentStorageService
             );
         }
 
-        // Integrity: verify copied file size/hash matches source (byte-for-byte)
+        
         try {
             $srcSize = $this->disk()->size($sourcePath);
             $destSize = $this->disk()->size($destPath);
@@ -131,7 +105,7 @@ class AttachmentStorageService
     {
         $originalName = $file->getClientOriginalName() ?: 'file';
 
-        // 1. PHP upload stage — never treat partial/failed uploads as valid.
+        
         if (!$file->isValid()) {
             $code = (int) $file->getError();
 
@@ -148,7 +122,7 @@ class AttachmentStorageService
             );
         }
 
-        // 2. Safe unique name — never use original name for storage (preserve original content byte-for-byte, no compression/resize/transcoding).
+        
         $extension = strtolower((string) $file->getClientOriginalExtension());
         if ($extension === '') {
             $extension = strtolower((string) ($file->guessExtension() ?: 'bin'));
@@ -157,7 +131,7 @@ class AttachmentStorageService
         $storedName = (string) Str::uuid().'.'.$extension;
         $relativePath = "{$directory}/{$storedName}";
 
-        // 3. Write via Laravel Storage API — preserve original bytes exactly, no modification
+        
         try {
             $stored = $this->disk()->putFileAs($directory, $file, $storedName);
         } catch (\Throwable $e) {
@@ -190,7 +164,7 @@ class AttachmentStorageService
             );
         }
 
-        // 4. Physical verification before returning — file MUST exist and size/hash must match original (byte-for-byte).
+        
         if (!$this->exists($relativePath)) {
             Log::error('[ATTACHMENT] physical verification failed after write', array_merge([
                 'original_name' => $originalName,
@@ -205,7 +179,7 @@ class AttachmentStorageService
             );
         }
 
-        // Integrity: size check (mandatory, fast) + hash check (when possible)
+        
         try {
             $originalSize = $file->getSize();
             $storedSize = $this->disk()->size($relativePath);
@@ -275,9 +249,7 @@ class AttachmentStorageService
         return $this->disk()->path($relativePath);
     }
 
-    /**
-     * Delete a local physical file. Missing file = already clean (true).
-     */
+    
     public function delete(string $relativePath): bool
     {
         if ($relativePath === '' || !$this->exists($relativePath)) {
@@ -308,22 +280,9 @@ class AttachmentStorageService
         return !empty($attachment->file_path) && $this->exists($attachment->file_path);
     }
 
-    public function isLegacyCloudinary(Attachment $attachment): bool
-    {
-        return !$this->isLocal($attachment) && !empty($attachment->secure_url);
-    }
-
     public function storageType(Attachment $attachment): string
     {
-        if ($this->isLocal($attachment)) {
-            return 'local';
-        }
-
-        if (!empty($attachment->secure_url)) {
-            return 'cloudinary_legacy';
-        }
-
-        return 'missing';
+        return $this->isLocal($attachment) ? 'local' : 'missing';
     }
 
     public function viewUrl(Attachment $attachment): string
@@ -331,10 +290,7 @@ class AttachmentStorageService
         return route('notes.attachments.view', $attachment);
     }
 
-    /**
-     * Build an inline/download response for a LOCAL attachment.
-     * Caller must have authorized the note view already.
-     */
+    
     public function fileResponse(Attachment $attachment, bool $asDownload = false)
     {
         return $this->fileResponseForPath(
@@ -364,7 +320,7 @@ class AttachmentStorageService
         $absolute = $this->absolutePath($relativePath);
         $mime = $mime !== '' ? $mime : 'application/octet-stream';
 
-        // Detect more accurate mime from disk when DB value is generic.
+        
         if ($mime === 'application/octet-stream' && function_exists('mime_content_type')) {
             try {
                 $detected = @mime_content_type($absolute);
@@ -375,7 +331,7 @@ class AttachmentStorageService
             }
         }
 
-        // كاش قوي للعرض المحلي — يسرّع إعادة فتح الصور/الفيديو بشكل كبير
+        
         $lastModified = @filemtime($absolute) ?: time();
         $etag = md5($relativePath . $lastModified . @filesize($absolute));
         $headers = [
@@ -387,7 +343,7 @@ class AttachmentStorageService
             'Accept-Ranges' => 'bytes',
         ];
 
-        // دعم If-None-Match / If-Modified-Since للسرعة (304)
+        
         $ifNoneMatch = request()->header('If-None-Match');
         $ifModifiedSince = request()->header('If-Modified-Since');
         if (!$asDownload && $ifNoneMatch && trim($ifNoneMatch) === '"'.$etag.'"') {
@@ -413,7 +369,7 @@ class AttachmentStorageService
             return 'attachment';
         }
 
-        // Strip path components, keep a safe basename.
+        
         $name = basename(str_replace('\\', '/', $name));
 
         return $name !== '' ? $name : 'attachment';

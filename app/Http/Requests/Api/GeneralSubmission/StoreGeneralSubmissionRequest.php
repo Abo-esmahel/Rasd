@@ -8,19 +8,13 @@ use Illuminate\Foundation\Http\FormRequest;
 
 class StoreGeneralSubmissionRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
+    
     public function authorize(): bool
     {
         return true;
     }
 
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array<string, ValidationRule|array<mixed>|string>
-     */
+    
     public function rules(): array
     {
         $maxFiles = max(1, (int) ini_get('max_file_uploads') ?: 20);
@@ -39,11 +33,11 @@ class StoreGeneralSubmissionRequest extends FormRequest
                 'array',
                 'min:1',
                 function ($attribute, $value, $fail) {
-                    // Check for duplicates
+                    
                     if (count($value) !== count(array_unique($value))) {
                         $fail('لا يمكن وجود مستلمين مكررين');
                     }
-                    // Check that all IDs exist and are report writers
+                    
                     $validWriters = User::whereIn('id', $value)->where('role', 'report_writer')->pluck('id');
                     $invalidIds = array_diff($value, $validWriters->toArray());
                     if (!empty($invalidIds)) {
@@ -54,11 +48,7 @@ class StoreGeneralSubmissionRequest extends FormRequest
         ];
     }
 
-    /**
-     * Get the validation messages that apply to the request.
-     *
-     * @return array<string, string>
-     */
+    
     public function messages(): array
     {
         return [

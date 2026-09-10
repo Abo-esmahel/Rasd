@@ -68,7 +68,7 @@ class GeneralSubmissionController extends Controller
         }
 
         try {
-            // Atomic: draft + files + submit(pending). No files → legacy path (draft only, no submit).
+            
             if (!empty($validated['report_writer_ids'])) {
                 $result = $this->generalSubmissionService->createSubmissionWithAttachments(
                     $user, $validated, $receivedFiles, $clientFilesCount, $validated['report_writer_ids']
@@ -199,12 +199,12 @@ class GeneralSubmissionController extends Controller
         }
 
         try {
-            $note = $this->generalSubmissionService->accept($generalSubmission, $user);
+            $submission = $this->generalSubmissionService->accept($generalSubmission, $user);
 
             return response()->json([
                 'success' => true,
                 'message' => 'تم قبول الإرسال بنجاح',
-                'data' => $note->load(['owner', 'attachments']),
+                'data' => $submission->fresh()->load(['owner', 'reportWriters', 'attachments']),
             ]);
         } catch (\InvalidArgumentException $e) {
             return response()->json([

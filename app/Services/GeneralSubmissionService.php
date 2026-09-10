@@ -3,11 +3,9 @@
 namespace App\Services;
 
 use App\Exceptions\AttachmentUploadException;
-use App\Models\Attachment;
 use App\Models\GeneralSubmission;
 use App\Models\GeneralSubmissionAttachment;
 use App\Models\User;
-use App\Models\Note;
 use App\Notifications\DispatchAcceptedNotification;
 use App\Notifications\DispatchRejectedNotification;
 use App\Notifications\DispatchSentNotification;
@@ -16,7 +14,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Http\UploadedFile;
 use InvalidArgumentException;
-// Note: local disk only for submission media (submissions/{id}/{uuid}.ext). No Cloudinary.
 
 class GeneralSubmissionService
 {
@@ -42,15 +39,7 @@ class GeneralSubmissionService
         return GeneralSubmission::create($allowed);
     }
 
-    /**
-     * Atomic creation: submission + every file + writers + submit(pending).
-     * Any attachment failure → NOTHING persists (rollback + cleanup).
-     *
-     * @param  UploadedFile[]  $files
-     * @return array{submission: GeneralSubmission, files_received: int, attachments_saved: int, attachment_errors: array}
-     *
-     * @throws AttachmentUploadException
-     */
+    
     public function createSubmissionWithAttachments(User $user, array $data, array $files, int $clientFilesCount, array $writerIds): array
     {
         if (!$user->isMonitor()) {
@@ -68,7 +57,7 @@ class GeneralSubmissionService
             throw new AttachmentUploadException($msg, stage: 'transport_loss', filesReceived: $filesReceived, attachmentsSaved: 0, attachmentErrors: [$msg]);
         }
 
-        // Validate writers BEFORE any write (fail fast, no orphan).
+        
         $writers = User::whereIn('id', $writerIds)->where('role', 'report_writer')->get();
         if ($writers->count() !== count($writerIds) || count(array_unique($writerIds)) !== count($writerIds) || $writers->isEmpty()) {
             throw new InvalidArgumentException('يجب أن يكون جميع المستلمين من كتاب التقاريرWithout تكرار');
@@ -113,7 +102,7 @@ class GeneralSubmissionService
                 }
             }
 
-            // Attach writers + pending (same core as submit, but inside this transaction).
+            
             $submission->reportWriters()->detach();
             $submission->reportWriters()->attach($writers->pluck('id')->toArray());
             $submission->update([
@@ -128,7 +117,7 @@ class GeneralSubmissionService
 
             $fresh = $submission->fresh(['reportWriters', 'owner', 'attachments']);
 
-            // Notifications after commit (non-blocking).
+            
             try {
                 foreach ($writers as $writer) {
                     if (!$this->hasNotification($writer, DispatchSentNotification::class, $fresh->id)) {
@@ -173,9 +162,7 @@ class GeneralSubmissionService
         }
     }
 
-    /**
-     * Single attachment for a draft submission (owner only).
-     */
+    
     public function addAttachment(User $user, GeneralSubmission $submission, UploadedFile $file): GeneralSubmissionAttachment
     {
         return $this->storeSingleAttachment($user, $submission, $file);
@@ -283,7 +270,7 @@ class GeneralSubmissionService
             throw new InvalidArgumentException('يمكن إرسال الإرسالات المسودة فقط');
         }
 
-        // Validate all report writer IDs
+        
         $writers = User::whereIn('id', $reportWriterIds)
             ->where('role', 'report_writer')
             ->get();
@@ -292,7 +279,7 @@ class GeneralSubmissionService
             throw new InvalidArgumentException('يجب أن يكون جميع المستلمين من كتاب التقارير');
         }
 
-        // Check for duplicates
+        
         $uniqueIds = array_unique($reportWriterIds);
         if (count($uniqueIds) !== count($reportWriterIds)) {
             throw new InvalidArgumentException('لا يمكن وجود مستلمين مكررين');
@@ -303,7 +290,7 @@ class GeneralSubmissionService
         }
 
         DB::transaction(function () use ($submission, $writers) {
-            // Detach all existing writers and attach new ones
+            
             $submission->reportWriters()->detach();
             $submission->reportWriters()->attach($writers->pluck('id')->toArray());
 
@@ -318,7 +305,7 @@ class GeneralSubmissionService
 
         $fresh = $submission->fresh(['reportWriters', 'owner']);
 
-        // Targeted Notification: إلى المعنيين المحددين فقط
+        
         try {
             foreach ($writers as $writer) {
                 if (!$this->hasNotification($writer, DispatchSentNotification::class, $fresh->id)) {
@@ -332,7 +319,11 @@ class GeneralSubmissionService
         return $fresh;
     }
 
-    public function accept(GeneralSubmission $submission, User $writer): ?Note
+    /**
+     * Accept a submission. Submissions are NOT notes: acceptance only flips
+     * the submission status — no Note record is created.
+     */
+    public function accept(GeneralSubmission $submission, User $writer): GeneralSubmission
     {
         if (!$writer->isReportWriter()) {
             throw new InvalidArgumentException('يمكن قبول الإرسال فقط من قبل كتاب التقارير');
@@ -342,84 +333,18 @@ class GeneralSubmissionService
             throw new InvalidArgumentException('يمكن قبول الإرسالات قيد المراجعة فقط');
         }
 
-        // تحقق أن الكاتب من ضمن المعنيين بالإرسالية (targeted)
         if (!$submission->reportWriters()->where('users.id', $writer->id)->exists()) {
             throw new InvalidArgumentException('غير مصرح لك بقبول هذه الإرسالية — لست من ضمن الكتّاب المعنيين');
         }
 
-        $submission->loadMissing('attachments');
-        $copiedNotePaths = [];
-        $note = null;
-
-        try {
-            DB::beginTransaction();
-
-            // Create a Note from the GeneralSubmission data
-            $note = Note::create([
-                'user_id' => $writer->id, // The accepting writer becomes the note owner
-                'floor_number' => $submission->floor_number,
-                'camera_number' => $submission->camera_number,
-                'observed_at' => $submission->observed_at,
-                'observed_end_at' => $submission->observed_end_at,
-                'description' => $submission->description,
-                'status' => Note::STATUS_ACCEPTED,
-                'processed_by' => $writer->id,
-                'processed_at' => now(),
-                'sent_at' => now(),
-            ]);
-
-            // Copy each submission file → notes/{note_id}/ (fresh UUID, never reuse path).
-            foreach ($submission->attachments as $sub) {
-                if (!$this->storage->exists($sub->file_path)) {
-                    throw new AttachmentUploadException(
-                        "ملف الإرسالية {$sub->original_name} غير موجود، تعذّر القبول.",
-                        stage: 'verification',
-                        originalName: $sub->original_name,
-                    );
-                }
-                $dest = $this->storage->copyToNotes($sub->file_path, $note->id);
-                $copiedNotePaths[] = $dest;
-                Attachment::create([
-                    'note_id' => $note->id,
-                    'file_path' => $dest,
-                    'cloudinary_resource_type' => null,
-                    'cloudinary_format' => null,
-                    'secure_url' => null,
-                    'original_name' => $sub->original_name,
-                    'mime_type' => $sub->mime_type,
-                    'file_size' => $sub->file_size,
-                ]);
-            }
-
-            // Update submission status
-            $submission->update([
-                'status' => GeneralSubmission::STATUS_ACCEPTED,
-                'processed_by' => $writer->id,
-                'processed_at' => now(),
-            ]);
-
-            DB::commit();
-        } catch (\Throwable $e) {
-            try {
-                DB::rollBack();
-            } catch (\Throwable $re) {
-            }
-            foreach ($copiedNotePaths as $p) {
-                try {
-                    $this->storage->delete($p);
-                } catch (\Throwable $ce) {
-                }
-            }
-            if ($e instanceof AttachmentUploadException || $e instanceof InvalidArgumentException) {
-                throw $e;
-            }
-            Log::error('[SUBMISSION] accept with media copy failed', ['submission_id' => $submission->id, 'message' => $e->getMessage()]);
-            throw $e;
-        }
+        $submission->update([
+            'status' => GeneralSubmission::STATUS_ACCEPTED,
+            'processed_by' => $writer->id,
+            'processed_at' => now(),
+        ]);
 
         $fresh = $submission->fresh(['owner']);
 
-        // إشعار مباشر إلى الملاحظ المرسل فقط (idempotent)
         try {
             $owner = $fresh->owner;
             if ($owner && $owner->id !== $writer->id && !$this->hasNotification($owner, DispatchAcceptedNotification::class, $fresh->id)) {
@@ -429,7 +354,7 @@ class GeneralSubmissionService
             Log::warning('فشل إرسال إشعار قبول الإرسالية: '.$e->getMessage());
         }
 
-        return $note->fresh(['attachments']);
+        return $fresh;
     }
 
     public function reject(GeneralSubmission $submission, User $writer, string $reason): GeneralSubmission
@@ -483,7 +408,7 @@ class GeneralSubmissionService
 
     public function validateFile(UploadedFile $file): void
     {
-        // Reuse the existing validation from NoteService (local disk active).
+        
         $helper = app(NoteService::class);
         $helper->validateFile($file);
     }

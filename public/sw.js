@@ -1,4 +1,4 @@
-﻿const CACHE_STATIC = 'rasd-root-v14-push-http';
+﻿const CACHE_STATIC = 'rasd-root-v15-avatar-fix';
 const CACHE_API = 'rasd-api-v1';
 const STATIC_ASSETS = [
   '/',
@@ -59,7 +59,7 @@ self.addEventListener('fetch', e => {
   if (isNeverCache(url)) return;
   if (e.request.headers.has('range')) return;
 
-  // POST/PUT/DELETE etc â€” network only (never cache uploads, auth, CSRF)
+  
   if (e.request.method !== 'GET') {
     if (url.pathname.startsWith('/api/')) {
       e.respondWith(
@@ -73,7 +73,7 @@ self.addEventListener('fetch', e => {
     return;
   }
 
-  // API: network-first, cache fallback, but skip attachments & private auth
+  
   if (url.pathname.startsWith('/api/')) {
     const isAttachment = url.pathname.startsWith('/api/attachments') || url.pathname.includes('/attachments/');
     const isAuthPrivate = url.pathname === '/api/me' || url.pathname === '/api/logout';
@@ -92,27 +92,27 @@ self.addEventListener('fetch', e => {
     return;
   }
 
-  // Attachments (Cloudinary) â€” network only
+  
   if (url.pathname.startsWith('/attachments/') || url.pathname.startsWith('/submission-attachments/')) {
     e.respondWith(fetch(e.request));
     return;
   }
 
-  // Navigation requests (Blade pages /, /login, /notes, etc.) â€” network first, offline fallback to cached shell
+  
   if (e.request.mode === 'navigate') {
     e.respondWith(
       fetch(e.request).then(resp => {
-        // Do NOT cache navigations automatically (avoid storing private HTML)
+        
         return resp;
       }).catch(() => {
-        // Offline: try cached request, then cached '/', then offline.html
+        
         return caches.match(e.request).then(r => r || caches.match('/')).then(r => r || caches.match('/offline.html')).then(r => r || new Response('Offline', {status: 503, headers:{'Content-Type':'text/html'}}));
       })
     );
     return;
   }
 
-  // Static assets: /build/, /pwa/, /offline.html, /manifest.json, /favicon.ico, /css, /js â€” cache-first
+  
   if (
     url.pathname.startsWith('/build/') ||
     url.pathname.startsWith('/pwa/') ||
@@ -139,7 +139,7 @@ self.addEventListener('fetch', e => {
     return;
   }
 
-  // Default: network first, no aggressive caching (safe for private Blade views)
+  
   e.respondWith(
     fetch(e.request).catch(() => caches.match(e.request))
   );

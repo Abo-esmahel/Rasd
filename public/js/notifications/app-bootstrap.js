@@ -1,24 +1,21 @@
-/**
- * Public fallback bootstrap — works without Vite build.
- * Loaded via <script type="module"> in Blade.
- */
+
 import { NotificationSoundManager } from './soundManager.js';
 import { NotificationManager } from './notificationManager.js';
 
 function init() {
-  // إصلاح الجمود: تعطيل SSE في وضع artisan أحادي + السماح بـ ?nosse=1 أو localStorage nosse=1 للاختبار
+  
   try {
     const qs = new URLSearchParams(location.search);
     if (qs.has('nosse') || localStorage.getItem('nosse') === '1') {
       console.warn('[NOTIFICATIONS] disabled via nosse');
       return;
     }
-    // على 127.0.0.1/192.168 مع artisan serve أحادي، الـ SSE يحجز الـ worker — نفضّل polling فقط
-    // نكتشف dev: إذا كان البورت 8000 و hostname ليس localhost الآمن، نوقف SSE تلقائياً
+    
+    
     if (location.port === '8000' && (location.hostname === '192.168.10.138' || location.hostname === '127.0.0.1')) {
-      // لا نوقف تماماً بل نجعل notificationManager يستخدم polling فقط — نفرض ذلك عبر تعطيل EventSource مؤقتاً
-      // الحل الأخف: نترك manager لكنه سيكتشف أن SSE يحجز worker — نزيد العمال بدلاً من التعطيل
-      // للآن: نسمح لكن مع عمر قصير 45s (تم في PHP)
+      
+      
+      
     }
   } catch {}
   const userIdMeta = document.querySelector('meta[name="user-id"]')?.content || window.NOTIF_USER_ID || null;

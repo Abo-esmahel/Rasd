@@ -6,8 +6,8 @@
     $isWriter = !$isMonitor;
     $userId = auth()->id();
     $currentStatus = request('status');
-    // استعلام واحد للعدادات — يقلل قفل الملفات
-    $counts = \App\Models\Note::where('user_id', $userId)
+
+    $counts = \App\Models\Note::where('user_id', $userId)->whereNull('general_submission_id')
         ->selectRaw("COUNT(*) as total, SUM(CASE WHEN status='draft' THEN 1 ELSE 0 END) as draft, SUM(CASE WHEN status='pending' THEN 1 ELSE 0 END) as pending, SUM(CASE WHEN status='accepted' THEN 1 ELSE 0 END) as accepted, SUM(CASE WHEN status='rejected' THEN 1 ELSE 0 END) as rejected")
         ->first();
     $totalCount = $counts->total ?? 0;
@@ -17,7 +17,7 @@
     $rejectedCount = $counts->rejected ?? 0;
 @endphp
 
-{{-- ===== 1. PAGE HEADER ===== --}}
+
 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
     <div>
         <h1 class="text-xl font-extrabold text-ink-800 leading-tight">ملاحظاتي</h1>
@@ -33,9 +33,9 @@
     @endif
     </div>
 
-    {{-- صفحة "ملاحظاتي" تعرض فقط ملاحظات المستخدم الحالي — لا حاجة لفلتر مراقب --}}
 
-    {{-- ===== 2. STATUS TABS — متناسق وهادئ ===== --}}
+
+
 <div class="border-b border-[#e6e9e1] mb-6 -mx-4 sm:mx-0 px-4 sm:px-0 overflow-x-auto scrollbar-hide">
     <nav class="flex gap-6 min-w-max" aria-label="حالات الملاحظات">
         @php
@@ -62,12 +62,11 @@
     </nav>
 </div>
 
-{{-- ===== 3. FILTERS — خاص بملاحظات المستخدم الحالي فقط ===== --}}
+
 <div class="mb-5">
     <details class="group">
         <summary class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium text-[#737373] hover:text-ink-700 hover:bg-[#eceee9] cursor-pointer transition list-none">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
-            فلاتر
             @if(request()->hasAny(['date','floor_number','camera_number']))
                 <span class="w-1.5 h-1.5 rounded-full bg-[#0e6a38]"></span>
             @endif
@@ -105,7 +104,7 @@
     </details>
 </div>
 
-{{-- ===== 4. NOTES LIST ===== --}}
+
 @if($notes->count() === 0)
     <div class="bg-surface-50 rounded-xl border border-surface-300 p-10 text-center">
         <div class="w-14 h-14 rounded-2xl bg-surface-100 flex items-center justify-center mx-auto">
@@ -131,9 +130,9 @@
         </div>
     </div>
 @else
-    {{-- Desktop: Table-like rows — بارز عن الخلفية --}}
+
     <div class="bg-white rounded-xl border border-[#e6e9e1] shadow-sm overflow-hidden hidden sm:block">
-        {{-- Header row --}}
+
         <div class="grid grid-cols-[auto_1fr_auto_auto] gap-4 items-center px-5 py-2.5 bg-[#f5f7f5] border-b border-[#e6e9e1] text-xs font-bold text-ink-400">
             <div class="w-20">#</div>
             <div>الملاحظة</div>
@@ -143,12 +142,12 @@
 
         @foreach($notes as $note)
             <div class="note-row grid grid-cols-[auto_1fr_auto_auto] gap-4 items-center px-5 py-3.5 border-b border-surface-300 last:border-b-0 cursor-pointer" onclick="openModal('detail-{{ $note->id }}')">
-                {{-- ID --}}
+
                 <div class="w-20">
                     <span class="text-sm font-bold text-[#737373] font-mono">#{{ str_pad($note->id, 4, '0', STR_PAD_LEFT) }}</span>
                 </div>
 
-                {{-- Main info --}}
+
                 <div class="min-w-0">
                     <div class="flex items-center gap-2 flex-wrap">
                         <span class="inline-flex items-center gap-1 text-sm font-bold text-ink-800">
@@ -161,6 +160,8 @@
                         <span class="text-sm text-[#737373]">{{ $note->observed_at->toTime12() }}{{ $note->observed_end_at ? ' — '.$note->observed_end_at->toTime12() : '' }}</span>
                         <span class="text-ink-200">·</span>
                         <span class="text-sm text-[#737373]">{{ $note->created_at->diffForHumans() }}</span>
+                        <span class="hidden md:inline text-ink-200">·</span>
+                        <span class="hidden md:inline text-[11px] text-[#737373]/80 font-mono" dir="ltr" title="وقت الإنشاء">{{ $note->created_at->format('Y-m-d H:i') }}</span>
                     </div>
                     <p class="mt-1 text-sm text-[#737373] line-clamp-1 leading-relaxed">{{ \Illuminate\Support\Str::limit($note->description, 120) }}</p>
                     <div class="mt-1.5 flex items-center gap-2 text-xs text-ink-300">
@@ -179,7 +180,7 @@
                     </div>
                 </div>
 
-                {{-- Status badge --}}
+
                 <div class="w-28 flex justify-center">
                     @if($note->isDraft())
                         <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-ink-100 text-ink-600">
@@ -200,7 +201,7 @@
                     @endif
                 </div>
 
-                {{-- Actions --}}
+
                 <div class="w-36 flex justify-center" onclick="event.stopPropagation()">
                 @if(!$note->isRejected() && $note->owner->whatsapp_number)
                     @php
@@ -211,7 +212,7 @@
                         if($note->observed_end_at) $shareText .= ' — '.$note->observed_end_at->toTime12();
                         $shareText .= "\n".$note->description;
                         $shareText .= "\nالحالة: ".$statusLabel;
-                        $shareAttachments = $note->attachments->map(fn($a) => ['id'=>$a->id, 'name'=>$a->original_name, 'mime'=>$a->mime_type, 'url'=>route('notes.attachments.view', $a)])->toArray();
+                        $shareAttachments = $note->attachments->map(fn($a) => ['id'=>$a->id, 'name'=>$a->original_name, 'mime'=>$a->mime_type, 'url'=>'/s/attachments/'.$a->id])->toArray();
                     @endphp
                     <button type="button" onclick='openShareModal(@json($shareText), @json($shareAttachments), "{{ $note->owner->whatsapp_number }}")' class="px-3 py-1.5 rounded-lg bg-[#25D366] text-white text-xs font-bold hover:bg-[#1da851] transition inline-flex items-center gap-1">
                         <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
@@ -254,7 +255,7 @@
         @endforeach
     </div>
 
-    {{-- Mobile: Stacked cards — بارزة --}}
+
     <div class="sm:hidden space-y-3">
         @foreach($notes as $note)
             <div class="bg-white rounded-xl border border-[#e6e9e1] shadow-sm p-4 hover:shadow-md hover:border-[#d4ddd3] transition" onclick="openModal('detail-{{ $note->id }}')" role="button">
@@ -277,6 +278,8 @@
                     <span class="font-semibold">كاميرا {{ $note->camera_number }}</span>
                     <span class="text-ink-200">·</span>
                     <span>الطابق {{ $note->floor_number }}</span>
+                    <span class="text-ink-200">·</span>
+                    <span class="text-[11px] text-ink-400/80 font-mono" dir="ltr" title="وقت الإنشاء: {{ $note->created_at->format('Y-m-d H:i') }}">{{ $note->created_at->format('Y-m-d') }}</span>
                 </div>
                 <p class="text-sm text-[#737373] line-clamp-2 leading-relaxed">{{ \Illuminate\Support\Str::limit($note->description, 100) }}</p>
                 <div class="mt-2.5 flex items-center justify-between">
@@ -304,7 +307,7 @@
                                 if($note->observed_end_at) $shareText .= ' — '.$note->observed_end_at->toTime12();
                                 $shareText .= "\n".$note->description;
                                 $shareText .= "\nالحالة: ".$statusLabel;
-                                $shareAttachments = $note->attachments->map(fn($a) => ['id'=>$a->id, 'name'=>$a->original_name, 'mime'=>$a->mime_type, 'url'=>route('notes.attachments.view', $a)])->toArray();
+                                $shareAttachments = $note->attachments->map(fn($a) => ['id'=>$a->id, 'name'=>$a->original_name, 'mime'=>$a->mime_type, 'url'=>'/s/attachments/'.$a->id])->toArray();
                             @endphp
                             <button type="button" onclick='openShareModal(@json($shareText), @json($shareAttachments), "{{ $note->owner->whatsapp_number }}")' class="px-2.5 py-1 rounded-lg bg-[#25D366] text-white text-xs font-bold inline-flex items-center gap-1">
                                 <svg class="w-3 h-3" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
@@ -338,7 +341,7 @@
         @endforeach
     </div>
 
-    {{-- Pagination --}}
+
     @if($notes->hasPages())
         <div class="mt-5 flex flex-col sm:flex-row items-center justify-between gap-3">
             <div class="text-sm text-[#737373]">
@@ -349,7 +352,7 @@
     @endif
 @endif
 
-{{-- ===== 5. DETAIL MODALS ===== --}}
+
 @foreach($notes as $note)
     @php
         $notePrintData = [
@@ -375,7 +378,7 @@
     <div id="detail-{{ $note->id }}" data-modal class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
         <div class="absolute inset-0 bg-ink-900/40 backdrop-blur-sm" onclick="closeModal('detail-{{ $note->id }}')"></div>
         <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
-            {{-- Header --}}
+
             <div class="px-6 py-4 border-b border-[#e6e9e1] flex items-start justify-between gap-4 shrink-0">
                 <div class="flex items-center gap-3 min-w-0">
                     <a href="{{ route('profile.showUser', $note->owner->id) }}" onclick="event.stopPropagation()" class="shrink-0 hover:opacity-80 transition">
@@ -400,7 +403,7 @@
                                 <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-red-50 text-red-700 border border-red-200">مرفوضة</span>
                             @endif
                         </div>
-                        <div class="text-xs text-[#737373] mt-0.5">{{ $note->owner->name }} — أُنشئت {{ $note->created_at->toDatetime12() }}</div>
+                        <div class="text-xs text-[#737373] mt-0.5"><a href="{{ route('profile.showUser', $note->owner->id) }}" onclick="event.stopPropagation()" class="hover:text-[#0e6a38] hover:underline transition">{{ $note->owner->name }}</a> — أُنشئت {{ $note->created_at->toDatetime12() }}</div>
                     </div>
                 </div>
                 <div class="flex items-center gap-2">
@@ -421,9 +424,9 @@
                 </div>
             </div>
 
-            {{-- Body --}}
+
             <div class="p-6 overflow-y-auto flex-1 space-y-5">
-                {{-- Meta grid --}}
+
                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     <div class="rounded-xl bg-[#f5f7f5] border border-[#e6e9e1] p-3 text-center">
                         <div class="text-[11px] font-bold text-ink-300 mb-1">رقم الكاميرا</div>
@@ -445,7 +448,7 @@
                     </div>
                 </div>
 
-                {{-- الملاحظ --}}
+
                 <div class="flex items-center gap-3 p-3 rounded-xl bg-[#f5f7f5] border border-[#e6e9e1]">
                     <a href="{{ route('profile.showUser', $note->owner->id) }}" onclick="event.stopPropagation()" class="shrink-0 hover:opacity-80 transition">
                         @if($note->owner->avatar_url)
@@ -464,7 +467,7 @@
                     </div>
                 </div>
 
-                {{-- الوصف --}}
+
                 <div>
                     <h3 class="text-sm font-bold text-ink-700 mb-2 flex items-center gap-2">
                         <svg class="w-4 h-4 text-[#0e6a38]" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
@@ -473,7 +476,7 @@
                     <div class="p-4 rounded-xl bg-[#f5f7f5] border border-[#e6e9e1] text-sm leading-[1.9] text-ink-700 whitespace-pre-wrap break-words">{{ $note->description }}</div>
                 </div>
 
-                {{-- سبب الرفض --}}
+
                 @if($note->isRejected() && $note->rejection_reason)
                     <div class="p-4 rounded-xl bg-red-50 border border-red-200">
                         <h3 class="text-sm font-bold text-red-700 mb-2 flex items-center gap-2">
@@ -487,7 +490,7 @@
                     </div>
                 @endif
 
-                {{-- المرفقات --}}
+
                 @if($note->attachments->count() > 0)
                     <div>
                         <h3 class="text-sm font-bold text-ink-700 mb-2 flex items-center gap-2">
@@ -527,7 +530,7 @@
                     </div>
                 @endif
 
-                {{-- معلومات المعالجة --}}
+
                 @if($note->processor)
                     <div class="p-3 rounded-xl bg-[#f5f7f5] border border-[#e6e9e1] flex items-center gap-3">
                         <div class="w-8 h-8 rounded-lg bg-[#eceee9] flex items-center justify-center text-xs font-bold text-[#525252]">{{ mb_substr($note->processor->name, 0, 1) }}</div>
@@ -539,7 +542,7 @@
                 @endif
             </div>
 
-            {{-- Footer actions --}}
+
             <div class="px-6 py-4 border-t border-[#e6e9e1] flex flex-wrap items-center gap-2 shrink-0 bg-[#f5f7f5]">
                 @if(!$note->isRejected() && $note->owner->whatsapp_number)
                     @php
@@ -550,7 +553,7 @@
                         if($note->observed_end_at) $shareText .= ' — '.$note->observed_end_at->toTime12();
                         $shareText .= "\n".$note->description;
                         $shareText .= "\nالحالة: ".$statusLabel;
-                        $shareAttachments = $note->attachments->map(fn($a) => ['id'=>$a->id, 'name'=>$a->original_name, 'mime'=>$a->mime_type, 'url'=>route('notes.attachments.view', $a)])->toArray();
+                        $shareAttachments = $note->attachments->map(fn($a) => ['id'=>$a->id, 'name'=>$a->original_name, 'mime'=>$a->mime_type, 'url'=>'/s/attachments/'.$a->id])->toArray();
                     @endphp
                     <button type="button" onclick='openShareModal(@json($shareText), @json($shareAttachments), "{{ $note->owner->whatsapp_number }}")' class="px-4 py-2 rounded-lg bg-[#25D366] text-white text-sm font-bold hover:bg-[#1da851] transition inline-flex items-center gap-1.5">
                         <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
@@ -599,7 +602,7 @@
     </div>
 @endforeach
 
-{{-- ===== 6. REJECT MODALS ===== --}}
+
 @foreach($notes as $note)
     @if($isWriter && $note->isPending())
         <div id="reject-{{ $note->id }}" data-modal class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -626,7 +629,7 @@
     @endif
 @endforeach
 
-{{-- ===== 7. ATTACHMENT VIEW MODAL — عرض فقط بدون تنزيل ===== --}}
+
 <div id="attachment-view-modal" data-modal class="hidden fixed inset-0 z-[60] flex items-center justify-center p-4">
     <div class="absolute inset-0 bg-ink-900/70 backdrop-blur-sm" onclick="closeModal('attachment-view-modal')"></div>
     <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden">
@@ -683,7 +686,7 @@ function openAttachmentView(url, mime, name){
     img.oncontextmenu = () => false;
     video.oncontextmenu = () => false;
 }
-// منع السحب والحفظ
+
 document.addEventListener('contextmenu', e=>{
     const modal = document.getElementById('attachment-view-modal');
     if(modal && !modal.classList.contains('hidden') && (e.target.tagName==='IMG' || e.target.tagName==='VIDEO')){
@@ -691,7 +694,7 @@ document.addEventListener('contextmenu', e=>{
     }
 });
 
-// ===== Share Modal =====
+
 function openShareModal(text, attachments, phone) {
     const modal = document.getElementById('share-modal');
     const textEl = document.getElementById('share-text');
@@ -742,106 +745,133 @@ async function doShare() {
     const btn = document.getElementById('share-send-btn');
     const btnText = document.getElementById('share-send-text');
     const btnLoader = document.getElementById('share-send-loader');
-    const text = document.getElementById('share-text').value.trim();
+    const textEl = document.getElementById('share-text');
+    const text = textEl ? textEl.value.trim() : '';
     const hasWebShare = !!navigator.share;
     btn.disabled = true;
     btnText.textContent = hasWebShare ? 'جاري التجهيز...' : 'جاري النسخ...';
     btnLoader.classList.remove('hidden');
+    const finish = () => { btn.disabled = false; btnText.textContent = 'مشاركة'; btnLoader.classList.add('hidden'); };
     const cbs = document.querySelectorAll('.share-file-cb:checked');
-    const files = [];
+    const items = [];
     for (const cb of cbs) {
         try {
             const res = await fetch(cb.dataset.url);
             if (!res.ok) continue;
             const blob = await res.blob();
-            files.push(new File([blob], cb.dataset.name, { type: cb.dataset.mime }));
+            items.push({file: new File([blob], cb.dataset.name, {type: cb.dataset.mime}), url: cb.dataset.url, name: cb.dataset.name});
         } catch(e) {}
     }
-    const shareData = {};
-    if (text) shareData.text = text;
-    if (files.length > 0) {
-        if (hasWebShare && navigator.canShare({ files })) {
-            shareData.files = files;
-        } else if (!hasWebShare) {
-            // Fallback: will provide download links
-        } else {
-            btn.disabled = false;
-            btnText.textContent = 'مشاركة';
-            btnLoader.classList.add('hidden');
-            alert('هذا المتصفح لا يدعم مشاركة الملفات');
-            return;
-        }
-    }
-    if (!shareData.text && !shareData.files) {
-        btn.disabled = false;
-        btnText.textContent = 'مشاركة';
-        btnLoader.classList.add('hidden');
+    if (!text && items.length === 0) {
+        finish();
         alert('اختر رسالة أو وسائط للمشاركة');
         return;
     }
     if (hasWebShare) {
+        const shareData = {};
+        if (text) shareData.text = text;
+        const webFiles = items.map(i => i.file);
+        const canShareFiles = webFiles.length > 0 && !!navigator.canShare && navigator.canShare({files: webFiles});
+        if (canShareFiles) shareData.files = webFiles;
+        if (webFiles.length > 0 && !canShareFiles) {
+            try { if (text) await navigator.share({text}); } catch(e) {}
+            finish();
+            showShareFallback(items, text);
+            return;
+        }
         try {
             await navigator.share(shareData);
             closeShareModal();
         } catch(e) {
             if (e.name !== 'AbortError') alert('تعذرت المشاركة');
         } finally {
-            btn.disabled = false;
-            btnText.textContent = 'مشاركة';
-            btnLoader.classList.add('hidden');
+            finish();
         }
     } else {
-        // Fallback for HTTP / no Web Share: wa.me لا يرسل ملفات — نرسل النص عبر wa.me والملفات كروابط تحميل
         const phone = document.getElementById('share-modal').dataset.phone || '';
         const cleanPhone = phone.replace(/^\+/,'');
-        const filesText = files.length ? '\n\nالملفات المرفقة ('+files.length+'):\n' + files.map(function(f){ return '• '+f.name+': '+f.url; }).join('\n') : '';
+        var counters={img:0,vid:0,aud:0,other:0};
+        var shortName=function(it){
+            var m=it.mime||'';
+            if(m.indexOf('audio/')===0) return 'مقطع صوتي '+ (++counters.aud);
+            if(m.indexOf('video/')===0) return 'فيديو '+ (++counters.vid);
+            if(m.indexOf('image/')===0) return 'صورة '+ (++counters.img);
+            return 'مرفق '+ (++counters.other);
+        };
+        const filesText = items.length ? '\n\n*الملفات المرفقة ('+items.length+')*\n' + items.map(function(it){ return shortName(it)+':\n\u200E'+shareBase()+it.url; }).join('\n\n') : '';
         const fullText = text + filesText;
-        const waUrl = cleanPhone ? 'https://wa.me/' + cleanPhone + '?text=' + encodeURIComponent(fullText) : null;
+        const waUrl = 'https://wa.me/?text=' + encodeURIComponent(fullText);
         if (waUrl) {
             window.open(waUrl, '_blank');
-            // بعد فتح واتساب، اعرض أيضاً روابط التحميل للملفات ليرفقها يدوياً
-            if(files.length) setTimeout(function(){ showShareFallback(files); }, 800);
+            finish();
+            if (items.length) setTimeout(function(){ showShareFallback(items, text); }, 800);
             else closeShareModal();
         } else {
-            try { if (fullText) await navigator.clipboard.writeText(fullText); showShareFallback(files); } catch(e){ alert('تعذر النسخ - يرجى النسخ يدوياً'); }
+            try { if (fullText) await navigator.clipboard.writeText(fullText); } catch(e){}
+            finish();
+            showShareFallback(items, text);
         }
-        btn.disabled = false;
-        btnText.textContent = 'مشاركة';
-        btnLoader.classList.add('hidden');
     }
 }
-function showShareFallback(files) {
+function escShareHtml(s) {
+    return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function showShareFallback(items, text) {
+    items = items || [];
+    text = text || '';
     const modal = document.getElementById('share-modal');
     const body = modal.querySelector('.flex-1');
     if (!body) return;
-    body.innerHTML = '';
-    const text = document.getElementById('share-text').value.trim();
     const phone = modal.dataset.phone || '';
     const cleanPhone = phone.replace(/^\+/,'');
-    const waUrl = cleanPhone ? 'https://wa.me/' + cleanPhone + '?text=' + encodeURIComponent(text) : null;
+    const waUrl = text ? 'https://wa.me/?text=' + encodeURIComponent(text) : null;
     let html = '<div class="p-4 bg-[#f5f7f5] rounded-xl border border-[#e6e9e1] space-y-3">';
-    html += '<div class="p-3 rounded-lg bg-amber-50 border border-amber-200 text-xs leading-5 text-amber-800">⚠️ واتساب عبر <span dir="ltr" class="font-mono">wa.me</span> لا يرسل الملفات مباشرة — النص يُرسل، والملفات حمّلها ثم أرفقها يدوياً في واتساب. على <span dir="ltr" class="font-mono">HTTPS</span> مع <span dir="ltr" class="font-mono">Web Share</span> تُرسل الملفات تلقائياً.</div>';
     if (waUrl) {
-        html += '<a href="' + waUrl + '" target="_blank" rel="noopener" class="block w-full text-center px-4 py-3 rounded-xl bg-[#25D366] text-white text-sm font-bold hover:bg-[#1da851] transition">فتح واتساب بالنص (HTTP)</a>';
+        html += '<a href="' + waUrl + '" target="_blank" rel="noopener" class="block w-full text-center px-4 py-3 rounded-xl bg-[#25D366] text-white text-sm font-bold hover:bg-[#1da851] transition">فتح واتساب بالنص</a>';
     }
-    html += '<p class="text-sm font-bold text-ink-700">الملفات — حمّل ثم أرسلها يدوياً:</p>';
     if (text) {
         html += '<div class="space-y-2"><label class="block text-xs font-bold text-ink-500">النص</label>';
-        html += '<textarea readonly class="w-full h-24 p-3 rounded-lg border border-[#e6e9e1] text-sm text-ink-700 bg-white" onclick="this.select()">' + text.replace(/</g,'<').replace(/>/g,'>') + '</textarea>';
-        html += '<button onclick="copyShareText()" class="px-4 py-2 rounded-lg bg-[#0e6a38] text-white text-sm font-bold hover:bg-[#0a4d28] transition">نسخ النص</button>';
+        html += '<textarea id="share-fallback-text" readonly class="w-full h-24 p-3 rounded-lg border border-[#e6e9e1] text-sm text-ink-700 bg-white" onclick="this.select()">' + escShareHtml(text) + '</textarea>';
+        html += '<button onclick="copyShareFallbackText()" id="share-fallback-copy" class="px-4 py-2 rounded-lg bg-[#0e6a38] text-white text-sm font-bold hover:bg-[#0a4d28] transition">نسخ النص</button>';
         html += '</div>';
     }
-    if (files.length > 0) {
-        html += '<div class="space-y-2 mt-3"><label class="block text-xs font-bold text-ink-500">الملفات</label>';
-        files.forEach(f => {
-            html += '<a href="' + f.url + '" download="' + f.name + '" class="flex items-center gap-3 p-2.5 rounded-xl border border-[#e6e9e1] hover:bg-[#f5f7f5] transition">';
-            html += '<span class="text-sm">📎</span><span class="text-sm text-ink-700 truncate flex-1">' + f.name + '</span>';
-            html += '<span class="text-[11px] text-ink-400">تحميل</span></a>';
+    if (items.length > 0) {
+        html += '<div class="space-y-2 mt-3"><label class="block text-xs font-bold text-ink-500">روابط المشاهدة — دائمة (' + items.length + ')</label>';
+        items.forEach(it => {
+            var absUrl = shareBase() + it.url;
+            html += '<div class="p-2.5 rounded-xl border border-[#e6e9e1] bg-white space-y-2">';
+            html += '<div class="text-sm text-ink-700 font-bold truncate">📎 ' + escShareHtml(it.name) + '</div>';
+            html += '<div class="flex items-center gap-2"><input readonly onclick="this.select()" value="' + escShareHtml(absUrl) + '" dir="ltr" class="flex-1 min-w-0 text-xs font-mono text-ink-500 bg-[#f5f7f5] border border-[#e6e9e1] rounded-lg px-2 py-1.5">';
+            html += '<button data-url="' + escShareHtml(absUrl) + '" onclick="copyShareLink(this)" class="shrink-0 px-3 py-1.5 rounded-lg bg-[#0e6a38] text-white text-xs font-bold hover:bg-[#0a4d28] transition">نسخ الرابط</button></div></div>';
         });
         html += '</div>';
     }
     html += '</div><div class="mt-4 text-center"><button onclick="closeShareModal()" class="px-6 py-2.5 rounded-lg bg-white border border-[#e6e9e1] text-ink-600 text-sm font-bold hover:bg-[#f5f7f5] transition">إغلاق</button></div>';
     body.innerHTML = html;
+}
+function copyShareFallbackText() {
+    const ta = document.getElementById('share-fallback-text');
+    if (!ta) return;
+    copyShareValue(ta.value, 'share-fallback-copy', 'نسخ النص');
+}
+function copyShareLink(btn) {
+    if (!btn || !btn.dataset.url) return;
+    copyShareValue(btn.dataset.url, null, null, btn);
+}
+function copyShareValue(value, btnId, btnIdleText, btnEl) {
+    const done = () => {
+        const b = btnEl || (btnId ? document.getElementById(btnId) : null);
+        if (!b) return;
+        const orig = btnIdleText || b.textContent;
+        b.textContent = 'تم النسخ';
+        setTimeout(() => { b.textContent = orig; }, 1500);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(value).then(done).catch(() => { try { document.execCommand('copy'); } catch(e){} done(); });
+    } else {
+        try { document.execCommand('copy'); } catch(e){}
+        done();
+    }
 }
 function copyShareText() {
     const text = document.getElementById('share-text');
@@ -853,10 +883,10 @@ function copyShareText() {
         setTimeout(() => { if (btn) btn.textContent = 'نسخ'; }, 1500);
     });
 }
-// Don't hide buttons — show fallback instead
+
 </script>
 
-{{-- Share Modal --}}
+
 <div id="share-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
     <div class="absolute inset-0 bg-ink-900/40 backdrop-blur-sm" onclick="closeShareModal()"></div>
     <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[85vh] flex flex-col overflow-hidden">
@@ -896,7 +926,7 @@ function copyShareText() {
 </div>
 
 <script>
-// ===== AJAX Actions =====
+
 document.querySelectorAll('form[data-ajax]').forEach(form => {
     form.addEventListener('submit', async function(e) {
         e.preventDefault();
@@ -913,10 +943,10 @@ document.querySelectorAll('form[data-ajax]').forEach(form => {
             const data = await res.json();
             if (res.ok && data.success) {
                 if(window.fetchNotifications) window.fetchNotifications(false);
-                // الحالة الجديدة — من الجذر أو من data (توافق)
+
                 const newStatus = data.status || (data.data && data.data.status);
                 const noteId = this.dataset.noteId;
-                // البطاقة الحاوية: ليست الفورم نفسه (الفورم يحمل data-note-id أيضاً)
+
                 let card = this.closest('[data-note-card]');
                 if (!card && noteId) {
                     const candidates = Array.from(document.querySelectorAll('[data-note-id="'+noteId+'"]'));
@@ -933,7 +963,7 @@ document.querySelectorAll('form[data-ajax]').forEach(form => {
                         badge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full ' + dotMap[newStatus] + (newStatus==='pending'?' animate-pulse':'') + '"></span>' + statusMap[newStatus];
                         updated = true;
                     }
-                    // Show/hide action buttons
+
                     const actionsEl = card.querySelector('.note-actions');
                     if (actionsEl) {
                         let newActions = '';
@@ -955,7 +985,7 @@ document.querySelectorAll('form[data-ajax]').forEach(form => {
                     setTimeout(() => card.remove(), 250);
                     updated = true;
                 }
-                // لا عناصر قابلة للتحديث الموضعي (الصفوف الحالية بلا note-badge) — حدّث الصفحة لإظهار الحالة الجديدة بدل التعليق
+
                 if (!updated) { location.reload(); return; }
             } else {
                 alert(data.message || 'حدث خطأ');
@@ -967,7 +997,7 @@ document.querySelectorAll('form[data-ajax]').forEach(form => {
     });
 });
 
-// ===== AJAX Tabs =====
+
 document.querySelectorAll('[data-ajax-tab]').forEach(tab => {
     tab.addEventListener('click', function(e) {
         e.preventDefault();
@@ -992,6 +1022,43 @@ document.querySelectorAll('[data-ajax-tab]').forEach(tab => {
             .catch(() => { window.location.href = url; });
     });
 });
+</script>
+@endpush
+@push('scripts')
+<script>
+/* Silent live sync — tiny 1s signature check, list re-renders only on change. */
+(function(){
+    if (!document.getElementById('notes-list') || typeof window.ajaxFilter !== 'function') return;
+    var lastSig = null, busy = false;
+    function buildCheckUrl(){
+        var q = new URLSearchParams(window.location.search);
+        q.set('live', '1');
+        return window.location.pathname + '?' + q.toString();
+    }
+    function userBusy(){
+        var a = document.activeElement;
+        if (a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA' || a.tagName === 'SELECT' || a.isContentEditable)) return true;
+        if (document.querySelector('[data-modal]:not(.hidden),#share-modal:not(.hidden),#camera-modal:not(.hidden),#camera-modal-edit:not(.hidden),#print-selection-modal:not(.hidden),#print-preview-modal:not(.hidden)')) return true;
+        return false;
+    }
+    function tick(){
+        if (document.hidden || busy || userBusy()) return;
+        busy = true;
+        fetch(buildCheckUrl(), {headers: {'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json'}})
+            .then(function(r){ if (!r.ok) throw 0; return r.json(); })
+            .then(function(d){
+                if (lastSig === null) { lastSig = d.sig; return; }
+                if (d.sig !== lastSig) {
+                    lastSig = d.sig;
+                    window.ajaxFilter(window.location.pathname + window.location.search);
+                }
+            })
+            .catch(function(){ /* silent — retry next second */ })
+            .finally(function(){ busy = false; });
+    }
+    document.addEventListener('visibilitychange', function(){ if (!document.hidden) tick(); });
+    setInterval(tick, 1000);
+})();
 </script>
 @endpush
 @include('notes.partials.print_modal')

@@ -1,10 +1,9 @@
-{{-- ===== نظام طباعة الملاحظة كوثيقة توثيق رسمية A4 ===== --}}
 
-{{-- نافذة 1: اختيار المرفقات للطباعة --}}
+
 <div id="print-selection-modal" class="hidden fixed inset-0 z-[70] flex items-center justify-center p-4">
     <div class="absolute inset-0 bg-ink-900/60 backdrop-blur-sm" onclick="closePrintSelectionModal()"></div>
     <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden border border-[#e6e9e1]">
-        {{-- Header --}}
+        
         <div class="px-6 py-4 border-b border-[#e6e9e1] flex items-center justify-between gap-4 shrink-0 bg-[#fdfcfa]">
             <div class="flex items-center gap-2.5">
                 <div class="w-9 h-9 rounded-xl bg-[#eef4f0] text-[#0e6a38] flex items-center justify-center shrink-0">
@@ -22,9 +21,9 @@
             </button>
         </div>
 
-        {{-- Body --}}
+        
         <div class="p-6 overflow-y-auto flex-1 space-y-4">
-            {{-- Toolbar: Select all / Deselect all --}}
+            
             <div class="flex items-center justify-between gap-3 pb-3 border-b border-[#e6e9e1] flex-wrap">
                 <div class="text-xs font-bold text-[#525252] flex items-center gap-2">
                     <span>المرفقات المتاحة:</span>
@@ -40,7 +39,7 @@
                 </div>
             </div>
 
-            {{-- Notice --}}
+            
             <div class="p-3 rounded-xl bg-[#f5f7f5] border border-[#e6e9e1] text-xs text-[#525252] flex items-start gap-2.5 leading-relaxed">
                 <svg class="w-4 h-4 text-[#0e6a38] shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
@@ -50,9 +49,9 @@
                 </span>
             </div>
 
-            {{-- Attachments Grid --}}
+            
             <div id="print-attachments-list" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {{-- Dynamic list inserted by JS --}}
+                
             </div>
 
             <div id="print-no-attachments-msg" class="hidden p-8 text-center bg-[#f5f7f5] rounded-xl border border-[#e6e9e1]">
@@ -61,7 +60,7 @@
             </div>
         </div>
 
-        {{-- Footer --}}
+        
         <div class="px-6 py-4 border-t border-[#e6e9e1] flex items-center justify-between gap-3 shrink-0 bg-[#f5f7f5]">
             <button type="button" onclick="closePrintSelectionModal()" class="px-4 py-2 rounded-lg border border-[#e6e9e1] text-[#737373] text-sm font-medium hover:bg-white transition">
                 إلغاء
@@ -78,11 +77,10 @@
     </div>
 </div>
 
-{{-- نافذة 2: معاينة وثيقة A4 التفاعلية قبل الطباعة --}}
 <div id="print-preview-modal" class="hidden fixed inset-0 z-[80] flex items-center justify-center p-2 sm:p-4">
     <div class="absolute inset-0 bg-ink-900/70 backdrop-blur-sm" onclick="closePrintPreviewModal()"></div>
     <div class="relative bg-[#343a34] rounded-2xl shadow-2xl w-full max-w-4xl h-[94vh] flex flex-col overflow-hidden border border-[#525252]">
-        {{-- Preview Header --}}
+        
         <div class="px-6 py-3.5 border-b border-[#444c44] flex items-center justify-between gap-4 shrink-0 bg-[#252b26] text-white">
             <div class="flex items-center gap-3">
                 <div class="w-8 h-8 rounded-lg bg-[#0e6a38] text-white flex items-center justify-center font-bold text-sm">
@@ -103,14 +101,14 @@
             </div>
         </div>
 
-        {{-- Preview Paper Container (A4 aspect-ratio sheet simulation) --}}
+        
         <div class="flex-1 overflow-y-auto p-4 sm:p-6 flex flex-col items-center gap-6 bg-[#2b312c]">
             <div id="print-preview-pages-container" class="w-full flex flex-col items-center gap-6">
-                {{-- Pages generated here --}}
+                
             </div>
         </div>
 
-        {{-- Preview Footer --}}
+        
         <div class="px-6 py-3.5 border-t border-[#444c44] flex items-center justify-between gap-4 shrink-0 bg-[#252b26]">
             <div class="text-xs text-white/70 hidden sm:block">
                 تم حساب أفضل توزيع تلقائي للورقة بدقة طباعة 300 PPI
@@ -130,17 +128,14 @@
     </div>
 </div>
 
-{{-- الحاوية المحلية أُزيلت — الطباعة تستخدم الحاوية العامة في layouts/app مباشرة تحت body --}}
-
-{{-- CSS المخصص للطباعة وعزل الوثيقة — PIPELINE FIX 2026-09-05 : Engine Geometry = Single Source of Truth --}}
 <style>
-/* ===== SCREEN BASE ===== */
+
 @media screen {
     #rasd-print-document,
     #printable-a4-doc {
         display: none !important;
     }
-    /* Engine absolute mm — same for preview and print */
+    
     .a4-preview-sheet, .a4-print-page {
         width: 210mm !important;
         height: 297mm !important;
@@ -162,7 +157,7 @@
         zoom: 1 !important;
         display: block !important;
     }
-    /* Landscape support via data-orientation */
+    
     .a4-preview-sheet[data-orientation="landscape"],
     .a4-print-page[data-orientation="landscape"] {
         width: 297mm !important;
@@ -189,7 +184,7 @@
         #printable-a4-doc { display:block !important; visibility:visible !important; }
         #rasd-print-document, #print-preview-pages-container { display:none !important; visibility:hidden !important; }
     }
-    /* Preview scaling for screen — does NOT affect print */
+    
     .a4-preview-sheet {
         transform: scale(0.92) !important;
         transform-origin: top center !important;
@@ -197,13 +192,13 @@
         overflow: visible !important;
     }
     .a4-preview-sheet[data-orientation="portrait"] {
-        /* N3 portrait preview fix: ensure full-width description not clipped by scale */
+        
         overflow: visible !important;
     }
     .a4-preview-sheet .a4-print-page {
         overflow: visible !important;
     }
-    /* N3: Force description wrapper to be full-width below imageArea, not inside hero */
+    
     .a4-print-page [data-print-description-wrapper] {
         left: 0 !important;
         width: 100% !important;
@@ -260,7 +255,6 @@
     }
 }
 
-/* Hide duplicate fields in print */
 @media print {
     .no-print, input, textarea, button, form { display: none !important; }
 }
@@ -274,7 +268,6 @@
     margin: 0;
 }
 
-/* ===== PRINT ISOLATION — Engine Geometry is Single Source of Truth ===== */
 @media print {
     body {
         visibility: hidden !important;
@@ -292,12 +285,12 @@
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
     }
-    /* Show only printable root */
+    
     #printable-a4-doc,
     #printable-a4-doc * {
         visibility: visible !important;
     }
-    /* Hide duplicate roots */
+    
     #rasd-print-document,
     #print-preview-pages-container,
     #print-preview-modal,
@@ -308,7 +301,7 @@
         height: 0 !important;
         overflow: hidden !important;
     }
-    /* Printable root — block, not 100% height hacks */
+    
     #printable-a4-doc {
         display: block !important;
         visibility: visible !important;
@@ -328,11 +321,11 @@
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
     }
-    /* Text color fix */
+    
     #printable-a4-doc .text-\[\#0e6a38\] {
         color: #0e6a38 !important;
     }
-    /* ===== A4 PAGE — FIXED 210×297, landscape via data-orientation ===== */
+    
     .a4-print-page {
         position: relative !important;
         width: 210mm !important;
@@ -367,7 +360,7 @@
         page-break-after: auto !important;
         break-after: auto !important;
     }
-    /* ===== ENGINE IMAGE CONTAINERS — absolute mm, no flex/grid ===== */
+    
     [data-print-image] {
         position: absolute !important;
         box-sizing: border-box !important;
@@ -377,9 +370,9 @@
         border: 0.3mm solid #e5e7eb !important;
         border-radius: 1.5mm !important;
         display: block !important;
-        /* geometry comes from inline style left/top/width/height in mm — never override */
+        
     }
-    /* Inner img — contain, no stretch/squash, uniform scale to fit cell */
+    
     [data-print-image] img {
         position: absolute !important;
         left: 0 !important;
@@ -402,15 +395,15 @@
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
     }
-    /* Disable any legacy grid/flex that might leak */
+    
     #printable-a4-doc .print-images-grid,
     #printable-a4-doc .print-attachments-grid,
     #printable-a4-doc .print-image-container,
     #printable-a4-doc .print-image-wrapper,
     #printable-a4-doc .video-frame-wrapper {
-        display: none !important; /* legacy containers are not used in engine path; hide if present */
+        display: none !important; 
     }
-    /* If legacy grid somehow rendered, neutralize */
+    
     .print-image-container,
     .print-images-grid,
     .print-attachments-grid {
@@ -418,7 +411,6 @@
     }
 }
 
-/* ===== Legacy grid styles — kept for non-print pages but NEVER in print ===== */
 @media screen {
     .print-image-container,
     .print-images-grid,
@@ -437,7 +429,7 @@
 .print-image,
 .print-image-wrapper img,
 .video-frame-wrapper img {
-    /* Screen only — print is overridden above */
+    
     image-rendering: high-quality !important;
 }
 .video-frame-wrapper {
@@ -504,15 +496,7 @@ function closePrintSelectionModal() {
     document.getElementById('print-selection-modal').classList.add('hidden');
     document.body.style.overflow = '';
 }
-// ===== PRINT BUTTON FIX 2026-09-06: base64 payload + precise errors =====
-// data-print-note (raw JSON in attribute) alone is fragile: if json_encode fails server-side
-// (e.g. invalid UTF-8 bytes in description/filename → false → empty attribute),
-// JSON.parse('') throws and the generic catch blames "invalid data" for EVERY
-// failure (even a missing script). Buttons now carry:
-//   data-print-note-id  (plain integer — can never break parsing)
-//   data-print-b64       (base64 of JSON with JSON_INVALID_UTF8_SUBSTITUTE — never false)
-//   data-print-note      (legacy raw-JSON fallback)
-// This helper decodes step-by-step and reports WHICH step failed for WHICH note.
+
 function decodePrintPayload(b64) {
     const bin = window.atob(String(b64).trim());
     const bytes = Uint8Array.from(bin, (c) => c.charCodeAt(0));
@@ -538,7 +522,7 @@ function openPrintModalFromButton(btn) {
         }
     }
     if (!data || typeof data.id === 'undefined') {
-        // Diagnostic validation — states WHICH field failed instead of a generic message
+        
         const missingField = !data ? 'payload(BOTH b64+legacy unparseable)' : 'note.id';
         console.error('[PRINT VALIDATION FAILED]', {
             missingField: missingField,
@@ -552,7 +536,7 @@ function openPrintModalFromButton(btn) {
         alert('تعذر فتح الطباعة: بيانات الملاحظة #' + nid + ' غير صالحة (' + missingField + ') — افتح الكونسول (F12) وابحث عن سطر [PRINT VALIDATION FAILED]');
         return;
     }
-    // Requested trace: raw note data BEFORE validation result is used
+    
     console.log('[PRINT] raw note data:', data);
     console.log('[PRINT] note keys:', Object.keys(data || {}));
     console.log('[PRINT] attachments:', data.attachments);
@@ -644,7 +628,7 @@ async function extractNativeVideoFrame(url) {
                 const ctx = canvas.getContext('2d');
                 ctx.imageSmoothingEnabled = true;
                 ctx.imageSmoothingQuality = 'high';
-                // تعزيز الدقة: رسم بدقة الجهاز (حتى 2x) للحفاظ على التفاصيل عند الطباعة 300dpi
+                
                 if (dpr > 1) {
                     canvas.width = nativeW * dpr;
                     canvas.height = nativeH * dpr;
@@ -675,8 +659,8 @@ async function preloadNativeImage(url) {
     });
 }
 function solveOptimalLayout(items) {
-    // PIPELINE FIX §7: DEPRECATED — Grid solver قديم، ممنوع استخدامه في الطباعة.
-    // بقي للتوثيق فقط. إذا استُدعي سيطبع تحذيراً ويرمي خطأً.
+    
+    
     console.error('[DEPRECATED] solveOptimalLayout() called — PIPELINE FIX §7: ONE RENDERER ONLY is PrintLayoutEngine. This Grid solver is disabled.');
     throw new Error('DEPRECATED solveOptimalLayout() — PIPELINE FIX §6/§7: Engine geometry is single source of truth, Grid fallback disabled.');
 }
@@ -687,11 +671,7 @@ function partitionItemsIntoPages(items) {
     for (let i = 0; i < items.length; i += maxPerPage) pages.push(items.slice(i, i + maxPerPage));
     return pages;
 }
-/**
- * Single Source of Truth Renderer — mm absolute positioning
- * Engine → Layout {x,y,width,height} in mm → DOM with position:absolute
- * Preview and Print use SAME geometry, SAME CSS, no Grid reinterpretation
- */
+
 let _printEngine = null;
 function getPrintEngine(){
     if(_printEngine) return _printEngine;
@@ -703,15 +683,14 @@ function getPrintEngine(){
     try{ _printEngine = new Cls(); }catch(e){ console.error(e); return null; }
     return _printEngine;
 }
-// DEPRECATED RENDERER — PIPELINE FIX §7: هذا الرندر قديم وغير مستخدم، بقي للتوثيق فقط
-// لا تستدعِه — استخدم buildA4PageHtml() الوحيد. إذا استُدعي سيرمي خطأً واضحاً لمنع الاستخدام الصامت.
+
 function renderLayout(layout, container){
     console.error('[DEPRECATED] renderLayout() is dead code — use buildA4PageHtml() only. Engine geometry is single source of truth.');
     throw new Error('DEPRECATED renderLayout() called — PIPELINE FIX §7: ONE RENDERER ONLY is buildA4PageHtml(). This renderer is disabled.');
 }
 function assertPrintGeometry(layout, container){
-    // Compare engine mm vs rendered mm (via getBoundingClientRect → mm)
-    const pxPerMm = 3.779527559; // 96dpi
+    
+    const pxPerMm = 3.779527559; 
     const errors=[];
     const pageEl = container.querySelector('.a4-print-page');
     if(pageEl){
@@ -732,11 +711,11 @@ function assertPrintGeometry(layout, container){
     return {valid: ok, errors, engine:layout, rendered: container.innerHTML.slice(0,120)};
 }
 function renderAbsoluteImages(pageItems, imageArea){
-    // PIPELINE FIX §7: هذا الفولباك قديم — ممنوع استخدامه صامتاً. الآن يرمي خطأً واضحاً.
+    
     console.error('[DEPRECATED] renderAbsoluteImages() called — PIPELINE FIX §6: No silent fallback allowed. Engine error should be visible.');
     throw new Error('DEPRECATED renderAbsoluteImages() — PIPELINE FIX §6/§7: Engine must succeed, no Grid fallback. Fix the Engine error instead.');
 }
-// ===== PIPELINE FIX §10 & §11: Assertions قبل الطباعة =====
+
 function assertBeforePrint(printableDoc){
     const errors = [];
     const pxPerMm = 3.779527559;
@@ -746,7 +725,7 @@ function assertBeforePrint(printableDoc){
         return { valid:false, errors };
     }
     console.log('[PRINT ASSERTION] Checking', pages.length, 'page(s)');
-    // If printableDoc is hidden (display:none), rect will be 0 — clone to offscreen for measurement
+    
     let probedPages = pages;
     let probeContainer = null;
     const firstRect = pages[0].getBoundingClientRect();
@@ -758,7 +737,7 @@ function assertBeforePrint(printableDoc){
         probeContainer.style.top = '0';
         probeContainer.style.visibility = 'hidden';
         probeContainer.style.pointerEvents = 'none';
-        // Clone HTML without wrapper visibility constraints
+        
         probeContainer.innerHTML = printableDoc.innerHTML;
         document.body.appendChild(probeContainer);
         probedPages = probeContainer.querySelectorAll('.a4-print-page');
@@ -771,14 +750,14 @@ function assertBeforePrint(printableDoc){
         const expectedW = orient==='landscape' ? 297 : 210;
         const expectedH = orient==='landscape' ? 210 : 297;
         console.log(`[PRINT PAGE RECT] page ${pi} orientation=${orient}`, { widthPx: Math.round(rect.width), heightPx: Math.round(rect.height), widthMm: wMm.toFixed(2), heightMm: hMm.toFixed(2), expected: `${expectedW}×${expectedH}mm` });
-        // Only enforce rect size if element was measurable (not hidden original)
+        
         if(rect.width >= 10){
             if(Math.abs(wMm - expectedW) > 3) errors.push(`Page ${pi} width ${wMm.toFixed(1)}mm != expected ${expectedW}mm (${orient})`);
             if(Math.abs(hMm - expectedH) > 3) errors.push(`Page ${pi} height ${hMm.toFixed(1)}mm != expected ${expectedH}mm (${orient})`);
         } else {
             console.warn(`[PRINT ASSERTION] page ${pi} rect still 0, skipping size check — checking data attributes only`);
         }
-        // Check each image
+        
         const imgs = page.querySelectorAll('[data-print-image]');
         const pageW = expectedW;
         const pageH = expectedH;
@@ -791,10 +770,10 @@ function assertBeforePrint(printableDoc){
             const styleTop = el.style.top;
             const styleW = el.style.width;
             const styleH = el.style.height;
-            // Check inline style matches engine data
+            
             if(!styleLeft || !styleLeft.includes('mm')) errors.push(`Page ${pi} img ${ii} left not in mm: ${styleLeft}`);
             if(!styleW || !styleW.includes('mm')) errors.push(`Page ${pi} img ${ii} width not in mm: ${styleW}`);
-            // Check bounds
+            
             if(isNaN(x) || isNaN(y) || isNaN(w) || isNaN(h)) {
                 errors.push(`Page ${pi} img ${ii} has NaN geometry: x=${x} y=${y} w=${w} h=${h}`);
                 return;
@@ -804,7 +783,7 @@ function assertBeforePrint(printableDoc){
             if(y < -0.5) errors.push(`Page ${pi} img ${ii} y<0: ${y}`);
             if(x + w > pageW + 0.5) errors.push(`Page ${pi} img ${ii} overflow: x(${x})+w(${w})=${(x+w).toFixed(1)} > pageW ${pageW}`);
             if(y + h > pageH + 0.5) errors.push(`Page ${pi} img ${ii} overflow: y(${y})+h(${h})=${(y+h).toFixed(1)} > pageH ${pageH}`);
-            // Check computed vs engine — allow 2mm tolerance, skip if hidden (should not happen for probed)
+            
             const r = el.getBoundingClientRect();
             if(r.width >= 5){
                 const cw = r.width / pxPerMm;
@@ -812,7 +791,7 @@ function assertBeforePrint(printableDoc){
                 if(Math.abs(cw - w) > 2) errors.push(`Page ${pi} img ${ii} computed width ${cw.toFixed(1)}mm != engine ${w}mm (diff ${(cw-w).toFixed(1)})`);
                 if(Math.abs(ch - h) > 2) errors.push(`Page ${pi} img ${ii} computed height ${ch.toFixed(1)}mm != engine ${h}mm`);
             }
-            // Check overlap (only flag if severe overlap > 1mm)
+            
             for(let j=0;j<ii;j++){
                 const prev = imgs[j];
                 const px = parseFloat(prev.getAttribute('data-engine-x'));
@@ -822,7 +801,7 @@ function assertBeforePrint(printableDoc){
                 const overlap = !(x + w <= px + 0.5 || px + pw2 <= x + 0.5 || y + h <= py + 0.5 || py + ph2 <= y + 0.5);
                 if(overlap) errors.push(`Page ${pi} img ${ii} overlaps with img ${j}`);
             }
-            // Check object-fit is fill (not cover)
+            
             const inner = el.querySelector('img');
             if(inner){
                 const ics = getComputedStyle(inner);
@@ -834,7 +813,7 @@ function assertBeforePrint(printableDoc){
         });
         if(imgs.length===0) console.warn(`Page ${pi} has no [data-print-image] — empty page?`);
     });
-    // Check for stray Grid/Flex on page — use probed pages
+    
     probedPages.forEach((page,i)=>{
         const cs = getComputedStyle(page);
         if(cs.display === 'flex' || cs.display === 'grid') errors.push(`Page ${i} display is ${cs.display} != block (Grid/Flex override)`);
@@ -846,24 +825,18 @@ function assertBeforePrint(printableDoc){
     return { valid: errors.length===0, errors, pages: pages.length };
 }
 
-// ===== SMART DESCRIPTION — المحرك الذكي للوصف =====
-// 1) escPrint: تهريب HTML — الحروف الخاصة (<>&"') في الوصف/الأسماء كانت تكسر
-//    التخطيط وتبتلع الوصف كاملاً.
-// 2) حجز كامل لكتلة الوصف (نص + شبكة البيانات + تذييل) ضمن 297مم — المحرك كان
-//    يحجز النص فقط فيتجاوز الذيل حد الصفحة ويُقص على الورق (بينما المعاينة تُظهره).
-// 3) الوصف الأطول من المتبقي ينتقل تلقائياً لصفحة مخصصة بدل قصّه.
 function escPrint(s){
     return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
-const DESC_LINE_H_MM = 8.2*0.3528*1.45; // ≈4.19 — يطابق estimateDescriptionMetrics في المحرك
-const DESC_META_MM = 16;    // شبكة البيانات + عنوان الوصف + التذييل (غير محسوبة في المحرك)
-const DESC_MIN_IMG_MM = 50; // أقل ارتفاع صور نبقيه في صفحة تحمل الوصف
+const DESC_LINE_H_MM = 8.2*0.3528*1.45; 
+const DESC_META_MM = 16;    
+const DESC_MIN_IMG_MM = 50; 
 function descCpl(){
     const printableW = 210 - 6*2;
     const avgCW = 8.2*0.3528*0.56;
     return Math.max(1, Math.floor((printableW-7)/avgCW));
 }
-// عد الأسطر بمنطق المحرك نفسه (يحترم \n + الكلمات الأطول من السطر)
+
 function countDescLines(text, cpl){
     if(!text || !String(text).trim()) return 0;
     let lines = 0;
@@ -881,13 +854,13 @@ function countDescLines(text, cpl){
     if(/[A-Za-z0-9]/.test(text)) lines = Math.ceil(lines*1.07);
     return lines;
 }
-// الارتفاع الكلي المحجوز لكتلة الوصف (نص + chrome)
+
 function descBlockHMM(text){
     const lines = countDescLines(text, descCpl());
     if(!lines) return 0;
     return Math.ceil(lines*DESC_LINE_H_MM + 12) + DESC_META_MM;
 }
-// تقسيم النص لأسطر ثم لمقاطع صفحات (الكلمات الطويلة تُكسر كما ستُعرض)
+
 function chunkDescLines(text, cpl, firstCap, contCap){
     const outLines = [];
     for(const para of String(text).split('\n')){
@@ -913,27 +886,24 @@ function chunkDescLines(text, cpl, firstCap, contCap){
 }
 function printHeaderHtml(margin, printableW, headerH){
     return `
-        <div style="position:absolute; left:${margin}mm; top:${margin}mm; width:${printableW}mm; height:${headerH}mm; border-bottom:0.5mm solid #0e6a38; display:flex; align-items:center; justify-content:flex-start; gap:1.8mm; box-sizing:border-box; padding-bottom:1mm; direction:rtl;">
-            <div style="width:6.5mm; height:6.5mm; border:0.25mm solid #e6e9e1; border-radius:1.4mm; display:flex; align-items:center; justify-content:center; background:white; overflow:hidden; flex-shrink:0;">
-                <svg width="4mm" height="4mm" viewBox="0 0 36 36" fill="none"><rect x="2" y="4" width="32" height="28" rx="6" fill="white" stroke="#e3ebe5"/><path d="M6 9.5C6 8.672 6.672 8 7.5 8H28.5C29.328 8 30 8.672 30 9.5V13H6V9.5Z" fill="#0e6a38"/><rect x="6" y="13" width="24" height="6" fill="white"/><g fill="#ce1126"><path d="M12 16.6l1.15 0.85 -0.44 -1.36 1.15 -0.84H12.44L12 14l-0.44 1.25H10.09l1.15 0.84 -0.44 1.36L12 16.6Z"/><path d="M18 16.6l1.15 0.85 -0.44 -1.36 1.15 -0.84H18.44L18 14l-0.44 1.25H16.09l1.15 0.84 -0.44 1.36L18 16.6Z"/><path d="M24 16.6l1.15 0.85 -0.44 -1.36 1.15 -0.84H24.44L24 14l-0.44 1.25H22.09l1.15 0.84 -0.44 1.36L24 16.6Z"/></g><path d="M6 19H30V26.5C30 27.328 29.328 28 28.5 28H7.5C6.672 28 6 27.328 6 26.5V19Z" fill="#0f1a13"/></svg>
-            </div>
+        <div style="position:absolute; left:${margin}mm; top:${margin}mm; width:${printableW}mm; height:${headerH}mm; border-bottom:0.5mm solid #0e6a38; display:flex; align-items:center; justify-content:flex-start; box-sizing:border-box; padding-bottom:1mm; direction:rtl;">
             <div style="font-size:2.9mm; font-weight:700; color:#1a2e1f; letter-spacing:0; line-height:1;">وزارة الإعلام</div>
         </div>
     `;
 }
 function buildA4PageHtml(note, pageItems, pageIndex, totalPages, isLastPage, withDesc = true) {
     console.log(`[RENDERER] buildA4PageHtml called — page ${pageIndex+1}/${totalPages}, items:${pageItems.length}`);
-    // Physical page 210×297, margin 6mm → printable 198×285
-    // Header 14mm, description dynamic, rest is images
+    
+    
     const headerH = 10;
     const descM = (()=>{ try{ return getPrintEngine() ? null : null }catch(e){ return null }})();
-    // Use absolute container 210×297
-    // We will render header, images, description all absolute inside a4-print-page
+    
+    
     const paperW = 210, paperH = 297, margin = 6;
     const printableW = paperW - margin*2;
-    // Estimate description height for layout (same as engine)
+    
     const descText = note.description || '';
-    // SMART: effDesc='' ينقل الوصف لصفحة مخصصة (تُبنى في generateAndOpenPreview)
+    
     const effDesc = (withDesc && isLastPage) ? descText : '';
     const avgCW = 8.2*0.3528*0.56;
     const cpl = Math.max(1, Math.floor((printableW-7)/avgCW));
@@ -942,31 +912,31 @@ function buildA4PageHtml(note, pageItems, pageIndex, totalPages, isLastPage, wit
         if(a.cur+len>cpl){a.lines++; a.cur=len;} else a.cur+=len;
         return a;
     },{lines:1,cur:0}).lines) : 0;
-    // Renderer descH is a FALLBACK — engine output overrides it after layout
-    // SMART: +META ليطابق الحجز الفعلي (شبكة البيانات + التذييل)
+    
+    
     let descH = effDesc ? Math.ceil(lines*8.2*0.3528*1.45 + 12) + DESC_META_MM : 0;
     const imageArea = { x: margin, y: margin+headerH+2, w: printableW, h: paperH - margin*2 - headerH - descH - 8 };
-    // Ensure imageArea not negative
+    
     if(imageArea.h < 20) imageArea.h = 20;
 
     const headerHtml = printHeaderHtml(margin, printableW, headerH);
     let imagesHtml = '';
-    let __pageLayout = null; // for A4 geometry assertion
+    let __pageLayout = null; 
     if(pageItems.length){
-        // SINGLE SOURCE OF TRUTH: Engine only — no Grid fallback (pipeline fix §6)
+        
         const engineImages = pageItems.map((it,i)=> ({...it, width: it.width||1000, height: it.height||1000 }));
         try{
             const eng = getPrintEngine();
             if(!eng) throw new Error('PrintLayoutEngine not loaded — window.PrintLayoutEngine is undefined (module not loaded or cached)');
-            // SMART: descOpts.paddingMm=11.5 يحجز للنص + شبكة البيانات + التذييل (≈+16مم)
-            // حتى لا يتجاوز الذيل 297مم ويُقص على الورق
-            // (25.5مم chrome في المحرك ≈ 28مم فعلياً في العرض)
+            
+            
+            
             const tmp = eng.layout(engineImages.map((it,i)=>({id:'i'+i,width:it.width,height:it.height})), effDesc, {width:210,height:297}, {margin:6, topOffset: headerH, descOpts:{paddingMm:11.5}});
                 __pageLayout = tmp;
                 console.log(`[ENGINE] Page ${pageIndex} →`, tmp.metrics.topoName, `coverage:${tmp.metrics.imageCoverageRatio?.toFixed(3)}`);
                 console.table(tmp.images.map(x=>({id:x.id, x:x.x.toFixed(1), y:x.y.toFixed(1), w:x.width.toFixed(1), h:x.height.toFixed(1), rot:x.rotation})));
                 console.log("FINAL ENGINE LAYOUT", JSON.parse(JSON.stringify(tmp)));
-                // === TASK §2 REQUIRED LOGS ===
+                
                 console.table(
                     tmp.images.map((img, i) => ({
                         index: i,
@@ -978,43 +948,43 @@ function buildA4PageHtml(note, pageItems, pageIndex, totalPages, isLastPage, wit
                     }))
                 );
                 console.log('[ENGINE FINAL LAYOUT]', JSON.parse(JSON.stringify(tmp)));
-                // === TASK §3 KILL TEST — post-layout override (Top/Bottom split) ===
+                
                 if(typeof window !== 'undefined' && window.__KILL_TEST_AFTER_LAYOUT__ && tmp.images.length===2){
                     console.warn('🧪 KILL TEST §3 ACTIVE (buildA4PageHtml) — forcing Top/Bottom layout');
                     tmp.images[0] = { ...tmp.images[0], x: 0, y: 0, width: 210, height: 130 };
                     tmp.images[1] = { ...tmp.images[1], x: 0, y: 130, width: 210, height: 167 };
                     console.table(tmp.images.map((img,i)=>({index:i,x:img.x,y:img.y,w:img.width,h:img.height,rotation:img.rotation})));
                 }
-                // Also support original task kill style via window.__KILL_TEST_STACK__
-                // Use tmp.images absolute positions directly (they already include margin)
-                // Store layout for geometry tracker
+                
+                
+                
                 window.__LAST_ENGINE_LAYOUT__ = JSON.parse(JSON.stringify(tmp));
-                // ENGINE IS SINGLE SOURCE OF TRUTH: override renderer descH with engine description
+                
                 if(isLastPage && tmp.description && tmp.description.height > 0){
                     descH = tmp.description.height;
                 }
                 imagesHtml = tmp.images.map((r,i)=>{
                     const it = pageItems[i];
-                    // For multi-page, only last page has description, so imageArea is full for non-last pages
-                    // Add data-engine attributes for forensic tracker + class for selector
+                    
+                    
                     return `<div data-print-image="${r.id}" data-engine-x="${r.x}" data-engine-y="${r.y}" data-engine-w="${r.width}" data-engine-h="${r.height}" style="position:absolute; left:${r.x}mm; top:${r.y}mm; width:${r.width}mm; height:${r.height}mm; overflow:hidden; background:white; border:0.3mm solid #e5e7eb; border-radius:1.5mm; box-sizing:border-box;">
                         <img src="${it.src}" style="position:absolute; left:0; top:0; width:100%; height:100%; object-fit:contain; display:block; background:white;" loading="eager" decoding="sync" />
                         ${it.isVideo?`<div style="position:absolute; bottom:2mm; right:2mm; background:#0e6a38 !important; color:#ffffff !important; font-size:3mm; font-weight:700; padding:1mm 2.5mm; border-radius:1.5mm; border:0.2mm solid white; display:flex; gap:1.2mm; align-items:center; box-shadow:0 0.8mm 2mm rgba(0,0,0,0.35); z-index:10; -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important;"><svg width="3.2mm" height="3.2mm" fill="white" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg><span>إطار من فيديو</span></div>`:''}
                     </div>`;
                 }).join('');
-                // If not last page, we don't want description overlapping, so clear description
+                
                 if(!isLastPage){
-                    // No description on this page
+                    
                 }
         }catch(e){
             console.error('[PRINT ENGINE ERROR] Engine failed for page', pageIndex, e);
-            // PIPELINE FIX §6: NO SILENT FALLBACK — throw واضح
+            
             throw new Error('[PRINT ENGINE ERROR] page ' + pageIndex + ': ' + (e.message||e));
         }
     } else {
         imagesHtml = `<div style="position:absolute; left:${imageArea.x}mm; top:${imageArea.y + imageArea.h/2}mm; width:${imageArea.w}mm; text-align:center; color:#737373; font-size:3.5mm;">(لا توجد مرفقات)</div>`;
     }
-    // descH was overridden by engine output if available; descY uses engine position when present
+    
     const descY = (__pageLayout && __pageLayout.description && __pageLayout.description.y !== undefined)
         ? __pageLayout.description.y
         : paperH - margin - descH;
@@ -1039,17 +1009,17 @@ function buildA4PageHtml(note, pageItems, pageIndex, totalPages, isLastPage, wit
         </div>
     ` : (isLastPage ? `<div style="position:absolute; left:${margin}mm; top:${descY}mm; width:${printableW}mm; font-size:2.2mm; color:#737373;">المُلاحظ: <strong style="color:#000;">${escPrint(note.owner_name)||'—'}</strong></div>` : '');
 
-    // PIPELINE FIX §4: A4 geometry from layout.paper — support portrait/landscape
+    
     const pgW = __pageLayout ? __pageLayout.paper.width : paperW;
     const pgH = __pageLayout ? __pageLayout.paper.height : paperH;
     const pgOrient = __pageLayout ? __pageLayout.paper.orientation : 'portrait';
-    // === N3 TRACE: Renderer vs Layout — Full Hierarchy ===
+    
     if(pageItems.length===3){
         const tmpDesc = __pageLayout?.description;
         console.log('[N3 TRACE][ENGINE]', {x: tmpDesc?.x, y: tmpDesc?.y, w: tmpDesc?.w, h: tmpDesc?.h, measuredHeight: tmpDesc?.height, engineDesc: tmpDesc, imageArea, paper:{w:paperW,h:paperH}, innerW: printableW, margin, headerH});
         console.log('[N3 TRACE][RENDERER] descH fallback', (descText ? Math.ceil((descText.trim().split(/\s+/).reduce((a,w,i)=>{const cpl=Math.max(1,Math.floor((printableW-7)/(8.2*0.3528*0.56))); const len=w.length+1; if(a.cur+len>cpl){a.lines++; a.cur=len;} else a.cur+=len; return a;},{lines:1,cur:0}).lines*8.2*0.3528*1.45 +12)):0), 'engineDescH', __pageLayout?.description?.height, 'finalDescH', descH, 'finalDescY', descY, 'printableW', printableW);
         console.log('[N3 TRACE][RENDERER HTML] wrapper will be left:'+margin+'mm top:'+descY+'mm width:'+printableW+'mm height:'+descH+'mm — metadataHtml snippet', metadataHtml.slice(0,600));
-        // Check hierarchy: imageArea vs description
+        
         console.log('[N3 TRACE][GEOMETRY CHECK]', {
             imageArea: {x: imageArea.x, y: imageArea.y, w: imageArea.w, h: imageArea.h, bottom: imageArea.y + imageArea.h},
             description: {x: tmpDesc?.x, y: tmpDesc?.y, w: tmpDesc?.w, h: tmpDesc?.h, bottom: (tmpDesc?.y||0)+(tmpDesc?.h||0)},
@@ -1064,11 +1034,10 @@ function buildA4PageHtml(note, pageItems, pageIndex, totalPages, isLastPage, wit
             }
         });
     }
-    // RTL FIX: ensure page itself is RTL for Windows print context
+    
     return `<div class="a4-print-page" dir="rtl" data-orientation="${pgOrient}" style="width:${pgW}mm; height:${pgH}mm; position:relative; background:white; overflow:visible; box-sizing:border-box; direction:rtl;">${headerHtml}${imagesHtml}${metadataHtml}</div>`;
 }
-// ===== SMART: صفحة مخصصة للوصف الطويل — تدفق طبيعي بلا قص =====
-// تُستدعى فقط عندما لا تتسع كتلة الوصف في صفحة الصور الأخيرة.
+
 function buildDescPageHtml(note, chunkText, pageIndex, totalPages, isFirst){
     const margin = 6, headerH = 10, paperW = 210, paperH = 297;
     const printableW = paperW - margin*2;
@@ -1102,18 +1071,18 @@ async function generateAndOpenPreview() {
     proceedBtn.disabled = true; spinner.classList.remove('hidden'); icon.classList.add('hidden'); text.textContent = 'جاري تحليل المرفقات واستخراج الإطارات...';
     try {
         const selectedItems = currentAttachmentsState.filter(item => item.selected);
-        // تنسيق ذكي + أداء عالي: تحميل متوازي بدل التسلسل (3-5x أسرع) مع الحفاظ على الترتيب
+        
         const resolvedAssets = await Promise.all(selectedItems.map(item =>
             item.mime && item.mime.includes('video') ? extractNativeVideoFrame(item.url) : preloadNativeImage(item.url)
         ));
         const pages = partitionItemsIntoPages(resolvedAssets);
-        // ===== SMART DESC: هل تتسع كتلة الوصف في صفحة الصور الأخيرة؟ =====
+        
         const dText = (currentPrintNote && currentPrintNote.description) || '';
-        const innerH = 297 - 6*2 - 10; // هوامش + هيدر
+        const innerH = 297 - 6*2 - 10; 
         const dBlockH = descBlockHMM(dText);
         const lastCount = pages.length > 0 ? pages[pages.length-1].length : 0;
-        // SMART: المحرك يسقف حجز الوصف (40% أو 35% للـN=4) — أي وصف يتجاوز السقف
-        // سيُقص على الورق، فينتقل لصفحة مخصصة. N=3 وبدون صور: بلا سقف.
+        
+        
         const capRatio = lastCount === 4 ? 0.35 : 0.40;
         let needOwnPage = false;
         if (dText) {
@@ -1122,7 +1091,7 @@ async function generateAndOpenPreview() {
         }
         let descChunks = null;
         if (needOwnPage) {
-            // الوصف أطول من المحجوز → صفحات مخصصة (الأولى تحمل شبكة البيانات)
+            
             const firstCap = Math.floor(((innerH - 10 - 10 - 8) / DESC_LINE_H_MM) * 0.85);
             const contCap = Math.floor(((innerH - 10 - 8) / DESC_LINE_H_MM) * 0.85);
             descChunks = chunkDescLines(dText, descCpl(), firstCap, contCap);
@@ -1130,20 +1099,20 @@ async function generateAndOpenPreview() {
         } else if (dText) {
             console.log('[SMART DESC] desc block', dBlockH.toFixed(1) + 'mm fits in engine reserve');
         }
-        // SMART: بلا مرفقات + وصف طويل → نتجاوز صفحة "(لا توجد مرفقات)" الفارغة
+        
         const skipEmptyPage = !!(descChunks && pages.length === 1 && pages[0].length === 0);
         const imgPageCount = skipEmptyPage ? 0 : pages.length;
         const totalPages = imgPageCount + (descChunks ? descChunks.length : 0);
         const previewContainer = document.getElementById('print-preview-pages-container');
-        const printableDoc = document.getElementById('printable-a4-doc'); // PIPELINE FIX §9: المصدر الوحيد للطباعة
-        const legacyPrintDoc = document.getElementById('rasd-print-document'); // DEPRECATED — للتوافق فقط
+        const printableDoc = document.getElementById('printable-a4-doc'); 
+        const legacyPrintDoc = document.getElementById('rasd-print-document'); 
         let previewHtml = ''; let printDocHtml = '';
         pages.forEach((pageItems, pIdx) => {
             if (skipEmptyPage) return;
-            // isLastImagePage = آخر صفحة صور (سطر المُلاحظ فقط عند نقل الوصف)
+            
             const isLastImagePage = (pIdx === pages.length - 1);
             const pageHtml = buildA4PageHtml(currentPrintNote, pageItems, pIdx, totalPages, isLastImagePage, !descChunks);
-            // Preview wrapper needs data-orientation too
+            
             const orientation = pageHtml.includes('data-orientation="landscape"') ? 'landscape' : 'portrait';
             previewHtml += `<div class="a4-preview-sheet" data-orientation="${orientation}">${pageHtml}</div>`;
             printDocHtml += pageHtml;
@@ -1157,10 +1126,10 @@ async function generateAndOpenPreview() {
             });
         }
         previewContainer.innerHTML = previewHtml;
-        // SINGLE SOURCE: #printable-a4-doc هو المصدر الوحيد للطباعة (§9)
+        
         if (printableDoc) printableDoc.innerHTML = printDocHtml;
         if (legacyPrintDoc) { legacyPrintDoc.innerHTML = printDocHtml; console.warn('[DEPRECATED] #rasd-print-document filled for legacy compat — not used for print'); }
-        // === N3 TRACE: DOM after render — Hierarchy & Geometry ===
+        
         if(pages.length===1 && pages[0].length===3){
             setTimeout(()=>{
                 const descWrapper = document.querySelector('[data-print-description-wrapper]');
@@ -1203,7 +1172,7 @@ async function generateAndOpenPreview() {
                     });
                     if(el.scrollHeight > el.clientHeight + 2) console.warn(`[N3 TRACE][CLIPPING] ${['wrapper','inner','text'][idx]} scrollHeight ${el.scrollHeight} > clientHeight ${el.clientHeight} diff ${el.scrollHeight - el.clientHeight} — CLIPPED`);
                 });
-                // Parent chain up to page
+                
                 let parent = descWrapper?.parentElement;
                 let level=0;
                 while(parent && level<5){
@@ -1232,14 +1201,14 @@ async function generateAndOpenPreview() {
                     parent = parent.parentElement;
                     level++;
                 }
-                // Check hierarchy: is description inside image area or hero?
+                
                 if(descWrapper){
                     const isInsideImageArea = !!descWrapper.closest('.print-images-grid') || !!descWrapper.closest('.print-attachments-grid') || !!descWrapper.closest('[data-print-image]');
                     console.log('[N3 TRACE][HIERARCHY] is description inside image grid/hero?', isInsideImageArea, 'parent:', descWrapper.parentElement?.tagName, descWrapper.parentElement?.className?.slice(0,80));
                     const inlineH = descWrapper.getAttribute('style')?.match(/height:\s*([^;]+)/)?.[1];
                     const computedH = getComputedStyle(descWrapper).height;
                     console.log('[N3 TRACE][INLINE vs COMPUTED] inline height', inlineH, 'computed height', computedH, 'inline contains descH?', inlineH?.includes('mm'), 'computed px', computedH);
-                    // Check width: is it full width or hero width?
+                    
                     const pageWpx = pageEl?.getBoundingClientRect().width;
                     const wrapperWpx = descWrapper.getBoundingClientRect().width;
                     const heroWpx = heroEl?.getBoundingClientRect().width;
@@ -1247,8 +1216,8 @@ async function generateAndOpenPreview() {
                 }
             }, 700);
         }
-        // === FORENSIC §4 + §7 ===
-        // §7 — PRINT ROOTS
+        
+        
         console.log('[PRINT ROOTS]', document.querySelectorAll('.a4-print-page').length, document.querySelectorAll('.print-image').length, document.querySelectorAll('#printable-a4-doc').length, document.querySelectorAll('#rasd-print-document').length);
         console.log('[PRINT ROOTS DETAIL]', {
             a4PrintPage: document.querySelectorAll('.a4-print-page').length,
@@ -1259,9 +1228,9 @@ async function generateAndOpenPreview() {
             previewImgs: previewContainer.querySelectorAll('img').length,
             printableImgs: printableDoc ? printableDoc.querySelectorAll('img').length : 0
         });
-        // §8 — VERSION MARKER
+        
         console.log('[VERSION CHECK] window.__PRINT_LAYOUT_ENGINE_VERSION__ =', window.__PRINT_LAYOUT_ENGINE_VERSION__);
-        // FORENSIC: DOM after render + §4 Geometry tracker
+        
         setTimeout(()=>{
             console.log(`[RENDERER] DOM after render — preview imgs: ${previewContainer.querySelectorAll('img').length}, printable imgs: ${printableDoc?.querySelectorAll('img').length||0}`);
             const firstAbs = previewContainer.querySelector('[style*="position:absolute"]');
@@ -1271,7 +1240,7 @@ async function generateAndOpenPreview() {
                 console.table({position:cs.position, display:cs.display, left:cs.left, top:cs.top, width:cs.width, height:cs.height, transform:cs.transform});
             }
             console.log('[CHECK] engine.layout calls:', (previewHtml.match(/a4-print-page/g)||[]).length, 'printable pages:', (printDocHtml.match(/a4-print-page/g)||[]).length);
-            // §4 — Full geometry trace for ALL images
+            
             try{ window.debugPrintGeometry(); }catch(e){ console.warn('debugPrintGeometry failed', e); }
         }, 200);
         document.getElementById('print-preview-pages-count').textContent = `وثيقة رسمية — ${totalPages} ${totalPages > 1 ? 'صفحات' : 'صفحة واحدة'}`;
@@ -1286,7 +1255,7 @@ async function generateAndOpenPreview() {
     }
 }
 async function triggerNativePrint() {
-    // PIPELINE FIX §9: مصدر واحد فقط — #printable-a4-doc
+    
     const printableDoc = document.getElementById('printable-a4-doc');
     if (!printableDoc || !printableDoc.innerHTML.trim()) {
         console.error('[PRINT ERROR] #printable-a4-doc is empty — generate preview first. Not falling back to legacy roots.');
@@ -1295,23 +1264,23 @@ async function triggerNativePrint() {
     }
     let html = printableDoc.innerHTML;
 
-    // PIPELINE FIX §10 & §11: Assertions قبل الطباعة — warn but don't block print (hidden rect fallback)
+    
     try {
         const assertion = assertBeforePrint(printableDoc);
         if (!assertion.valid) {
             console.warn('[PRINT ASSERTION FAILED] — continuing to print with warning', assertion);
             console.warn('Errors:', assertion.errors.join(' | '));
-            // Show non-blocking warning — still allow print so button appears to work
-            // User can check console for details; strict blocking would make button seem broken when rect is hidden
+            
+            
         } else {
             console.log('[PRINT ASSERTION] PASS', assertion);
         }
     } catch (err) {
         console.error('[PRINT ASSERTION ERROR]', err);
-        // Don't block print on assertion exception — just warn
+        
     }
 
-    // Diagnostic — قبل فتح النافذة
+    
     try{
         const previewPages = document.querySelectorAll('#print-preview-pages-container .a4-preview-sheet').length;
         const printablePages = (html.match(/a4-print-page/g)||[]).length;
@@ -1325,11 +1294,11 @@ async function triggerNativePrint() {
         probe.remove();
     }catch(e){}
 
-    // افتح نافذة جديدة تحتوي فقط على الوثيقة — لا CSS للموقع، لا ancestors، لا duplicate
+    
     const win = window.open('', '_blank', 'width=800,height=600');
     if(!win){ alert('الرجاء السماح بالنوافذ المنبثقة للطباعة'); return; }
-    // PIPELINE FIX §1 & §4: Isolated print CSS mirrors main — Engine geometry is single source
-    // RTL FIX: Windows Print Preview was LTR because isolated document had no dir="rtl"
+    
+    
     const hasLandscape = html.includes('data-orientation="landscape"');
     const isolatedHtml = `<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>طباعة — وثيقة A4</title>
 <style>
@@ -1342,7 +1311,7 @@ async function triggerNativePrint() {
   .a4-print-page[data-orientation="landscape"] { width:297mm !important; height:210mm !important; min-width:297mm !important; min-height:210mm !important; max-width:297mm !important; max-height:210mm !important; }
   [data-print-image] { position:absolute !important; box-sizing:border-box !important; overflow:hidden !important; background:white !important; border:0.3mm solid #e5e7eb !important; border-radius:1.5mm !important; display:block !important; }
   [data-print-image] img { position:absolute !important; left:0 !important; top:0 !important; width:100% !important; height:100% !important; max-width:none !important; max-height:none !important; object-fit:fill !important; display:block !important; aspect-ratio:auto !important; border:none !important; -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }
-  /* RTL FIX: Description must be RTL in Windows print context — plaintext preserves numbers/English */
+  
   [data-print-description], .print-description-text { direction:rtl !important; unicode-bidi:plaintext !important; text-align:right !important; overflow-wrap:anywhere !important; }
    @media print {
      html, body { margin:0 !important; padding:0 !important; direction:rtl !important; display:block !important; background:white !important; width:${hasLandscape ? '297mm' : '210mm'} !important; }
@@ -1355,7 +1324,7 @@ async function triggerNativePrint() {
     win.document.write(isolatedHtml);
     win.document.close();
 
-    // Wait for new window to load and images to decode — definitive print lifecycle
+    
     await new Promise(r=> { if(win.document.readyState==='complete') r(); else win.addEventListener('load', r, {once:true}); setTimeout(r, 800); });
     const winImgs = win.document.querySelectorAll('img');
     try{
@@ -1367,7 +1336,7 @@ async function triggerNativePrint() {
     await new Promise(r=> win.requestAnimationFrame(()=> win.requestAnimationFrame(r)));
     await new Promise(r=> setTimeout(r, 100));
 
-    // Diagnostic for isolated window — check for horizontal overflow (scrollbar cause)
+    
     try{
         const pages = win.document.querySelectorAll('.a4-print-page');
         console.log('[Isolated Print] pages:', pages.length, 'expected:1');
@@ -1401,12 +1370,12 @@ async function triggerNativePrint() {
 
     win.focus();
     win.print();
-    // لا نغلق تلقائياً — دع المستخدم يرى Preview، يغلق يدوياً أو بعد الطباعة
+    
     win.addEventListener('afterprint', ()=> setTimeout(()=> { try{ win.close(); }catch(e){} }, 400));
 }
 window.openPrintModal = openPrintModal;
 window.openPrintModalFromButton = openPrintModalFromButton;
-// Initialization marker — proves the print script parsed AND executed (step LOAD+INITIALIZE)
+
 window.__PRINT_SCRIPT_LOADED__ = true;
 console.log('[PRINT SCRIPT]', 'loaded OK — openPrintModalFromButton:', typeof openPrintModalFromButton, 'engine:', window.__PRINT_LAYOUT_ENGINE_VERSION__ || '(engine module not evaluated yet — lazy at preview time)');
 window.decodePrintPayload = decodePrintPayload;
@@ -1418,14 +1387,13 @@ window.printSelectAll = printSelectAll;
 window.generateAndOpenPreview = generateAndOpenPreview;
 window.triggerNativePrint = triggerNativePrint;
 
-// ===== FORENSIC §4 — Full Geometry Tracker Engine→DOM→computed→rect =====
 window.debugPrintGeometry = function(){
     console.log('════════ GEOMETRY TRACE Engine→DOM→computed→rect ════════');
     const layout = window.__LAST_ENGINE_LAYOUT__;
     if(!layout){ console.warn('No __LAST_ENGINE_LAYOUT__ — open preview first'); return; }
     const mmPx = (()=>{ const p=document.createElement('div'); p.style.width='100mm'; p.style.position='absolute'; p.style.visibility='hidden'; p.style.left='-9999px'; document.body.appendChild(p); const v=p.getBoundingClientRect().width/100; p.remove(); return v; })();
     console.log('mmPx probe:', mmPx.toFixed(3));
-    // Find rendered image containers (data-print-image)
+    
     const rendered = document.querySelectorAll('[data-print-image]');
     console.log(`Engine images: ${layout.images.length}, Rendered DOM containers: ${rendered.length}`);
     layout.images.forEach((img,i)=>{
@@ -1439,12 +1407,12 @@ window.debugPrintGeometry = function(){
         const rectMm = { widthMm: (rect.width/mmPx).toFixed(2), heightMm: (rect.height/mmPx).toFixed(2), leftMm: (rect.left/mmPx).toFixed(2), topMm: (rect.top/mmPx).toFixed(2) };
         console.log(`── Image ${i} id=${img.id} ──`);
         console.log({ engine, css, computed, rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height, widthMm: rectMm.widthMm, heightMm: rectMm.heightMm } });
-        // Check mismatch
+        
         const wDiff = Math.abs(parseFloat(rectMm.widthMm) - engine.w);
         const hDiff = Math.abs(parseFloat(rectMm.heightMm) - engine.h);
         if(wDiff>1.5 || hDiff>1.5) console.warn(`⚠️ MISMATCH image ${i}: engine ${engine.w}×${engine.h}mm vs rect ${rectMm.widthMm}×${rectMm.heightMm}mm (diff ${wDiff.toFixed(1)}, ${hDiff.toFixed(1)})`);
         else console.log(`✓ MATCH image ${i}: engine ≈ rect`);
-        // Also log inner img
+        
         const innerImg = el.querySelector('img');
         if(innerImg){
             const ics = getComputedStyle(innerImg);
@@ -1453,7 +1421,7 @@ window.debugPrintGeometry = function(){
             console.log(`  inner <img> rect: ${(ir.width/mmPx).toFixed(1)}×${(ir.height/mmPx).toFixed(1)}mm`);
         }
     });
-    // Also trace page itself
+    
     const page = document.querySelector('.a4-print-page');
     if(page){
         const pcs = getComputedStyle(page);
@@ -1472,17 +1440,17 @@ window.debugCssOverrides = function(){
         const count = (sheets.match(new RegExp(k.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'gi'))||[]).length;
         if(count) console.log(`"${k}" → ${count} matches in <style>`);
     });
-    // Specific selectors
+    
     ['.a4-print-page','.print-image','.print-images','.a4-preview-sheet','#printable-a4-doc','#rasd-print-document','.a4-print-page img','#printable-a4-doc img'].forEach(sel=>{
         const els = document.querySelectorAll(sel);
         if(els.length) console.log(`${sel} → ${els.length} elements`);
-        // Check computed for first
+        
         if(els[0]){
             const cs=getComputedStyle(els[0]);
             console.log(`  ${sel}[0] computed: display=${cs.display} position=${cs.position} width=${cs.width} height=${cs.height} gridTemplateColumns=${cs.gridTemplateColumns} objectFit=${cs.objectFit} aspectRatio=${cs.aspectRatio}`);
         }
     });
-    // Check for !important overrides that would beat inline mm
+    
     console.log('Checking inline style vs computed for first image container:');
     const el = document.querySelector('[data-print-image]') || document.querySelector('#print-preview-pages-container [style*=\"position:absolute\"]');
     if(el){
@@ -1514,21 +1482,21 @@ window.debugDuplicateRenderer = function(){
         const m = html.match(re);
         console.log(`${c.label}: ${m ? m.length : 0} occurrences in DOM HTML`);
     });
-    // Search in scripts
+    
     const scripts = [...document.querySelectorAll('script')].map(s=> s.textContent).join('\n');
     checks.forEach(c=>{
         const re = new RegExp(c.pat.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'g');
         const m = scripts.match(re);
         if(m) console.log(`[SCRIPT] ${c.label}: ${m.length} occurrences`);
     });
-    // Check current active renderer
+    
     const hasEngine = typeof window.PrintLayoutEngine !== 'undefined';
     const hasLastLayout = !!window.__LAST_ENGINE_LAYOUT__;
     console.log(`PrintLayoutEngine loaded: ${hasEngine}, last layout exists: ${hasLastLayout}`);
     if(hasLastLayout) console.log('Last layout topo:', window.__LAST_ENGINE_LAYOUT__.metrics.topoName);
     console.log('════════ END DUPLICATE SCAN ════════');
 };
-// ===== FORENSIC DEBUG — Window.debugPrintPipeline() — لا يعدّل Layout =====
+
 window.debugPrintPipeline = function(){
     console.log('════════ PRINT PIPELINE DIAGNOSTICS ════════');
     const q = s => document.querySelectorAll(s);
@@ -1536,7 +1504,7 @@ window.debugPrintPipeline = function(){
     console.log('A4 PAGES:', q('.a4-print-page').length, ' .a4-print-page |', q('[data-print-page]').length, ' [data-print-page]');
     console.log('IMAGES:', q('#printable-a4-doc img').length, ' in printable |', q('.a4-print-page img').length, ' in a4 |', q('img').length, ' total');
     console.log('DESCRIPTIONS:', q('#printable-a4-doc .single-description').length);
-    // mm probe
+    
     const probe = document.createElement('div');
     probe.style.width='100mm'; probe.style.position='absolute'; probe.style.visibility='hidden'; probe.style.left='-1000px';
     document.body.appendChild(probe);
@@ -1552,7 +1520,7 @@ window.debugPrintPipeline = function(){
             console.table({ widthPx: Math.round(r.width), heightPx: Math.round(r.height), widthMm: (r.width/mmPx).toFixed(1), heightMm: (r.height/mmPx).toFixed(1), scrollW: el.scrollWidth, scrollH: el.scrollHeight, offsetParent: el.offsetParent?.id||el.offsetParent?.tagName||'null' });
         });
     });
-    // Ancestor chain for first A4
+    
     const page = document.querySelector('.a4-print-page') || document.querySelector('#printable-a4-doc');
     if(page){
         console.log('--- Ancestor chain for', page.id||page.className);
@@ -1564,16 +1532,16 @@ window.debugPrintPipeline = function(){
             if(!el || el===document.documentElement) break;
         }
     }
-    // Image intrinsic vs rendered
+    
     document.querySelectorAll('#printable-a4-doc img').forEach((img,i)=>{
         console.log(`IMAGE ${i}: natural ${img.naturalWidth}x${img.naturalHeight} complete:${img.complete} src:${(img.src||'').slice(0,60)}`);
         const r=img.getBoundingClientRect();
         console.log(`  rendered: ${Math.round(r.width)}x${Math.round(r.height)}px → ${(r.width/mmPx).toFixed(1)}x${(r.height/mmPx).toFixed(1)}mm`);
     });
-    // Duplicates check
+    
     const allA4 = [...document.querySelectorAll('.a4-print-page')].map((el,i)=> ({i, id:el.id, html: el.innerHTML.length, display:getComputedStyle(el).display}));
     console.table(allA4);
-    // Print tree visible count
+    
     const visible = [...document.querySelectorAll('*')].filter(el=>{
         const cs=getComputedStyle(el);
         return cs.display!=='none' && cs.visibility!=='hidden' && el.getBoundingClientRect().height>0;
@@ -1584,7 +1552,7 @@ window.debugPrintPipeline = function(){
     return { mmPx, previewPages: q('#print-preview-pages-container .a4-preview-sheet').length, printablePages: q('#printable-a4-doc .a4-print-page').length };
 };
 window.testPrintIsolation = async function(test){
-    // TEST A/B/C/D isolation as requested
+    
     const c = document.getElementById('printable-a4-doc');
     const orig = c.innerHTML;
     const run = async (html, label)=>{
@@ -1594,7 +1562,7 @@ window.testPrintIsolation = async function(test){
         await new Promise(r=> setTimeout(r, 100));
         const r = c.querySelector('.a4-print-page')?.getBoundingClientRect();
         console.log(`[TEST ${label}] rect:`, r ? `${(r.width/3.77953).toFixed(1)}mm × ${(r.height/3.77953).toFixed(1)}mm` : 'no page');
-        // Do not actually print, just preview
+        
         await new Promise(r=> setTimeout(r, 200));
     };
     if(test==='A' || !test){
@@ -1604,7 +1572,7 @@ window.testPrintIsolation = async function(test){
         await run(`<div class="a4-print-page" style="width:210mm;height:297mm;background:black;position:relative;"></div>`, 'B Black Rectangle');
     }
     if(test==='C' || !test){
-        await run(`<div class="a4-print-page" style="width:210mm;height:297mm;background:white;position:relative;"><img src="https://picsum.photos/800/600" style="position:absolute;left:10mm;top:10mm;width:190mm;height:150mm;object-fit:fill;display:block;" /></div>`, 'C Single Image');
+        await run(`<div class="a4-print-page" style="width:210mm;height:297mm;background:white;position:relative;"><img src="data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="800" height="1000"><rect width="800" height="1000" fill="#eef4f0"/><text x="400" y="500" font-size="48" text-anchor="middle" fill="#0e6a38">TEST</text></svg>')}" style="width:100%;height:100%;object-fit:fill;display:block;" alt="test"></div>`, 'C Image Fill');
     }
     c.innerHTML = orig;
     console.log('Isolation tests done — check Windows Print Preview for each');

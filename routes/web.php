@@ -17,7 +17,6 @@ Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
-// PWA legacy alias — redirect to root (ROOT is the PWA, no separate /pwa/ app)
 Route::get('/pwa', function () {
     return redirect('/', 301);
 })->name('pwa');
@@ -25,7 +24,6 @@ Route::get('/pwa/', function () {
     return redirect('/', 301);
 });
 
-// PWA ROOT — manifest & service worker (single source of truth: / = PWA)
 Route::get('/pwa/manifest.json', function () {
     return response()->file(public_path('manifest.json'), [
         'Content-Type' => 'application/manifest+json',
@@ -64,6 +62,22 @@ Route::get('/health', function () {
 Route::get('/health/nojs', function () {
     return response('<html><body><h1>OK '.now()->toIso8601String().'</h1><p>no JS test - if you see this, server is fast</p><a href="/login">go login</a></body></html>',200)->header('Content-Type','text/html');
 });
+
+// Shared attachment viewer (WhatsApp share): login required.
+// Writer → view + download · Monitor → view only · Guest → login first.
+Route::get('/s/attachments/{attachment}', [NoteController::class, 'sharedViewAttachment'])
+    ->name('shared.attachments.view')
+    ->middleware('auth');
+Route::get('/s/attachments/{attachment}/file', [NoteController::class, 'sharedFileAttachment'])
+    ->name('shared.attachments.file')
+    ->middleware('auth');
+// Shared submission-attachment viewer (WhatsApp share): login required (same rules).
+Route::get('/s/submission-attachments/{attachment}', [\App\Http\Controllers\Web\GeneralSubmissionController::class, 'sharedViewAttachment'])
+    ->name('shared.submission-attachments.view')
+    ->middleware('auth');
+Route::get('/s/submission-attachments/{attachment}/file', [\App\Http\Controllers\Web\GeneralSubmissionController::class, 'sharedFileAttachment'])
+    ->name('shared.submission-attachments.file')
+    ->middleware('auth');
 Route::get('/notes-minimal', function () {
     if (!auth()->check()) return redirect()->route('login');
     $user = auth()->user();
@@ -122,7 +136,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/submission-attachments/{attachment}/view', [\App\Http\Controllers\Web\GeneralSubmissionController::class, 'viewAttachment'])->name('submission-attachments.view');
     Route::get('/submission-attachments/{attachment}/download', [\App\Http\Controllers\Web\GeneralSubmissionController::class, 'downloadAttachment'])->name('submission-attachments.download');
 
-    // TEMP DIAGNOSTIC - Web Runtime (remove after verification)
+    
     Route::get('/_diag/runtime', function () {
         $user = auth()->user();
         return response()->json([
@@ -131,9 +145,7 @@ Route::middleware('auth')->group(function () {
             'DB_CONNECTION' => config('database.default'),
             'DB_DATABASE' => config('database.connections.'.config('database.default').'.database'),
             'DB_HOST' => config('database.connections.'.config('database.default').'.host') ?? 'sqlite',
-            'Cloudinary_cloud_name' => config('filesystems.disks.cloudinary.cloud_name'),
-            'Cloudinary_folder' => config('filesystems.disks.cloudinary.folder'),
-            'Cloudinary_SDK_version' => \Cloudinary\Cloudinary::VERSION ?? 'unknown',
+            'filesystem_default' => config('filesystems.default'),
             'upload_max_filesize' => ini_get('upload_max_filesize'),
             'post_max_size' => ini_get('post_max_size'),
             'max_file_uploads' => ini_get('max_file_uploads'),

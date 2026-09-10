@@ -10,12 +10,6 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
-/**
- * UPLOAD INTEGRITY — local disk, atomic, no silent failure.
- *
- * Invariant: FILE SENT + FILE NOT SAVED = REQUEST FAILED (note rolled back on create).
- * New uploads MUST NEVER call Cloudinary (no mocks here — real Storage::fake).
- */
 class UploadIntegrityTest extends TestCase
 {
     use RefreshDatabase;
@@ -89,7 +83,7 @@ class UploadIntegrityTest extends TestCase
         $this->assertNull($attachment->secure_url);
         Storage::disk('attachments')->assertExists($attachment->file_path);
 
-        // تظهر بعد Reload كامل (طلبان منفصلان)
+        
         $this->actingAs($user)->get("/notes/{$noteId}")->assertOk()->assertSee('test-real.jpg');
         $this->actingAs($user)->get("/notes/{$noteId}")->assertOk()->assertSee('test-real.jpg');
     }
@@ -115,9 +109,7 @@ class UploadIntegrityTest extends TestCase
         }
     }
 
-    /**
-     * ATOMIC: declared 1 but received 0 → request FAILED, note rolled back (no silent note-kept).
-     */
+    
     public function test_declared_but_not_received_is_not_full_success_and_note_kept(): void
     {
         $user = $this->monitor();
@@ -132,7 +124,7 @@ class UploadIntegrityTest extends TestCase
         $this->assertNotEmpty($response->json('attachment_errors'));
         $this->assertStringContainsString('لم يصل', implode(' ', array_map(fn ($e) => is_array($e) ? json_encode($e, JSON_UNESCAPED_UNICODE) : $e, $response->json('attachment_errors'))));
 
-        // Atomicity: no note persists when an intended attachment never arrived.
+        
         $this->assertNull($response->json('note_id'));
         $this->assertEquals(0, Note::where('user_id', $user->id)->count());
     }
@@ -154,7 +146,7 @@ class UploadIntegrityTest extends TestCase
             ->assertJsonPath('success', false)
             ->assertJsonPath('files_received', 0)
             ->assertJsonPath('attachments_saved', 0);
-        // Original note preserved (update rolled back), no new attachments.
+        
         $this->assertDatabaseHas('notes', ['id' => $note->id]);
         $this->assertEquals(0, Attachment::where('note_id', $note->id)->count());
     }
@@ -164,15 +156,15 @@ class UploadIntegrityTest extends TestCase
         $user = $this->monitor();
         $tmp = tempnam(sys_get_temp_dir(), 'test_');
         file_put_contents($tmp, 'x');
-        // محاكاة UPLOAD_ERR_INI_SIZE كما يفعل PHP عند تجاوز upload_max_filesize
+        
         $bad = new UploadedFile($tmp, 'big.jpg', 'image/jpeg', UPLOAD_ERR_INI_SIZE, true);
 
         $response = $this->actingAs($user)->post('/notes',
             $this->notePayload(['files' => [$bad], 'client_files_count' => 1]),
             $this->jsonHeaders());
 
-        // Strict: invalid upload → 422 failure, no note, no silent success.
-        // Either our attachment contract (success=false) or Laravel validation errors — both are explicit failures.
+        
+        
         $response->assertStatus(422);
         $this->assertEquals(0, Note::where('user_id', $user->id)->count());
         $this->assertEquals(0, \App\Models\Attachment::count());
@@ -182,7 +174,7 @@ class UploadIntegrityTest extends TestCase
             $flat = implode(' ', array_map(fn ($e) => is_array($e) ? json_encode($e, JSON_UNESCAPED_UNICODE) : $e, (array) $response->json('attachment_errors')));
             $this->assertStringContainsString('big.jpg', $flat);
         } else {
-            // Laravel validator rejected the broken upload — explicit, no note.
+            
             $this->assertNotEmpty($response->json('errors') ?? $response->json('message'));
         }
     }
@@ -197,7 +189,7 @@ class UploadIntegrityTest extends TestCase
         $created->assertCreated();
         $noteId = $created->json('note_id');
 
-        // قراءة جديدة تماماً بعد Reload
+        
         $fresh = Note::with('attachments')->find($noteId);
         $this->assertEquals(1, $fresh->attachments->count());
         Storage::disk('attachments')->assertExists($fresh->attachments->first()->file_path);
@@ -207,10 +199,7 @@ class UploadIntegrityTest extends TestCase
         Storage::disk('attachments')->assertExists(Note::with('attachments')->find($noteId)->attachments->first()->file_path);
     }
 
-    /**
-     * ROOT CAUSE REGRESSION — استُلم الملف لكن لم يُحفظ (رفض تحقق داخلي).
-     * Atomic: success=false + 422 + note rolled back (no orphan note).
-     */
+    
     public function test_received_but_not_saved_is_not_full_success(): void
     {
         $user = $this->monitor();
@@ -222,7 +211,7 @@ class UploadIntegrityTest extends TestCase
             $this->notePayload(['files' => [$rejected], 'client_files_count' => 1]),
             $this->jsonHeaders());
 
-        // .txt fails files.* validation OR internal allow-list → 422, never silent success.
+        
         $response->assertStatus(422);
         if ($response->json('success') !== null) {
             $this->assertFalse($response->json('success'));
@@ -231,10 +220,7 @@ class UploadIntegrityTest extends TestCase
         $this->assertEquals(0, Attachment::count());
     }
 
-    /**
-     * ROOT CAUSE REGRESSION — فقدان نقل جزئي: أُعلن 2 ووصل 1.
-     * Atomic: rollback, no note, 422.
-     */
+    
     public function test_partial_transport_loss_is_not_full_success(): void
     {
         $user = $this->monitor();
@@ -251,9 +237,7 @@ class UploadIntegrityTest extends TestCase
         $this->assertEquals(0, Note::where('user_id', $user->id)->count());
     }
 
-    /**
-     * ROOT CAUSE REGRESSION (405) — نماذج الرفع يجب أن تنشر لنفس الأصل (relative URLs).
-     */
+    
     public function test_upload_forms_use_same_origin_relative_actions(): void
     {
         $user = $this->monitor();
@@ -266,7 +250,7 @@ class UploadIntegrityTest extends TestCase
         $edit = $this->actingAs($user)->get("/notes/{$note->id}/edit");
         $edit->assertOk();
         $edit->assertSee('action="/notes/'.$note->id.'"', false);
-        // لا نماذج حذف متداخلة داخل نموذج التعديل (كانت تكسر FormData وتضيف _method مكرراً)
+        
         $this->assertDoesNotMatchRegularExpression(
             '#<form[^>]*id="edit-form"[^>]*>.*<form[^>]*action="[^"]*attachments[^"]*"#s',
             $edit->getContent()

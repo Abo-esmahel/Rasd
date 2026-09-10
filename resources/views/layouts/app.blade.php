@@ -9,7 +9,7 @@
     <meta name="user-id" content="{{ auth()->id() }}">
     <meta name="app-debug" content="{{ config('app.debug') ? '1' : '0' }}">
     @endauth
-    <!-- PWA ROOT — manifest + icons -->
+
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#1f6f4a">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -18,11 +18,12 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="application-name" content="ملاحظة">
     <meta name="description" content="نظام ملاحظة كاميرات المراقبة">
+    <link rel="icon" type="image/svg+xml" href="{{ asset('images/eagle-emblem.svg') }}">
     <link rel="icon" type="image/png" sizes="192x192" href="/pwa/icons/icon-192.png">
     <link rel="apple-touch-icon" href="/pwa/icons/icon-192.png">
     <script>(function(){try{var t=localStorage.getItem('theme')||localStorage.getItem('rasd_theme');if(t!=='light')document.documentElement.classList.add('dark');}catch(e){document.documentElement.classList.add('dark');}})();</script>
     <script>
-    // تثبيت الزووم — يمنع pinch-zoom و Ctrl+wheel و Ctrl+/- مع الحفاظ على الريسبونسف
+
     (function(){
       try{
         document.addEventListener('gesturestart', function(e){ e.preventDefault(); }, {passive:false});
@@ -33,7 +34,7 @@
           if((e.ctrlKey||e.metaKey) && (e.key==='+'||e.key==='-'||e.key==='='||e.key==='0'|| e.keyCode===61|| e.keyCode===173|| e.keyCode===48)) e.preventDefault();
         });
         document.addEventListener('touchmove', function(e){ if(e.touches && e.touches.length>1) e.preventDefault(); }, {passive:false});
-        // منع double-tap zoom
+
         let lastTouch=0;
         document.addEventListener('touchend', function(e){
           const now=Date.now();
@@ -47,11 +48,11 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    {{-- Vite CSS — تحميل متزامن يمنع FOUC/تكسير الريسبونسيف عند الريفرش --}}
+
     @vite(['resources/css/app.css'])
     <script type="module" src="/pwa/js/print-layout-engine.js?v=EDITORIAL-v4.2.1-N3-DESCRIPTION-FIX-2026-09-06"></script>
     <style>
-        /* تثبيت الزووم مع الحفاظ على الريسبونسف — يمنع pinch-zoom الحر */
+
         html{scroll-behavior:smooth; scrollbar-gutter:stable; touch-action: pan-x pan-y; -ms-touch-action: pan-x pan-y; overscroll-behavior: contain;}
         body{text-rendering:optimizeLegibility;-webkit-font-smoothing:antialiased; overflow-x:hidden; overscroll-behavior: contain; touch-action: pan-x pan-y;}
         *{font-family:'Cairo','Segoe UI',Tahoma,sans-serif}
@@ -103,6 +104,37 @@
         html.dark .hover\:bg-\[\#eceee9\]:hover{background-color:#3a443b !important}
         html.dark .hover\:bg-\[\#f1f3f0\]:hover{background-color:#3a443b !important}
         html.dark .hover\:bg-\[\#f6f7f5\]:hover,html.dark .hover\:bg-\[\#f5f7f5\]:hover,html.dark .hover\:bg-surface-50:hover,html.dark .hover\:bg-surface-100:hover,html.dark .hover\:bg-surface-200:hover{background-color:#3a443b !important}
+        /* — Notifications Drawer shell: Dark Mode for remaining utility classes (scoped, dark-only) — */
+        html.dark #notification-drawer .bg-surface-elevated{background-color:#252b26 !important}
+        html.dark #notification-drawer .bg-surface-muted{background-color:#1e2320 !important}
+        html.dark #notification-drawer .bg-gray-200{background-color:#343a34 !important}
+        html.dark #notification-drawer .border-border{border-color:#343a34 !important}
+        html.dark #notification-drawer .text-text-primary{color:#e7ece5 !important}
+        html.dark #notification-drawer .text-text-secondary{color:#9bb0a0 !important}
+        html.dark #notification-drawer .text-text-muted{color:#9bb0a0 !important}
+        html.dark #notification-drawer .text-primary{color:#4ade80 !important}
+        html.dark #notification-drawer .text-amber-600{color:#f0c040 !important}
+        html.dark #notification-drawer .text-amber-800{color:#f0c040 !important}
+        /* — Notifications log page (/notifications): Dark Mode (scoped, dark-only) — */
+        html.dark #notif-center-page .bg-surface-elevated{background-color:#252b26 !important}
+        html.dark #notif-center-page .bg-surface-muted{background-color:#1e2320 !important}
+        html.dark #notif-center-page .border-border{border-color:#343a34 !important}
+        html.dark #notif-center-page .text-text-primary{color:#e7ece5 !important}
+        html.dark #notif-center-page .text-text-secondary{color:#9bb0a0 !important}
+        html.dark #notif-center-page .text-text-muted{color:#9bb0a0 !important}
+        html.dark #notif-center-page .text-primary{color:#4ade80 !important}
+        html.dark #notif-center-page .text-amber-600{color:#f0c040 !important}
+        html.dark #notif-center-page .border-primary{border-color:#4ade80 !important}
+        html.dark #notif-center-page .border-r-primary{border-right-color:#4ade80 !important}
+        html.dark #notif-center-page .hover\:bg-surface-muted:hover{background-color:#2e352e !important}
+        html.dark #notif-center-page .hover\:border-border-strong:hover{border-color:#343a34 !important}
+        html.dark #notif-center-page .hover\:text-text-secondary:hover{color:#9bb0a0 !important}
+        html.dark #notif-center-page nav .text-gray-500,html.dark #notif-center-page nav .text-gray-600,html.dark #notif-center-page nav .text-gray-700{color:#9bb0a0 !important}
+        html.dark #notif-center-page nav .text-gray-800{color:#e7ece5 !important}
+        html.dark #notif-center-page nav .border-gray-300{border-color:#343a34 !important}
+        html.dark #notif-center-page nav .bg-gray-200{background-color:#2e352e !important}
+        html.dark #notif-center-page nav .hover\:bg-gray-100:hover{background-color:#2e352e !important}
+        html.dark #notif-center-page nav .hover\:text-gray-700:hover,html.dark #notif-center-page nav .hover\:text-gray-400:hover{color:#e7ece5 !important}
         html.dark .hover\:bg-\[\#fef2f2\]:hover{background-color:#522a2a !important}
         html.dark .hover\:bg-sage-700:hover{background-color:#156b35 !important}
         html.dark .hover\:bg-ink-900:hover{background-color:#1a1f1a !important}
@@ -117,17 +149,17 @@
         html.dark .hover\:text-\[\#0e6a38\]:hover{color:#4ade80 !important}
         html.dark #page-loader{background:rgba(30,35,32,0.85) !important}
         html.dark #page-loader span{color:#9bb0a0 !important}
-        /* إصلاح التعتيم الغامق: إخفاء قسري للـ loader + كل المودالات */
+
         #page-loader { animation: loaderAutoHide 0.4s ease 0.6s forwards; }
         @keyframes loaderAutoHide { to { opacity:0; visibility:hidden; pointer-events:none; display:none; } }
-        /* أي مودال عليه hidden يجب أن يختفي تماماً — يمنع تسريب bg-ink-900/40 */
+
         [data-modal].hidden, #print-selection-modal.hidden, #print-preview-modal.hidden { display:none !important; visibility:hidden !important; opacity:0 !important; pointer-events:none !important; }
         [data-modal]:not(.hidden) { display:flex !important; }
-        /* إصلاح التعتيم الغامق على الشاشة (Screen) — ليس الطباعة */
+
         .hidden .bg-ink-900\/40, .hidden .bg-ink-900\/60, .hidden .bg-ink-900\/70,
         .hidden.backdrop-blur-sm, [data-modal].hidden * { background:transparent !important; backdrop-filter:none !important; }
         #page-loader.hidden { display:none !important; opacity:0 !important; visibility:hidden !important; }
-        /* — Notifications: Toast & accessibility — */
+
         #notification-toast-container { scrollbar-width: thin; }
         @media (prefers-reduced-motion: reduce) {
             #notification-toast-container [data-toast] { transition: none !important; animation: none !important; }
@@ -137,11 +169,18 @@
         @keyframes badgePulse { 0%{transform:scale(1)} 50%{transform:scale(1.18)} 100%{transform:scale(1)} }
         .notif-enter { animation: notifSlideIn 0.32s ease-out forwards; }
         @keyframes notifSlideIn { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
-        #notification-dropdown { scrollbar-width: thin; }
-        /* Focus visible for a11y inside dropdown */
-        #notification-list a:focus-visible { outline:2px solid #0e6a38; outline-offset:-2px; }
+        #notification-drawer .notif-feed { scrollbar-width: thin; }
+        .notif-card:focus-visible { outline:2px solid #0e6a38; outline-offset:-2px; }
+
+        /* — Topbar: fixed emblem box + guaranteed gap between brand and nav.
+           The global unlayered `img{height:auto;max-width:100%}` rule beats Tailwind's
+           layered `h-9`/`max-w-[72px]`, so the viewBox-only SVG ballooned and the brand
+           link overlapped the nav. These unlayered class rules win by specificity. */
+        .topbar-brand .brand-emblem{height:36px;width:auto;max-width:72px;flex:none}
+        @media(min-width:768px){.topbar-start{column-gap:24px}}
+        @media(min-width:1024px){.topbar-start{column-gap:32px}}
     </style>
-    <script>/* إخفاء قسري للـ loader فقط — لا تلمس المودالات */setTimeout(function(){var l=document.getElementById('page-loader');if(l){l.style.opacity='0';l.style.visibility='hidden';l.classList.add('hidden');}},700);</script>
+    <script>setTimeout(function(){var l=document.getElementById('page-loader');if(l){l.style.opacity='0';l.style.visibility='hidden';l.classList.add('hidden');}},700);</script>
 </head>
     <div id="page-loader" class="hidden fixed inset-0 z-[999] flex items-center justify-center bg-[#eceee9] backdrop-blur-[2px] transition-opacity duration-200" style="pointer-events:none">
         <div class="flex flex-col items-center gap-3">
@@ -160,108 +199,107 @@
             <div class="flex-1 bg-[#0f1a13]"></div>
         </div>
         <div class="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex items-center justify-between h-14 gap-4">
-                <div class="flex items-center gap-6 min-w-0">
-                    <a href="{{ route('notes.index') }}" class="flex items-center gap-2.5 shrink-0 group">
-                        <div class="w-8 h-8 rounded-lg bg-white border border-[#e6e9e1] flex items-center justify-center overflow-hidden group-hover:border-[#d4ddd3] transition shrink-0">
-                            <svg width="22" height="22" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="شعار وزارة الإعلام">
-                                <rect x="2" y="4" width="32" height="28" rx="6" fill="white" stroke="#e3ebe5"/>
-                                <path d="M6 9.5C6 8.672 6.672 8 7.5 8H28.5C29.328 8 30 8.672 30 9.5V13H6V9.5Z" fill="#0e6a38"/>
-                                <rect x="6" y="13" width="24" height="6" fill="white"/>
-                                <g fill="#ce1126">
-                                    <path d="M12 16.6l1.15 0.85 -0.44 -1.36 1.15 -0.84H12.44L12 14l-0.44 1.25H10.09l1.15 0.84 -0.44 1.36L12 16.6Z"/>
-                                    <path d="M18 16.6l1.15 0.85 -0.44 -1.36 1.15 -0.84H18.44L18 14l-0.44 1.25H16.09l1.15 0.84 -0.44 1.36L18 16.6Z"/>
-                                    <path d="M24 16.6l1.15 0.85 -0.44 -1.36 1.15 -0.84H24.44L24 14l-0.44 1.25H22.09l1.15 0.84 -0.44 1.36L24 16.6Z"/>
-                                </g>
-                                <path d="M6 19H30V26.5C30 27.328 29.328 28 28.5 28H7.5C6.672 28 6 27.328 6 26.5V19Z" fill="#0f1a13"/>
-                            </svg>
-                        </div>
-                        <span class="font-bold text-[14px] tracking-tight text-[#1a2e1f] hidden sm:block">وزارة الإعلام</span>
+            <div class="flex flex-nowrap items-center justify-between h-14 gap-4">
+                <div class="topbar-start flex min-w-0 flex-1 flex-nowrap items-center gap-3 md:gap-4 lg:gap-6">
+                    <a href="{{ route('notes.index') }}" class="topbar-brand flex flex-nowrap items-center gap-2.5 shrink-0 group">
+                        <img src="{{ asset('images/eagle-emblem.svg') }}" alt="شعار النسر السوري" class="brand-emblem h-9 w-auto max-w-[72px] object-contain shrink-0 drop-shadow-sm" loading="eager" fetchpriority="high" decoding="async">
+                        <span class="font-bold text-[13px] tracking-tight text-[#1a2e1f] hidden lg:block whitespace-nowrap">وزارة الإعلام</span>
                     </a>
 
-                    <nav class="hidden md:flex items-center gap-1" aria-label="التنقل">
-                        <a href="{{ route('notes.index') }}" class="px-3 py-1.5 rounded-lg text-[13px] transition {{ request()->routeIs('notes.index') ? 'text-[#0e6a38] font-bold' : 'text-[#6b7a6e] hover:text-[#1a2e1f] font-medium' }}">
+                    <nav class="hidden md:flex flex-nowrap items-center gap-1 shrink-0 whitespace-nowrap" aria-label="التنقل">
+                        <a href="{{ route('notes.index') }}" class="px-2 xl:px-3 py-1.5 rounded-lg text-[13px] whitespace-nowrap shrink-0 transition {{ request()->routeIs('notes.index') ? 'text-[#0e6a38] font-bold' : 'text-[#6b7a6e] hover:text-[#1a2e1f] font-medium' }}">
                             الملاحظات
                         </a>
-                        <a href="{{ route('notes.my') }}" class="px-3 py-1.5 rounded-lg text-[13px] transition {{ request()->routeIs('notes.my') ? 'text-[#0e6a38] font-bold' : 'text-[#6b7a6e] hover:text-[#1a2e1f] font-medium' }}">
+                        <a href="{{ route('notes.my') }}" class="px-2 xl:px-3 py-1.5 rounded-lg text-[13px] whitespace-nowrap shrink-0 transition {{ request()->routeIs('notes.my') ? 'text-[#0e6a38] font-bold' : 'text-[#6b7a6e] hover:text-[#1a2e1f] font-medium' }}">
                             ملاحظاتي
                         </a>
-                        <a href="{{ route('general-submissions.index') }}" class="px-3 py-1.5 rounded-lg text-[13px] transition {{ request()->routeIs('general-submissions.*') ? 'text-[#0e6a38] font-bold' : 'text-[#6b7a6e] hover:text-[#1a2e1f] font-medium' }}">
+                        <a href="{{ route('general-submissions.index') }}" class="px-2 xl:px-3 py-1.5 rounded-lg text-[13px] whitespace-nowrap shrink-0 transition {{ request()->routeIs('general-submissions.*') ? 'text-[#0e6a38] font-bold' : 'text-[#6b7a6e] hover:text-[#1a2e1f] font-medium' }}">
                             الإرسالات العامة
                         </a>
-                        <a href="{{ route('ranking') }}" class="px-3 py-1.5 rounded-lg text-[13px] transition {{ request()->routeIs('ranking') ? 'text-[#0e6a38] font-bold' : 'text-[#6b7a6e] hover:text-[#1a2e1f] font-medium' }}">
+                        <a href="{{ route('ranking') }}" class="px-2 xl:px-3 py-1.5 rounded-lg text-[13px] whitespace-nowrap shrink-0 transition {{ request()->routeIs('ranking') ? 'text-[#0e6a38] font-bold' : 'text-[#6b7a6e] hover:text-[#1a2e1f] font-medium' }}">
                             الترتيب
                         </a>
-                        <a href="{{ route('profile.show') }}" class="px-3 py-1.5 rounded-lg text-[13px] transition {{ request()->routeIs('profile.*') ? 'text-[#0e6a38] font-bold' : 'text-[#6b7a6e] hover:text-[#1a2e1f] font-medium' }}">
+                        <a href="{{ route('profile.show') }}" class="px-2 xl:px-3 py-1.5 rounded-lg text-[13px] whitespace-nowrap shrink-0 transition {{ request()->routeIs('profile.*') ? 'text-[#0e6a38] font-bold' : 'text-[#6b7a6e] hover:text-[#1a2e1f] font-medium' }}">
                             حسابي
                         </a>
                     </nav>
                 </div>
 
-                <div class="flex items-center gap-2 shrink-0">
+                <div class="flex flex-nowrap items-center gap-2 shrink-0">
                     <button type="button" id="theme-toggle" class="w-8 h-8 rounded-lg flex items-center justify-center text-[#6b7a6e] hover:text-[#1a2e1f] hover:bg-[#f6f7f5] transition" aria-label="الوضع الداكن" title="تبديل الوضع">
                         <svg class="w-4 h-4 sun-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
                         <svg class="w-4 h-4 moon-icon hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
                     </button>
 
-                    {{-- Notifications Bell — نظام حي Real-Time --}}
-                    <div class="relative">
-                        <button type="button" id="notification-bell" class="relative w-8 h-8 rounded-lg flex items-center justify-center text-[#6b7a6e] hover:text-[#1a2e1f] hover:bg-[#f6f7f5] transition" aria-label="الإشعارات" aria-haspopup="true" aria-expanded="false" aria-controls="notification-dropdown">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
-                            <span id="notification-badge" class="hidden absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[11px] font-bold flex items-center justify-center border-2 border-[#fdfcfa]" aria-live="polite" aria-atomic="true">0</span>
-                        </button>
-                        <div id="notification-dropdown" class="hidden absolute left-0 mt-2 w-80 sm:w-[420px] bg-white rounded-2xl shadow-2xl border border-[#e6e9e1] overflow-hidden z-50" role="dialog" aria-label="مركز الإشعارات">
-                            <div class="px-4 py-3 border-b border-[#e6e9e1] flex items-center justify-between bg-[#f5f7f5]">
-                                <div class="flex items-center gap-2">
-                                    <h3 class="text-sm font-extrabold text-ink-800">الإشعارات</h3>
-                                    <span id="notification-connection-status" class="hidden w-2 h-2 rounded-full bg-emerald-500" title="متصل"></span>
-                                </div>
-                                <div class="flex items-center gap-2">
-                                    <button type="button" id="notification-settings-toggle" class="w-7 h-7 rounded-lg flex items-center justify-center text-ink-400 hover:text-ink-700 hover:bg-white border border-transparent hover:border-[#e6e9e1] transition" aria-label="إعدادات الإشعارات" title="الإعدادات">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                                    </button>
-                                    <button type="button" id="mark-all-read" class="text-xs font-bold text-[#0e6a38] hover:underline">تحديد الكل كمقروء</button>
-                                </div>
+
+                    {{-- Notifications Bell — opens side drawer (logic in NotificationManager) --}}
+                    <button type="button" id="notification-bell" class="relative w-8 h-8 rounded-lg flex items-center justify-center text-text-secondary dark:text-text-secondary hover:text-text-primary dark:hover:text-text-primary hover:bg-surface-muted dark:hover:bg-surface-muted transition" aria-label="الإشعارات" aria-haspopup="dialog" aria-expanded="false" aria-controls="notification-drawer">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+                        <span id="notification-badge" class="hidden absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[11px] font-bold flex items-center justify-center border-2 border-surface-elevated dark:border-surface-elevated" aria-live="polite" aria-atomic="true">0</span>
+                    </button>
+                    <div id="notification-overlay" class="notif-overlay hidden" aria-hidden="true"></div>
+                    <aside id="notification-drawer" class="notif-drawer hidden" role="dialog" aria-modal="true" aria-label="مركز الإشعارات" aria-hidden="true">
+                        <div class="notif-topbar">
+                            <div class="notif-topbar-main">
+                                <h2 class="notif-heading">الإشعارات</h2>
+                                <span id="notification-drawer-count" class="notif-count hidden">0</span>
+                                <span id="notification-connection-status" class="hidden notif-conn" title="متصل"></span>
                             </div>
-                            {{-- Settings panel (hidden by default) --}}
-                            <div id="notification-settings-panel" class="hidden px-4 py-3 bg-white border-b border-[#e6e9e1] space-y-3">
+                            <div class="notif-topbar-actions">
+                                <button type="button" id="notification-settings-toggle" class="notif-iconbtn" aria-label="إعدادات الإشعارات" title="الإعدادات">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                                </button>
+                                <button type="button" id="notification-close" class="notif-iconbtn" aria-label="إغلاق لوحة الإشعارات">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="notif-subbar">
+                            <button type="button" id="mark-all-read" class="notif-markall">تحديد الكل كمقروء</button>
+                        </div>
+
+                            <div id="notification-settings-panel" class="hidden px-4 py-3 bg-surface-elevated border-b border-border space-y-3">
                                 <div class="flex items-center justify-between gap-3">
-                                    <label for="notif-sound-toggle" class="text-xs font-bold text-ink-700 flex items-center gap-1.5 cursor-pointer">🔊 أصوات الإشعارات</label>
+                                    <label for="notif-sound-toggle" class="text-xs font-bold text-text-primary dark:text-text-primary flex items-center gap-1.5 cursor-pointer">🔊 أصوات الإشعارات</label>
                                     <label class="relative inline-flex items-center cursor-pointer">
                                         <input type="checkbox" id="notif-sound-toggle" class="sr-only peer">
-                                        <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#0e6a38]"></div>
+                                        <div class="w-9 h-5 bg-gray-200 dark:bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 dark:after:border-gray-600 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
                                     </label>
                                 </div>
                                 <div class="flex items-center gap-3">
-                                    <label for="notif-volume-slider" class="text-xs font-bold text-ink-700 shrink-0">مستوى الصوت</label>
-                                    <input type="range" id="notif-volume-slider" min="0" max="100" value="70" class="flex-1 accent-[#0e6a38]">
-                                    <span id="notif-volume-label" class="text-xs font-mono text-ink-500 w-8 text-left">70%</span>
+                                    <label for="notif-volume-slider" class="text-xs font-bold text-text-primary dark:text-text-primary shrink-0">مستوى الصوت</label>
+                                    <input type="range" id="notif-volume-slider" min="0" max="100" value="70" class="flex-1 accent-primary">
+                                    <span id="notif-volume-label" class="text-xs font-mono text-text-muted dark:text-text-muted w-8 text-left">70%</span>
                                 </div>
                                 <div class="flex items-center justify-between gap-3">
-                                    <label for="notif-toast-toggle" class="text-xs font-bold text-ink-700 flex items-center gap-1.5 cursor-pointer">💬 التوست الفوري</label>
+                                    <label for="notif-toast-toggle" class="text-xs font-bold text-text-primary dark:text-text-primary flex items-center gap-1.5 cursor-pointer">💬 التوست الفوري</label>
                                     <label class="relative inline-flex items-center cursor-pointer">
                                         <input type="checkbox" id="notif-toast-toggle" class="sr-only peer" checked>
-                                        <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#0e6a38]"></div>
+                                        <div class="w-9 h-5 bg-gray-200 dark:bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 dark:after:border-gray-600 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
                                     </label>
                                 </div>
-                                <p class="text-[11px] text-ink-400 leading-4">يتم حفظ اختيارك تلقائياً. عند كتم الصوت لن تسمع نغمة حتى لو وصل إشعار جديد.</p>
+                                <p class="text-[11px] text-text-muted dark:text-text-muted leading-4">يتم حفظ اختيارك تلقائياً. عند كتم الصوت لن تسمع نغمة حتى لو وصل إشعار جديد.</p>
                             </div>
-                            <div id="notification-permission-banner" class="hidden px-4 py-2.5 bg-amber-50 border-b border-amber-200 flex items-center justify-between gap-2" role="alert" aria-live="assertive">
-                                <span id="notif-banner-text" class="text-xs font-bold text-amber-800">فعّل الصوت والإشعارات ليصلك التنبيه فوراً</span>
-                                <button type="button" id="enable-notif-btn" class="shrink-0 px-3 py-1.5 rounded-lg bg-[#0e6a38] text-white text-xs font-bold hover:bg-[#0a4d28] transition">تفعيل 🔔</button>
+                            <div id="notification-permission-banner" class="hidden px-4 py-2.5 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-900/30 flex items-center justify-between gap-2" role="alert" aria-live="assertive">
+                                <span id="notif-banner-text" class="text-xs font-bold text-amber-800 dark:text-amber-400">فعّل الصوت والإشعارات ليصلك التنبيه فوراً</span>
+                                <button type="button" id="enable-notif-btn" class="shrink-0 px-3 py-1.5 rounded-lg bg-primary text-white text-xs font-bold hover:bg-primary-hover transition">تفعيل 🔔</button>
                             </div>
-                            <div id="notification-list" class="max-h-[420px] overflow-y-auto divide-y divide-[#e6e9e1]" role="feed" aria-busy="false" aria-live="polite">
-                                <div class="p-8 text-center text-sm text-ink-400" role="status">لا توجد إشعارات</div>
-                            </div>
-                            <div class="px-3 py-2 border-t border-[#e6e9e1] bg-[#f5f7f5] flex items-center justify-between gap-2">
-                                <a href="{{ route('notifications.index') }}" class="text-xs font-bold text-[#0e6a38] hover:underline">عرض كل الإشعارات</a>
-                                <div class="flex items-center gap-2">
-                                    <span id="notification-status-text" class="hidden text-[11px] text-ink-400"></span>
-                                    <button type="button" id="test-notif-sound" class="text-[11px] text-ink-400 hover:text-ink-600" title="اختبار الصوت">اختبار الصوت 🔊</button>
+                            <div id="notification-list" class="notif-feed" role="feed" aria-busy="false" aria-live="polite">
+                                <div class="notif-empty" role="status">
+                                    <div class="notif-empty-ic" aria-hidden="true">
+                                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+                                    </div>
+                                    <p class="notif-empty-title">لا توجد إشعارات</p>
+                                    <p class="notif-empty-hint">ستظهر الإشعارات الواردة هنا فور وصولها</p>
                                 </div>
                             </div>
-                        </div>
-                    </div>
+                            <div class="notif-foot">
+                                <a href="{{ route('notifications.index') }}" class="notif-footlink">عرض كل الإشعارات</a>
+                                <div class="notif-foot-side">
+                                    <span id="notification-status-text" class="hidden notif-footnote"></span>
+                                </div>
+                            </div>
+                        </aside>
 
                     <a href="{{ route('profile.show') }}" class="hidden sm:flex items-center gap-2 hover:opacity-80 transition">
                         @if(auth()->user()->avatar_url)
@@ -294,7 +332,7 @@
 
         <div id="mobile-menu" class="md:hidden hidden border-t border-[#e6e9e1] bg-[#fdfcfa]">
             <div class="px-4 py-3 space-y-2">
-                <div class="flex items-center gap-3 py-2">
+                <a href="{{ route('profile.show') }}" class="flex items-center gap-3 py-2 hover:opacity-80 transition" aria-label="عرض الملف الشخصي">
                     @if(auth()->user()->avatar_url)
                         <img src="{{ auth()->user()->avatar_url }}" alt="{{ auth()->user()->name }}" class="w-9 h-9 rounded-full object-cover border border-[#e6e9e1] shrink-0">
                     @else
@@ -304,7 +342,7 @@
                         <div class="text-sm font-bold text-[#1a2e1f] truncate">{{ auth()->user()->name }}</div>
                         <div class="text-xs text-[#6b7a6e] truncate">{{ '@' . auth()->user()->username }}</div>
                     </div>
-                </div>
+                </a>
                 <nav class="grid gap-1 pt-2 border-t border-[#e6e9e1]">
                     <a href="{{ route('notes.index') }}" class="px-3 py-2.5 rounded-lg text-sm font-medium {{ request()->routeIs('notes.index') ? 'bg-[#f6f7f5] text-[#0e6a38] font-bold' : 'text-[#4a5a4f]' }}">الملاحظات</a>
                     <a href="{{ route('notes.my') }}" class="px-3 py-2.5 rounded-lg text-sm font-medium {{ request()->routeIs('notes.my') ? 'bg-[#f6f7f5] text-[#0e6a38] font-bold' : 'text-[#4a5a4f]' }}">ملاحظاتي</a>
@@ -369,15 +407,9 @@
         @yield('content')
     </main>
 
-    {{-- ╔══════════════════════════════════════════════════╗
-         ║  Developer Credits — Minimal footer hint        ║
-         ║  خفي · أنيق · لا يُزعج المستخدم                ║
-         ╚══════════════════════════════════════════════════╝ --}}
+
     <footer class="w-full max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 pb-4 mt-auto select-none" aria-label="معلومات الفريق">
         <div class="flex items-center justify-center gap-1.5 text-[11px] text-[#b0bab2] dark:text-[#4a5a4f]">
-            <svg class="w-3 h-3 text-[#c41e1e]/50" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true"><path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd"/></svg>
-
-            {{-- المطورون — Hover/Tap tooltip (responsive: centered on mobile via left-1/2, fixed width, no overflow) --}}
             <span class="group relative inline-flex items-center gap-1 cursor-help"
                   role="button" tabindex="0"
                   aria-label="معلومات المطورين"
@@ -388,7 +420,7 @@
                     المطورون
                 </span>
 
-                {{-- Tooltip / Popover — responsive: mobile centered, prevents viewport overflow --}}
+
                 <span id="dev-tooltip"
                       class="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-[170px] sm:w-max max-w-[calc(100vw-32px)]
                                opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 group-active:opacity-100 translate-y-1 group-hover:translate-y-0 group-focus-within:translate-y-0
@@ -398,7 +430,7 @@
                                  bg-[#1a2e1f]/95 dark:bg-[#0e1a10]/95 backdrop-blur-sm shadow-lg border border-white/10">
                         <span class="block">طارق عبد الرحمن</span>
                         <span class="block w-6 h-px bg-white/20 mx-auto my-1"></span>
-                        <span class="block">هاد لسهلي</span>
+                        <span class="block">هادي سهلي</span>
                     </span>
                     <span class="block w-2.5 h-2.5 bg-[#1a2e1f]/95 dark:bg-[#0e1a10]/95 rotate-45 mx-auto -mt-1.5 border-r border-b border-white/10"></span>
                 </span>
@@ -406,7 +438,7 @@
         </div>
     </footer>
 
-    {{-- Global Sound Prompt — يظهر حتى يتم فك القفل، خارج الـ dropdown ليكون مرئي دائماً --}}
+
     <div id="global-sound-banner" class="hidden fixed bottom-4 left-4 right-4 sm:left-auto sm:right-4 sm:w-[360px] bg-amber-50 border border-amber-200 rounded-xl shadow-xl p-3 flex items-center gap-3 z-[65]" role="alert" aria-live="polite">
         <div class="w-9 h-9 rounded-xl bg-amber-100 border border-amber-200 flex items-center justify-center shrink-0 text-amber-700">🔊</div>
         <div class="flex-1 min-w-0">
@@ -418,7 +450,7 @@
     </div>
 
     <script>
-        // عرض أخطاء المرفقات القادمة من إرسال fetch (تُخزن في sessionStorage قبل التحويل)
+
         (function(){
             try{
                 var raw=sessionStorage.getItem('attach_errors');
@@ -468,37 +500,23 @@
             }
             sync();
             t?.addEventListener('click',toggle);
-            // — ثبات المود على مستوى النظام (bfcache + رجوع) —
+
             window.addEventListener('pageshow', applyStoredTheme);
             window.addEventListener('storage', function(e){ if(e.key==='theme'||e.key==='rasd_theme') applyStoredTheme(); });
-            // — Theme persistence (already handled above) —
-            // Notifications handled by modular managers (SSE + NotificationManager)
-            // Light glue for settings toggle inside dropdown (decoupled from polling)
+
+
+
             (function(){
                 const settingsBtn = document.getElementById('notification-settings-toggle');
                 const settingsPanel = document.getElementById('notification-settings-panel');
-                const bell = document.getElementById('notification-bell');
-                const dropdown = document.getElementById('notification-dropdown');
                 if(settingsBtn && settingsPanel){
                     settingsBtn.addEventListener('click', (e)=>{
                         e.stopPropagation();
                         settingsPanel.classList.toggle('hidden');
                     });
                 }
-                // Close dropdown on outside click (manager also handles but keep lightweight)
-                document.addEventListener('click', (e)=>{
-                    if(!bell?.contains(e.target) && !dropdown?.contains(e.target)){
-                        dropdown?.classList.add('hidden');
-                    }
-                });
-                // ARIA expanded sync (manager updates as well)
-                bell?.addEventListener('click', ()=>{
-                    const expanded = !dropdown?.classList.contains('hidden');
-                    bell.setAttribute('aria-expanded', expanded ? 'true' : 'false');
-                });
+                // Drawer open/close, overlay, Escape & aria-expanded are owned by NotificationManager (bindUI).
             })();
-
-
 
         })();
         const btn=document.getElementById('mobile-menu-btn'),menu=document.getElementById('mobile-menu');
@@ -512,7 +530,7 @@
         const loader=document.getElementById('page-loader');
         function showLoader(){if(!loader)return;loader.classList.remove('hidden');loader.style.opacity='1';loader.style.visibility='visible';loader.style.display='flex';loader.style.pointerEvents='none';}
         function hideLoader(){if(!loader)return;try{loader.style.opacity='0';loader.style.visibility='hidden';loader.style.pointerEvents='none';document.body.style.overflow='';setTimeout(function(){try{loader.classList.add('hidden');loader.style.display='none';loader.style.visibility='hidden';}catch(e){}},200);}catch(e){}}
-        // إصلاح جمود اللودر الجذري: إخفاء قسري حتى لو فشل JS أو Tailwind CDN أو SW — لا يبقى يدور للأبد
+
         setTimeout(hideLoader, 800);
         setTimeout(hideLoader, 1500);
         setTimeout(hideLoader, 3000);
@@ -522,7 +540,7 @@
             document.body.style.overflow='';
             setTimeout(()=>{ hideLoader(); }, 1000);
         });
-        // حتى لو حدث خطأ JS غير متوقع — أخفِ اللودر
+
         window.addEventListener('error', hideLoader);
         document.addEventListener('click',function(e){
             const a=e.target.closest('a[href]');
@@ -537,7 +555,7 @@
             showLoader();
         });
         window.addEventListener('pageshow',hideLoader);
-        // ===== AJAX Form Handler =====
+
         async function ajaxSubmit(form, onSuccess) {
             const btn = form.querySelector('button[type="submit"]:not([formnovalidate])');
             const origHtml = btn ? btn.innerHTML : '';
@@ -567,7 +585,7 @@
                 form.submit();
             }
         }
-        // ===== AJAX Tab Filter =====
+
         async function ajaxFilter(url) {
             const container = document.getElementById('notes-list');
             if (!container) return window.location.href = url;
@@ -593,8 +611,16 @@
     <script>
         window.NOTIF_USER_ID = {{ auth()->id() }};
         window.NOTIF_BROADCAST_DRIVER = "{{ config('broadcasting.default') }}";
+        window.SHARE_BASE = @json(config('app.share_url') ?: '');
+        /* Dynamic share host: manual override, else the current server address as-is (IP or domain). */
+        window.shareBase = function(){
+            if (window.SHARE_BASE) return window.SHARE_BASE;
+            var h = window.location.hostname || '';
+            var port = window.location.port ? ':' + window.location.port : '';
+            return window.location.protocol + '//' + h + port;
+        };
     </script>
-    {{-- Real-Time Notifications: SSE + BroadcastChannel + SoundManager --}}
+
     @if(file_exists(public_path('build/manifest.json')))
         @vite(['resources/js/app.js'])
     @else
@@ -602,7 +628,7 @@
     @endif
     @endauth
 
-    {{-- PWA ROOT — register SW scope / (no fake install button, rely on beforeinstallprompt) --}}
+
     <script>
     (function(){
       if (!('serviceWorker' in navigator)) { console.warn('[PWA ROOT] serviceWorker not supported'); return; }
@@ -624,7 +650,7 @@
         window.dispatchEvent(new CustomEvent('pwa:ready', {detail:e}));
       });
       window.addEventListener('appinstalled', function(){ console.log('[PWA ROOT] appinstalled'); });
-      // Light diag for ?diag=1
+
       if (location.search.includes('diag=1')) {
         setTimeout(function(){
           var info = {
@@ -638,7 +664,7 @@
             var div = document.createElement('div');
             div.style.cssText='position:fixed;bottom:0;left:0;right:0;background:#0f172a;color:#e2e8f0;font:11px monospace;padding:8px;z-index:9999;border-top:2px solid #1f6f4a';
             div.innerHTML='<b>PWA ROOT DIAG</b> isSecureContext='+info.isSecureContext+' hasSW='+info.hasSW+' standalone='+info.standalone+' beforeinstallprompt='+info.beforePrompt+' <button onclick="this.parentElement.remove()" style="float:left;background:#1f6f4a;color:#fff;border:none;padding:4px 8px;border-radius:6px">×</button><div>origin='+location.origin+' manifest=/manifest.json sw=/sw.js scope=/</div>';
-            if(!info.isSecureContext) div.innerHTML+='<div style="color:#fbbf24;margin-top:4px">⚠ SecureContext false — Chrome يمنع SW/PWA على http://192.168.x.x — استخدم localhost أو HTTPS أو chrome://flags</div>';
+            if(!info.isSecureContext) div.innerHTML+='<div style="color:#fbbf24;margin-top:4px">⚠ SecureContext false — Chrome يمنع SW/PWA على http:
             document.body.appendChild(div);
           } catch(e){}
         }, 3000);
@@ -647,7 +673,7 @@
     </script>
 
     @stack('scripts')
-    <!-- Print Root — مباشر تحت body لمنع 2 pages من ancestor display:none -->
+
     <div id="printable-a4-doc" class="hidden" data-print-root style="display:none;"></div>
     <div id="rasd-print-document" class="hidden" aria-hidden="true" style="display:none;"></div>
 </body>

@@ -21,6 +21,7 @@
                 <span>الطابق {{ $generalSubmission->floor_number }}</span>
                 <span>كاميرا {{ $generalSubmission->camera_number }}</span>
                 <span>{{ $generalSubmission->observed_at->format('Y-m-d H:i') }}</span>
+                <span class="text-xs text-ink-400 font-mono" dir="ltr" title="وقت الإنشاء">أُنشئت {{ $generalSubmission->created_at->format('Y-m-d H:i') }}</span>
             </div>
             <div class="mt-3 text-sm">
                 <span class="text-ink-400">المرسل:</span>
@@ -86,8 +87,12 @@
                 @endif
             @endif
         </div>
-        {{-- Actions --}}
+        
         <div class="p-4 bg-[#f5f7f5] border-t border-[#e6e9e1] flex flex-wrap items-center gap-2">
+            <button type="button" onclick="openModal('gs-share-modal')" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#25D366] text-white text-sm font-bold hover:bg-[#1da851] transition">
+                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2a10 10 0 00-8.6 15.1L2 22l5-1.3A10 10 0 1012 2zm0 18.2a8.2 8.2 0 01-4.2-1.1l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1112 20.2zm4.6-6.1c-.3-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1l-.8 1c-.1.2-.3.2-.5.1a6.7 6.7 0 01-3.3-2.9c-.3-.4 0-.5.1-.7l.5-.6c.1-.2.1-.4 0-.5L9.5 8c-.2-.4-.4-.4-.6-.4h-.5c-.2 0-.5.2-.7.5-.9 1-.6 2.7.7 4.5a11.6 11.6 0 004.5 3.9c1.7.7 2.4.8 3.2.6.5-.1 1.5-.6 1.7-1.2.2-.6.2-1.1.1-1.2 0-.1-.2-.1-.4-.2z"/></svg>
+                مشاركة واتساب
+            </button>
             @can('accept', $generalSubmission)
                 <form method="POST" action="{{ route('general-submissions.accept', $generalSubmission) }}" class="inline">
                     @csrf
@@ -111,5 +116,97 @@
         </div>
         @endcan
     </div>
+
+    @php
+        $gsShareAttachments = $generalSubmission->attachments->map(fn($a) => ['id' => $a->id, 'name' => $a->original_name, 'mime' => $a->mime_type, 'url' => '/s/submission-attachments/' . $a->id])->toArray();
+        $gsShareText = 'إرسال عام #' . str_pad($generalSubmission->id, 4, '0', STR_PAD_LEFT) . ' — كاميرا ' . $generalSubmission->camera_number . ' طابق ' . $generalSubmission->floor_number . "\n" . $generalSubmission->description;
+    @endphp
+    <div id="gs-share-modal" data-modal class="hidden fixed inset-0 z-[70] flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-ink-900/60 backdrop-blur-sm" onclick="closeModal('gs-share-modal')"></div>
+        <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+            <div class="px-5 py-4 border-b border-[#e6e9e1] flex items-center justify-between">
+                <h3 class="text-sm font-extrabold text-ink-800">مشاركة الإرسال</h3>
+                <button type="button" onclick="closeModal('gs-share-modal')" class="w-8 h-8 rounded-lg hover:bg-[#f5f7f5] flex items-center justify-center text-ink-300 hover:text-ink-700 transition" aria-label="إغلاق">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            <div class="p-5 space-y-3">
+                <button type="button" id="gs-share-send" onclick="doGsShare()" class="w-full px-4 py-3 rounded-xl bg-[#25D366] text-white text-sm font-bold hover:bg-[#1da851] transition">مشاركة عبر واتساب</button>
+                <button type="button" onclick="gsCopyText(this)" class="w-full px-4 py-2.5 rounded-xl bg-white border border-[#e6e9e1] text-ink-700 text-sm font-bold hover:bg-[#f5f7f5] transition">نسخ النص</button>
+                <div id="gs-share-links" class="space-y-2"></div>
+            </div>
+        </div>
+    </div>
 </div>
+@push('scripts')
+<script>
+const gsBaseText = @json($gsShareText);
+const gsItems = @json($gsShareAttachments);
+function gsShortName(it, c){
+    var m = it.mime || '';
+    if (m.indexOf('audio/') === 0) return 'مقطع صوتي ' + (++c.aud);
+    if (m.indexOf('video/') === 0) return 'فيديو ' + (++c.vid);
+    if (m.indexOf('image/') === 0) return 'صورة ' + (++c.img);
+    return 'مرفق ' + (++c.other);
+}
+function gsFullText(){
+    var c = {img:0, vid:0, aud:0, other:0};
+    var t = gsBaseText;
+    if (gsItems.length) {
+        t += '\n\n*الملفات المرفقة (' + gsItems.length + ')*\n' + gsItems.map(function(it){
+            return gsShortName(it, c) + ':\n' + String.fromCharCode(8206) + shareBase() + it.url;
+        }).join('\n\n');
+    }
+    return t;
+}
+function gsRenderLinks(){
+    var box = document.getElementById('gs-share-links');
+    if (!box) return;
+    if (!gsItems.length) { box.innerHTML = ''; return; }
+    var html = '<div class="text-xs font-bold text-ink-500">روابط المشاهدة — دائمة</div>';
+    gsItems.forEach(function(it){
+        var abs = shareBase() + it.url;
+        html += '<div class="flex items-center gap-2"><input readonly onclick="this.select()" value="' + abs.replace(/&/g,'&amp;').replace(/"/g,'&quot;') + '" dir="ltr" class="flex-1 min-w-0 text-xs font-mono text-ink-500 bg-[#f5f7f5] border border-[#e6e9e1] rounded-lg px-2 py-1.5">';
+        html += '<button type="button" data-url="' + abs.replace(/&/g,'&amp;').replace(/"/g,'&quot;') + '" onclick="gsCopyLink(this)" class="shrink-0 px-3 py-1.5 rounded-lg bg-[#0e6a38] text-white text-xs font-bold">نسخ</button></div>';
+    });
+    box.innerHTML = html;
+}
+function gsCopyText(btn){
+    var done = function(){ var o = btn.textContent; btn.textContent = 'تم النسخ ✓'; setTimeout(function(){ btn.textContent = o; }, 1200); };
+    if (navigator.clipboard) navigator.clipboard.writeText(gsFullText()).then(done).catch(done); else done();
+}
+function gsCopyLink(btn){
+    var v = btn.dataset.url || '';
+    var done = function(){ var o = btn.textContent; btn.textContent = 'تم ✓'; setTimeout(function(){ btn.textContent = o; }, 1200); };
+    if (navigator.clipboard) navigator.clipboard.writeText(v).then(done).catch(done); else done();
+}
+async function doGsShare(){
+    var btn = document.getElementById('gs-share-send');
+    var text = gsFullText();
+    if (navigator.share) {
+        try {
+            var files = [];
+            for (const it of gsItems) {
+                try {
+                    const r = await fetch(it.url);
+                    if (!r.ok) continue;
+                    files.push(new File([await r.blob()], it.name, {type: it.mime}));
+                } catch(e) {}
+            }
+            var data = {text: text};
+            if (files.length && navigator.canShare && navigator.canShare({files: files})) data.files = files;
+            await navigator.share(data);
+            closeModal('gs-share-modal');
+            return;
+        } catch(e) { if (e && e.name === 'AbortError') return; }
+    }
+    gsRenderLinks();
+    window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
+}
+document.getElementById('gs-share-modal')?.addEventListener('click', function(e){
+    if (e.target === this) closeModal('gs-share-modal');
+});
+gsRenderLinks();
+</script>
+@endpush
 @endsection

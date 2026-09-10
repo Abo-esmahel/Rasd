@@ -19,7 +19,6 @@
             </div>
             <div>
                 <h2 class="text-sm font-extrabold text-ink-800">بيانات الحساب</h2>
-                <p class="text-xs text-ink-400">الدور لا يمكن تغييره — يحدده النظام</p>
             </div>
         </div>
 
@@ -30,11 +29,11 @@
                 <label class="block text-sm font-bold text-ink-800 mb-4 text-center sm:text-right">الصورة الشخصية </label>
                 <div class="flex flex-col sm:flex-row items-center gap-6">
                     <div class="relative group shrink-0">
-                        <div id="avatar-preview" class="w-28 h-28 sm:w-24 sm:h-24 rounded-[22px] overflow-hidden bg-white border-2 border-white shadow-md flex items-center justify-center">
+                        <div id="avatar-preview" class="shrink-0 rounded-full overflow-hidden bg-white border-2 border-surface-300 shadow-md flex items-center justify-center" style="width:min(320px,72vw);height:min(320px,72vw);border-radius:9999px;overflow:hidden;flex-shrink:0;">
                             @if($user->avatar_url)
-                                <img src="{{ $user->avatar_url }}" alt="{{ $user->name }}" class="w-full h-full object-cover">
+                                <img src="{{ $user->avatar_url }}" alt="{{ $user->name }}" class="object-cover" style="width:100%;height:100%;object-fit:cover;display:block;">
                             @else
-                                <span class="text-3xl sm:text-2xl font-extrabold text-sage-700">{{ $user->initial }}</span>
+                                <span class="text-6xl font-extrabold text-sage-700">{{ $user->initial }}</span>
                             @endif
                         </div>
                         <label for="avatar" class="absolute -bottom-1.5 -right-1.5 w-8 h-8 rounded-full border-2 border-white flex items-center justify-center text-white shadow-md cursor-pointer transition" style="background-color:#1f6f4a" title="تغيير الصورة">
@@ -48,6 +47,7 @@
                         </label>
                         <input type="file" id="avatar" name="avatar" accept="image/jpeg,image/png,image/jpg,image/webp" class="hidden">
                         <p id="avatar-file-name" class="mt-1.5 text-xs font-bold text-sage-700 hidden"></p>
+                        <p class="mt-1.5 text-[11px] text-ink-400">بعد اختيار الصورة ستظهر معاينة لقصّها داخل إطار دائري قبل الحفظ</p>
                         @error('avatar') <p class="mt-2 text-xs text-red-500 font-bold bg-red-50 border border-red-200 rounded-lg px-3 py-2">{{ $message }}</p> @enderror
                         @if($user->avatar_path)
                             <label class="mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white border border-red-200 text-xs font-bold text-red-600 cursor-pointer hover:bg-red-50 transition">
@@ -85,7 +85,6 @@
                 <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold {{ $user->isMonitor() ? 'bg-sage-50 text-sage-700 border border-sage-200' : 'bg-white text-ink-600 border border-surface-300' }}">
                     {{ $user->isMonitor() ? 'مُراقب ميداني' : 'كاتب تقارير' }}
                 </div>
-                <p class="text-xs text-ink-400 mt-2">لتغيير الدور تواصل مع الإدارة.</p>
             </div>
 
             <div class="border-t border-surface-300 pt-5">
@@ -126,21 +125,162 @@
         </form>
     </div>
 </div>
+
+<div id="avatar-crop-modal" data-modal class="hidden fixed inset-0 z-[70] flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-ink-900/70 backdrop-blur-sm" onclick="cancelCrop()"></div>
+    <div class="relative bg-white rounded-2xl shadow-2xl w-full overflow-hidden" style="max-width:700px;">
+        <div class="px-4 py-3 border-b border-surface-300 flex items-center justify-between">
+            <h3 class="text-sm font-extrabold text-ink-800">قص الصورة الشخصية</h3>
+            <button type="button" onclick="cancelCrop()" class="w-8 h-8 rounded-lg hover:bg-surface-100 flex items-center justify-center text-ink-400 hover:text-ink-700 transition" aria-label="إلغاء">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+        <div class="p-4">
+            <div id="crop-stage" style="position:relative;width:100%;max-width:620px;margin:0 auto;aspect-ratio:1/1;overflow:hidden;background:#0f1a13;border-radius:16px;touch-action:none;cursor:grab;">
+                <img id="crop-img" alt="قص الصورة" draggable="false" style="position:absolute;left:0;top:0;max-width:none;user-select:none;-webkit-user-drag:none;pointer-events:none;">
+                <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;">
+                    <div id="crop-circle" style="border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 999px rgba(10,20,12,.55);"></div>
+                </div>
+            </div>
+            <div class="flex items-center gap-3 mt-4">
+                <svg class="w-4 h-4 text-ink-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M10 18a8 8 0 110-16 8 8 0 010 16zm-3-8h6"/></svg>
+                <input type="range" id="crop-zoom" min="100" max="400" value="100" class="flex-1 accent-primary" aria-label="تكبير الصورة">
+                <svg class="w-5 h-5 text-ink-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M10 18a8 8 0 110-16 8 8 0 010 16zm-3-8h6M7 10h.01"/></svg>
+            </div>
+            <p class="mt-2 text-center text-[11px] text-ink-400">اسحب الصورة لتحريكها داخل الدائرة — الناتج دائري ثابت مثل واتساب</p>
+        </div>
+        <div class="px-4 py-3 border-t border-surface-300 bg-surface-50 flex gap-2">
+            <button type="button" id="crop-confirm" class="flex-1 px-4 py-2.5 rounded-xl text-white text-sm font-bold transition" style="background-color:#1f6f4a">اعتماد</button>
+            <button type="button" onclick="cancelCrop()" class="flex-1 px-4 py-2.5 rounded-xl bg-white border border-surface-300 text-ink-600 text-sm font-bold hover:bg-surface-100 transition">إلغاء</button>
+        </div>
+    </div>
+</div>
 @push('scripts')
 <script>
     const avatarInput = document.getElementById('avatar');
     const avatarPreview = document.getElementById('avatar-preview');
     const avatarFileName = document.getElementById('avatar-file-name');
     const initialHTML = avatarPreview.innerHTML;
+    const cropModalId = 'avatar-crop-modal';
+    const cropStage = document.getElementById('crop-stage');
+    const cropImg = document.getElementById('crop-img');
+    const cropCircle = document.getElementById('crop-circle');
+    const cropZoom = document.getElementById('crop-zoom');
+    let cropState = null;
+    let cropDrag = null;
+
+    function cropMetrics(){
+        const S = cropStage.clientWidth || 300;
+        const d = S - 24;
+        const m = Math.round((S - d) / 2);
+        return {S, d, m};
+    }
+    function cropApply(){
+        if(!cropState) return;
+        const {S, d, m} = cropMetrics();
+        cropCircle.style.width = d + 'px';
+        cropCircle.style.height = d + 'px';
+        const unit = cropState.base * cropState.zoom;
+        const dispW = cropState.nw * unit;
+        const dispH = cropState.nh * unit;
+        cropState.cx = Math.min(m + dispW / 2, Math.max((m + d) - dispW / 2, cropState.cx));
+        cropState.cy = Math.min(m + dispH / 2, Math.max((m + d) - dispH / 2, cropState.cy));
+        cropImg.style.width = dispW + 'px';
+        cropImg.style.height = dispH + 'px';
+        cropImg.style.transform = 'translate(' + (cropState.cx - dispW / 2) + 'px,' + (cropState.cy - dispH / 2) + 'px)';
+    }
+    function cleanupCrop(){
+        if(cropState && cropState.url){ try{ URL.revokeObjectURL(cropState.url); }catch(e){} }
+        cropState = null;
+        cropDrag = null;
+        if(cropZoom) cropZoom.value = 100;
+    }
+    function cancelCrop(){
+        if(avatarInput) avatarInput.value = '';
+        cleanupCrop();
+        closeModal(cropModalId);
+    }
+    window.cancelCrop = cancelCrop;
     avatarInput?.addEventListener('change', e=>{
-        const f=e.target.files[0];
-        if(!f){ avatarPreview.innerHTML=initialHTML; avatarFileName.classList.add('hidden'); return; }
-        if(f.size>10*1024*1024){ alert('حجم الصورة كبير — الحد 10MB'); e.target.value=''; return; }
-        avatarFileName.textContent=f.name+' ('+(f.size/1024).toFixed(0)+' KB)';
-        avatarFileName.classList.remove('hidden');
-        const r=new FileReader();
-        r.onload=ev=>{ avatarPreview.innerHTML=`<img src="${ev.target.result}" class="w-full h-full object-cover">`; };
-        r.readAsDataURL(f);
+        const f = e.target.files[0];
+        if(!f) return;
+        if(f.size > 10*1024*1024){ alert('حجم الصورة كبير — الحد 10MB'); e.target.value=''; return; }
+        const url = URL.createObjectURL(f);
+        const probe = new Image();
+        probe.onload = ()=>{
+            if(!probe.naturalWidth || !probe.naturalHeight){ URL.revokeObjectURL(url); alert('تعذر قراءة الصورة'); e.target.value=''; return; }
+            cleanupCrop();
+            cropState = {url, img: probe, nw: probe.naturalWidth, nh: probe.naturalHeight, base: 1, zoom: 1, cx: 0, cy: 0};
+            cropImg.src = url;
+            openModal(cropModalId);
+            requestAnimationFrame(()=>{
+                if(!cropState) return;
+                const S = cropSize();
+                cropState.base = Math.max(S / cropState.nw, S / cropState.nh);
+                cropState.zoom = 1;
+                cropState.cx = S / 2;
+                cropState.cy = S / 2;
+                cropZoom.value = 100;
+                cropApply();
+            });
+        };
+        probe.onerror = ()=>{ URL.revokeObjectURL(url); alert('تعذر قراءة الصورة'); e.target.value=''; };
+        probe.src = url;
+    });
+    function cropSize(){ return cropStage.clientWidth || 300; }
+    cropStage?.addEventListener('pointerdown', e=>{
+        if(!cropState) return;
+        cropDrag = {x: e.clientX, y: e.clientY};
+        try{ cropStage.setPointerCapture(e.pointerId); }catch(err){}
+        cropStage.style.cursor = 'grabbing';
+    });
+    cropStage?.addEventListener('pointermove', e=>{
+        if(!cropDrag || !cropState) return;
+        cropState.cx += e.clientX - cropDrag.x;
+        cropState.cy += e.clientY - cropDrag.y;
+        cropDrag.x = e.clientX;
+        cropDrag.y = e.clientY;
+        cropApply();
+    });
+    const cropEndDrag = ()=>{ cropDrag = null; if(cropStage) cropStage.style.cursor = 'grab'; };
+    cropStage?.addEventListener('pointerup', cropEndDrag);
+    cropStage?.addEventListener('pointercancel', cropEndDrag);
+    cropZoom?.addEventListener('input', ()=>{
+        if(!cropState) return;
+        cropState.zoom = (parseInt(cropZoom.value, 10) || 100) / 100;
+        cropApply();
+    });
+    document.getElementById('crop-confirm')?.addEventListener('click', ()=>{
+        if(!cropState) return;
+        const {d, m} = cropMetrics();
+        const unit = cropState.base * cropState.zoom;
+        const imgLeft = cropState.cx - (cropState.nw * unit) / 2;
+        const imgTop = cropState.cy - (cropState.nh * unit) / 2;
+        let s = d / unit;
+        let sx = (m - imgLeft) / unit;
+        let sy = (m - imgTop) / unit;
+        s = Math.min(s, cropState.nw, cropState.nh);
+        sx = Math.max(0, Math.min(cropState.nw - s, sx));
+        sy = Math.max(0, Math.min(cropState.nh - s, sy));
+        const canvas = document.createElement('canvas');
+        canvas.width = 512;
+        canvas.height = 512;
+        canvas.getContext('2d').drawImage(cropState.img, sx, sy, s, s, 0, 0, 512, 512);
+        const done = (blob)=>{
+            if(!blob){ alert('تعذر قص الصورة'); return; }
+            const file = new File([blob], 'avatar.jpg', {type: 'image/jpeg'});
+            const dt = new DataTransfer();
+            dt.items.add(file);
+            avatarInput.files = dt.files;
+            const prevUrl = URL.createObjectURL(blob);
+            avatarPreview.innerHTML = '<img src="' + prevUrl + '" class="object-cover" style="width:100%;height:100%;object-fit:cover;display:block;" alt="معاينة الصورة">';
+            avatarFileName.textContent = 'avatar.jpg (' + (file.size / 1024).toFixed(0) + ' KB) — جاهزة للحفظ';
+            avatarFileName.classList.remove('hidden');
+            cleanupCrop();
+            closeModal(cropModalId);
+        };
+        if(canvas.toBlob){ canvas.toBlob(done, 'image/jpeg', 0.92); }
+        else { alert('المتصفح لا يدعم قص الصور'); }
     });
 </script>
 @endpush

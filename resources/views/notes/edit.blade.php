@@ -389,13 +389,22 @@
         const files=Array.from(fileTransferEdit.files);
         if(!files.length){ list.classList.add('hidden'); list.innerHTML=''; return; }
         list.classList.remove('hidden');
+        const countersEdit={img:0,vid:0,aud:0,other:0};
+        const escAttrEdit=s=>String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+        const friendlyNameEdit=f=>{
+            if(f.type.startsWith('audio/')) return 'مقطع صوتي '+ (++countersEdit.aud);
+            if(f.type.startsWith('video/')) return 'فيديو '+ (++countersEdit.vid);
+            if(f.type.startsWith('image/')) return 'صورة '+ (++countersEdit.img);
+            const ext=(f.name.split('.').pop()||'').toLowerCase();
+            return 'مرفق '+ (++countersEdit.other) + (ext && ext.length<=5 ? ' (.'+ext+')' : '');
+        };
         list.innerHTML=files.map((f,i)=>{
             const isV=f.type.startsWith('video/');
             const isA=f.type.startsWith('audio/');
             const sz=(f.size/1024/1024).toFixed(2)+' MB';
             const badge=f.name.startsWith('camera-')?'<span class="text-[10px] bg-[#eef4f0] text-[#0e6a38] px-1.5 py-0.5 rounded-full font-bold">كاميرا</span>':'';
             const recBadge=f.name.startsWith('recording-')?'<span class="text-[10px] bg-red-50 text-red-600 px-1.5 py-0.5 rounded-full font-bold">تسجيل</span>':'';
-            return `<div class="flex items-center gap-2.5 p-2.5 bg-white border border-[#e6e9e1] rounded-lg text-sm group"><span class="text-sm">${isA?'🎤':isV?'🎬':'🖼️'}</span><div class="flex-1 min-w-0 text-right"><div class="font-bold text-ink-700 truncate flex items-center gap-1.5">${f.name} ${badge} ${recBadge}</div><div class="text-xs text-ink-400">${sz} • ${f.type||'—'}</div></div><button type="button" data-remove-edit="${i}" class="shrink-0 w-7 h-7 rounded-lg hover:bg-red-50 text-ink-300 hover:text-red-500 flex items-center justify-center transition"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button></div>`;
+            return `<div class="flex items-center gap-2.5 p-2.5 bg-white border border-[#e6e9e1] rounded-lg text-sm group"><span class="text-sm">${isA?'🎤':isV?'🎬':'🖼️'}</span><div class="flex-1 min-w-0 text-right"><div class="font-bold text-ink-700 truncate flex items-center gap-1.5" title="${escAttrEdit(f.name)}">${friendlyNameEdit(f)} ${badge} ${recBadge}</div><div class="text-xs text-ink-400">${sz} • ${f.type||'—'}</div></div><button type="button" data-remove-edit="${i}" class="shrink-0 w-7 h-7 rounded-lg hover:bg-red-50 text-ink-300 hover:text-red-500 flex items-center justify-center transition"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button></div>`;
         }).join('')+(files.length>MAX_FILES_EDIT?'<p class="text-xs font-bold text-red-500">الحد '+MAX_FILES_EDIT+' ملف</p>':'');
         list.querySelectorAll('[data-remove-edit]').forEach(btn=>{
             btn.addEventListener('click', ()=>{
@@ -669,6 +678,7 @@
                 const formEditActionUrl = formEdit.getAttribute('action');
                 console.debug('[EDIT SUBMIT] action='+formEditActionUrl+' method=POST files='+filesToSendEdit.length+' count='+clientFilesCountEdit);
                 setUploadProgressEdit(5);
+                document.getElementById('upload-progress-edit')?.scrollIntoView({behavior:'smooth',block:'center'});
                 // Total size early check vs post_max_size (120M)
             let totalEditCheck = 0;
             try{ totalEditCheck = (typeof pendingFilesEdit !== 'undefined' && pendingFilesEdit?pendingFilesEdit.reduce((s,f)=>s+f.size,0):0); }catch(e){}
