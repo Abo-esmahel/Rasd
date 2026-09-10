@@ -52,8 +52,8 @@
 @push('scripts')
 <script>
 function sharedCopyLink(btn){
-    var done = function(){ var o = btn.textContent; btn.textContent = 'تم النسخ ✓'; setTimeout(function(){ btn.textContent = o; }, 1200); };
-    if (navigator.clipboard) navigator.clipboard.writeText(window.location.href).then(done).catch(done); else done();
+    var done = function(ok){ var o = btn.textContent; btn.textContent = ok ? 'تم النسخ ✓' : 'تعذر النسخ'; setTimeout(function(){ btn.textContent = o; }, 1200); };
+    window.copyTextToClipboard(window.location.href).then(done);
 }
 </script>
 @endpush

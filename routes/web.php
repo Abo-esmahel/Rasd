@@ -95,6 +95,7 @@ Route::middleware('auth')->group(function () {
 
     Route::resource('notes', NoteController::class);
     Route::get('/my-notes', [NoteController::class, 'myNotes'])->name('notes.my');
+    Route::get('/gallery', [\App\Http\Controllers\Web\GalleryController::class, 'index'])->name('gallery.index');
 
     Route::post('/notes/{note}/send', [NoteController::class, 'send'])->name('notes.send');
     Route::post('/notes/{note}/accept', [NoteController::class, 'accept'])->name('notes.accept');

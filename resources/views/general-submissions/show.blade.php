@@ -172,13 +172,13 @@ function gsRenderLinks(){
     box.innerHTML = html;
 }
 function gsCopyText(btn){
-    var done = function(){ var o = btn.textContent; btn.textContent = 'تم النسخ ✓'; setTimeout(function(){ btn.textContent = o; }, 1200); };
-    if (navigator.clipboard) navigator.clipboard.writeText(gsFullText()).then(done).catch(done); else done();
+    var done = function(ok){ var o = btn.textContent; btn.textContent = ok ? 'تم النسخ ✓' : 'تعذر النسخ'; setTimeout(function(){ btn.textContent = o; }, 1200); };
+    window.copyTextToClipboard(gsFullText()).then(done);
 }
 function gsCopyLink(btn){
     var v = btn.dataset.url || '';
-    var done = function(){ var o = btn.textContent; btn.textContent = 'تم ✓'; setTimeout(function(){ btn.textContent = o; }, 1200); };
-    if (navigator.clipboard) navigator.clipboard.writeText(v).then(done).catch(done); else done();
+    var done = function(ok){ var o = btn.textContent; btn.textContent = ok ? 'تم ✓' : 'تعذر النسخ'; setTimeout(function(){ btn.textContent = o; }, 1200); };
+    window.copyTextToClipboard(v).then(done);
 }
 async function doGsShare(){
     var btn = document.getElementById('gs-share-send');

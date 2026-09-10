@@ -213,6 +213,9 @@
                         <a href="{{ route('notes.my') }}" class="px-2 xl:px-3 py-1.5 rounded-lg text-[13px] whitespace-nowrap shrink-0 transition {{ request()->routeIs('notes.my') ? 'text-[#0e6a38] font-bold' : 'text-[#6b7a6e] hover:text-[#1a2e1f] font-medium' }}">
                             ملاحظاتي
                         </a>
+                        <a href="{{ route('gallery.index') }}" class="px-2 xl:px-3 py-1.5 rounded-lg text-[13px] whitespace-nowrap shrink-0 transition {{ request()->routeIs('gallery.*') ? 'text-[#0e6a38] font-bold' : 'text-[#6b7a6e] hover:text-[#1a2e1f] font-medium' }}">
+                            المعرض
+                        </a>
                         <a href="{{ route('general-submissions.index') }}" class="px-2 xl:px-3 py-1.5 rounded-lg text-[13px] whitespace-nowrap shrink-0 transition {{ request()->routeIs('general-submissions.*') ? 'text-[#0e6a38] font-bold' : 'text-[#6b7a6e] hover:text-[#1a2e1f] font-medium' }}">
                             الإرسالات العامة
                         </a>
@@ -346,6 +349,7 @@
                 <nav class="grid gap-1 pt-2 border-t border-[#e6e9e1]">
                     <a href="{{ route('notes.index') }}" class="px-3 py-2.5 rounded-lg text-sm font-medium {{ request()->routeIs('notes.index') ? 'bg-[#f6f7f5] text-[#0e6a38] font-bold' : 'text-[#4a5a4f]' }}">الملاحظات</a>
                     <a href="{{ route('notes.my') }}" class="px-3 py-2.5 rounded-lg text-sm font-medium {{ request()->routeIs('notes.my') ? 'bg-[#f6f7f5] text-[#0e6a38] font-bold' : 'text-[#4a5a4f]' }}">ملاحظاتي</a>
+                    <a href="{{ route('gallery.index') }}" class="px-3 py-2.5 rounded-lg text-sm font-medium {{ request()->routeIs('gallery.*') ? 'bg-[#f6f7f5] text-[#0e6a38] font-bold' : 'text-[#4a5a4f]' }}">المعرض</a>
                     <a href="{{ route('general-submissions.index') }}" class="px-3 py-2.5 rounded-lg text-sm font-medium {{ request()->routeIs('general-submissions.*') ? 'bg-[#f6f7f5] text-[#0e6a38] font-bold' : 'text-[#4a5a4f]' }}">الإرسالات العامة</a>
                     <a href="{{ route('ranking') }}" class="px-3 py-2.5 rounded-lg text-sm font-medium {{ request()->routeIs('ranking') ? 'bg-[#f6f7f5] text-[#0e6a38] font-bold' : 'text-[#4a5a4f]' }}">الترتيب</a>
                     <a href="{{ route('profile.show') }}" class="px-3 py-2.5 rounded-lg text-sm font-medium {{ request()->routeIs('profile.*') ? 'bg-[#f6f7f5] text-[#0e6a38] font-bold' : 'text-[#4a5a4f]' }}">حسابي</a>
@@ -527,6 +531,30 @@
         function openModal(id){const el=document.getElementById(id);if(!el)return;el.classList.remove('hidden');el.style.display='';el.style.visibility='';document.body.style.overflow='hidden';}
         function closeModal(id){const el=document.getElementById(id);if(!el)return;el.classList.add('hidden');el.style.display='';document.body.style.overflow='';}
         window.openModal=openModal;window.closeModal=closeModal;
+        /* Robust copy: Clipboard API on HTTPS, legacy textarea fallback on HTTP/LAN. Resolves true/false. */
+        window.copyTextToClipboard=function(text){
+            return new Promise(function(resolve){
+                text=String(text==null?'':text);
+                function legacy(){
+                    try{
+                        var ta=document.createElement('textarea');
+                        ta.value=text; ta.setAttribute('readonly','');
+                        ta.style.cssText='position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;';
+                        document.body.appendChild(ta);
+                        ta.focus(); ta.select();
+                        try{ ta.setSelectionRange(0, ta.value.length); }catch(e){}
+                        var ok=false;
+                        try{ ok=document.execCommand('copy'); }catch(e){ ok=false; }
+                        document.body.removeChild(ta);
+                        resolve(!!ok);
+                    }catch(e){ resolve(false); }
+                }
+                try{
+                    if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(text).then(function(){resolve(true);}, legacy); }
+                    else legacy();
+                }catch(e){ legacy(); }
+            });
+        };
         const loader=document.getElementById('page-loader');
         function showLoader(){if(!loader)return;loader.classList.remove('hidden');loader.style.opacity='1';loader.style.visibility='visible';loader.style.display='flex';loader.style.pointerEvents='none';}
         function hideLoader(){if(!loader)return;try{loader.style.opacity='0';loader.style.visibility='hidden';loader.style.pointerEvents='none';document.body.style.overflow='';setTimeout(function(){try{loader.classList.add('hidden');loader.style.display='none';loader.style.visibility='hidden';}catch(e){}},200);}catch(e){}}

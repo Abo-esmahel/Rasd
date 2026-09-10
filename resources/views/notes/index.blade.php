@@ -885,27 +885,20 @@ function copyShareLink(btn) {
     copyShareValue(btn.dataset.url, null, null, btn);
 }
 function copyShareValue(value, btnId, btnIdleText, btnEl) {
-    const done = () => {
+    const done = (ok) => {
         const b = btnEl || (btnId ? document.getElementById(btnId) : null);
         if (!b) return;
         const orig = btnIdleText || b.textContent;
-        b.textContent = 'تم النسخ';
+        b.textContent = ok ? 'تم النسخ' : 'تعذر النسخ';
         setTimeout(() => { b.textContent = orig; }, 1500);
     };
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(value).then(done).catch(() => { try { document.execCommand('copy'); } catch(e){} done(); });
-    } else {
-        try { document.execCommand('copy'); } catch(e){}
-        done();
-    }
+    window.copyTextToClipboard(value).then(done);
 }
 function copyShareText() {
     const text = document.getElementById('share-text');
-    text.select();
-    text.setSelectionRange(0, 99999);
-    navigator.clipboard.writeText(text.value).then(() => {
+    window.copyTextToClipboard(text.value).then((ok) => {
         const btn = document.getElementById('share-copy-btn');
-        if (btn) btn.textContent = 'تم النسخ';
+        if (btn) btn.textContent = ok ? 'تم النسخ' : 'تعذر النسخ';
         setTimeout(() => { if (btn) btn.textContent = 'نسخ'; }, 1500);
     });
 }
