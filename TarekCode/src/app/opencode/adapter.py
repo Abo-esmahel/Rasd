@@ -355,22 +355,60 @@ class OpenCodeAdapter:
 
     def activate(self, provider: str, api_key: str) -> Tuple[bool, str]:
         """
-        Deterministic activation:
-        1. logout existing (optional, not strictly required for file overwrite)
-        2. write new key via file
+        Deterministic activation with rollback safety:
+        1. Backup current auth.json and account.json
+        2. Remove existing credential for provider
+        3. Write new key via file (atomic)
+        4. Verify file write succeeded
+        5. On failure: restore backups
         Returns (success, message)
         """
-        # Optional logout step (not required but keeps semantics clean)
-        # We skip CLI logout if file manipulation is the mechanism to avoid extra subprocess.
-        # But if user wants strict logout/login, we can call logout then file write.
-        # Implement logout first via file removal, then write.
+        if not api_key or not api_key.strip():
+            return False, "API key empty"
+        api_key = api_key.strip()
+
+        # Backup current state for rollback
+        auth_backup = None
+        account_backup = None
         try:
+            if self.auth_json.exists():
+                auth_backup = self.auth_json.read_text(encoding="utf-8")
+            if self.account_json.exists():
+                account_backup = self.account_json.read_text(encoding="utf-8")
+        except Exception as e:
+            logger.warning(f"Failed to backup auth files: {e}")
+
+        try:
+            # Remove existing
             self._remove_from_auth_file(provider)
-        except Exception:
-            pass
-        # small delay to avoid file lock race
-        time.sleep(0.05)
-        return self.login_via_file(provider, api_key)
+            time.sleep(0.05)
+            ok, msg = self.login_via_file(provider, api_key)
+            if not ok:
+                # Rollback on failure
+                self._restore_backups(auth_backup, account_backup)
+            return ok, msg
+        except Exception as e:
+            # Rollback on exception
+            self._restore_backups(auth_backup, account_backup)
+            logger.error(f"activate failed: {e}")
+            return False, str(e)
+
+    def _restore_backups(self, auth_backup: Optional[str], account_backup: Optional[str]) -> None:
+        """Restore auth.json and account.json from backups."""
+        try:
+            if auth_backup is not None:
+                self._atomic_write_json(self.auth_json, json.loads(auth_backup))
+            elif self.auth_json.exists():
+                self.auth_json.unlink()
+        except Exception as e:
+            logger.error(f"Failed to restore auth.json backup: {e}")
+        try:
+            if account_backup is not None:
+                self._atomic_write_json(self.account_json, json.loads(account_backup))
+            elif self.account_json.exists():
+                self.account_json.unlink()
+        except Exception as e:
+            logger.error(f"Failed to restore account.json backup: {e}")
 
     def verify(self, provider: str = "opencode") -> VerificationResult:
         """
