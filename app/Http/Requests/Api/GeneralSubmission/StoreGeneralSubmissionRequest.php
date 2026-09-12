@@ -17,16 +17,18 @@ class StoreGeneralSubmissionRequest extends FormRequest
     
     public function rules(): array
     {
-        $maxFiles = max(1, (int) ini_get('max_file_uploads') ?: 20);
+        $maxFiles = min(max(1, (int) ini_get('max_file_uploads') ?: 20), (int) config('attachments.max_per_submission', 5));
+        $fileMaxKb = \App\Services\NoteService::uploadFileMaxKb();
 
         return [
             'floor_number' => ['required', 'integer', 'min:0'],
             'camera_number' => ['required', 'integer', 'min:1'],
             'observed_at' => ['required', 'date'],
-            'observed_end_at' => ['nullable', 'date', 'after_or_equal:observed_at'],
+            // عبور منتصف الليل والمدى يعالجهما NoteService::normalizeObservedRange في الخدمة.
+            'observed_end_at' => ['nullable', 'date'],
             'description' => ['required', 'string', 'min:10', 'max:5000'],
             'files' => ['nullable', 'array', 'max:'.$maxFiles],
-            'files.*' => ['file', 'max:512000'],
+            'files.*' => ['file', 'max:'.$fileMaxKb],
             'client_files_count' => ['nullable', 'integer', 'min:0', 'max:100'],
             'report_writer_ids' => [
                 'required',
@@ -35,13 +37,13 @@ class StoreGeneralSubmissionRequest extends FormRequest
                 function ($attribute, $value, $fail) {
                     
                     if (count($value) !== count(array_unique($value))) {
-                        $fail('لا يمكن وجود مستلمين مكررين');
+                        $fail(__('api.validation_recipients_unique'));
                     }
                     
                     $validWriters = User::whereIn('id', $value)->where('role', 'report_writer')->pluck('id');
                     $invalidIds = array_diff($value, $validWriters->toArray());
                     if (!empty($invalidIds)) {
-                        $fail('يجب أن يكون جميع المستلمين من كتاب التقارير');
+                        $fail(__('api.validation_recipients_writers'));
                     }
                 },
             ],
@@ -52,13 +54,13 @@ class StoreGeneralSubmissionRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'floor_number.required' => 'رقم الطابق مطلوب',
-            'camera_number.required' => 'رقم الكاميرا مطلوب',
-            'observed_at.required' => 'وقت الملاحظة مطلوب',
-            'description.required' => 'الوصف مطلوب',
-            'report_writer_ids.required' => 'يجب اختيار كاتب على الأقل',
-            'report_writer_ids.array' => 'يجب أن تكون قائمة المستلمين',
-            'report_writer_ids.min' => 'يجب اختيار كاتب على الأقل',
+            'floor_number.required' => __('validation.required', ['attribute' => __('validation.attributes.floor_number')]),
+            'camera_number.required' => __('validation.required', ['attribute' => __('validation.attributes.camera_number')]),
+            'observed_at.required' => __('validation.required', ['attribute' => __('validation.attributes.observed_at')]),
+            'description.required' => __('validation.required', ['attribute' => __('validation.attributes.description')]),
+            'report_writer_ids.required' => __('api.sub_need_writer'),
+            'report_writer_ids.array' => __('validation.array', ['attribute' => __('validation.attributes.report_writer_ids')]),
+            'report_writer_ids.min' => __('api.sub_need_writer'),
         ];
     }
 }

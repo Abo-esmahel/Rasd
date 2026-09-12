@@ -14,7 +14,7 @@ class RejectNoteRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'rejection_reason' => ['required', 'string', 'min:1', 'max:2000'],
+            'rejection_reason' => ['required', 'string', 'min:5', 'max:1000'],
         ];
     }
 }

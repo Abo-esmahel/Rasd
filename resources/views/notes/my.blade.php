@@ -20,31 +20,26 @@
 
 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
     <div>
-        <h1 class="text-xl font-extrabold text-ink-800 leading-tight">ملاحظاتي</h1>
-        <p class="text-sm text-[#737373] mt-1">
-            @if($isMonitor) تابع ملاحظاتك الميدانية وإدارتها @else ملاحظاتك — المسودات والمقبولة @endif
-        </p>
+        <h1 class="text-xl font-extrabold text-ink-800 leading-tight">{{ __('ui.my_notes_title') }}</h1>
     </div>
     @if($isMonitor || $isWriter)
         <a href="{{ route('notes.create') }}" class="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-[#0e6a38] hover:bg-[#0a4d28] text-white font-bold text-sm shadow-sm transition shrink-0">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
-            ملاحظة جديدة
+            {{ __('ui.new_note') }}
         </a>
     @endif
     </div>
 
 
-
-
 <div class="border-b border-[#e6e9e1] mb-6 -mx-4 sm:mx-0 px-4 sm:px-0 overflow-x-auto scrollbar-hide">
-    <nav class="flex gap-6 min-w-max" aria-label="حالات الملاحظات">
+    <nav class="flex gap-6 min-w-max" aria-label="{{ __('ui.note_statuses') }}">
         @php
             $tabs = [
-                ['key'=>null, 'label'=>'الكل', 'count'=>$totalCount],
-                ['key'=>'draft', 'label'=>'مسودات', 'count'=>$draftCount],
-                ['key'=>'pending', 'label'=>'قيد المراجعة', 'count'=>$pendingCount],
-                ['key'=>'accepted', 'label'=>'مقبولة', 'count'=>$acceptedCount],
-                ['key'=>'rejected', 'label'=>'مرفوضة', 'count'=>$rejectedCount],
+                ['key'=>null, 'label'=>__('ui.all'), 'count'=>$totalCount],
+                ['key'=>'draft', 'label'=>__('ui.drafts'), 'count'=>$draftCount],
+                ['key'=>'pending', 'label'=>__('ui.pending'), 'count'=>$pendingCount],
+                ['key'=>'accepted', 'label'=>__('ui.accepted'), 'count'=>$acceptedCount],
+                ['key'=>'rejected', 'label'=>__('ui.rejected'), 'count'=>$rejectedCount],
             ];
         @endphp
         @foreach($tabs as $tab)
@@ -79,24 +74,24 @@
                 @endif
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                     <div>
-                        <label class="block text-xs font-bold text-[#525252] mb-1.5">تاريخ الملاحظة</label>
+                        <label class="block text-xs font-bold text-[#525252] mb-1.5">{{ __('ui.filter_date') }}</label>
                         <input type="date" name="date" value="{{ request('date') }}" class="w-full rounded-lg border border-[#e6e9e1] bg-white py-2 px-3 text-sm text-ink-800 focus:border-[#0e6a38] focus:ring-2 focus:ring-[#0e6a38]/10 outline-none transition">
                     </div>
                     <div>
-                        <label class="block text-xs font-bold text-[#525252] mb-1.5">رقم الطابق</label>
-                        <input type="number" name="floor_number" value="{{ request('floor_number') }}" min="1" placeholder="مثال: 3" class="w-full rounded-lg border border-[#e6e9e1] bg-white py-2 px-3 text-sm text-ink-800 placeholder:text-ink-300 focus:border-[#0e6a38] focus:ring-2 focus:ring-[#0e6a38]/10 outline-none transition">
+                        <label class="block text-xs font-bold text-[#525252] mb-1.5">{{ __('ui.floor') }}</label>
+                        <input type="number" name="floor_number" value="{{ request('floor_number') }}" min="1" placeholder="3" class="w-full rounded-lg border border-[#e6e9e1] bg-white py-2 px-3 text-sm text-ink-800 placeholder:text-ink-300 focus:border-[#0e6a38] focus:ring-2 focus:ring-[#0e6a38]/10 outline-none transition">
                     </div>
                     <div>
-                        <label class="block text-xs font-bold text-[#525252] mb-1.5">رقم الكاميرا</label>
-                        <input type="number" name="camera_number" value="{{ request('camera_number') }}" min="1" placeholder="مثال: 12" class="w-full rounded-lg border border-[#e6e9e1] bg-white py-2 px-3 text-sm text-ink-800 placeholder:text-ink-300 focus:border-[#0e6a38] focus:ring-2 focus:ring-[#0e6a38]/10 outline-none transition">
+                        <label class="block text-xs font-bold text-[#525252] mb-1.5">{{ __('ui.camera') }}</label>
+                        <input type="number" name="camera_number" value="{{ request('camera_number') }}" min="1" placeholder="12" class="w-full rounded-lg border border-[#e6e9e1] bg-white py-2 px-3 text-sm text-ink-800 placeholder:text-ink-300 focus:border-[#0e6a38] focus:ring-2 focus:ring-[#0e6a38]/10 outline-none transition">
                     </div>
                 </div>
                 <div class="flex gap-2 items-end mt-3">
                         <button type="submit" class="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg bg-[#0e6a38] hover:bg-[#0a4d28] text-white font-bold text-sm py-2 transition">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                            تطبيق
+                            {{ __('ui.apply') }}
                         </button>
-                        <a href="{{ route('notes.my', request()->has('status') ? ['status' => request('status')] : []) }}" class="inline-flex items-center justify-center px-3 py-2 rounded-lg border border-[#e6e9e1] text-[#737373] font-medium text-sm hover:bg-[#f5f7f5] transition">مسح</a>
+                        <a href="{{ route('notes.my', request()->has('status') ? ['status' => request('status')] : []) }}" class="inline-flex items-center justify-center px-3 py-2 rounded-lg border border-[#e6e9e1] text-[#737373] font-medium text-sm hover:bg-[#f5f7f5] transition">{{ __('ui.clear') }}</a>
                     </div>
                 </div>
             </form>
@@ -110,22 +105,22 @@
         <div class="w-14 h-14 rounded-2xl bg-surface-100 flex items-center justify-center mx-auto">
             <svg class="w-7 h-7 text-ink-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
         </div>
-        <h3 class="mt-4 text-base font-bold text-ink-700">لا توجد ملاحظات</h3>
+        <h3 class="mt-4 text-base font-bold text-ink-700">{{ __('ui.no_notes') }}</h3>
         <p class="mt-1.5 text-sm text-[#737373] max-w-sm mx-auto">
             @if(request()->hasAny(['date','floor_number','camera_number']))
-                لا توجد نتائج مطابقة للبحث — جرّب تغيير معايير الفلترة.
+                {{ __('ui.no_matching_results') }}
             @elseif($isMonitor)
-                لم تُنشئ أي ملاحظات بعد. ابدأ بإنشاء أول ملاحظة ميدانية.
+                {{ __('ui.no_notes_created') }}
             @else
-                لا توجد ملاحظات قيد المراجعة حالياً.
+                {{ __('ui.no_pending_notes') }}
             @endif
         </p>
         <div class="mt-5 flex items-center justify-center gap-2">
             @if(request()->hasAny(['date','floor_number','camera_number']))
-                <a href="{{ route('notes.my', request()->has('status') ? ['status' => request('status')] : []) }}" class="px-4 py-2 rounded-lg border border-[#e6e9e1] text-[#525252] font-medium text-sm hover:bg-[#f5f7f5] transition">مسح الفلاتر</a>
+                <a href="{{ route('notes.my', request()->has('status') ? ['status' => request('status')] : []) }}" class="px-4 py-2 rounded-lg border border-[#e6e9e1] text-[#525252] font-medium text-sm hover:bg-[#f5f7f5] transition">{{ __('ui.clear_filters') }}</a>
             @endif
             @if($isMonitor)
-                <a href="{{ route('notes.create') }}" class="px-4 py-2 rounded-lg bg-[#0e6a38] text-white font-bold text-sm hover:bg-[#0a4d28] transition">+ ملاحظة جديدة</a>
+                <a href="{{ route('notes.create') }}" class="px-4 py-2 rounded-lg bg-[#0e6a38] text-white font-bold text-sm hover:bg-[#0a4d28] transition">{{ __('ui.create_first_note') }}</a>
             @endif
         </div>
     </div>
@@ -133,37 +128,30 @@
 
     <div class="bg-white rounded-xl border border-[#e6e9e1] shadow-sm overflow-hidden hidden sm:block">
 
-        <div class="grid grid-cols-[auto_1fr_auto_auto] gap-4 items-center px-5 py-2.5 bg-[#f5f7f5] border-b border-[#e6e9e1] text-xs font-bold text-ink-400">
-            <div class="w-20">#</div>
-            <div>الملاحظة</div>
-            <div class="w-28 text-center">الحالة</div>
-            <div class="w-36 text-center">إجراءات</div>
+        <div class="grid grid-cols-[1fr_auto_auto] gap-4 items-center px-5 py-2.5 bg-[#f5f7f5] border-b border-[#e6e9e1] text-xs font-bold text-ink-400">
+            <div>{{ __('ui.note_column') }}</div>
+            <div class="w-28 text-center">{{ __('ui.status_column') }}</div>
+            <div class="w-36 text-center">{{ __('ui.actions_column') }}</div>
         </div>
 
         @foreach($notes as $note)
-            <div class="note-row grid grid-cols-[auto_1fr_auto_auto] gap-4 items-center px-5 py-3.5 border-b border-surface-300 last:border-b-0 cursor-pointer" onclick="openModal('detail-{{ $note->id }}')">
-
-                <div class="w-20">
-                    <span class="text-sm font-bold text-[#737373] font-mono">#{{ str_pad($note->id, 4, '0', STR_PAD_LEFT) }}</span>
-                </div>
+            <div class="note-row grid grid-cols-[1fr_auto_auto] gap-4 items-center px-5 py-3.5 border-b border-surface-300 last:border-b-0 cursor-pointer hover:bg-surface-50 transition-colors" onclick="openModal('detail-{{ $note->id }}')" data-i18n-entity="note" data-i18n-id="{{ $note->id }}">
 
 
                 <div class="min-w-0">
                     <div class="flex items-center gap-2 flex-wrap">
                         <span class="inline-flex items-center gap-1 text-sm font-bold text-ink-800">
                             <svg class="w-3.5 h-3.5 text-[#0e6a38]" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
-                            كاميرا {{ $note->camera_number }}
+                            {{ __('ui.camera_floor_format', ['camera' => $note->camera_number, 'floor' => $note->floor_number]) }}
                         </span>
-                        <span class="text-ink-200">·</span>
-                        <span class="text-sm text-[#525252]">الطابق {{ $note->floor_number }}</span>
                         <span class="text-ink-200">·</span>
                         <span class="text-sm text-[#737373]">{{ $note->observed_at->toTime12() }}{{ $note->observed_end_at ? ' — '.$note->observed_end_at->toTime12() : '' }}</span>
                         <span class="text-ink-200">·</span>
                         <span class="text-sm text-[#737373]">{{ $note->created_at->diffForHumans() }}</span>
                         <span class="hidden md:inline text-ink-200">·</span>
-                        <span class="hidden md:inline text-[11px] text-[#737373]/80 font-mono" dir="ltr" title="وقت الإنشاء">{{ $note->created_at->format('Y-m-d H:i') }}</span>
+                        <span class="hidden md:inline text-[11px] text-[#737373]/80 font-mono" dir="ltr" title="{{ __('ui.created_time') }}">{{ $note->created_at->format('Y-m-d H:i') }}</span>
                     </div>
-                    <p class="mt-1 text-sm text-[#737373] line-clamp-1 leading-relaxed">{{ \Illuminate\Support\Str::limit($note->description, 120) }}</p>
+                    <p class="mt-1 text-sm text-[#737373] line-clamp-1 leading-relaxed" data-i18n-field="description">{{ \Illuminate\Support\Str::limit(l10n_text('note', $note->id, 'description', $note->description), 120) }}</p>
                     <div class="mt-1.5 flex items-center gap-2 text-xs text-ink-300">
                         <a href="{{ route('profile.showUser', $note->owner->id) }}" onclick="event.stopPropagation()" class="inline-flex items-center gap-1.5 hover:opacity-80 hover:text-ink-700 transition">
                             @if($note->owner->avatar_url)
@@ -175,7 +163,7 @@
                         </a>
                         @if($note->attachments->count() > 0)
                             <span class="text-ink-200">·</span>
-                            <span class="inline-flex items-center gap-1"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>{{ $note->attachments->count() }} مرفق</span>
+                            <span class="inline-flex items-center gap-1"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>{{ __('ui.attachment_count', ['count' => $note->attachments->count()]) }}</span>
                         @endif
                     </div>
                 </div>
@@ -184,19 +172,19 @@
                 <div class="w-28 flex justify-center">
                     @if($note->isDraft())
                         <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-ink-100 text-ink-600">
-                            <span class="w-1.5 h-1.5 rounded-full bg-ink-300"></span>مسودة
+                            <span class="w-1.5 h-1.5 rounded-full bg-ink-300"></span>{{ __('ui.draft_status') }}
                         </span>
                     @elseif($note->isPending())
                         <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                            <span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>قيد المراجعة
+                            <span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>{{ __('ui.pending_status') }}
                         </span>
                     @elseif($note->isAccepted())
                         <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-sage-50 text-sage-700 border border-sage-200">
-                            <span class="w-1.5 h-1.5 rounded-full bg-sage-600"></span>مقبولة
+                            <span class="w-1.5 h-1.5 rounded-full bg-sage-600"></span>{{ __('ui.accepted_status') }}
                         </span>
                     @elseif($note->isRejected())
                         <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-red-50 text-red-700 border border-red-200">
-                            <span class="w-1.5 h-1.5 rounded-full bg-red-400"></span>مرفوضة
+                            <span class="w-1.5 h-1.5 rounded-full bg-red-400"></span>{{ __('ui.rejected_status') }}
                         </span>
                     @endif
                 </div>
@@ -205,13 +193,13 @@
                 <div class="w-36 flex justify-center" onclick="event.stopPropagation()">
                 @if(!$note->isRejected() && $note->owner->whatsapp_number)
                     @php
-                        $statusLabel = $note->isDraft() ? 'مسودة' : ($note->isPending() ? 'قيد المراجعة' : 'مقبولة');
-                        $shareText = "ملاحظة #".str_pad($note->id, 4, '0', STR_PAD_LEFT)."\n";
-                        $shareText .= "الطابق: {$note->floor_number} — الكاميرا: {$note->camera_number}\n";
-                        $shareText .= "الملاحظة: ".$note->observed_at->toDatetime12();
+                        $statusLabel = status_label($note->status);
+                        $shareText = "";
+                        $shareText .= __('ui.floor').": {$note->floor_number} — ".__('ui.camera').": {$note->camera_number}\n";
+                        $shareText .= __('ui.note_time').": ".$note->observed_at->toDatetime12();
                         if($note->observed_end_at) $shareText .= ' — '.$note->observed_end_at->toTime12();
-                        $shareText .= "\n".$note->description;
-                        $shareText .= "\nالحالة: ".$statusLabel;
+                        $shareText .= "\n".l10n_text('note', $note->id, 'description', $note->description);
+                        $shareText .= "\n".__('ui.status').": ".$statusLabel;
                         $shareAttachments = $note->attachments->map(fn($a) => ['id'=>$a->id, 'name'=>$a->original_name, 'mime'=>$a->mime_type, 'url'=>'/s/attachments/'.$a->id])->toArray();
                     @endphp
                     <button type="button" onclick='openShareModal(@json($shareText), @json($shareAttachments), "{{ $note->owner->whatsapp_number }}")' class="px-3 py-1.5 rounded-lg bg-[#25D366] text-white text-xs font-bold hover:bg-[#1da851] transition inline-flex items-center gap-1">
@@ -220,34 +208,34 @@
                 @endif
                     @if($isMonitor && $note->user_id === $userId && $note->isDraft())
                         <div class="flex items-center gap-1.5">
-                            <a href="{{ route('notes.edit', $note) }}" class="px-3 py-1.5 rounded-lg bg-surface-50 border border-surface-300 text-ink-600 text-xs font-bold hover:bg-surface-100 transition">تعديل</a>
+                            <a href="{{ route('notes.edit', $note) }}" class="px-3 py-1.5 rounded-lg bg-surface-50 border border-surface-300 text-ink-600 text-xs font-bold hover:bg-surface-100 transition">{{ __('ui.edit_btn') }}</a>
                             <form method="POST" action="{{ route('notes.send', $note) }}" class="inline" data-ajax data-note-id="{{ $note->id }}">
                                 @csrf
-                                <button type="submit" class="px-3 py-1.5 rounded-lg bg-sage-600 text-white text-xs font-bold hover:bg-sage-700 transition">إرسال</button>
+                                <button type="submit" class="px-3 py-1.5 rounded-lg bg-sage-600 text-white text-xs font-bold hover:bg-sage-700 transition">{{ __('ui.send_btn') }}</button>
                             </form>
                         </div>
                     @elseif($isMonitor && $note->user_id === $userId && $note->isPending())
-                        <a href="{{ route('notes.edit', $note) }}" class="px-3 py-1.5 rounded-lg bg-surface-50 border border-surface-300 text-ink-600 text-xs font-bold hover:bg-surface-100 transition">تعديل</a>
+                        <a href="{{ route('notes.edit', $note) }}" class="px-3 py-1.5 rounded-lg bg-surface-50 border border-surface-300 text-ink-600 text-xs font-bold hover:bg-surface-100 transition">{{ __('ui.edit_btn') }}</a>
                     @elseif($isMonitor && $note->user_id === $userId && $note->isRejected())
                         <div class="flex items-center gap-1.5">
-                            <a href="{{ route('notes.edit', $note) }}" class="px-3 py-1.5 rounded-lg bg-ink-800 text-white text-xs font-bold hover:bg-ink-900 transition">تصحيح</a>
+                            <a href="{{ route('notes.edit', $note) }}" class="px-3 py-1.5 rounded-lg bg-ink-800 text-white text-xs font-bold hover:bg-ink-900 transition">{{ __('ui.fix_btn') }}</a>
                             <form method="POST" action="{{ route('notes.resend', $note) }}" class="inline" data-ajax data-note-id="{{ $note->id }}">
                                 @csrf
-                                <button type="submit" class="px-3 py-1.5 rounded-lg bg-amber-500 text-white text-xs font-bold hover:bg-amber-600 transition">إعادة إرسال</button>
+                                <button type="submit" class="px-3 py-1.5 rounded-lg bg-amber-500 text-white text-xs font-bold hover:bg-amber-600 transition">{{ __('ui.resend_btn') }}</button>
                             </form>
                         </div>
                     @elseif($isWriter && $note->isPending())
                         <div class="flex items-center gap-1.5">
                             <form method="POST" action="{{ route('notes.accept', $note) }}" class="inline" data-ajax data-note-id="{{ $note->id }}">
                                 @csrf
-                                <button type="submit" class="px-3 py-1.5 rounded-lg bg-sage-600 text-white text-xs font-bold hover:bg-sage-700 transition">قبول</button>
+                                <button type="submit" class="px-3 py-1.5 rounded-lg bg-sage-600 text-white text-xs font-bold hover:bg-sage-700 transition">{{ __('ui.accept_btn') }}</button>
                             </form>
-                            <button type="button" onclick="openModal('reject-{{ $note->id }}')" class="px-3 py-1.5 rounded-lg bg-red-500 text-white text-xs font-bold hover:bg-red-600 transition">رفض</button>
+                            <button type="button" onclick="openModal('reject-{{ $note->id }}')" class="px-3 py-1.5 rounded-lg bg-red-500 text-white text-xs font-bold hover:bg-red-600 transition">{{ __('ui.reject_btn') }}</button>
                         </div>
                     @elseif($note->isAccepted())
                         <span class="inline-flex items-center gap-1 text-xs font-bold text-sage-600">
                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
-                            مُعتمدة
+                            {{ __('ui.approved_badge') }}
                         </span>
                     @endif
                 </div>
@@ -258,30 +246,27 @@
 
     <div class="sm:hidden space-y-3">
         @foreach($notes as $note)
-            <div class="bg-white rounded-xl border border-[#e6e9e1] shadow-sm p-4 hover:shadow-md hover:border-[#d4ddd3] transition" onclick="openModal('detail-{{ $note->id }}')" role="button">
+            <div class="bg-white rounded-xl border border-[#e6e9e1] shadow-sm p-4 hover:shadow-md hover:border-[#d4ddd3] transition" onclick="openModal('detail-{{ $note->id }}')" role="button" data-i18n-entity="note" data-i18n-id="{{ $note->id }}">
                 <div class="flex items-start justify-between gap-2 mb-2">
                     <div class="flex items-center gap-2">
-                        <span class="text-xs font-bold text-[#737373] font-mono">#{{ str_pad($note->id, 4, '0', STR_PAD_LEFT) }}</span>
                         @if($note->isDraft())
-                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-ink-100 text-[#525252]">مسودة</span>
+                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-ink-100 text-[#525252]"><span data-status="draft">{{ __('ui.draft') }}</span></span>
                         @elseif($note->isPending())
-                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200">قيد المراجعة</span>
+                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200"><span data-status="pending">{{ __('ui.pending') }}</span></span>
                         @elseif($note->isAccepted())
-                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-[#eef4f0] text-[#0e6a38] border border-[#cde7d6]">مقبولة</span>
+                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-[#eef4f0] text-[#0e6a38] border border-[#cde7d6]"><span data-status="accepted">{{ __('ui.accepted') }}</span></span>
                         @elseif($note->isRejected())
-                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-red-50 text-red-700 border border-red-200">مرفوضة</span>
+                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-red-50 text-red-700 border border-red-200"><span data-status="rejected">{{ __('ui.rejected') }}</span></span>
                         @endif
                     </div>
                     <span class="text-xs text-ink-300">{{ $note->observed_at->toTime12() }}{{ $note->observed_end_at ? ' — '.$note->observed_end_at->toTime12() : '' }}</span>
                 </div>
                 <div class="flex items-center gap-2 text-sm text-ink-600 mb-1.5">
-                    <span class="font-semibold">كاميرا {{ $note->camera_number }}</span>
+                    <span class="font-semibold">{{ __('ui.camera_floor_format', ['camera' => $note->camera_number, 'floor' => $note->floor_number]) }}</span>
                     <span class="text-ink-200">·</span>
-                    <span>الطابق {{ $note->floor_number }}</span>
-                    <span class="text-ink-200">·</span>
-                    <span class="text-[11px] text-ink-400/80 font-mono" dir="ltr" title="وقت الإنشاء: {{ $note->created_at->format('Y-m-d H:i') }}">{{ $note->created_at->format('Y-m-d') }}</span>
+                    <span class="text-[11px] text-ink-400/80 font-mono" dir="ltr" title="{{ __('ui.created_at_label') }}: {{ $note->created_at->format('Y-m-d H:i') }}">{{ $note->created_at->format('Y-m-d') }}</span>
                 </div>
-                <p class="text-sm text-[#737373] line-clamp-2 leading-relaxed">{{ \Illuminate\Support\Str::limit($note->description, 100) }}</p>
+                <p class="text-sm text-[#737373] line-clamp-2 leading-relaxed" data-i18n-field="description">{{ \Illuminate\Support\Str::limit(l10n_text('note', $note->id, 'description', $note->description), 100) }}</p>
                 <div class="mt-2.5 flex items-center justify-between">
                     <div class="flex items-center gap-2 text-xs text-ink-300">
                         <a href="{{ route('profile.showUser', $note->owner->id) }}" onclick="event.stopPropagation()" class="inline-flex items-center gap-1 hover:opacity-80 hover:text-ink-700 transition">
@@ -294,45 +279,45 @@
                         </a>
                         @if($note->attachments->count() > 0)
                             <span class="text-ink-200">·</span>
-                            <span>📎 {{ $note->attachments->count() }}</span>
+                            <span class="inline-flex items-center gap-1"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>{{ __('ui.attachment_count', ['count' => $note->attachments->count()]) }}</span>
                         @endif
                     </div>
                     <div onclick="event.stopPropagation()">
                         @if(!$note->isRejected() && $note->owner->whatsapp_number)
-                            @php
-                                $statusLabel = $note->isDraft() ? 'مسودة' : ($note->isPending() ? 'قيد المراجعة' : 'مقبولة');
-                                $shareText = "ملاحظة #".str_pad($note->id, 4, '0', STR_PAD_LEFT)."\n";
-                                $shareText .= "الطابق: {$note->floor_number} — الكاميرا: {$note->camera_number}\n";
-                                $shareText .= "الملاحظة: ".$note->observed_at->toDatetime12();
-                                if($note->observed_end_at) $shareText .= ' — '.$note->observed_end_at->toTime12();
-                                $shareText .= "\n".$note->description;
-                                $shareText .= "\nالحالة: ".$statusLabel;
-                                $shareAttachments = $note->attachments->map(fn($a) => ['id'=>$a->id, 'name'=>$a->original_name, 'mime'=>$a->mime_type, 'url'=>'/s/attachments/'.$a->id])->toArray();
-                            @endphp
+@php
+                        $statusLabel = $note->isDraft() ? __('ui.draft_status') : ($note->isPending() ? __('ui.pending_status') : __('ui.accepted_status'));
+                        $shareText = "";
+                        $shareText .= __('ui.floor_label').": {$note->floor_number} — ".__('ui.camera_label').": {$note->camera_number}\n";
+                        $shareText .= __('ui.note_time').": ".$note->observed_at->toDatetime12();
+                        if($note->observed_end_at) $shareText .= ' — '.$note->observed_end_at->toTime12();
+                        $shareText .= "\n".l10n_text('note', $note->id, 'description', $note->description);
+                        $shareText .= "\n".__('ui.status').": ".$statusLabel;
+                        $shareAttachments = $note->attachments->map(fn($a) => ['id'=>$a->id, 'name'=>$a->original_name, 'mime'=>$a->mime_type, 'url'=>'/s/attachments/'.$a->id])->toArray();
+                    @endphp
                             <button type="button" onclick='openShareModal(@json($shareText), @json($shareAttachments), "{{ $note->owner->whatsapp_number }}")' class="px-2.5 py-1 rounded-lg bg-[#25D366] text-white text-xs font-bold inline-flex items-center gap-1">
                                 <svg class="w-3 h-3" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
                             </button>
                         @endif
                         @if($isMonitor && $note->user_id === $userId && $note->isDraft())
                             <div class="flex items-center gap-1.5">
-                                <a href="{{ route('notes.edit', $note) }}" class="px-2.5 py-1 rounded-lg bg-[#fdfcfa] border border-[#e6e9e1] text-[#525252] text-xs font-bold">تعديل</a>
+                                <a href="{{ route('notes.edit', $note) }}" class="px-2.5 py-1 rounded-lg bg-[#fdfcfa] border border-[#e6e9e1] text-[#525252] text-xs font-bold">{{ __('ui.edit_btn') }}</a>
                                 <form method="POST" action="{{ route('notes.send', $note) }}" class="inline" data-ajax data-note-id="{{ $note->id }}">@csrf
-                                    <button type="submit" class="px-2.5 py-1 rounded-lg bg-[#0e6a38] text-white text-xs font-bold">إرسال</button>
+                                    <button type="submit" class="px-2.5 py-1 rounded-lg bg-[#0e6a38] text-white text-xs font-bold">{{ __('ui.send_btn') }}</button>
                                 </form>
                             </div>
                         @elseif($isMonitor && $note->user_id === $userId && $note->isRejected())
                             <div class="flex items-center gap-1.5">
-                                <a href="{{ route('notes.edit', $note) }}" class="px-2.5 py-1 rounded-lg bg-ink-800 text-white text-xs font-bold">تصحيح</a>
+                                <a href="{{ route('notes.edit', $note) }}" class="px-2.5 py-1 rounded-lg bg-ink-800 text-white text-xs font-bold">{{ __('ui.fix_btn') }}</a>
                                 <form method="POST" action="{{ route('notes.resend', $note) }}" class="inline" data-ajax data-note-id="{{ $note->id }}">@csrf
-                                    <button type="submit" class="px-2.5 py-1 rounded-lg bg-amber-500 text-white text-xs font-bold">إعادة</button>
+                                    <button type="submit" class="px-2.5 py-1 rounded-lg bg-amber-500 text-white text-xs font-bold">{{ __('ui.resend_btn') }}</button>
                                 </form>
                             </div>
                         @elseif($isWriter && $note->isPending())
                             <div class="flex items-center gap-1.5">
                                 <form method="POST" action="{{ route('notes.accept', $note) }}" class="inline" data-ajax data-note-id="{{ $note->id }}">@csrf
-                                    <button type="submit" class="px-2.5 py-1 rounded-lg bg-[#0e6a38] text-white text-xs font-bold">قبول</button>
+                                    <button type="submit" class="px-2.5 py-1 rounded-lg bg-[#0e6a38] text-white text-xs font-bold">{{ __('ui.accept_btn') }}</button>
                                 </form>
-                                <button type="button" onclick="openModal('reject-{{ $note->id }}')" class="px-2.5 py-1 rounded-lg bg-red-500 text-white text-xs font-bold">رفض</button>
+                                <button type="button" onclick="openModal('reject-{{ $note->id }}')" class="px-2.5 py-1 rounded-lg bg-red-500 text-white text-xs font-bold">{{ __('ui.reject_btn') }}</button>
                             </div>
                         @endif
                     </div>
@@ -345,7 +330,7 @@
     @if($notes->hasPages())
         <div class="mt-5 flex flex-col sm:flex-row items-center justify-between gap-3">
             <div class="text-sm text-[#737373]">
-                عرض <span class="font-bold text-ink-700">{{ $notes->firstItem() ?? 0 }}–{{ $notes->lastItem() ?? 0 }}</span> من <span class="font-bold text-ink-700">{{ $notes->total() }}</span>
+                {{ __('ui.showing') }} <span class="font-bold text-ink-700">{{ $notes->firstItem() ?? 0 }}–{{ $notes->lastItem() ?? 0 }}</span> {{ __('ui.of') }} <span class="font-bold text-ink-700">{{ $notes->total() }}</span>
             </div>
             <div>{{ $notes->withQueryString()->links() }}</div>
         </div>
@@ -362,9 +347,9 @@
             'observed_date' => $note->observed_at->format('Y-m-d'),
             'observed_time_start' => $note->observed_at->toTime12(),
             'observed_time_end' => $note->observed_end_at ? $note->observed_end_at->toTime12() : '—',
-            'description' => $note->description,
+            'description' => l10n_text('note', $note->id, 'description', $note->description),
             'status' => $note->status,
-            'status_label' => $note->isDraft() ? 'مسودة' : ($note->isPending() ? 'قيد المراجعة' : ($note->isAccepted() ? 'مقبولة' : 'مرفوضة')),
+            'status_label' => status_label($note->status),
             'owner_name' => $note->owner->name,
             'attachments' => $note->attachments->map(fn($a) => [
                 'id' => $a->id,
@@ -375,7 +360,7 @@
             ])->toArray(),
         ];
     @endphp
-    <div id="detail-{{ $note->id }}" data-modal class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div id="detail-{{ $note->id }}" data-modal class="hidden fixed inset-0 z-50 flex items-center justify-center p-4" data-i18n-entity="note" data-i18n-id="{{ $note->id }}">
         <div class="absolute inset-0 bg-ink-900/40 backdrop-blur-sm" onclick="closeModal('detail-{{ $note->id }}')"></div>
         <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
 
@@ -392,33 +377,34 @@
                     </a>
                     <div class="min-w-0">
                         <div class="flex items-center gap-2 flex-wrap">
-                            <h2 class="text-base font-extrabold text-ink-800">ملاحظة #{{ str_pad($note->id, 4, '0', STR_PAD_LEFT) }}</h2>
+                            <h2 class="text-base font-extrabold text-ink-800">{{ __('ui.camera_floor_format', ['camera' => $note->camera_number, 'floor' => $note->floor_number]) }}</h2>
+                            <div class="mt-1">@include('notes.partials.translation_status', ['note' => $note])</div>
                             @if($note->isDraft())
-                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-ink-100 text-ink-600">مسودة</span>
+                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-ink-100 text-ink-600"><span data-status="draft">{{ __('ui.draft') }}</span></span>
                             @elseif($note->isPending())
-                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200">قيد المراجعة</span>
+                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200"><span data-status="pending">{{ __('ui.pending') }}</span></span>
                             @elseif($note->isAccepted())
-                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-sage-50 text-sage-700 border border-sage-200">مقبولة</span>
+                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-sage-50 text-sage-700 border border-sage-200"><span data-status="accepted">{{ __('ui.accepted') }}</span></span>
                             @elseif($note->isRejected())
-                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-red-50 text-red-700 border border-red-200">مرفوضة</span>
+                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-red-50 text-red-700 border border-red-200"><span data-status="rejected">{{ __('ui.rejected') }}</span></span>
                             @endif
                         </div>
-                        <div class="text-xs text-[#737373] mt-0.5"><a href="{{ route('profile.showUser', $note->owner->id) }}" onclick="event.stopPropagation()" class="hover:text-[#0e6a38] hover:underline transition">{{ $note->owner->name }}</a> — أُنشئت {{ $note->created_at->toDatetime12() }}</div>
+                        <div class="text-xs text-[#737373] mt-0.5"><a href="{{ route('profile.showUser', $note->owner->id) }}" onclick="event.stopPropagation()" class="hover:text-[#0e6a38] hover:underline transition">{{ $note->owner->name }}</a> — {{ __('ui.created_label') }} {{ $note->created_at->toDatetime12() }}</div>
                     </div>
                 </div>
                 <div class="flex items-center gap-2">
-                    <button type="button" onclick='openPrintModal(@json($notePrintData))' class="px-3 py-1.5 rounded-lg bg-[#0e6a38] hover:bg-[#0a4d28] text-white text-xs font-bold transition inline-flex items-center gap-1.5 shadow-sm" title="طباعة الملاحظة كوثيقة A4">
+                    <button type="button" onclick='openPrintModal(@json($notePrintData))' class="px-3 py-1.5 rounded-lg bg-[#0e6a38] hover:bg-[#0a4d28] text-white text-xs font-bold transition inline-flex items-center gap-1.5 shadow-sm" title="{{ __('ui.print_note_doc') }}">
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
                         </svg>
-                        <span>طباعة</span>
+                        <span>{{ __('ui.print_btn') }}</span>
                     </button>
-                    <a href="{{ route('notes.show', $note) }}" class="w-8 h-8 rounded-lg hover:bg-[#f5f7f5] flex items-center justify-center text-ink-400 hover:text-ink-700 transition" title="فتح صفحة التفاصيل المستقلة">
+                    <a href="{{ route('notes.show', $note) }}" class="w-8 h-8 rounded-lg hover:bg-[#f5f7f5] flex items-center justify-center text-ink-400 hover:text-ink-700 transition" title="{{ __('ui.view_details_aria') }}">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
                         </svg>
                     </a>
-                    <button type="button" onclick="closeModal('detail-{{ $note->id }}')" class="w-8 h-8 rounded-lg hover:bg-[#f5f7f5] flex items-center justify-center text-ink-300 hover:text-ink-700 transition shrink-0" aria-label="إغلاق">
+                    <button type="button" onclick="closeModal('detail-{{ $note->id }}')" class="w-8 h-8 rounded-lg hover:bg-[#f5f7f5] flex items-center justify-center text-ink-300 hover:text-ink-700 transition shrink-0" aria-label="{{ __('ui.close') }}">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
                     </button>
                 </div>
@@ -429,22 +415,22 @@
 
                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     <div class="rounded-xl bg-[#f5f7f5] border border-[#e6e9e1] p-3 text-center">
-                        <div class="text-[11px] font-bold text-ink-300 mb-1">رقم الكاميرا</div>
+                        <div class="text-[11px] font-bold text-ink-300 mb-1">{{ __('ui.camera') }}</div>
                         <div class="text-lg font-extrabold text-ink-800">{{ $note->camera_number }}</div>
                     </div>
                     <div class="rounded-xl bg-[#f5f7f5] border border-[#e6e9e1] p-3 text-center">
-                        <div class="text-[11px] font-bold text-ink-300 mb-1">الطابق</div>
+                        <div class="text-[11px] font-bold text-ink-300 mb-1">{{ __('ui.floor') }}</div>
                         <div class="text-lg font-extrabold text-ink-800">{{ $note->floor_number }}</div>
                     </div>
                     <div class="rounded-xl bg-[#f5f7f5] border border-[#e6e9e1] p-3 text-center">
-                        <div class="text-[11px] font-bold text-ink-300 mb-1">وقت الملاحظة</div>
+                        <div class="text-[11px] font-bold text-ink-300 mb-1">{{ __('ui.note_time') }}</div>
                         <div class="text-sm font-bold text-ink-800">{{ $note->observed_at->toTime12() }}{{ $note->observed_end_at ? ' — '.$note->observed_end_at->toTime12() : '' }}</div>
                         <div class="text-[11px] text-[#737373]">{{ $note->observed_at->format('Y-m-d') }}</div>
                     </div>
                     <div class="rounded-xl bg-[#f5f7f5] border border-[#e6e9e1] p-3 text-center">
-                        <div class="text-[11px] font-bold text-ink-300 mb-1">المرفقات</div>
+                        <div class="text-[11px] font-bold text-ink-300 mb-1">{{ __('ui.attachments') }}</div>
                         <div class="text-lg font-extrabold text-ink-800">{{ $note->attachments->count() }}</div>
-                        <div class="text-[11px] text-[#737373]">ملف</div>
+                        <div class="text-[11px] text-[#737373]">{{ __('ui.file_label') }}</div>
                     </div>
                 </div>
 
@@ -458,11 +444,11 @@
                         @endif
                     </a>
                     <div>
-                        <div class="text-[11px] font-bold text-ink-300">المُلاحظ</div>
+                        <div class="text-[11px] font-bold text-ink-300">{{ __('ui.observer') }}</div>
                         <a href="{{ route('profile.showUser', $note->owner->id) }}" onclick="event.stopPropagation()" class="text-sm font-bold text-ink-800 hover:text-[#0e6a38] transition">{{ $note->owner->name }}</a>
                     </div>
                     <div class="mr-auto text-left">
-                        <div class="text-[11px] font-bold text-ink-300">تاريخ الإنشاء</div>
+                        <div class="text-[11px] font-bold text-ink-300">{{ __('ui.created_at') }}</div>
                         <div class="text-xs font-medium text-[#525252]">{{ $note->created_at->toDatetime12() }}</div>
                     </div>
                 </div>
@@ -471,9 +457,9 @@
                 <div>
                     <h3 class="text-sm font-bold text-ink-700 mb-2 flex items-center gap-2">
                         <svg class="w-4 h-4 text-[#0e6a38]" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                        وصف الملاحظة
+                        {{ __('ui.note_desc') }}
                     </h3>
-                    <div class="p-4 rounded-xl bg-[#f5f7f5] border border-[#e6e9e1] text-sm leading-[1.9] text-ink-700 whitespace-pre-wrap break-words">{{ $note->description }}</div>
+                    <div class="p-4 rounded-xl bg-[#f5f7f5] border border-[#e6e9e1] text-sm leading-[1.9] text-ink-700 whitespace-pre-wrap break-words" data-i18n-field="description">{{ l10n_text('note', $note->id, 'description', $note->description) }}</div>
                 </div>
 
 
@@ -481,11 +467,11 @@
                     <div class="p-4 rounded-xl bg-red-50 border border-red-200">
                         <h3 class="text-sm font-bold text-red-700 mb-2 flex items-center gap-2">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                            سبب الرفض
+                            {{ __('ui.reject_reason') }}
                         </h3>
-                        <p class="text-sm leading-7 text-red-600">{{ $note->rejection_reason }}</p>
+                        <p class="text-sm leading-7 text-red-600" data-i18n-field="rejection_reason">{{ l10n_text('note', $note->id, 'rejection_reason', $note->rejection_reason) }}</p>
                         @if($note->processor)
-                            <div class="mt-2 text-xs font-bold text-red-500">بواسطة {{ $note->processor->name }} — {{ $note->processed_at?->toDatetime12() }}</div>
+                            <div class="mt-2 text-xs font-bold text-red-500">{{ __('ui.by_user') }} {{ $note->processor->name }} — {{ $note->processed_at?->toDatetime12() }}</div>
                         @endif
                     </div>
                 @endif
@@ -495,7 +481,7 @@
                     <div>
                         <h3 class="text-sm font-bold text-ink-700 mb-2 flex items-center gap-2">
                             <svg class="w-4 h-4 text-[#0e6a38]" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
-                            المرفقات ({{ $note->attachments->count() }})
+                            {{ __('ui.attachments_section', ['count' => $note->attachments->count()]) }}
                         </h3>
                         <div class="space-y-2">
                             @foreach($note->attachments as $attachment)
@@ -516,10 +502,10 @@
                                     <div class="flex items-center gap-1.5 shrink-0">
                                         <button type="button" onclick="openAttachmentView('{{ route('notes.attachments.view', $attachment) }}', '{{ $attachment->mime_type }}', '{{ addslashes($attachment->original_name) }}')" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-[#e6e9e1] text-ink-700 text-xs font-bold hover:bg-[#f5f7f5] hover:border-[#d4ddd3] transition">
                                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-                                            عرض
+                                            {{ __('ui.view_attachment') }}
                                         </button>
                                         @if(auth()->user()->isReportWriter())
-                                            <a href="{{ route('notes.attachments.download', $attachment) }}" class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#0e6a38] text-white text-xs font-bold hover:bg-[#0a4d28] transition" title="تنزيل (للمدير فقط)">
+                                            <a href="{{ route('notes.attachments.download', $attachment) }}" class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#0e6a38] text-white text-xs font-bold hover:bg-[#0a4d28] transition" title="{{ __('ui.download_manager_only') }}">
                                                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                                             </a>
                                         @endif
@@ -535,7 +521,7 @@
                     <div class="p-3 rounded-xl bg-[#f5f7f5] border border-[#e6e9e1] flex items-center gap-3">
                         <div class="w-8 h-8 rounded-lg bg-[#eceee9] flex items-center justify-center text-xs font-bold text-[#525252]">{{ mb_substr($note->processor->name, 0, 1) }}</div>
                         <div>
-                            <div class="text-[11px] font-bold text-ink-300">{{ $note->isAccepted() ? 'تم الاعتماد بواسطة' : 'تم الرفض بواسطة' }}</div>
+                            <div class="text-[11px] font-bold text-ink-300">{{ $note->isAccepted() ? __('ui.approved_by') : __('ui.rejected_by') }}</div>
                             <div class="text-sm font-bold text-ink-700">{{ $note->processor->name }} — {{ $note->processed_at?->toDatetime12() }}</div>
                         </div>
                     </div>
@@ -546,57 +532,57 @@
             <div class="px-6 py-4 border-t border-[#e6e9e1] flex flex-wrap items-center gap-2 shrink-0 bg-[#f5f7f5]">
                 @if(!$note->isRejected() && $note->owner->whatsapp_number)
                     @php
-                        $statusLabel = $note->isDraft() ? 'مسودة' : ($note->isPending() ? 'قيد المراجعة' : 'مقبولة');
-                        $shareText = "ملاحظة #".str_pad($note->id, 4, '0', STR_PAD_LEFT)."\n";
-                        $shareText .= "الطابق: {$note->floor_number} — الكاميرا: {$note->camera_number}\n";
-                        $shareText .= "الملاحظة: ".$note->observed_at->toDatetime12();
+                        $statusLabel = status_label($note->status);
+                        $shareText = "";
+                        $shareText .= __('ui.floor').": {$note->floor_number} — ".__('ui.camera').": {$note->camera_number}\n";
+                        $shareText .= __('ui.note_time').": ".$note->observed_at->toDatetime12();
                         if($note->observed_end_at) $shareText .= ' — '.$note->observed_end_at->toTime12();
-                        $shareText .= "\n".$note->description;
-                        $shareText .= "\nالحالة: ".$statusLabel;
+                        $shareText .= "\n".l10n_text('note', $note->id, 'description', $note->description);
+                        $shareText .= "\n".__('ui.status').": ".$statusLabel;
                         $shareAttachments = $note->attachments->map(fn($a) => ['id'=>$a->id, 'name'=>$a->original_name, 'mime'=>$a->mime_type, 'url'=>'/s/attachments/'.$a->id])->toArray();
                     @endphp
                     <button type="button" onclick='openShareModal(@json($shareText), @json($shareAttachments), "{{ $note->owner->whatsapp_number }}")' class="px-4 py-2 rounded-lg bg-[#25D366] text-white text-sm font-bold hover:bg-[#1da851] transition inline-flex items-center gap-1.5">
                         <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-                        واتساب
+                        {{ __('ui.share_whatsapp') }}
                     </button>
                 @endif
-                <button type="button" onclick='openPrintModal(@json($notePrintData))' class="px-3.5 py-2 rounded-lg bg-[#0e6a38] text-white text-sm font-bold hover:bg-[#0a4d28] transition inline-flex items-center gap-1.5 shadow-sm" title="طباعة الملاحظة كوثيقة رسمية A4">
+                <button type="button" onclick='openPrintModal(@json($notePrintData))' class="px-3.5 py-2 rounded-lg bg-[#0e6a38] text-white text-sm font-bold hover:bg-[#0a4d28] transition inline-flex items-center gap-1.5 shadow-sm" title="{{ __('ui.print_note_doc') }}">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
                     </svg>
-                    <span>طباعة الملاحظة</span>
+                    <span>{{ __('ui.print') }}</span>
                 </button>
                 @if($isMonitor && $note->user_id === $userId && $note->isDraft())
-                    <a href="{{ route('notes.edit', $note) }}" class="px-4 py-2 rounded-lg border border-[#e6e9e1] text-ink-600 text-sm font-bold hover:bg-white transition">تعديل</a>
+                    <a href="{{ route('notes.edit', $note) }}" class="px-4 py-2 rounded-lg border border-[#e6e9e1] text-ink-600 text-sm font-bold hover:bg-white transition">{{ __('ui.edit_btn') }}</a>
                     <form method="POST" action="{{ route('notes.send', $note) }}" class="inline">@csrf
-                        <button type="submit" class="px-4 py-2 rounded-lg bg-[#0e6a38] text-white text-sm font-bold hover:bg-[#0a4d28] transition">إرسال للمراجعة</button>
+                        <button type="submit" class="px-4 py-2 rounded-lg bg-[#0e6a38] text-white text-sm font-bold hover:bg-[#0a4d28] transition">{{ __('ui.send_review') }}</button>
                     </form>
-                    <form method="POST" action="{{ route('notes.destroy', $note) }}" class="inline mr-auto" onsubmit="return confirm('هل أنت متأكد من الحذف؟')">
+                    <form method="POST" action="{{ route('notes.destroy', $note) }}" class="inline mr-auto" onsubmit="return confirm('{{ __('ui.confirm_delete') }}')">
                         @csrf @method('DELETE')
-                        <button type="submit" class="px-4 py-2 rounded-lg border border-red-200 text-red-600 text-sm font-bold hover:bg-red-50 transition">حذف</button>
+                        <button type="submit" class="px-4 py-2 rounded-lg border border-red-200 text-red-600 text-sm font-bold hover:bg-red-50 transition">{{ __('ui.delete') }}</button>
                     </form>
                 @elseif($isMonitor && $note->user_id === $userId && $note->isPending())
-                    <a href="{{ route('notes.edit', $note) }}" class="px-4 py-2 rounded-lg border border-[#e6e9e1] text-ink-600 text-sm font-bold hover:bg-white transition">تعديل</a>
-                    <span class="mr-auto text-xs font-bold text-amber-600 flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>بانتظار القرار</span>
+                    <a href="{{ route('notes.edit', $note) }}" class="px-4 py-2 rounded-lg border border-[#e6e9e1] text-ink-600 text-sm font-bold hover:bg-white transition">{{ __('ui.edit_btn') }}</a>
+                    <span class="mr-auto text-xs font-bold text-amber-600 flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>{{ __('ui.awaiting_decision') }}</span>
                 @elseif($isMonitor && $note->user_id === $userId && $note->isRejected())
-                    <a href="{{ route('notes.edit', $note) }}" class="px-4 py-2 rounded-lg bg-ink-800 text-white text-sm font-bold hover:bg-ink-900 transition">تصحيح وإعادة إرسال</a>
+                    <a href="{{ route('notes.edit', $note) }}" class="px-4 py-2 rounded-lg bg-ink-800 text-white text-sm font-bold hover:bg-ink-900 transition">{{ __('ui.fix_resend') }}</a>
                     <form method="POST" action="{{ route('notes.resend', $note) }}" class="inline">
                         @csrf
-                        <button type="submit" class="px-4 py-2 rounded-lg bg-amber-500 text-white text-sm font-bold hover:bg-amber-600 transition">إعادة الإرسال الآن</button>
+                        <button type="submit" class="px-4 py-2 rounded-lg bg-amber-500 text-white text-sm font-bold hover:bg-amber-600 transition">{{ __('ui.resend_btn') }}</button>
                     </form>
                 @elseif($isWriter && $note->isPending())
                     <form method="POST" action="{{ route('notes.accept', $note) }}" class="inline">
                         @csrf
-                        <button type="submit" class="px-4 py-2 rounded-lg bg-[#0e6a38] text-white text-sm font-bold hover:bg-[#0a4d28] transition">قبول واعتماد</button>
+                        <button type="submit" class="px-4 py-2 rounded-lg bg-[#0e6a38] text-white text-sm font-bold hover:bg-[#0a4d28] transition">{{ __('ui.accept_approve') }}</button>
                     </form>
-                    <button type="button" onclick="closeModal('detail-{{ $note->id }}');setTimeout(()=>openModal('reject-{{ $note->id }}'),200)" class="px-4 py-2 rounded-lg bg-red-500 text-white text-sm font-bold hover:bg-red-600 transition">رفض مع سبب</button>
+                    <button type="button" onclick="closeModal('detail-{{ $note->id }}');setTimeout(()=>openModal('reject-{{ $note->id }}'),200)" class="px-4 py-2 rounded-lg bg-red-500 text-white text-sm font-bold hover:bg-red-600 transition">{{ __('ui.reject_reason_btn') }}</button>
                 @elseif($note->isAccepted())
                     <span class="inline-flex items-center gap-1.5 text-sm font-bold text-[#0e6a38]">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
-                        مُعتمدة نهائياً
+                        {{ __('ui.approved_badge') }}
                     </span>
                 @endif
-                <button type="button" onclick="closeModal('detail-{{ $note->id }}')" class="mr-auto px-4 py-2 rounded-lg border border-[#e6e9e1] text-[#737373] text-sm font-medium hover:bg-white transition">إغلاق</button>
+                <button type="button" onclick="closeModal('detail-{{ $note->id }}')" class="mr-auto px-4 py-2 rounded-lg border border-[#e6e9e1] text-[#737373] text-sm font-medium hover:bg-white transition">{{ __('ui.close') }}</button>
             </div>
         </div>
     </div>
@@ -609,19 +595,17 @@
             <div class="absolute inset-0 bg-ink-900/40 backdrop-blur-sm" onclick="closeModal('reject-{{ $note->id }}')"></div>
             <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
                 <div class="px-6 py-4 border-b border-[#e6e9e1]">
-                    <h3 class="text-base font-extrabold text-ink-800">رفض الملاحظة #{{ str_pad($note->id, 4, '0', STR_PAD_LEFT) }}</h3>
-                    <p class="text-xs text-[#737373] mt-1">اكتب سبباً واضحاً لكي يتمكن المراقب من التصحيح.</p>
+                    <h3 class="text-base font-extrabold text-ink-800">{{ __('ui.reject_note_title') }}</h3>
                 </div>
                 <form method="POST" action="{{ route('notes.reject', $note) }}" class="p-6 space-y-4">
                     @csrf
                     <div>
-                        <label class="block text-sm font-bold text-ink-700 mb-2">سبب الرفض <span class="text-red-500">*</span></label>
-                        <textarea name="rejection_reason" rows="4" required maxlength="2000" class="w-full rounded-xl border border-[#e6e9e1] bg-white py-3 px-4 text-sm leading-6 text-ink-800 placeholder:text-ink-300 focus:border-red-400 focus:ring-2 focus:ring-red-400/10 outline-none transition resize-none" placeholder="مثال: الصورة غير واضحة — يرجى إعادة التصوير مع توضيح رقم الكاميرا..."></textarea>
-                        <div class="mt-1 text-xs text-ink-300">الحد الأقصى 2000 حرف</div>
+                        <label class="block text-sm font-bold text-ink-700 mb-2">{{ __('ui.reject_reason') }} <span class="text-red-500">*</span></label>
+                        <textarea name="rejection_reason" rows="4" required maxlength="2000" class="w-full rounded-xl border border-[#e6e9e1] bg-white py-3 px-4 text-sm leading-6 text-ink-800 placeholder:text-ink-300 focus:border-red-400 focus:ring-2 focus:ring-red-400/10 outline-none transition resize-none" placeholder="{{ __('ui.reject_reason_ph') }}"></textarea>
                     </div>
                     <div class="flex gap-3">
-                        <button type="button" onclick="closeModal('reject-{{ $note->id }}')" class="px-4 py-2.5 rounded-xl border border-[#e6e9e1] text-[#525252] font-bold text-sm hover:bg-[#f5f7f5] transition">إلغاء</button>
-                        <button type="submit" class="flex-1 px-4 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white font-bold text-sm transition">تأكيد الرفض</button>
+                        <button type="button" onclick="closeModal('reject-{{ $note->id }}')" class="px-4 py-2.5 rounded-xl border border-[#e6e9e1] text-[#525252] font-bold text-sm hover:bg-[#f5f7f5] transition">{{ __('ui.cancel') }}</button>
+                        <button type="submit" class="flex-1 px-4 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white font-bold text-sm transition">{{ __('ui.confirm_reject') }}</button>
                     </div>
                 </form>
             </div>
@@ -640,14 +624,14 @@
             </button>
         </div>
         <div class="flex-1 min-h-0 bg-ink-900 flex items-center justify-center p-4 overflow-auto">
-            <img id="attachment-view-image" class="hidden max-w-full max-h-[70vh] rounded-lg object-contain" oncontextmenu="return false;" draggable="false" alt="معاينة الصورة">
+            <img id="attachment-view-image" class="hidden max-w-full max-h-[70vh] rounded-lg object-contain" oncontextmenu="return false;" draggable="false" alt="{{ __('ui.preview_image_alt') }}">
             <video id="attachment-view-video" class="hidden max-w-full max-h-[70vh] rounded-lg" controls controlsList="nodownload" oncontextmenu="return false;" disablePictureInPicture></video>
             <audio id="attachment-view-audio" class="hidden w-full max-w-md" controls controlsList="nodownload" oncontextmenu="return false;"></audio>
-            <div id="attachment-view-fallback" class="hidden text-center text-white/70 text-sm">لا يمكن معاينة هذا النوع</div>
+            <div id="attachment-view-fallback" class="hidden text-center text-white/70 text-sm">{{ __('ui.preview_unsupported') }}</div>
         </div>
         <div class="px-4 py-3 border-t border-surface-300 bg-surface-50 flex items-center justify-between gap-3 shrink-0">
-            <p class="text-xs text-ink-400">العرض فقط — التنزيل لكاتب التقرير فقط</p>
-            <button type="button" onclick="closeModal('attachment-view-modal')" class="px-4 py-2 rounded-lg bg-white border border-surface-300 text-ink-600 text-sm font-bold hover:bg-surface-100 transition">إغلاق</button>
+            <p class="text-xs text-ink-400">{{ __('ui.view_only_download') }}</p>
+            <button type="button" onclick="closeModal('attachment-view-modal')" class="px-4 py-2 rounded-lg bg-white border border-surface-300 text-ink-600 text-sm font-bold hover:bg-surface-100 transition">{{ __('ui.close') }}</button>
         </div>
     </div>
 </div>
@@ -679,7 +663,7 @@ function openAttachmentView(url, mime, name){
         audio.load();
     } else {
         fallback.classList.remove('hidden');
-        fallback.textContent = 'لا يمكن معاينة هذا النوع — ' + mime;
+        fallback.textContent = @json(__('ui.preview_unsupported')) + ' — ' + mime;
     }
     modal.classList.remove('hidden');
     document.body.style.overflow='hidden';
@@ -695,6 +679,28 @@ document.addEventListener('contextmenu', e=>{
 });
 
 
+const SHARE_T = {
+    share: @json(__('ui.share')),
+    close: @json(__('ui.close')),
+    preparing: @json(__('ui.preparing')),
+    copying: @json(__('ui.copying')),
+    pickContent: @json(__('ui.share_pick_content')),
+    shareFailed: @json(__('ui.share_failed')),
+    audio: @json(__('ui.audio_clip')),
+    video: @json(__('ui.video_clip')),
+    image: @json(__('ui.image_single')),
+    other: @json(__('ui.attachment_alt')),
+    attachedFiles: @json(__('ui.attached_files')),
+    openWa: @json(__('ui.open_whatsapp_text')),
+    textLabel: @json(__('ui.text_label')),
+    copyText: @json(__('ui.copy_text')),
+    watchLinks: @json(__('ui.watch_links')),
+    copyLink: @json(__('ui.copy_link')),
+    copied: @json(__('ui.copied')),
+    copyFailed: @json(__('ui.copy_failed')),
+    copy: @json(__('ui.copy')),
+    of: @json(__('ui.of')),
+};
 function openShareModal(text, attachments, phone) {
     const modal = document.getElementById('share-modal');
     const textEl = document.getElementById('share-text');
@@ -734,7 +740,7 @@ function updateShareSelectedCount() {
     const allCbs = document.querySelectorAll('.share-file-cb');
     const countEl = document.getElementById('share-selected-count');
     const selectAllEl = document.getElementById('share-select-all');
-    if (countEl) countEl.textContent = cbs.length + ' من ' + allCbs.length;
+    if (countEl) countEl.textContent = cbs.length + ' ' + SHARE_T.of + ' ' + allCbs.length;
     if (selectAllEl) selectAllEl.checked = allCbs.length > 0 && cbs.length === allCbs.length;
 }
 function toggleShareSelectAll(cb) {
@@ -749,9 +755,9 @@ async function doShare() {
     const text = textEl ? textEl.value.trim() : '';
     const hasWebShare = !!navigator.share;
     btn.disabled = true;
-    btnText.textContent = hasWebShare ? 'جاري التجهيز...' : 'جاري النسخ...';
+    btnText.textContent = hasWebShare ? SHARE_T.preparing : SHARE_T.copying;
     btnLoader.classList.remove('hidden');
-    const finish = () => { btn.disabled = false; btnText.textContent = 'مشاركة'; btnLoader.classList.add('hidden'); };
+    const finish = () => { btn.disabled = false; btnText.textContent = SHARE_T.share; btnLoader.classList.add('hidden'); };
     const cbs = document.querySelectorAll('.share-file-cb:checked');
     const items = [];
     for (const cb of cbs) {
@@ -764,7 +770,7 @@ async function doShare() {
     }
     if (!text && items.length === 0) {
         finish();
-        alert('اختر رسالة أو وسائط للمشاركة');
+        window.toast(SHARE_T.pickContent);
         return;
     }
     if (hasWebShare) {
@@ -783,7 +789,7 @@ async function doShare() {
             await navigator.share(shareData);
             closeShareModal();
         } catch(e) {
-            if (e.name !== 'AbortError') alert('تعذرت المشاركة');
+            if (e.name !== 'AbortError') window.toast(SHARE_T.shareFailed);
         } finally {
             finish();
         }
@@ -793,12 +799,12 @@ async function doShare() {
         var counters={img:0,vid:0,aud:0,other:0};
         var shortName=function(it){
             var m=it.mime||'';
-            if(m.indexOf('audio/')===0) return 'مقطع صوتي '+ (++counters.aud);
-            if(m.indexOf('video/')===0) return 'فيديو '+ (++counters.vid);
-            if(m.indexOf('image/')===0) return 'صورة '+ (++counters.img);
-            return 'مرفق '+ (++counters.other);
+            if(m.indexOf('audio/')===0) return SHARE_T.audio + ' ' + (++counters.aud);
+            if(m.indexOf('video/')===0) return SHARE_T.video + ' ' + (++counters.vid);
+            if(m.indexOf('image/')===0) return SHARE_T.image + ' ' + (++counters.img);
+            return SHARE_T.other + ' ' + (++counters.other);
         };
-        const filesText = items.length ? '\n\n*الملفات المرفقة ('+items.length+')*\n' + items.map(function(it){ return shortName(it)+':\n\u200E'+shareBase()+it.url; }).join('\n\n') : '';
+        const filesText = items.length ? '\n\n*' + SHARE_T.attachedFiles + ' ('+items.length+')*\n' + items.map(function(it){ return shortName(it)+':\n\u200E'+shareBase()+it.url; }).join('\n\n') : '';
         const fullText = text + filesText;
         const waUrl = 'https://wa.me/?text=' + encodeURIComponent(fullText);
         if (waUrl) {
@@ -827,32 +833,32 @@ function showShareFallback(items, text) {
     const waUrl = text ? 'https://wa.me/?text=' + encodeURIComponent(text) : null;
     let html = '<div class="p-4 bg-[#f5f7f5] rounded-xl border border-[#e6e9e1] space-y-3">';
     if (waUrl) {
-        html += '<a href="' + waUrl + '" target="_blank" rel="noopener" class="block w-full text-center px-4 py-3 rounded-xl bg-[#25D366] text-white text-sm font-bold hover:bg-[#1da851] transition">فتح واتساب بالنص</a>';
+        html += '<a href="' + waUrl + '" target="_blank" rel="noopener" class="block w-full text-center px-4 py-3 rounded-xl bg-[#25D366] text-white text-sm font-bold hover:bg-[#1da851] transition">' + SHARE_T.openWa + '</a>';
     }
     if (text) {
-        html += '<div class="space-y-2"><label class="block text-xs font-bold text-ink-500">النص</label>';
+        html += '<div class="space-y-2"><label class="block text-xs font-bold text-ink-500">' + SHARE_T.textLabel + '</label>';
         html += '<textarea id="share-fallback-text" readonly class="w-full h-24 p-3 rounded-lg border border-[#e6e9e1] text-sm text-ink-700 bg-white" onclick="this.select()">' + escShareHtml(text) + '</textarea>';
-        html += '<button onclick="copyShareFallbackText()" id="share-fallback-copy" class="px-4 py-2 rounded-lg bg-[#0e6a38] text-white text-sm font-bold hover:bg-[#0a4d28] transition">نسخ النص</button>';
+        html += '<button onclick="copyShareFallbackText()" id="share-fallback-copy" class="px-4 py-2 rounded-lg bg-[#0e6a38] text-white text-sm font-bold hover:bg-[#0a4d28] transition">' + SHARE_T.copyText + '</button>';
         html += '</div>';
     }
     if (items.length > 0) {
-        html += '<div class="space-y-2 mt-3"><label class="block text-xs font-bold text-ink-500">روابط المشاهدة — دائمة (' + items.length + ')</label>';
+        html += '<div class="space-y-2 mt-3"><label class="block text-xs font-bold text-ink-500">' + SHARE_T.watchLinks + ' (' + items.length + ')</label>';
         items.forEach(it => {
             var absUrl = shareBase() + it.url;
             html += '<div class="p-2.5 rounded-xl border border-[#e6e9e1] bg-white space-y-2">';
-            html += '<div class="text-sm text-ink-700 font-bold truncate">📎 ' + escShareHtml(it.name) + '</div>';
+            html += '<div class="text-sm text-ink-700 font-bold truncate"><svg class="w-3.5 h-3.5 inline-block -mt-0.5 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>' + escShareHtml(it.name) + '</div>';
             html += '<div class="flex items-center gap-2"><input readonly onclick="this.select()" value="' + escShareHtml(absUrl) + '" dir="ltr" class="flex-1 min-w-0 text-xs font-mono text-ink-500 bg-[#f5f7f5] border border-[#e6e9e1] rounded-lg px-2 py-1.5">';
-            html += '<button data-url="' + escShareHtml(absUrl) + '" onclick="copyShareLink(this)" class="shrink-0 px-3 py-1.5 rounded-lg bg-[#0e6a38] text-white text-xs font-bold hover:bg-[#0a4d28] transition">نسخ الرابط</button></div></div>';
+            html += '<button data-url="' + escShareHtml(absUrl) + '" onclick="copyShareLink(this)" class="shrink-0 px-3 py-1.5 rounded-lg bg-[#0e6a38] text-white text-xs font-bold hover:bg-[#0a4d28] transition">' + SHARE_T.copyLink + '</button></div></div>';
         });
         html += '</div>';
     }
-    html += '</div><div class="mt-4 text-center"><button onclick="closeShareModal()" class="px-6 py-2.5 rounded-lg bg-white border border-[#e6e9e1] text-ink-600 text-sm font-bold hover:bg-[#f5f7f5] transition">إغلاق</button></div>';
+    html += '</div><div class="mt-4 text-center"><button onclick="closeShareModal()" class="px-6 py-2.5 rounded-lg bg-white border border-[#e6e9e1] text-ink-600 text-sm font-bold hover:bg-[#f5f7f5] transition">' + SHARE_T.close + '</button></div>';
     body.innerHTML = html;
 }
 function copyShareFallbackText() {
     const ta = document.getElementById('share-fallback-text');
     if (!ta) return;
-    copyShareValue(ta.value, 'share-fallback-copy', 'نسخ النص');
+    copyShareValue(ta.value, 'share-fallback-copy', SHARE_T.copyText);
 }
 function copyShareLink(btn) {
     if (!btn || !btn.dataset.url) return;
@@ -863,7 +869,7 @@ function copyShareValue(value, btnId, btnIdleText, btnEl) {
         const b = btnEl || (btnId ? document.getElementById(btnId) : null);
         if (!b) return;
         const orig = btnIdleText || b.textContent;
-        b.textContent = ok ? 'تم النسخ' : 'تعذر النسخ';
+        b.textContent = ok ? SHARE_T.copied : SHARE_T.copyFailed;
         setTimeout(() => { b.textContent = orig; }, 1500);
     };
     window.copyTextToClipboard(value).then(done);
@@ -872,8 +878,8 @@ function copyShareText() {
     const text = document.getElementById('share-text');
     window.copyTextToClipboard(text.value).then((ok) => {
         const btn = document.getElementById('share-copy-btn');
-        if (btn) btn.textContent = ok ? 'تم النسخ' : 'تعذر النسخ';
-        setTimeout(() => { if (btn) btn.textContent = 'نسخ'; }, 1500);
+        if (btn) btn.textContent = ok ? SHARE_T.copied : SHARE_T.copyFailed;
+        setTimeout(() => { if (btn) btn.textContent = SHARE_T.copy; }, 1500);
     });
 }
 
@@ -884,24 +890,24 @@ function copyShareText() {
     <div class="absolute inset-0 bg-ink-900/40 backdrop-blur-sm" onclick="closeShareModal()"></div>
     <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[85vh] flex flex-col overflow-hidden">
         <div class="px-5 py-4 border-b border-[#e6e9e1] flex items-center justify-between shrink-0">
-            <h3 class="text-base font-extrabold text-ink-800">مشاركة</h3>
-            <button onclick="closeShareModal()" class="w-8 h-8 rounded-lg hover:bg-[#f5f7f5] flex items-center justify-center text-ink-300 hover:text-ink-700 transition" aria-label="إغلاق">
+            <h3 class="text-base font-extrabold text-ink-800">{{ __('ui.share') }}</h3>
+            <button onclick="closeShareModal()" class="w-8 h-8 rounded-lg hover:bg-[#f5f7f5] flex items-center justify-center text-ink-300 hover:text-ink-700 transition" aria-label="{{ __('ui.close') }}">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
         </div>
         <div class="p-5 overflow-y-auto flex-1 space-y-4">
             <div>
-                <label for="share-text" class="block text-xs font-bold text-ink-500 mb-1.5">الرسالة</label>
-                <textarea id="share-text" rows="4" class="w-full rounded-xl border border-[#e6e9e1] bg-[#f5f7f5] py-3 px-4 text-sm leading-7 text-ink-800 resize-none focus:border-[#0e6a38] focus:ring-2 focus:ring-[#0e6a38]/10 outline-none transition" placeholder="اكتب رسالة..."></textarea>
+                <label for="share-text" class="block text-xs font-bold text-ink-500 mb-1.5">{{ __('ui.msg_label') }}</label>
+                <textarea id="share-text" rows="4" class="w-full rounded-xl border border-[#e6e9e1] bg-[#f5f7f5] py-3 px-4 text-sm leading-7 text-ink-800 resize-none focus:border-[#0e6a38] focus:ring-2 focus:ring-[#0e6a38]/10 outline-none transition" placeholder="{{ __('ui.msg_placeholder') }}"></textarea>
             </div>
             <div id="share-attachments-section">
                 <div class="flex items-center justify-between mb-1.5">
-                    <label class="text-xs font-bold text-ink-500">الوسائط</label>
+                    <label class="text-xs font-bold text-ink-500">{{ __('ui.media_label') }}</label>
                     <div class="flex items-center gap-2">
                         <span id="share-selected-count" class="text-xs text-ink-400"></span>
                         <label class="flex items-center gap-1 cursor-pointer">
                             <input type="checkbox" id="share-select-all" onchange="toggleShareSelectAll(this)" class="rounded border-[#c2cbc1] text-[#0e6a38] focus:ring-[#0e6a38]/20 w-3.5 h-3.5">
-                            <span class="text-xs text-ink-500">الكل</span>
+                            <span class="text-xs text-ink-500">{{ __('ui.all') }}</span>
                         </label>
                     </div>
                 </div>
@@ -909,10 +915,10 @@ function copyShareText() {
             </div>
         </div>
         <div class="px-5 py-4 border-t border-[#e6e9e1] flex items-center gap-2 shrink-0 bg-[#f5f7f5]">
-            <button id="share-copy-btn" onclick="copyShareText()" class="px-4 py-2 rounded-lg border border-[#e6e9e1] text-ink-600 text-sm font-bold hover:bg-white transition">نسخ</button>
+            <button id="share-copy-btn" onclick="copyShareText()" class="px-4 py-2 rounded-lg border border-[#e6e9e1] text-ink-600 text-sm font-bold hover:bg-white transition">{{ __('ui.copy') }}</button>
             <button id="share-send-btn" onclick="doShare()" class="flex-1 px-4 py-2.5 rounded-xl bg-[#25D366] text-white text-sm font-bold hover:bg-[#1da851] active:scale-[0.98] transition flex items-center justify-center gap-2">
                 <svg id="share-send-loader" class="hidden w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-                <span id="share-send-text">مشاركة</span>
+                <span id="share-send-text">{{ __('ui.share') }}</span>
             </button>
         </div>
     </div>
@@ -947,7 +953,7 @@ document.querySelectorAll('form[data-ajax]').forEach(form => {
                 }
                 let updated = false;
                 if (card && newStatus) {
-                    const statusMap = { draft:'مسودة', pending:'قيد المراجعة', accepted:'مقبولة', rejected:'مرفوضة' };
+                    const statusMap = { draft:@json(status_label('draft')), pending:@json(status_label('pending')), accepted:@json(status_label('accepted')), rejected:@json(status_label('rejected')) };
                     const clsMap = { draft:'bg-ink-100 text-ink-500 border-[#e6e9e1]', pending:'bg-amber-50 text-amber-700 border-amber-200', accepted:'bg-[#eef4f0] text-[#0e6a38] border-[#cde7d6]', rejected:'bg-red-50 text-red-700 border-red-200' };
                     const dotMap = { draft:'bg-ink-300', pending:'bg-amber-400', accepted:'bg-[#0e6a38]', rejected:'bg-red-400' };
                     const badge = card.querySelector('.note-badge');
@@ -960,12 +966,15 @@ document.querySelectorAll('form[data-ajax]').forEach(form => {
                     const actionsEl = card.querySelector('.note-actions');
                     if (actionsEl) {
                         let newActions = '';
+                        const tEdit = @json(__('ui.edit_btn'));
+                        const tFix = @json(__('ui.fix_btn'));
+                        const tAccepted = @json(__('ui.accepted_status'));
                         if (newStatus === 'pending') {
-                            newActions = '<a href="/notes/'+noteId+'/edit" class="px-2.5 py-1 rounded-lg bg-[#fdfcfa] border border-[#e6e9e1] text-[#525252] text-xs font-bold">تعديل</a>';
+                            newActions = '<a href="/notes/'+noteId+'/edit" class="px-2.5 py-1 rounded-lg bg-[#fdfcfa] border border-[#e6e9e1] text-[#525252] text-xs font-bold">'+tEdit+'</a>';
                         } else if (newStatus === 'accepted') {
-                            newActions = '<span class="text-[11px] text-[#0e6a38] font-bold">مقبولة</span>';
+                            newActions = '<span class="text-[11px] text-[#0e6a38] font-bold">'+tAccepted+'</span>';
                         } else if (newStatus === 'rejected') {
-                            newActions = '<a href="/notes/'+noteId+'/edit" class="px-2.5 py-1 rounded-lg bg-ink-800 text-white text-xs font-bold">تصحيح</a>';
+                            newActions = '<a href="/notes/'+noteId+'/edit" class="px-2.5 py-1 rounded-lg bg-ink-800 text-white text-xs font-bold">'+tFix+'</a>';
                         }
                         actionsEl.innerHTML = newActions;
                         updated = true;
@@ -981,7 +990,7 @@ document.querySelectorAll('form[data-ajax]').forEach(form => {
 
                 if (!updated) { location.reload(); return; }
             } else {
-                alert(data.message || 'حدث خطأ');
+                    window.toast(data.message || @json(__('ui.error_occurred')));
                 if (btn) { btn.disabled = false; btn.innerHTML = origHtml; }
             }
         } catch(err) {
@@ -1019,7 +1028,7 @@ document.querySelectorAll('[data-ajax-tab]').forEach(tab => {
 @endpush
 @push('scripts')
 <script>
-/* Silent live sync — tiny 1s signature check, list re-renders only on change. */
+
 (function(){
     if (!document.getElementById('notes-list') || typeof window.ajaxFilter !== 'function') return;
     var lastSig = null, busy = false;
@@ -1046,7 +1055,7 @@ document.querySelectorAll('[data-ajax-tab]').forEach(tab => {
                     window.ajaxFilter(window.location.pathname + window.location.search);
                 }
             })
-            .catch(function(){ /* silent — retry next second */ })
+            .catch(function(){ })
             .finally(function(){ busy = false; });
     }
     document.addEventListener('visibilitychange', function(){ if (!document.hidden) tick(); });

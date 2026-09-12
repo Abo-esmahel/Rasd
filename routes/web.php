@@ -4,6 +4,7 @@ use App\Http\Controllers\Web\AuthController;
 use App\Http\Controllers\Web\NoteController;
 use App\Http\Controllers\Web\NotificationController;
 use App\Http\Controllers\Web\ProfileController;
+use App\Http\Controllers\Web\SmartRedirectController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -14,8 +15,8 @@ Route::get('/', function () {
 });
 
 Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
-Route::post('/login', [AuthController::class, 'login']);
-Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,1');
+Route::post('/logout', [AuthController::class, 'logout'])->name('logout')->middleware('auth');
 
 Route::get('/pwa', function () {
     return redirect('/', 301);
@@ -24,10 +25,34 @@ Route::get('/pwa/', function () {
     return redirect('/', 301);
 });
 
-Route::get('/pwa/manifest.json', function () {
-    return response()->file(public_path('manifest.json'), [
+Route::get('/pwa/manifest.json', function (\Illuminate\Http\Request $request) {
+    // Locale-aware manifest (brand strings follow saved locale — no AI, no network).
+    $locale = $request->cookie('rasd_locale');
+    if (!in_array($locale, ['ar', 'en'], true)) {
+        $locale = $request->session()->get('locale');
+    }
+    if (!in_array($locale, ['ar', 'en'], true)) {
+        $locale = \App\Services\Localization\SourceLanguage::normalizeLocale($request->getPreferredLanguage(['ar', 'en']) ?? 'ar');
+    }
+    $base = json_decode(@file_get_contents(public_path('manifest.json')), true) ?: [];
+    if ($locale === 'en') {
+        $base['name'] = 'Surveillance Camera Notes';
+        $base['short_name'] = 'Notes';
+        $base['description'] = 'Camera notes app — Ministry of Information';
+        $base['dir'] = 'ltr';
+        $base['lang'] = 'en';
+        if (isset($base['shortcuts'][0]['name'])) {
+            $base['shortcuts'][0]['name'] = 'New note';
+        }
+        if (isset($base['shortcuts'][1]['name'])) {
+            $base['shortcuts'][1]['name'] = 'Notes';
+        }
+    }
+
+    return response()->json($base, 200, [
         'Content-Type' => 'application/manifest+json',
         'Cache-Control' => 'public, max-age=0, must-revalidate',
+        'Content-Language' => $locale,
     ]);
 });
 Route::get('/pwa/sw.js', function () {
@@ -45,10 +70,7 @@ Route::get('/sw.js', function () {
     ]);
 });
 Route::get('/manifest.json', function () {
-    return response()->file(public_path('manifest.json'), [
-        'Content-Type' => 'application/manifest+json',
-        'Cache-Control' => 'public, max-age=0, must-revalidate',
-    ]);
+    return redirect('/pwa/manifest.json', 301);
 });
 Route::get('/offline.html', function () {
     return response()->file(public_path('offline.html'), [
@@ -63,32 +85,32 @@ Route::get('/health/nojs', function () {
     return response('<html><body><h1>OK '.now()->toIso8601String().'</h1><p>no JS test - if you see this, server is fast</p><a href="/login">go login</a></body></html>',200)->header('Content-Type','text/html');
 });
 
-// Shared attachment viewer (WhatsApp share): login required.
-// Writer → view + download · Monitor → view only · Guest → login first.
+// بوابة التوجيه الذكي — رسالة جميلة + عدّاد + انتقال تلقائي لوجهة داخلية فقط.
+Route::get('/r', [SmartRedirectController::class, 'show'])
+    ->name('smart.redirect')
+    ->middleware('throttle:60,1');
+
+
 Route::get('/s/attachments/{attachment}', [NoteController::class, 'sharedViewAttachment'])
     ->name('shared.attachments.view')
-    ->middleware('auth');
+    ->middleware(['auth', 'throttle:60,1']);
 Route::get('/s/attachments/{attachment}/file', [NoteController::class, 'sharedFileAttachment'])
     ->name('shared.attachments.file')
-    ->middleware('auth');
-// Shared submission-attachment viewer (WhatsApp share): login required (same rules).
+    ->middleware(['auth', 'throttle:60,1']);
+
 Route::get('/s/submission-attachments/{attachment}', [\App\Http\Controllers\Web\GeneralSubmissionController::class, 'sharedViewAttachment'])
     ->name('shared.submission-attachments.view')
-    ->middleware('auth');
+    ->middleware(['auth', 'throttle:60,1']);
 Route::get('/s/submission-attachments/{attachment}/file', [\App\Http\Controllers\Web\GeneralSubmissionController::class, 'sharedFileAttachment'])
     ->name('shared.submission-attachments.file')
-    ->middleware('auth');
-Route::get('/notes-minimal', function () {
-    if (!auth()->check()) return redirect()->route('login');
-    $user = auth()->user();
-    $notes = \App\Models\Note::with(['owner'])->latest()->limit(15)->get();
-    $html = '<html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>minimal</title><style>body{font-family:sans-serif;padding:20px}table{width:100%;border-collapse:collapse}td,th{border:1px solid #ccc;padding:8px}</style></head><body><h1>اختبار سرعة بدون JS/CSS</h1><p>وقت: '.now()->toIso8601String().' | مستخدم: '.e($user->name).' | عدد: '.$notes->count().'</p><table><tr><th>#</th><th>كاميرا</th><th>طابق</th><th>وصف</th></tr>';
-    foreach($notes as $n) $html .= '<tr><td>'.$n->id.'</td><td>'.$n->camera_number.'</td><td>'.$n->floor_number.'</td><td>'.e(\Illuminate\Support\Str::limit($n->description,80)).'</td></tr>';
-    $html .= '</table><p><a href="/notes?nosse=1">اختبار بدون SSE</a> | <a href="/login">login</a></p></body></html>';
-    return response($html);
-})->middleware('auth');
+    ->middleware(['auth', 'throttle:60,1']);
+
+Route::post('/locale', [\App\Http\Controllers\Web\LocaleController::class, 'update'])->name('locale.update')->middleware('throttle:30,1');
 
 Route::middleware('auth')->group(function () {
+    // ترجمة البيانات الديناميكية للصفحة الحالية فقط — Presentation Layer (دفعة منظمة + Cache).
+    Route::post('/translations/page', [\App\Http\Controllers\Web\DynamicTranslationController::class, 'translatePage'])->name('translations.page')->middleware('throttle:30,1');
+
     Route::get('/dashboard', function () {
         return redirect()->route('notes.index');
     })->name('dashboard');
@@ -101,6 +123,13 @@ Route::middleware('auth')->group(function () {
     Route::post('/notes/{note}/accept', [NoteController::class, 'accept'])->name('notes.accept');
     Route::post('/notes/{note}/reject', [NoteController::class, 'reject'])->name('notes.reject');
     Route::post('/notes/{note}/resend', [NoteController::class, 'resend'])->name('notes.resend');
+
+    // Smart Note Translation — حالة (قراءة محفوظة فقط) + إعادة خلفية.
+    // ZERO Gemini متزامن هنا: status يقرأ المخزن، retry يجدول Job فقط.
+    Route::get('/notes/{note}/translation-status', [\App\Http\Controllers\Web\NoteTranslationController::class, 'status'])->name('notes.translation.status')->middleware('throttle:60,1');
+    Route::post('/notes/{note}/translation-retry', [\App\Http\Controllers\Web\NoteTranslationController::class, 'retry'])->name('notes.translation.retry')->middleware('throttle:10,1');
+    // إعادة عامة (note|submission) — نفس الضمانات.
+    Route::post('/translations/retry', [\App\Http\Controllers\Web\DynamicTranslationController::class, 'retry'])->name('translations.retry')->middleware('throttle:10,1');
 
     Route::post('/notes/{note}/attachments', [NoteController::class, 'storeAttachment'])->name('notes.attachments.store');
     Route::delete('/notes/{note}/attachments/{attachment}', [NoteController::class, 'destroyAttachment'])->name('notes.attachments.destroy');
@@ -115,15 +144,21 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
     Route::get('/notifications/unread-count', [NotificationController::class, 'unreadCount'])->name('notifications.unreadCount');
-    Route::get('/notifications/stream', [\App\Http\Controllers\Web\NotificationStreamController::class, 'stream'])->name('notifications.stream');
-    Route::get('/notifications/feed', [\App\Http\Controllers\Web\NotificationStreamController::class, 'feed'])->name('notifications.feed');
+    Route::get('/notifications/stream', [\App\Http\Controllers\Web\NotificationStreamController::class, 'stream'])->name('notifications.stream')->middleware('throttle:30,1');
+    Route::get('/notifications/feed', [\App\Http\Controllers\Web\NotificationStreamController::class, 'feed'])->name('notifications.feed')->middleware('throttle:60,1');
     Route::get('/notifications/preferences', [NotificationController::class, 'preferences'])->name('notifications.preferences');
     Route::put('/notifications/preferences', [NotificationController::class, 'updatePreferences'])->name('notifications.preferences.update');
     Route::post('/notifications/mark-read', [NotificationController::class, 'markAsRead'])->name('notifications.markRead');
     Route::post('/notifications/{id}/read', [NotificationController::class, 'markOneAsRead'])->name('notifications.markOneRead');
-    Route::post('/push/subscribe', [\App\Http\Controllers\PushSubscriptionController::class, 'store'])->name('push.subscribe');
-    Route::delete('/push/unsubscribe', [\App\Http\Controllers\PushSubscriptionController::class, 'destroy'])->name('push.unsubscribe');
-    Route::get('/push/vapid-public-key', function(){ return response()->json(['key'=> config('app.vapid_public_key') ?? env('VAPID_PUBLIC_KEY')]); });
+    Route::post('/push/subscribe', [\App\Http\Controllers\PushSubscriptionController::class, 'store'])->name('push.subscribe')->middleware('throttle:30,1');
+    Route::delete('/push/unsubscribe', [\App\Http\Controllers\PushSubscriptionController::class, 'destroy'])->name('push.unsubscribe')->middleware('throttle:30,1');
+    Route::get('/push/vapid-public-key', function(){
+        $key = config('app.vapid_public_key') ?? env('VAPID_PUBLIC_KEY');
+        if (!$key) {
+            return response()->json(['key' => null, 'error' => 'VAPID_NOT_CONFIGURED'], 503);
+        }
+        return response()->json(['key'=> $key]);
+    })->name('push.vapid');
 
     Route::get('/print-test', function(){ return view('print-test'); })->name('print.test');
 
@@ -137,27 +172,36 @@ Route::middleware('auth')->group(function () {
     Route::get('/submission-attachments/{attachment}/view', [\App\Http\Controllers\Web\GeneralSubmissionController::class, 'viewAttachment'])->name('submission-attachments.view');
     Route::get('/submission-attachments/{attachment}/download', [\App\Http\Controllers\Web\GeneralSubmissionController::class, 'downloadAttachment'])->name('submission-attachments.download');
 
-    
-    Route::get('/_diag/runtime', function () {
-        $user = auth()->user();
-        return response()->json([
-            'APP_ENV' => config('app.env'),
-            'APP_URL' => config('app.url'),
-            'DB_CONNECTION' => config('database.default'),
-            'DB_DATABASE' => config('database.connections.'.config('database.default').'.database'),
-            'DB_HOST' => config('database.connections.'.config('database.default').'.host') ?? 'sqlite',
-            'filesystem_default' => config('filesystems.default'),
-            'upload_max_filesize' => ini_get('upload_max_filesize'),
-            'post_max_size' => ini_get('post_max_size'),
-            'max_file_uploads' => ini_get('max_file_uploads'),
-            'max_input_time' => ini_get('max_input_time'),
-            'max_execution_time' => ini_get('max_execution_time'),
-            'memory_limit' => ini_get('memory_limit'),
-            'config_cache' => file_exists(base_path('bootstrap/cache/config.php')) ? 'cached' : 'not cached',
-            'auth_user_id' => $user?->id,
-            'auth_user_role' => $user?->role,
-            'code_version' => trim(@exec('git rev-parse --short HEAD 2>&1') ?: 'unknown'),
-            'time' => now()->toIso8601String(),
-        ]);
-    })->name('diag.runtime');
+
+    Route::get('/reports', [\App\Http\Controllers\Web\ReportController::class, 'index'])->name('reports.index');
+    Route::get('/reports/create', [\App\Http\Controllers\Web\ReportController::class, 'create'])->name('reports.create');
+    Route::post('/reports', [\App\Http\Controllers\Web\ReportController::class, 'store'])->name('reports.store');
+    Route::get('/report-sheets/{n}', [\App\Http\Controllers\Web\ReportController::class, 'sheet'])->whereNumber('n')->name('report-sheets.image');
+    Route::get('/reports/{report}', [\App\Http\Controllers\Web\ReportController::class, 'show'])->name('reports.show');
+    Route::get('/reports/{report}/edit', [\App\Http\Controllers\Web\ReportController::class, 'edit'])->name('reports.edit');
+    Route::put('/reports/{report}', [\App\Http\Controllers\Web\ReportController::class, 'update'])->name('reports.update');
+    Route::delete('/reports/{report}', [\App\Http\Controllers\Web\ReportController::class, 'destroy'])->name('reports.destroy');
+    Route::post('/reports/{report}/publish', [\App\Http\Controllers\Web\ReportController::class, 'publish'])->name('reports.publish');
+    Route::post('/reports/{report}/unpublish', [\App\Http\Controllers\Web\ReportController::class, 'unpublish'])->name('reports.unpublish');
+    Route::post('/reports/{report}/attach', [\App\Http\Controllers\Web\ReportController::class, 'attach'])->name('reports.attach');
+    Route::delete('/reports/{report}/notes/{noteId}', [\App\Http\Controllers\Web\ReportController::class, 'detach'])->name('reports.detach');
+    Route::post('/reports/{report}/reorder', [\App\Http\Controllers\Web\ReportController::class, 'reorder'])->name('reports.reorder');
+    Route::post('/reports/{report}/generate', [\App\Http\Controllers\Web\ReportController::class, 'generate'])->name('reports.generate')->middleware('throttle:5,1');
+    Route::post('/reports/{report}/generate-data', [\App\Http\Controllers\Web\ReportController::class, 'generateData'])->name('reports.generate-data')->middleware('throttle:5,1');
+    Route::post('/reports/{report}/render', [\App\Http\Controllers\Web\ReportController::class, 'render'])->name('reports.render')->middleware('throttle:3,10');
+    Route::post('/reports/{report}/fill-sheet', [\App\Http\Controllers\Web\ReportController::class, 'fillSheet'])->name('reports.fill-sheet')->middleware('throttle:3,10');
+    Route::delete('/reports/{report}/fill-sheet', [\App\Http\Controllers\Web\ReportController::class, 'destroyFilledSheet'])->name('reports.fill-sheet.destroy');
+    Route::get('/reports/{report}/filled-sheet', [\App\Http\Controllers\Web\ReportController::class, 'filledSheetImage'])->name('reports.filled-sheet.image');
+    Route::get('/reports/{report}/sheet-html', [\App\Http\Controllers\Web\ReportController::class, 'sheetHtml'])->name('reports.sheet-html');
+    Route::get('/reports/{report}/print', [\App\Http\Controllers\Web\ReportController::class, 'print'])->name('reports.print');
+    // Export/Preview — داخل Tab التقارير فقط. Preview=Inline بلا تنزيل (View)،
+    // وتصدير PDF/صورة (Export فقط — المراقب 403 حتى عبر URL مباشر).
+    Route::get('/reports/{report}/preview', [\App\Http\Controllers\Web\ReportController::class, 'preview'])->name('reports.preview');
+    // الوثيقة الرسمية باللغة الحالية — نفس المحرك، عرض فقط بلا حفظ (JSON fragment للتبديل بدون Reload).
+    Route::get('/reports/{report}/localized', [\App\Http\Controllers\Web\ReportController::class, 'localized'])->name('reports.localized')->middleware('throttle:30,1');
+    Route::get('/reports/{report}/export-pdf', [\App\Http\Controllers\Web\ReportController::class, 'exportPdf'])->name('reports.export.pdf');
+    Route::get('/reports/{report}/export-image', [\App\Http\Controllers\Web\ReportController::class, 'exportImage'])->name('reports.export.image');
 });
+
+// أي مسار غير موجود → صفحة توجيه ذكية (404 جميلة) بدل صفحة فارغة.
+Route::fallback([SmartRedirectController::class, 'missing'])->name('smart.missing');

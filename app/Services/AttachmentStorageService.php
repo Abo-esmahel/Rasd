@@ -35,7 +35,7 @@ class AttachmentStorageService
     {
         if (!$this->exists($sourcePath)) {
             throw new AttachmentUploadException(
-                'تعذّر نسخ المرفق: الملف الأصلي غير موجود.',
+                __('api.attach_copy_source_missing'),
                 stage: 'storage',
             );
         }
@@ -49,7 +49,7 @@ class AttachmentStorageService
             
             $readStream = $this->disk()->readStream($sourcePath);
             if ($readStream === null) {
-                throw new \RuntimeException('تعذر فتح stream المصدر');
+                throw new \RuntimeException(__('api.attach_stream_failed'));
             }
             $this->disk()->writeStream($destPath, $readStream);
             if (is_resource($readStream)) {
@@ -63,7 +63,7 @@ class AttachmentStorageService
                 'message' => $e->getMessage(),
             ]);
             throw new AttachmentUploadException(
-                'تعذّر نسخ المرفق إلى الملاحظة.',
+                __('api.attach_copy_failed'),
                 stage: 'storage',
                 previous: $e,
             );
@@ -71,7 +71,7 @@ class AttachmentStorageService
 
         if (!$ok || !$this->exists($destPath)) {
             throw new AttachmentUploadException(
-                'تعذّر التحقق من نسخة المرفق في الملاحظة.',
+                __('api.attach_copy_verify_failed'),
                 stage: 'verification',
             );
         }
@@ -83,17 +83,18 @@ class AttachmentStorageService
             if ($srcSize !== $destSize) {
                 Log::error('[ATTACHMENT] copy size mismatch', ['source' => $sourcePath, 'dest' => $destPath, 'srcSize' => $srcSize, 'destSize' => $destSize]);
                 $this->delete($destPath);
-                throw new AttachmentUploadException('تعذّر التحقق من نسخة المرفق (حجم غير متطابق).', stage: 'verification');
+                throw new AttachmentUploadException(__('api.attach_verify_size'), stage: 'verification');
             }
             $srcAbs = $this->absolutePath($sourcePath);
             $destAbs = $this->absolutePath($destPath);
-            if (file_exists($srcAbs) && file_exists($destAbs)) {
+            $copySize = @filesize($destAbs) ?: 0;
+            if ($copySize <= 20 * 1024 * 1024 && file_exists($srcAbs) && file_exists($destAbs)) {
                 $srcHash = @hash_file('sha256', $srcAbs);
                 $destHash = @hash_file('sha256', $destAbs);
                 if ($srcHash && $destHash && $srcHash !== $destHash) {
                     Log::error('[ATTACHMENT] copy hash mismatch', ['source' => $sourcePath, 'dest' => $destPath]);
                     $this->delete($destPath);
-                    throw new AttachmentUploadException('تعذّر التحقق من نسخة المرفق (محتوى غير متطابق).', stage: 'verification');
+                    throw new AttachmentUploadException(__('api.attach_verify_hash'), stage: 'verification');
                 }
             }
         } catch (AttachmentUploadException $e) { throw $e; } catch (\Throwable $e) { Log::warning('[ATTACHMENT] copy integrity warning', ['message' => $e->getMessage()]); }
@@ -143,7 +144,7 @@ class AttachmentStorageService
             ], $context));
 
             throw new AttachmentUploadException(
-                "تعذّر تخزين الملف {$originalName} على القرص المحلي.",
+                __('api.store_failed_named', ['name' => $originalName]),
                 stage: 'storage',
                 originalName: $originalName,
                 previous: $e,
@@ -158,7 +159,7 @@ class AttachmentStorageService
             ], $context));
 
             throw new AttachmentUploadException(
-                "تعذّر تخزين الملف {$originalName} على القرص المحلي.",
+                __('api.store_failed_named', ['name' => $originalName]),
                 stage: 'storage',
                 originalName: $originalName,
             );
@@ -173,7 +174,7 @@ class AttachmentStorageService
             ], $context));
 
             throw new AttachmentUploadException(
-                "تمت كتابة الملف {$originalName} لكن تعذّر التحقق من وجوده.",
+                __('api.attach_written_unverified', ['name' => $originalName]),
                 stage: 'verification',
                 originalName: $originalName,
             );
@@ -193,14 +194,16 @@ class AttachmentStorageService
                 ], $context));
                 $this->delete($relativePath);
                 throw new AttachmentUploadException(
-                    "تم حفظ الملف {$originalName} لكن حجمه غير متطابق (الأصل {$originalSize} بايت، المخزن {$storedSize} بايت).",
+                    __('api.attach_size_mismatch', ['name' => $originalName, 'orig' => $originalSize, 'stored' => $storedSize]),
                     stage: 'verification',
                     originalName: $originalName,
                 );
             }
+            // فحص الحجم كافٍ للملفات الكبيرة — hash مزدوج لملف 100MB يعلق الريكويست ثوانٍ.
             $originalReal = $file->getRealPath();
             $storedAbsolute = $this->absolutePath($relativePath);
-            if ($originalReal && file_exists($originalReal) && file_exists($storedAbsolute)) {
+            $skipHash = ($storedSize ?? 0) > 20 * 1024 * 1024;
+            if (! $skipHash && $originalReal && file_exists($originalReal) && file_exists($storedAbsolute)) {
                 $origHash = @hash_file('sha256', $originalReal);
                 $storedHash = @hash_file('sha256', $storedAbsolute);
                 if ($origHash && $storedHash && $origHash !== $storedHash) {
@@ -211,7 +214,7 @@ class AttachmentStorageService
                     ], $context));
                     $this->delete($relativePath);
                     throw new AttachmentUploadException(
-                        "تم حفظ الملف {$originalName} لكن محتواه غير متطابق (فشل التحقق عبر hash).",
+                        __('api.attach_hash_mismatch', ['name' => $originalName]),
                         stage: 'verification',
                         originalName: $originalName,
                     );
@@ -313,8 +316,12 @@ class AttachmentStorageService
 
     public function fileResponseForPath(string $relativePath, string $mime, ?string $originalName, bool $asDownload = false)
     {
+        // حماية Path Traversal: المسار يجب أن يكون نسبياً داخل قرص المرفقات فقط.
+        if ($relativePath === '' || str_contains($relativePath, '..') || str_starts_with($relativePath, '/') || str_starts_with($relativePath, '\\') || preg_match('#^[a-zA-Z]:#', $relativePath)) {
+            abort(404, __('api.file_not_found'));
+        }
         if (!$this->exists($relativePath)) {
-            abort(404, 'الملف غير موجود');
+            abort(404, __('api.file_not_found'));
         }
 
         $absolute = $this->absolutePath($relativePath);
@@ -337,6 +344,9 @@ class AttachmentStorageService
         $headers = [
             'Content-Type' => $mime,
             'X-Content-Type-Options' => 'nosniff',
+            'X-Frame-Options' => 'DENY',
+            'Referrer-Policy' => 'no-referrer',
+            'Content-Security-Policy' => "default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:; media-src 'self'",
             'Cache-Control' => $asDownload ? 'private, max-age=0, must-revalidate' : 'public, max-age=31536000, immutable',
             'ETag' => '"'.$etag.'"',
             'Last-Modified' => gmdate('D, d M Y H:i:s', $lastModified).' GMT',
@@ -351,6 +361,18 @@ class AttachmentStorageService
         }
         if (!$asDownload && $ifModifiedSince && strtotime($ifModifiedSince) >= $lastModified) {
             return response('', 304, $headers);
+        }
+
+        // ملفات SVG قد تحمل JavaScript — عرضها inline يشغّل السكربت في سياق الموقع (XSS).
+        // الجودة محفوظة (المعاينة تعمل عبر التنزيل) لكن العرض المباشر ممنوع لها.
+        // دفاع بالعمق: أي نوع HTML/JS يُجبر على التنزيل حتى لو تسرب عبر polyglot.
+        $dangerousInline = ['image/svg+xml', 'image/svg', 'text/html', 'application/xhtml+xml', 'text/javascript', 'application/javascript', 'application/x-javascript'];
+        if (!$asDownload && in_array(strtolower($mime), $dangerousInline, true)) {
+            $asDownload = true;
+            $headers['Cache-Control'] = 'private, max-age=0, must-revalidate';
+        }
+        if (!$asDownload && in_array(strtolower($mime), ['image/svg+xml', 'image/svg'], true)) {
+            $headers['Content-Type'] = 'image/svg+xml';
         }
 
         if ($asDownload) {
@@ -377,17 +399,17 @@ class AttachmentStorageService
 
     private function uploadErrorMessage(int $code, string $name): string
     {
-        $safe = trim($name) !== '' ? $name : 'الملف';
+        $safe = trim($name) !== '' ? $name : __('api.upload_file_default');
 
         return match ($code) {
-            UPLOAD_ERR_INI_SIZE => "الملف {$safe} يتجاوز حد الخادم upload_max_filesize.",
-            UPLOAD_ERR_FORM_SIZE => "الملف {$safe} يتجاوز الحد المسموح في النموذج.",
-            UPLOAD_ERR_PARTIAL => "وصل الملف {$safe} ناقصاً. يرجى إعادة المحاولة.",
-            UPLOAD_ERR_NO_FILE => "لم يتم استلام الملف {$safe}.",
-            UPLOAD_ERR_NO_TMP_DIR => "تعذّر حفظ الملف {$safe} مؤقتاً (إعداد الخادم).",
-            UPLOAD_ERR_CANT_WRITE => "تعذّر كتابة الملف {$safe} على الخادم.",
-            UPLOAD_ERR_EXTENSION => "رفض الخادم الملف {$safe} (إضافة PHP).",
-            default => "تعذّر استلام الملف {$safe} (خطأ رفع {$code}).",
+            UPLOAD_ERR_INI_SIZE => __('api.upload_ini', ['name' => $safe]),
+            UPLOAD_ERR_FORM_SIZE => __('api.upload_form', ['name' => $safe]),
+            UPLOAD_ERR_PARTIAL => __('api.upload_partial', ['name' => $safe]),
+            UPLOAD_ERR_NO_FILE => __('api.upload_no_file', ['name' => $safe]),
+            UPLOAD_ERR_NO_TMP_DIR => __('api.upload_no_tmp', ['name' => $safe]),
+            UPLOAD_ERR_CANT_WRITE => __('api.upload_cant_write', ['name' => $safe]),
+            UPLOAD_ERR_EXTENSION => __('api.upload_extension', ['name' => $safe]),
+            default => __('api.upload_generic', ['name' => $safe, 'code' => $code]),
         };
     }
 }

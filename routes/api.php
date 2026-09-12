@@ -35,6 +35,18 @@ Route::middleware('auth.api')->group(function () {
 
     Route::get('/submission-attachments/{attachment}/view', [GeneralSubmissionController::class, 'viewAttachment']);
     Route::get('/submission-attachments/{attachment}/download', [GeneralSubmissionController::class, 'downloadAttachment']);
+
+    Route::get('/reports', [\App\Http\Controllers\Api\ReportController::class, 'index']);
+    Route::post('/reports', [\App\Http\Controllers\Api\ReportController::class, 'store']);
+    Route::get('/reports/{report}', [\App\Http\Controllers\Api\ReportController::class, 'show']);
+    Route::put('/reports/{report}', [\App\Http\Controllers\Api\ReportController::class, 'update']);
+    Route::delete('/reports/{report}', [\App\Http\Controllers\Api\ReportController::class, 'destroy']);
+    Route::post('/reports/{report}/publish', [\App\Http\Controllers\Api\ReportController::class, 'publish']);
+    Route::post('/reports/{report}/unpublish', [\App\Http\Controllers\Api\ReportController::class, 'unpublish']);
+    Route::post('/reports/{report}/attach', [\App\Http\Controllers\Api\ReportController::class, 'attach']);
+    Route::delete('/reports/{report}/notes/{noteId}', [\App\Http\Controllers\Api\ReportController::class, 'detach']);
+    Route::post('/reports/{report}/reorder', [\App\Http\Controllers\Api\ReportController::class, 'reorder']);
+    Route::post('/reports/{report}/generate', [\App\Http\Controllers\Api\ReportController::class, 'generate'])->middleware('throttle:5,1');
 });
 
 Route::get('/attachments/{attachment}', [NoteController::class, 'downloadAttachment'])

@@ -1,6 +1,6 @@
 
 
-import { getTypeConfig, priorityForType, PRIORITY } from './config.js';
+import { getTypeConfig, priorityForType, PRIORITY, cfgLabel, NOTIF_FB } from './config.js';
 
 export class NotificationManager {
   constructor(options = {}) {
@@ -89,20 +89,21 @@ export class NotificationManager {
     this.liveRegion = this.ensureLiveRegion();
 
     
-    await this.loadPreferences();
-    
+    // الطلبات الثلاثة مستقلة — بالتوازي بدل التسلسل (3 RTT متتالية → واحدة).
+    // ملاحظة: loadPreferences تُرجع بيانات التفضيلات لإعادة استخدامها في الصوت بلا طلب ثانٍ.
+    const [prefsData] = await Promise.all([
+      this.loadPreferences(),
+      this.fetchNotifications({ silent: true }),
+    ]);
+
     if (this.soundManager) {
       this.soundManager.loadPersisted();
-      await this.soundManager.loadFromServer();
+      await this.soundManager.loadFromServer(prefsData ?? undefined);
       this.prefs.sound_enabled = this.soundManager.enabled;
       this.prefs.volume = Math.round(this.soundManager.volume * 100);
       this.bindSoundState();
     }
 
-    
-    await this.fetchNotifications({ silent: true });
-
-    
     this.bindUI();
 
     
@@ -137,9 +138,9 @@ export class NotificationManager {
       this.setConnectionState('DISCONNECTED');
     });
 
-    
-    setInterval(() => this.syncIfNeeded(), 60000);
 
+    // أُزيل مؤقت الـ 60s: عامل الـ poll يضرب كل 30s أصلاً — كان طلباً مكرراً بلا فائدة.
+    // المزامنة عند الظهور/التركيز (أعلاه) باقية لأنها بمبادرة المستخدم.
     this.log('[MANAGER] ready');
   }
 
@@ -149,9 +150,6 @@ export class NotificationManager {
     });
   }
 
-  // ──────────────────────────────────────────────
-  // Drawer (side panel) open/close with slide animation
-  // ──────────────────────────────────────────────
 
   isDrawerOpen() {
     return !!this._drawerOpen && !!this.dropdownEl && !this.dropdownEl.classList.contains('hidden');
@@ -190,7 +188,7 @@ export class NotificationManager {
       if (this._drawerOpen) return;
       this.overlayEl?.classList.add('hidden');
       this.dropdownEl?.classList.add('hidden');
-      if (!document.querySelector('[data-modal]:not(.hidden)')) {
+      if (!document.querySelector('[data-modal]:not(.hidden)') && !document.querySelector('#mobile-menu.is-open')) {
         document.body.style.overflow = this._prevBodyOverflow || '';
       }
       if (stealFocus) { try { this.bellEl?.focus({ preventScroll: true }); } catch {} }
@@ -265,15 +263,18 @@ export class NotificationManager {
         try { sessionStorage.setItem('global_sound_dismissed', '1'); } catch {}
       }
       
+      const isEnSnd = (typeof document !== 'undefined' && document.documentElement.lang === 'en') || (typeof window !== 'undefined' && window.RASD_LOCALE === 'en');
       this.showToast({
         id: 'enable-' + Date.now(),
         type: 'Test',
         data: {
-          message: ok ? 'تم تفعيل الصوت بنجاح ✅ — ستصلك النغمة عند الإشعار القادم' : 'تعذر تفعيل الصوت — تأكد من عدم كتم التبويب',
+          message: ok
+            ? (isEnSnd ? 'Sound enabled ✅ — you will hear it on the next notification' : 'تم تفعيل الصوت بنجاح ✅ — ستصلك النغمة عند الإشعار القادم')
+            : (isEnSnd ? 'Could not enable sound — check the tab is not muted' : 'تعذر تفعيل الصوت — تأكد من عدم كتم التبويب'),
           type: ok ? 'note_accepted' : 'note_rejected',
           url: null,
         },
-        created_at_human: 'الآن',
+        created_at_human: NOTIF_FB.now,
       }, { force: true, sound: false });
     };
     enableBtn?.addEventListener('click', handleEnable);
@@ -345,8 +346,10 @@ export class NotificationManager {
           sound_theme: data.sound_theme ?? 'default',
         };
         this.log('[PREFS] loaded', this.prefs);
+        return data;
       }
     } catch {}
+    return null;
     
     try {
       const t = localStorage.getItem('notif_toast_enabled');
@@ -377,9 +380,6 @@ export class NotificationManager {
   }
 
   
-  
-  
-
   connect() {
     
     
@@ -513,10 +513,10 @@ export class NotificationManager {
   }
 
   connectPolling() {
-    const isHttp = location.protocol === 'http:';
-    const isLocal = location.hostname === '127.0.0.1' || location.hostname === 'localhost';
-    const interval = (isHttp || isLocal) ? 5000 : 15000;
-    this.log(`[POLL] starting fallback polling (every ${interval/1000}s)${isHttp?' — http fast':''}${isLocal?' — local':''}`);
+    // إصلاح الأداء: 5s كان يولّد ~12 req/min لكل تب + قفل session file + SQLite lock.
+    // 30s كافية للإشعارات، مع إيقاف كامل عندما تكون الصفحة مخفية.
+    const interval = 30000;
+    this.log(`[POLL] starting fallback polling (every ${interval/1000}s)`);
     this.setConnectionState('CONNECTED'); 
     if (this.pollTimer) clearInterval(this.pollTimer);
     if (this.pollWorker) { try{ this.pollWorker.postMessage({type:'stop'}); this.pollWorker.terminate(); }catch{} this.pollWorker=null; }
@@ -532,7 +532,10 @@ export class NotificationManager {
       this.pollTimer = setInterval(() => this.fetchNotifications({ silent: true }), interval);
     }
     
-    this.fetchNotifications({ silent: true });
+    // جلب فوري فقط إذا لم نجلب منذ لحظات (init يجلب مسبقاً بالتوازي) — يمنع طلباً مكرراً عند كل اتصال.
+    if (Date.now() - (this._lastFetchAt || 0) > 10000) {
+      this.fetchNotifications({ silent: true });
+    }
   }
 
   scheduleReconnect() {
@@ -615,10 +618,6 @@ export class NotificationManager {
   }
 
   
-  
-  
-
-  
   async receive(notification, unreadCount = null, meta = {}) {
     if (!notification || !notification.id) {
       this.log('[RECEIVE] invalid payload', notification);
@@ -641,7 +640,6 @@ export class NotificationManager {
         return;
       }
       sessionStorage.setItem(key, '1');
-      
       
       
     } catch {}
@@ -725,7 +723,6 @@ export class NotificationManager {
     }
 
     
-    
     const claimKey = 'notif_claim_' + notification.id;
     try {
       const existing = localStorage.getItem(claimKey);
@@ -735,9 +732,6 @@ export class NotificationManager {
       }
       if (!existing) {
         localStorage.setItem(claimKey, this.tabId);
-        
-        
-        
         
         
         const verify = localStorage.getItem(claimKey);
@@ -775,9 +769,6 @@ export class NotificationManager {
   }
 
   
-  
-  
-
   updateBadge(count) {
     const n = Math.max(0, parseInt(count) || 0);
     this.unreadCount = n;
@@ -800,7 +791,7 @@ export class NotificationManager {
       this.badgeEl.classList.remove('hidden');
       this.badgeEl.classList.add('flex');
       
-      this.badgeEl.setAttribute('aria-label', `${n} إشعارات غير مقروءة`);
+      this.badgeEl.setAttribute('aria-label', `${n} ${NOTIF_FB.unread}`);
       
       this.badgeEl.animate?.([{ transform: 'scale(1)' }, { transform: 'scale(1.18)' }, { transform: 'scale(1)' }], { duration: 300, easing: 'ease-out' });
       
@@ -816,13 +807,9 @@ export class NotificationManager {
     }
 
     
-    
   }
 
   
-  
-  
-
   ensureToastContainer() {
     let c = document.getElementById('notification-toast-container');
     if (c) return c;
@@ -850,7 +837,7 @@ export class NotificationManager {
   announceToScreenReader(notification) {
     if (!this.liveRegion) return;
     const data = notification.data || {};
-    const msg = data.message || 'إشعار جديد';
+    const msg = data.message || NOTIF_FB.newNotif;
     this.liveRegion.textContent = msg;
     
     setTimeout(() => { if (this.liveRegion.textContent === msg) this.liveRegion.textContent = ''; }, 4000);
@@ -893,9 +880,9 @@ export class NotificationManager {
     toast.style.transform = 'translateY(12px)';
     toast.style.opacity = '0';
 
-    const title = this.escapeHtml(this.titleForType(rawType, data));
-    const body = this.escapeHtml((data.message || data.reason || 'لديك إشعار جديد').substring(0, 180));
-    const time = this.escapeHtml(notification.created_at_human || data.created_at_human || 'الآن');
+    const title = this.escapeHtml(data.title || this.titleForType(rawType, data));
+    const body = this.escapeHtml((data.message || data.reason || NOTIF_FB.youHave).substring(0, 180));
+    const time = this.escapeHtml(notification.created_at_human || data.created_at_human || NOTIF_FB.now);
     
     const accent = isHigh ? 'bg-red-500' : (cfg.color === 'green' ? 'bg-primary' : (cfg.color === 'amber' ? 'bg-amber-500' : 'bg-text-muted'));
     const iconBg = cfg.bgClass || 'bg-surface-muted border border-border';
@@ -912,11 +899,11 @@ export class NotificationManager {
           <div class="text-xs text-text-secondary dark:text-text-secondary leading-5 mt-1 line-clamp-2">${body}</div>
           <div class="text-[11px] text-text-muted dark:text-text-muted mt-1.5">${time}</div>
         </div>
-        <button type="button" aria-label="إغلاق الإشعار" class="shrink-0 w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-text-muted dark:text-text-muted hover:text-text-secondary dark:hover:text-text-secondary transition">
+          <button type="button" aria-label="${this.escapeHtml(NOTIF_FB.close)}" class="shrink-0 w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-text-muted dark:text-text-muted hover:text-text-secondary dark:hover:text-text-secondary transition">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
         </button>
       </div>
-      ${url ? `<div class="px-4 pb-3 -mt-1"><span class="inline-flex items-center gap-1 text-xs font-bold text-primary">عرض التفاصيل <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></span></div>` : ''}
+      ${url ? `<div class="px-4 pb-3 -mt-1"><span class="inline-flex items-center gap-1 text-xs font-bold text-primary">${this.escapeHtml(NOTIF_FB.viewDetails)} <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></span></div>` : ''}
     `;
 
     
@@ -987,9 +974,9 @@ export class NotificationManager {
 
   titleForType(rawType, data) {
     const cfg = getTypeConfig(rawType);
-    
-    if (cfg.label) return cfg.label;
-    return 'إشعار جديد';
+    if (data && data.title) return data.title;
+
+    return cfgLabel(cfg) || NOTIF_FB.newNotif;
   }
 
   iconPathFor(iconKey) {
@@ -1020,20 +1007,17 @@ export class NotificationManager {
   }
 
   
-  
-  
-
   updateCenter() {
     if (!this.listEl) return;
 
-    // No notifications → hide "mark all as read" and "view all" (nothing to act on).
+
     const empty = this.notifications.length === 0;
     document.getElementById('mark-all-read')?.classList.toggle('hidden', empty);
     document.querySelector('#notification-drawer .notif-subbar')?.classList.toggle('hidden', empty);
     document.querySelector('#notification-drawer .notif-footlink')?.classList.toggle('hidden', empty);
 
     if (empty) {
-      this.listEl.innerHTML = '<div class="notif-empty" role="status"><div class="notif-empty-ic" aria-hidden="true"><svg class="notif-empty-svg" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg></div><p class="notif-empty-title">لا توجد إشعارات</p><p class="notif-empty-hint">ستظهر الإشعارات الواردة هنا فور وصولها</p></div>';
+      this.listEl.innerHTML = '<div class="notif-empty" role="status"><div class="notif-empty-ic" aria-hidden="true"><svg class="notif-empty-svg" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg></div><p class="notif-empty-title">' + this.escapeHtml(NOTIF_FB.emptyTitle) + '</p><p class="notif-empty-hint">' + this.escapeHtml(NOTIF_FB.emptyHint) + '</p></div>';
       return;
     }
 
@@ -1043,13 +1027,13 @@ export class NotificationManager {
       const cfg = getTypeConfig(rawType);
       const isUnread = !n.read_at;
       const url = this.escapeHtml(this.resolveUrl(n));
-      const title = this.escapeHtml(data.title || cfg.label || 'إشعار');
+      const title = this.escapeHtml(data.title || cfgLabel(cfg) || NOTIF_FB.notif);
       const body = this.escapeHtml(data.message || '');
-      const time = this.escapeHtml(n.created_at_human || 'الآن');
+      const time = this.escapeHtml(n.created_at_human || NOTIF_FB.now);
       const sender = this.escapeHtml(data.sender_name || data.processor_name || '');
       const meta = [];
-      if (data.camera_number) meta.push(`كاميرا ${this.escapeHtml(String(data.camera_number))}`);
-      if (data.floor_number) meta.push(`طابق ${this.escapeHtml(String(data.floor_number))}`);
+      if (data.camera_number) meta.push(`${NOTIF_FB.camera} ${this.escapeHtml(String(data.camera_number))}`);
+      if (data.floor_number) meta.push(`${NOTIF_FB.floor} ${this.escapeHtml(String(data.floor_number))}`);
       const metaStr = meta.join(' · ');
       const reason = data.reason ? `<div class="notif-reason">${this.escapeHtml(data.reason)}</div>` : '';
       const tone = cfg.color === 'green' ? 'green' : cfg.color === 'amber' ? 'amber' : cfg.color === 'red' ? 'red' : 'slate';
@@ -1062,7 +1046,7 @@ export class NotificationManager {
           <div class="notif-main">
             <div class="notif-head">
               <span class="notif-title">${title}</span>
-              ${isUnread ? '<span class="notif-dot" aria-label="غير مقروء"></span>' : ''}
+              ${isUnread ? `<span class="notif-dot" aria-label="${this.escapeHtml(NOTIF_FB.unread)}"></span>` : ''}
               <span class="notif-time">${time}</span>
             </div>
             ${body ? `<span class="notif-msg">${body}</span>` : ''}
@@ -1077,11 +1061,13 @@ export class NotificationManager {
   }
 
   
-  
-  
-
   async fetchNotifications({ silent = false } = {}) {
     try {
+      // لا تضرب السيرفر و التب مخفي — وفّر ~50% من طلبات الخلفية.
+      if (typeof document !== 'undefined' && document.hidden && silent) {
+        return;
+      }
+      this._lastFetchAt = Date.now();
       const res = await fetch('/notifications?per_page=20', {
         headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
         credentials: 'same-origin',
@@ -1156,9 +1142,6 @@ export class NotificationManager {
   }
 
   
-  
-  
-
   async markOneAsRead(id, { silent = false } = {}) {
     try {
       const token = document.querySelector('meta[name="csrf-token"]')?.content;
@@ -1216,9 +1199,6 @@ export class NotificationManager {
   }
 
   
-  
-  
-
   maybeShowBrowserNotification(notification) {
     if (!window.Notification) return;
     if (Notification.permission !== 'granted') return;
@@ -1229,8 +1209,8 @@ export class NotificationManager {
       const data = notification.data || {};
       const rawType = data.type || notification.type || '';
       const cfg = getTypeConfig(rawType);
-      const title = cfg.label || 'إشعار جديد';
-      const body = (data.message || data.reason || 'لديك إشعار جديد').substring(0, 130);
+      const title = data.title || cfgLabel(cfg) || NOTIF_FB.newNotif;
+      const body = (data.message || data.reason || NOTIF_FB.youHave).substring(0, 130);
       const url = this.resolveUrl(notification);
 
       const n = new Notification(title, {
@@ -1254,9 +1234,6 @@ export class NotificationManager {
   }
 
   
-  
-  
-
   broadcast(msg) {
     if (!this.channel) return;
     try {
@@ -1305,9 +1282,6 @@ export class NotificationManager {
   }
 
   
-  
-  
-
   updatePermissionBanner() {
     const soundBlocked = this.soundManager?.blocked;
     const soundDisabled = this.soundManager && !this.soundManager.enabled;
@@ -1324,20 +1298,21 @@ export class NotificationManager {
         this.permissionBanner.classList.remove('hidden');
         const textEl = document.getElementById('notif-banner-text');
         const btn = document.getElementById('enable-notif-btn');
+        const isEnPerm = (typeof document !== 'undefined' && document.documentElement.lang === 'en') || (typeof window !== 'undefined' && window.RASD_LOCALE === 'en');
         if (shouldShowMobilePrompt && !soundBlocked) {
-          if (textEl) textEl.textContent = 'اضغط تفعيل الصوت مرة واحدة ليصلك التنبيه على الهاتف 🔊 — ضروري لنظام iOS/Android';
-          if (btn) btn.textContent = 'تفعيل الصوت الآن 🔊';
+          if (textEl) textEl.textContent = isEnPerm ? 'Tap enable sound once to get alerts on your phone 🔊 — required on iOS/Android' : 'اضغط تفعيل الصوت مرة واحدة ليصلك التنبيه على الهاتف 🔊 — ضروري لنظام iOS/Android';
+          if (btn) btn.textContent = isEnPerm ? 'Enable sound now 🔊' : 'تفعيل الصوت الآن 🔊';
         } else if (soundBlocked) {
-          if (textEl) textEl.textContent = 'المتصفح منع تشغيل الصوت تلقائياً — اضغط تفعيل ليصلك التنبيه بالصوت';
-          if (btn) btn.textContent = 'تفعيل الصوت 🔊';
+          if (textEl) textEl.textContent = isEnPerm ? 'The browser blocked autoplay sound — tap enable to get sound alerts' : 'المتصفح منع تشغيل الصوت تلقائياً — اضغط تفعيل ليصلك التنبيه بالصوت';
+          if (btn) btn.textContent = isEnPerm ? 'Enable sound 🔊' : 'تفعيل الصوت 🔊';
         } else if (desktopState === 'default') {
-          if (textEl) textEl.textContent = 'فعّل الإشعارات ليصلك التنبيه حتى عند تصفح تبويب آخر';
-          if (btn) btn.textContent = 'تفعيل الإشعارات 🔔';
+          if (textEl) textEl.textContent = isEnPerm ? 'Enable notifications to get alerts even on other tabs' : 'فعّل الإشعارات ليصلك التنبيه حتى عند تصفح تبويب آخر';
+          if (btn) btn.textContent = isEnPerm ? 'Enable notifications 🔔' : 'تفعيل الإشعارات 🔔';
         } else if (desktopState === 'denied') {
-          if (textEl) textEl.textContent = 'الإشعارات محظورة في المتصفح — فعّلها من إعدادات الموقع';
+          if (textEl) textEl.textContent = isEnPerm ? 'Notifications are blocked in the browser — enable them in site settings' : 'الإشعارات محظورة في المتصفح — فعّلها من إعدادات الموقع';
           if (btn) {
-            btn.textContent = 'تعليمات';
-            btn.onclick = () => alert('افتح أيقونة القفل بجانب العنوان > إعدادات الموقع > الإشعارات > سماح لـ ' + location.host);
+            btn.textContent = isEnPerm ? 'Instructions' : 'تعليمات';
+            btn.onclick = () => alert(isEnPerm ? ('Open the lock icon next to the address > Site settings > Notifications > Allow for ' + location.host) : ('افتح أيقونة القفل بجانب العنوان > إعدادات الموقع > الإشعارات > سماح لـ ' + location.host));
           }
         }
       } else {
@@ -1387,8 +1362,8 @@ export class NotificationManager {
             globalBanner.dataset.shown = '1';
             const gText = document.getElementById('global-sound-text');
             if (gText) {
-              if (soundBlocked) gText.textContent = 'المتصفح حجب الصوت — اضغط تفعيل';
-              else gText.textContent = 'فعّل الصوت ليصلك التنبيه فوراً';
+              if (soundBlocked) gText.textContent = NOTIF_FB.soundBlocked;
+              else gText.textContent = NOTIF_FB.enableSoundNow;
             }
           }
         } else {
@@ -1404,19 +1379,20 @@ export class NotificationManager {
   async subscribePush(){
     try{
       const reg = await navigator.serviceWorker.ready;
-      const vapidRes = await fetch('/push/vapid-public-key', {headers:{Accept:'application/json'}});
-      if(!vapidRes.ok) throw new Error('no vapid key');
-      const {key} = await vapidRes.json();
-      if(!key) throw new Error('empty vapid');
+      // المشترك أصلاً لا يحتاج أي طلب شبكة — كان يجلب مفتاح VAPID في كل تحميل صفحة.
       const existing = await reg.pushManager.getSubscription();
       if(existing) { this.log('[PUSH] already subscribed'); return existing; }
+      const vapidRes = await fetch('/push/vapid-public-key', {headers:{Accept:'application/json','X-Requested-With':'XMLHttpRequest'}, credentials:'same-origin'});
+      if(!vapidRes.ok) throw new Error('no vapid key '+vapidRes.status);
+      const {key} = await vapidRes.json();
+      if(!key) throw new Error('empty vapid');
       if(Notification.permission !== 'granted'){
         const perm = await Notification.requestPermission();
         if(perm !== 'granted') throw new Error('permission '+perm);
       }
       const sub = await reg.pushManager.subscribe({userVisibleOnly:true, applicationServerKey: this.urlBase64ToUint8Array(key)});
       const token = document.querySelector('meta[name="csrf-token"]')?.content;
-      await fetch('/push/subscribe', {method:'POST', headers:{'Content-Type':'application/json','X-CSRF-TOKEN':token, Accept:'application/json'}, body: JSON.stringify(sub.toJSON())});
+      await fetch('/push/subscribe', {method:'POST', headers:{'Content-Type':'application/json','X-CSRF-TOKEN':token, Accept:'application/json'}, credentials:'same-origin', body: JSON.stringify(sub.toJSON())});
       this.log('[PUSH] subscribed', sub.endpoint.substring(0,60));
       return sub;
     }catch(e){ this.log('[PUSH] subscribe failed', e); throw e; }

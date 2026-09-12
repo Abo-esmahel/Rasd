@@ -4,9 +4,10 @@ namespace App\Notifications;
 
 use App\Models\GeneralSubmission;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
 
-class DispatchSentNotification extends Notification
+class DispatchSentNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 
@@ -34,8 +35,8 @@ class DispatchSentNotification extends Notification
             'sender_name' => $this->senderName,
             'sender_id' => $this->submission->user_id,
             'observed_at' => $this->submission->observed_at?->toIso8601String(),
-            'title' => 'واردة · كاميرا '.$this->submission->camera_number,
-            'message' => "من {$this->senderName} — طابق {$this->submission->floor_number}",
+            'title_key' => 'notifications.dispatch_sent_title',
+            'message_key' => 'notifications.dispatch_sent_message',
             'url' => '/general-submissions/'.$this->submission->id,
             'type' => 'dispatch_sent',
             'category' => 'dispatch',

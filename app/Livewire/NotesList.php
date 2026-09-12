@@ -40,17 +40,22 @@ class NotesList extends Component
         $user = auth()->user();
 
         if ($this->mode === 'my') {
-            $query = Note::with(['owner', 'processor', 'attachments'])
+            $query = Note::with(['owner:id,name,avatar_path', 'processor:id,name'])
+                ->withCount('attachments')
                 ->where('user_id', $user->id);
         } else {
             $query = $this->noteService->getVisibleNotesQuery($user);
         }
 
         if ($this->status) {
-            $query->where('status', $this->status);
+            if (in_array($this->status, ['draft', 'pending', 'accepted', 'rejected'], true)) {
+                $query->where('status', $this->status);
+            }
         }
         if ($this->date) {
-            $query->whereDate('observed_at', $this->date);
+            if (strtotime($this->date) !== false) {
+                $query->whereDate('observed_at', $this->date);
+            }
         }
         if ($this->floor_number) {
             $query->where('floor_number', (int) $this->floor_number);
@@ -76,32 +81,38 @@ class NotesList extends Component
     {
         $user = auth()->user();
 
-        if ($this->mode === 'my') {
-            $base = Note::where('user_id', $user->id);
-        } else {
-            if ($user->isReportWriter()) {
-                $base = Note::where(function ($q) use ($user) {
-                    $q->where('user_id', $user->id)
-                        ->orWhere('status', '!=', Note::STATUS_DRAFT);
-                });
-            } else {
+        // العدّادات تُطلب في كل render + كل poll — كاش 30 ثانية لكل مستخدم/وضع.
+        $cacheKey = 'notes-counts:'.$user->id.':'.$this->mode;
+
+        return \Illuminate\Support\Facades\Cache::remember($cacheKey, 30, function () use ($user) {
+            if ($this->mode === 'my') {
                 $base = Note::where('user_id', $user->id);
+            } else {
+                if ($user->isReportWriter()) {
+                    $base = Note::where(function ($q) use ($user) {
+                        $q->where('user_id', $user->id)
+                            ->orWhere('status', '!=', Note::STATUS_DRAFT);
+                    });
+                } else {
+                    $base = Note::where('user_id', $user->id);
+                }
             }
-        }
 
-        $statuses = [Note::STATUS_DRAFT, Note::STATUS_PENDING, Note::STATUS_ACCEPTED, Note::STATUS_REJECTED];
-        $counts = (clone $base)
-            ->selectRaw('status, COUNT(*) as count')
-            ->groupBy('status')
-            ->pluck('count', 'status')
-            ->toArray();
+            $statuses = [Note::STATUS_DRAFT, Note::STATUS_PENDING, Note::STATUS_ACCEPTED, Note::STATUS_REJECTED];
+            // استعلام واحد يجلب العدّادات + المجموع عبر GROUP BY مع ROLLUP بديل: مجموع PHP.
+            $counts = (clone $base)
+                ->selectRaw('status, COUNT(*) as count')
+                ->groupBy('status')
+                ->pluck('count', 'status')
+                ->toArray();
 
-        $result = ['total' => (clone $base)->count()];
-        foreach ($statuses as $status) {
-            $result[strtolower($status)] = $counts[$status] ?? 0;
-        }
+            $result = ['total' => array_sum($counts)];
+            foreach ($statuses as $status) {
+                $result[strtolower($status)] = $counts[$status] ?? 0;
+            }
 
-        return $result;
+            return $result;
+        });
     }
 
     public function getObserversProperty()
@@ -140,6 +151,13 @@ class NotesList extends Component
 
     public function reject(int $noteId, string $reason): void
     {
+        $reason = trim($reason);
+        \Illuminate\Support\Facades\Validator::make(
+            ['reason' => $reason],
+            ['reason' => 'required|string|min:5|max:1000'],
+            [],
+            ['reason' => __('ui.reject_reason')]
+        )->validate();
         $note = Note::findOrFail($noteId);
         $this->authorize('reject', $note);
         app(NoteService::class)->rejectNote(auth()->user(), $note, $reason);

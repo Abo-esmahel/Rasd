@@ -32,8 +32,8 @@
                 </div>
             @else
                 <div class="py-10 text-center">
-                    <p class="text-sm font-bold text-white">لا توجد معاينة لهذا النوع</p>
-                    <p class="text-xs text-white/60 mt-1">يمكن تنزيل الملف لعرضه</p>
+                    <p class="text-sm font-bold text-white">{{ __('ui.no_preview_title') }}</p>
+                    <p class="text-xs text-white/60 mt-1">{{ __('ui.no_preview_hint') }}</p>
                 </div>
             @endif
         </div>
@@ -41,18 +41,20 @@
             @if($canDownload)
                 <a href="{{ $downloadUrl }}" class="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-[#0e6a38] hover:bg-[#0a4d28] text-white text-sm font-bold transition">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-                    تنزيل
+                    {{ __('ui.download_btn') }}
                 </a>
             @endif
-            <button type="button" onclick="sharedCopyLink(this)" class="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-white border border-[#e6e9e1] text-ink-700 text-sm font-bold hover:bg-[#f5f7f5] transition">نسخ الرابط</button>
+            <button type="button" onclick="sharedCopyLink(this)" class="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-white border border-[#e6e9e1] text-ink-700 text-sm font-bold hover:bg-[#f5f7f5] transition">{{ __('ui.copy_link') }}</button>
         </div>
     </div>
-    <p class="mt-4 text-center text-xs text-ink-300">وزارة الإعلام — مشاركة عامة</p>
+    <p class="mt-4 text-center text-xs text-ink-300">{{ __('ui.public_share_footer') }}</p>
 </div>
 @push('scripts')
 <script>
 function sharedCopyLink(btn){
-    var done = function(ok){ var o = btn.textContent; btn.textContent = ok ? 'تم النسخ ✓' : 'تعذر النسخ'; setTimeout(function(){ btn.textContent = o; }, 1200); };
+    var T_OK = @json(__('ui.copied_ok'));
+    var T_FAIL = @json(__('ui.copy_failed'));
+    var done = function(ok){ var o = btn.textContent; btn.textContent = ok ? T_OK : T_FAIL; setTimeout(function(){ btn.textContent = o; }, 1200); };
     window.copyTextToClipboard(window.location.href).then(done);
 }
 </script>

@@ -12,10 +12,45 @@ export const CATEGORY = {
   GENERIC: 'generic',
 };
 
+// Locale-aware labels: Arabic default, English when <html lang="en"> or RASD_LOCALE=en.
+// Server sends localized title/message first — these are fallbacks only (ZERO hardcoded visible Arabic in EN).
+export function rasdNotifLocale() {
+  try {
+    if (typeof window !== 'undefined' && window.RASD_LOCALE === 'en') return 'en';
+    if (typeof document !== 'undefined' && document.documentElement && document.documentElement.lang === 'en') return 'en';
+  } catch (e) {}
+  return 'ar';
+}
+export function cfgLabel(cfg, short = false) {
+  if (!cfg) return rasdNotifLocale() === 'en' ? 'Notification' : 'إشعار';
+  if (rasdNotifLocale() === 'en') {
+    if (short && cfg.labelShortEn) return cfg.labelShortEn;
+    if (!short && cfg.labelEn) return cfg.labelEn;
+  }
+  if (short && cfg.labelShort) return cfg.labelShort;
+  return cfg.label || (rasdNotifLocale() === 'en' ? 'Notification' : 'إشعار');
+}
+export const NOTIF_FB = {
+  get newNotif() { return rasdNotifLocale() === 'en' ? 'New notification' : 'إشعار جديد'; },
+  get youHave() { return rasdNotifLocale() === 'en' ? 'You have a new notification' : 'لديك إشعار جديد'; },
+  get notif() { return rasdNotifLocale() === 'en' ? 'Notification' : 'إشعار'; },
+  get now() { return rasdNotifLocale() === 'en' ? 'Now' : 'الآن'; },
+  get emptyTitle() { return rasdNotifLocale() === 'en' ? 'No notifications' : 'لا توجد إشعارات'; },
+  get emptyHint() { return rasdNotifLocale() === 'en' ? 'Incoming notifications will appear here' : 'ستظهر الإشعارات الواردة هنا فور وصولها'; },
+  get camera() { return rasdNotifLocale() === 'en' ? 'Camera' : 'كاميرا'; },
+  get floor() { return rasdNotifLocale() === 'en' ? 'Floor' : 'طابق'; },
+  get unread() { return rasdNotifLocale() === 'en' ? 'unread notifications' : 'إشعارات غير مقروءة'; },
+  get close() { return rasdNotifLocale() === 'en' ? 'Close notification' : 'إغلاق الإشعار'; },
+  get viewDetails() { return rasdNotifLocale() === 'en' ? 'View details' : 'عرض التفاصيل'; },
+  get soundBlocked() { return rasdNotifLocale() === 'en' ? 'Browser blocked sound — tap enable' : 'المتصفح حجب الصوت — اضغط تفعيل'; },
+  get enableSoundNow() { return rasdNotifLocale() === 'en' ? 'Enable sound to get instant alerts' : 'فعّل الصوت ليصلك التنبيه فوراً'; },
+};
 export const TYPE_CONFIG = {
   note_sent: {
     label: 'ملاحظة واردة',
+    labelEn: 'Incoming note',
     labelShort: 'واردة',
+    labelShortEn: 'Incoming',
     icon: 'doc',
     color: 'amber',
     bgClass: 'bg-surface-elevated border border-border text-amber-600 dark:text-amber-400',
@@ -28,7 +63,9 @@ export const TYPE_CONFIG = {
   },
   note_accepted: {
     label: 'تم القبول',
+    labelEn: 'Accepted',
     labelShort: 'مقبول',
+    labelShortEn: 'Accepted',
     icon: 'check',
     color: 'green',
     bgClass: 'bg-surface-elevated border border-border text-primary dark:text-green-400',
@@ -41,7 +78,9 @@ export const TYPE_CONFIG = {
   },
   note_rejected: {
     label: 'مرفوض',
+    labelEn: 'Rejected',
     labelShort: 'مرفوض',
+    labelShortEn: 'Rejected',
     icon: 'x-circle',
     color: 'red',
     bgClass: 'bg-surface-elevated border border-red-200 dark:border-red-900/30 text-red-600 dark:text-red-400',
@@ -55,7 +94,9 @@ export const TYPE_CONFIG = {
   },
   dispatch_sent: {
     label: 'إرسالية واردة',
+    labelEn: 'Incoming submission',
     labelShort: 'إرسالية',
+    labelShortEn: 'Submission',
     icon: 'doc',
     color: 'amber',
     bgClass: 'bg-surface-elevated border border-border text-amber-600 dark:text-amber-400',
@@ -68,7 +109,9 @@ export const TYPE_CONFIG = {
   },
   dispatch_accepted: {
     label: 'تم القبول',
+    labelEn: 'Accepted',
     labelShort: 'مقبول',
+    labelShortEn: 'Accepted',
     icon: 'check',
     color: 'green',
     bgClass: 'bg-surface-elevated border border-border text-primary dark:text-green-400',
@@ -81,7 +124,9 @@ export const TYPE_CONFIG = {
   },
   dispatch_rejected: {
     label: 'مرفوض',
+    labelEn: 'Rejected',
     labelShort: 'مرفوض',
+    labelShortEn: 'Rejected',
     icon: 'x-circle',
     color: 'red',
     bgClass: 'bg-surface-elevated border border-red-200 dark:border-red-900/30 text-red-600 dark:text-red-400',
@@ -95,7 +140,9 @@ export const TYPE_CONFIG = {
   },
   generic: {
     label: 'إشعار',
+    labelEn: 'Notification',
     labelShort: 'جديد',
+    labelShortEn: 'New',
     icon: 'bell',
     color: 'slate',
     bgClass: 'bg-surface-elevated border border-border text-text-secondary dark:text-text-secondary',

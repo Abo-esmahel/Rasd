@@ -12,13 +12,17 @@ class DatabaseSeeder extends Seeder
     {
         $password = Hash::make('password');
 
+        // آمن للتكرار: التشغيل الثاني كان ينفجر بـ UNIQUE constraint على username.
+        $users = [
+            ['name' => 'طارق عبد الرحمن', 'username' => 'tariq', 'role' => 'monitor'],
+            ['name' => 'هادي سهلي', 'username' => 'hadi', 'role' => 'monitor'],
+            ['name' => 'حمزة الحاج قاسم', 'username' => 'hamza', 'role' => 'monitor'],
+            ['name' => 'رامي حموري', 'username' => 'rami', 'role' => 'monitor'],
+            ['name' => 'زهير العبد الله', 'username' => 'writer', 'role' => 'report_writer'],
+        ];
 
-        User::create(['name' => 'طارق عبد الرحمن', 'username' => 'tariq', 'password' => $password, 'role' => 'monitor']);
-        User::create(['name' => 'هادي سهلي',     'username' => 'hadi',  'password' => $password, 'role' => 'monitor']);
-        User::create(['name' => 'حمزة الحاج قاسم', 'username' => 'hamza', 'password' => $password, 'role' => 'monitor']);
-        User::create(['name' => 'رامي حموري',      'username' => 'rami',  'password' => $password, 'role' => 'monitor']);
-
-
-        User::create(['name' => 'زهير العبد الله', 'username' => 'writer',  'password' => $password, 'role' => 'report_writer']);
+        foreach ($users as $u) {
+            User::firstOrCreate(['username' => $u['username']], $u + ['password' => $password]);
+        }
     }
 }

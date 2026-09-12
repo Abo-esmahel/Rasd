@@ -4,9 +4,10 @@ namespace App\Notifications;
 
 use App\Models\Note;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
 
-class NoteAcceptedNotification extends Notification
+class NoteAcceptedNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 
@@ -32,8 +33,8 @@ class NoteAcceptedNotification extends Notification
             'floor_number' => $this->note->floor_number,
             'processor_name' => $this->processorName,
             'observed_at' => $this->note->observed_at?->toIso8601String(),
-            'title' => 'مقبولة · كاميرا '.$this->note->camera_number,
-            'message' => "اعتمدها {$this->processorName} — طابق {$this->note->floor_number}",
+            'title_key' => 'notifications.note_accepted_title',
+            'message_key' => 'notifications.note_accepted_message',
             'url' => '/notes/'.$this->note->id,
             'type' => 'note_accepted',
             'category' => 'note',

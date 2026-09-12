@@ -1,8 +1,9 @@
+@php($devLocale = app()->getLocale() === 'en' ? 'en' : 'ar')
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="{{ $devLocale }}" dir="{{ $devLocale === 'en' ? 'ltr' : 'rtl' }}">
 <head>
 <meta charset="utf-8">
-<title>Print Isolation Test</title>
+<title>{{ __('ui.dev_print_title') }}</title>
 <style>
   @page { size: A4 portrait; margin: 0; }
   html, body { margin:0; padding:0; background:#f0f0f0; }
@@ -22,17 +23,17 @@
 </head>
 <body>
 <div style="padding:10mm; font-family:sans-serif; text-align:center;">
-  <h2>اختبارات العزل — شغّل كل اختبار واطبع</h2>
+  <h2>{{ __('ui.dev_print_h2') }}</h2>
   <button onclick="runTest('A')" style="padding:8px 16px; margin:4px;">TEST A — Empty A4</button>
   <button onclick="runTest('B')" style="padding:8px 16px; margin:4px;">TEST B — Black Rectangle</button>
   <button onclick="runTest('C')" style="padding:8px 16px; margin:4px;">TEST C — Single Image</button>
   <button onclick="runTest('D')" style="padding:8px 16px; margin:4px;">TEST D — Real Layout</button>
-  <button onclick="window.print()" style="padding:8px 16px; margin:4px; background:#0e6a38; color:white;">طباعة</button>
+  <button onclick="window.print()" style="padding:8px 16px; margin:4px; background:#0e6a38; color:white;">{{ __('ui.print_btn') }}</button>
 </div>
 
 <div id="test-root" style="display:flex; justify-content:center; padding:10mm;">
   <div class="test-page" id="test-page">
-    <div style="position:absolute; left:6mm; top:6mm; right:6mm; bottom:6mm; border:1px dashed #ccc; display:flex; align-items:center; justify-content:center; color:#999;">اختر اختباراً</div>
+    <div style="position:absolute; left:6mm; top:6mm; right:6mm; bottom:6mm; border:1px dashed #ccc; display:flex; align-items:center; justify-content:center; color:#999;">{{ __('ui.dev_print_pick') }}</div>
   </div>
 </div>
 
@@ -50,7 +51,7 @@ function runTest(t){
     
     fetch('/notes', {headers:{'X-Requested-With':'XMLHttpRequest'}}).then(r=>r.text()).then(html=>{
       console.log('fetched notes length', html.length);
-      alert('افتح نافذة طباعة الملاحظة الحقيقية للمقارنة');
+      alert(@json(__('ui.dev_print_alert')));
     });
   }
   console.log('Test',t,'— افتح Print Preview الآن');

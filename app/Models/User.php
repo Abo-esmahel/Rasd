@@ -20,6 +20,7 @@ class User extends Authenticatable
         'personal_number',
         'password',
         'role',
+        'locale',
         'avatar_path',
     ];
 
@@ -111,11 +112,11 @@ class User extends Authenticatable
     public function getRatingLabelAttribute(): string
     {
         $r = $this->rating;
-        if ($r >= 4.5) return 'ممتاز';
-        if ($r >= 3.5) return 'جيد جداً';
-        if ($r >= 2.5) return 'جيد';
-        if ($r >= 1.5) return 'مقبول';
-        if ($r > 0) return 'ضعيف';
-        return 'بدون تقييم';
+        if ($r >= 4.5) return __('ui.rating_excellent');
+        if ($r >= 3.5) return __('ui.rating_very_good');
+        if ($r >= 2.5) return __('ui.rating_good');
+        if ($r >= 1.5) return __('ui.rating_fair');
+        if ($r > 0) return __('ui.rating_weak');
+        return __('ui.rating_none');
     }
 }

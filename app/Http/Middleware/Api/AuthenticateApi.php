@@ -18,12 +18,14 @@ class AuthenticateApi
 
     public function handle(Request $request, Closure $next): Response
     {
-        $token = $request->bearerToken() ?? $request->query('token');
+        // التوكن عبر Authorization: Bearer فقط — منع تمريره في URL
+        // لأنه يُسجَّل في اللوقات وسجل المتصفح ويتسرب عبر Referer.
+        $token = $request->bearerToken();
 
         if (!$token) {
             return response()->json([
                 'success' => false,
-                'message' => 'غير مصرح لك بالوصول',
+                'message' => __('api.unauthorized'),
             ], 401);
         }
 
@@ -32,7 +34,7 @@ class AuthenticateApi
         if (!$user) {
             return response()->json([
                 'success' => false,
-                'message' => 'الرمز غير صالح أو منتهي الصلاحية',
+                'message' => __('api.token_invalid'),
             ], 401);
         }
 

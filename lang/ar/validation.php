@@ -1,0 +1,48 @@
+<?php
+
+return [
+    'required' => 'حقل :attribute مطلوب.',
+    'string' => 'حقل :attribute يجب أن يكون نصاً.',
+    'integer' => 'حقل :attribute يجب أن يكون رقماً صحيحاً.',
+    'numeric' => 'حقل :attribute يجب أن يكون رقماً.',
+    'array' => 'حقل :attribute يجب أن يكون قائمة.',
+    'boolean' => 'حقل :attribute يجب أن يكون true أو false.',
+    'date' => 'حقل :attribute ليس تاريخاً صالحاً.',
+    'min' => [
+        'string' => 'حقل :attribute يجب ألا يقل عن :min أحرف.',
+        'numeric' => 'حقل :attribute يجب ألا يقل عن :min.',
+        'array' => 'حقل :attribute يجب أن يحتوي على :min عناصر على الأقل.',
+        'file' => 'حقل :attribute يجب ألا يقل عن :min كيلوبايت.',
+    ],
+    'max' => [
+        'string' => 'حقل :attribute يجب ألا يتجاوز :max أحرف.',
+        'numeric' => 'حقل :attribute يجب ألا يتجاوز :max.',
+        'array' => 'حقل :attribute يجب ألا يتجاوز :max عناصر.',
+        'file' => 'حقل :attribute يجب ألا يتجاوز :max كيلوبايت.',
+    ],
+    'in' => 'القيمة المختارة في :attribute غير صالحة.',
+    'exists' => ':attribute المحدد غير موجود.',
+    'unique' => ':attribute مستخدم مسبقاً.',
+    'email' => 'حقل :attribute يجب أن يكون بريداً صالحاً.',
+    'confirmed' => 'تأكيد :attribute غير متطابق.',
+    'file' => 'حقل :attribute يجب أن يكون ملفاً.',
+    'image' => 'حقل :attribute يجب أن يكون صورة.',
+    'mimes' => 'امتداد الملف في :attribute غير مدعوم.',
+    'mimetypes' => 'نوع الملف في :attribute غير مدعوم.',
+
+    'attributes' => [
+        'floor_number' => 'رقم الطابق',
+        'camera_number' => 'رقم الكاميرا',
+        'observed_at' => 'وقت الملاحظة',
+        'observed_end_at' => 'وقت انتهاء الملاحظة',
+        'description' => 'الوصف',
+        'report_writer_ids' => 'كتّاب التقارير',
+        'report_writer_id' => 'كاتب التقارير',
+        'file' => 'الملف',
+        'files' => 'الملفات',
+        'title' => 'العنوان',
+        'username' => 'اسم المستخدم',
+        'password' => 'كلمة المرور',
+        'name' => 'الاسم',
+    ],
+];

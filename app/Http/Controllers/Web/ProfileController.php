@@ -46,25 +46,32 @@ class ProfileController extends Controller
                 'notes as total_notes' => fn($q) => $q->where('user_id', \Illuminate\Support\Facades\DB::raw('users.id')),
             ])
             ->get();
+        $rawCounts = \Illuminate\Support\Facades\Cache::remember('ranking-global-stats', 300, fn () => \App\Models\Note::selectRaw('status, COUNT(*) as c')->groupBy('status')->pluck('c', 'status')->toArray());
         $globalStats = [
-            'total' => \App\Models\Note::count(),
-            'draft' => \App\Models\Note::where('status', 'draft')->count(),
-            'pending' => \App\Models\Note::where('status', 'pending')->count(),
-            'accepted' => \App\Models\Note::where('status', 'accepted')->count(),
-            'rejected' => \App\Models\Note::where('status', 'rejected')->count(),
+            'total' => array_sum($rawCounts),
+            'draft' => $rawCounts['draft'] ?? 0,
+            'pending' => $rawCounts['pending'] ?? 0,
+            'accepted' => $rawCounts['accepted'] ?? 0,
+            'rejected' => $rawCounts['rejected'] ?? 0,
         ];
+
         return view('profile.ranking', compact('monitors', 'writers', 'globalStats'));
     }
 
     private function getStats(\App\Models\User $user): array
     {
-        return [
-            'total' => $user->notes()->count(),
-            'draft' => $user->notes()->where('status', 'draft')->count(),
-            'pending' => $user->notes()->where('status', 'pending')->count(),
-            'accepted' => $user->notes()->where('status', 'accepted')->count(),
-            'rejected' => $user->notes()->where('status', 'rejected')->count(),
-        ];
+        // استعلام واحد بدل 5 counts + كاش دقيقتين — الصفحة كانت تضرب DB خمس مرات.
+        return \Illuminate\Support\Facades\Cache::remember('profile-stats:'.$user->id, 120, function () use ($user) {
+            $counts = $user->notes()->selectRaw('status, COUNT(*) as c')->groupBy('status')->pluck('c', 'status')->toArray();
+
+            return [
+                'total' => array_sum($counts),
+                'draft' => $counts['draft'] ?? 0,
+                'pending' => $counts['pending'] ?? 0,
+                'accepted' => $counts['accepted'] ?? 0,
+                'rejected' => $counts['rejected'] ?? 0,
+            ];
+        });
     }
 
     public function edit()
@@ -90,16 +97,16 @@ class ProfileController extends Controller
         if ($rawPhone !== null && trim($rawPhone) !== '') {
             $normalized = SyrianPhone::normalize($rawPhone);
             if (!SyrianPhone::isValidNormalized($normalized)) {
-                return back()->withErrors(['personal_number' => 'رقم الجوال غير صحيح'])->withInput();
+                return back()->withErrors(['personal_number' => __('api.profile_phone_invalid')])->withInput();
             }
             $exists = User::where('personal_number', $normalized)->where('id', '!=', $user->id)->exists();
             if ($exists) {
-                return back()->withErrors(['personal_number' => 'هذا الرقم مستخدم مسبقاً'])->withInput();
+                return back()->withErrors(['personal_number' => __('api.profile_phone_taken')])->withInput();
             }
         }
         if (!empty($validated['password'])) {
             if (empty($validated['current_password']) || !Hash::check($validated['current_password'], $user->password)) {
-                return back()->withErrors(['current_password' => 'كلمة المرور الحالية غير صحيحة'])->withInput();
+                return back()->withErrors(['current_password' => __('api.profile_password_wrong')])->withInput();
             }
             $user->password = $validated['password'];
         }
@@ -128,7 +135,7 @@ class ProfileController extends Controller
                 ]);
 
                 return back()
-                    ->withErrors(['avatar' => 'تعذّر رفع الصورة. حاول بصورة أصغر (حتى 10MB) بصيغة JPG/PNG/WEBP.'])
+                    ->withErrors(['avatar' => __('api.profile_avatar_failed')])
                     ->withInput();
             }
             if ($user->avatar_path && \Illuminate\Support\Facades\Storage::disk('public')->exists($user->avatar_path)) {
@@ -137,6 +144,6 @@ class ProfileController extends Controller
             $user->avatar_path = $localPath;
         }
         $user->save();
-        return redirect()->route('profile.show')->with('success', 'تم تحديث الملف الشخصي بنجاح');
+        return redirect()->route('profile.show')->with('success', __('ui.profile_updated'));
     }
 }

@@ -15,7 +15,7 @@ class RasdDemoNotesSeeder extends Seeder
     {
         $disk = Storage::disk('attachments');
 
-        // ── 1) wipe existing notes + their files/records + their notifications ──
+
         $ids = Note::pluck('id')->all();
         $files = 0;
         foreach (Attachment::whereIn('note_id', $ids)->get() as $a) {
@@ -43,7 +43,7 @@ class RasdDemoNotesSeeder extends Seeder
         $noteDel = Note::whereIn('id', $ids)->delete();
         $this->command->warn("WIPE notes=$noteDel attachments=$attDel files=$files notifications=$notifDel");
 
-        // ── 2) 8 real notes: هادي(2) رامي(4) طارق(1) حمزة(3) / معالج: زهير(5) ──
+
         $now = now();
         $defs = [
             ['u' => 2, 'cam' => 12, 'fl' => 2, 'st' => 'pending', 'kind' => 'person',
@@ -113,7 +113,7 @@ class RasdDemoNotesSeeder extends Seeder
             $this->command->line("note #{$n->id} user={$d['u']} cam={$d['cam']} status={$d['st']}");
         }
 
-        // ── 3) verify Arabic integrity (multibyte chars must survive) ──
+
         $bad = Note::get()->filter(fn ($n) => mb_strlen($n->description) >= strlen($n->description))->count();
         $local = Attachment::get()->filter->isLocal()->count();
         $this->command->info("DONE notes=$made | CHECK notes=" . Note::count() . ' attach=' . Attachment::count() . " local_ok=$local broken_arabic=$bad");

@@ -18,9 +18,10 @@ p{font-size:13px;color:#6b7a6e;line-height:1.7;margin-bottom:16px}
 <body>
 <div class="card">
 <div class="icon">📡</div>
-<h1>لا يوجد اتصال بالإنترنت</h1>
-<p>التطبيق يحتاج إلى اتصال لعرض البيانات الجديدة. يمكنك المحاولة مرة أخرى عند عودة الاتصال.</p>
-<a href="/" class="btn" onclick="location.reload();return false;">إعادة المحاولة</a>
+<h1 data-ar="لا يوجد اتصال بالإنترنت" data-en="No internet connection">لا يوجد اتصال بالإنترنت</h1>
+<p data-ar="التطبيق يحتاج إلى اتصال لعرض البيانات الجديدة. يمكنك المحاولة مرة أخرى عند عودة الاتصال." data-en="The app needs a connection to show new data. Please retry once you are back online.">التطبيق يحتاج إلى اتصال لعرض البيانات الجديدة. يمكنك المحاولة مرة أخرى عند عودة الاتصال.</p>
+<a href="/" class="btn" onclick="location.reload();return false;" data-ar="إعادة المحاولة" data-en="Retry">إعادة المحاولة</a>
 </div>
+<script>(function(){try{var l=null;try{l=localStorage.getItem('rasd_locale');}catch(e){}if(!l){var m=(document.cookie.match(/(?:^|;\s*)rasd_locale=(ar|en)/)||[])[1];l=m||'ar';}if(l!=='ar'&&l!=='en')l='ar';document.documentElement.lang=l;document.documentElement.dir=(l==='ar'?'rtl':'ltr');document.title=(l==='en'?'Offline — Notes':'غير متصل — ملاحظة');document.querySelectorAll('[data-ar]').forEach(function(el){el.textContent=el.getAttribute(l==='en'?'data-en':'data-ar');});}catch(e){}})();</script>
 </body>
 </html>

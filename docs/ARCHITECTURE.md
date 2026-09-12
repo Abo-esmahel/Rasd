@@ -21,7 +21,7 @@ Flutter
 ```
 
 ### مبدأ أساسي
-الويب وواجهة برمجة التطبيقات يشاركان نفس المنطق עסקי وقواعد التفويض.
+الويب وواجهة برمجة التطبيقات يشاركان نفس منطق العمل وقواعد التفويض.
 لا يوجد تكرار في منطق العمل بين Controllers.
 
 ## المكونات
@@ -37,6 +37,29 @@ Flutter
 - resendRejectedNote
 - addAttachment
 - removeAttachment
+- getVisibleNotesQuery (تستبعد ملاحظات الإرسالات `general_submission_id IS NULL`)
+
+### GeneralSubmissionService
+- createDraft / submit / accept / reject للإرسالات العامة
+- **القبول يقلب الحالة فقط — لا ينشئ `Note` أبدًا** (الإرسالات ليست ملاحظات)
+- getVisibleSubmissions (المرسِل + الكتّاب المعنيون)
+
+### GalleryController
+- معرض موحد: `unionAll` بين مرفقات الملاحظات والإرسالات + تطبيع + `paginate(24)` — راجع `GALLERY.md`
+
+### ReportService
+- الدومين الثالث بنفس النمط: createDraft / attachNotes / detachNote / reorderNotes / update / publish / unpublish / delete
+- قاعدة اليوم الواحد تُفحص في السيرفر عبر `reportDay()` — لا يعتمد على الواجهة
+- كل العمليات الحرجة داخل معاملات (transactions)
+
+### ReportPolicy
+- create/generateAi/publish/unpublish/update/delete: كاتب التقارير لتقاريره فقط
+- view: الكاتب يرى الكل، والمراقب يرى المنشور المرئي فقط (بدون مسودة AI)
+
+### منظومة Gemini (التقارير فقط)
+- `ReportAiService` ينسق: تحقق ← شريحة سياق ← بناء طلب ← Gemini ← حفظ `ai_draft_content` (لا يمس `content`)
+- `ReportContextService` يبني `storage/app/ai/report-context.txt` من قاعدة البيانات فقط + أمر `reports:rebuild-ai-context`
+- `GeminiAiTextGenerator` عبر `AiTextGeneratorInterface` — المفتاح والموديل من `config/ai.php` فقط
 
 ### NotePolicy
 سياسة مركزية للتفويض:
@@ -56,8 +79,10 @@ Flutter
 
 ### Config
 - `config/jwt.php`: إعدادات JWT (secret, expiry)
-- `config/attachments.php`: حدود المرفقات (max_image_size, max_video_size, max_per_note)
-- `config/filesystems.php`: قرص `private` منفصل بـ `serve => false` لمنع الوصول العام عبر `/storage`
+- `config/attachments.php`: حدود المرفقات
+- `config/ai.php`: إعدادات التقارير الذكية (تفعيل، مفتاح Gemini، الموديل، حد الصور) — راجع `REPORTS.md`
+- `config/filesystems.php`: قرص محلي `attachments` (`notes/{id}/...` + `submissions/{id}/...`)
+- `config/app.php`: `share_url` — هوست روابط المشاركة (فارغ = تلقائي ديناميكي)
 
 ## التوثيق
 - Web: جلسات Laravel + CSRF
@@ -65,8 +90,7 @@ Flutter
 - كلاهما يستخدم نفس NoteService و NotePolicy
 
 ## التخزين
-- الملفات: storage/app/private/notes/ (قرص `private`)
-- لا يوجد رابط عام للتخزين (`serve => false`)
-- أسماء ملفات مولدة UUID + امتداد آمن من MIME الفعلي (وليس امتداد العميل فقط)
-- التحقق: امتداد + MIME فعلي عبر finfo + حجم + حد العدد + رفض الامتدادات الخطرة (php, phtml, html, js, exe, sh, bat, ...) + رفض الأسماء المزدوجة مثل `image.jpg.php` و `test.php.jpg` إذا احتوت php
-- خدمة مخصصة لتحميل الملفات مع التفويض (يتبع قواعد visibility للملاحظة)
+- الملفات: قرص محلي `attachments` — ملاحظات `notes/{id}/` + إرسالات `submissions/{id}/`
+- لا وصول مباشر — عرض/تنزيل عبر endpoints بتفويض
+- روابط مشاركة دائمة نظيفة `/s/...` (صفحة عرض خاصة، الدخول إجباري)
+- أسماء ملفات UUID + فحص `finfo` + رفض الامتدادات الخطرة والمزدوجة

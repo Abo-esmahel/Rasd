@@ -22,7 +22,7 @@ class GalleryController extends Controller
         $date = ($request->filled('date') && strtotime($request->date) !== false) ? $request->date : null;
         $sort = $request->input('sort') === 'oldest' ? 'oldest' : 'latest';
 
-        // ---- Notes attachments (visible notes only, submissions-converted excluded) ----
+
         $noteQ = Attachment::query()
             ->select([
                 'attachments.id', 'attachments.original_name', 'attachments.mime_type',
@@ -38,7 +38,7 @@ class GalleryController extends Controller
                 if ($floor !== null) $q->where('notes.floor_number', $floor);
             });
 
-        // ---- General-submission attachments (visible submissions only) ----
+
         $subQ = GeneralSubmissionAttachment::query()
             ->select([
                 'general_submission_attachments.id', 'general_submission_attachments.original_name',
@@ -60,12 +60,10 @@ class GalleryController extends Controller
             if ($date !== null) $q->whereDate('created_at', $date);
         }
 
-        // Use base query builder so paginate() returns stdClass rows.
-        // With Eloquent builders, unionAll()+paginate() hydrates Attachment models
-        // and (array) $model does NOT give attributes -> "Undefined array key created_at".
+
         $page = $noteQ->toBase()->unionAll($subQ->toBase())->orderBy('created_at', $sort === 'oldest' ? 'asc' : 'desc')->paginate(24)->withQueryString();
 
-        // Batch-load parents.
+
         $rows = collect($page->items());
         $noteIds = $rows->where('kind', 'note')->pluck('parent_id')->unique()->all();
         $subIds = $rows->where('kind', 'submission')->pluck('parent_id')->unique()->all();
@@ -86,7 +84,7 @@ class GalleryController extends Controller
                     'size' => $r['file_size'], 'created' => $created,
                     'viewUrl' => route('notes.attachments.view', $r['id']),
                     'downloadUrl' => route('notes.attachments.download', $r['id']),
-                    'parentUrl' => route('notes.show', $p), 'parentKind' => 'ملاحظة',
+                    'parentUrl' => route('notes.show', $p), 'parentKind' => __('ui.parent_note'),
                     'parentRef' => '#' . str_pad($p->id, 4, '0', STR_PAD_LEFT),
                     'camera' => $p->camera_number, 'floor' => $p->floor_number,
                     'ownerName' => $p->owner->name ?? '—',
@@ -99,7 +97,7 @@ class GalleryController extends Controller
                 'size' => $r['file_size'], 'created' => $created,
                 'viewUrl' => route('submission-attachments.view', $r['id']),
                 'downloadUrl' => route('submission-attachments.download', $r['id']),
-                'parentUrl' => route('general-submissions.show', $p), 'parentKind' => 'إرسال عام',
+                'parentUrl' => route('general-submissions.show', $p), 'parentKind' => __('ui.parent_submission'),
                 'parentRef' => '#' . str_pad($p->id, 4, '0', STR_PAD_LEFT),
                 'camera' => $p->camera_number, 'floor' => $p->floor_number,
                 'ownerName' => $p->owner->name ?? '—',
@@ -107,18 +105,82 @@ class GalleryController extends Controller
         })->filter()->values();
         $page->setCollection($items);
 
-        // Filter dropdowns merged from both sources.
+
+        // فلاتر المعرض: 4 استعلامات distinct في كل فتح — كاش 5 دقائق لكل مستخدم.
+        // arrays فقط + مفتاح بإصدار + تحقق ذاتي: مخزن الكاش (database) قد يعيد
+        // قيمًا قديمة/ناقصة (__PHP_Incomplete_Class) بعد تغيير الكود — أي شكل
+        // غير متوقع = تجاهل + إعادة بناء، لا 500 أبدًا. القوائم تُطبَّع لسلاسل
+        // نصية فريدة مرتبة حتى لا تصل مصفوفة/كائن إلى {{ }} في الواجهة أبدًا.
+        $filtersKey = 'gallery-filters:v2:'.$user->id;
+        $cameras = $floors = [];
+        try {
+            $cached = \Illuminate\Support\Facades\Cache::get($filtersKey);
+            if (is_array($cached) && isset($cached[0], $cached[1]) && is_array($cached[0]) && is_array($cached[1])) {
+                $cameras = self::galleryScalarList($cached[0]);
+                $floors = self::galleryScalarList($cached[1]);
+                // شكل صالح ظاهريًا لكنه لا يحوي أي scalar (قيم قديمة مسمومة):
+                // أعد البناء بدل تقديم فلاتر فارغة.
+                if ((count($cached[0]) > 0 && count($cameras) === 0) || (count($cached[1]) > 0 && count($floors) === 0)) {
+                    throw new \RuntimeException('gallery filters cache holds no scalars');
+                }
+            } else {
+                if ($cached !== null) \Illuminate\Support\Facades\Cache::forget($filtersKey);
+                [$cameras, $floors] = self::buildGalleryFilters($user);
+                \Illuminate\Support\Facades\Cache::put($filtersKey, [$cameras, $floors], 300);
+            }
+        } catch (\Throwable $e) {
+            report($e);
+            try {
+                \Illuminate\Support\Facades\Cache::forget($filtersKey);
+                [$cameras, $floors] = self::buildGalleryFilters($user);
+            } catch (\Throwable $e2) {
+                report($e2);
+                $cameras = $floors = [];
+            }
+        }
+
+        return view('gallery.index', ['attachments' => $page, 'cameras' => $cameras, 'floors' => $floors]);
+    }
+
+    /**
+     * بناء قوائم الفلاتر من المصدرين + تطبيع صارم لسلاسل نصية.
+     *
+     * @return array{0: array<int,string>, 1: array<int,string>}
+     */
+    private static function buildGalleryFilters($user): array
+    {
         $noteBase = Note::query()->whereNull('notes.general_submission_id')
             ->where(fn ($q) => $q->where('notes.user_id', $user->id)->orWhere('notes.status', '!=', Note::STATUS_DRAFT));
         $subBase = GeneralSubmission::query()
             ->where(fn ($q) => $q->whereHas('reportWriters', fn ($w) => $w->where('users.id', $user->id))->orWhere('general_submissions.user_id', $user->id));
         $cameras = $noteBase->clone()->distinct()->orderBy('notes.camera_number')->pluck('notes.camera_number')
             ->merge($subBase->clone()->distinct()->orderBy('general_submissions.camera_number')->pluck('general_submissions.camera_number'))
-            ->unique()->sort()->values();
+            ->all();
         $floors = $noteBase->clone()->distinct()->orderBy('notes.floor_number')->pluck('notes.floor_number')
             ->merge($subBase->clone()->distinct()->orderBy('general_submissions.floor_number')->pluck('general_submissions.floor_number'))
-            ->unique()->sort()->values();
+            ->all();
 
-        return view('gallery.index', ['attachments' => $page, 'cameras' => $cameras, 'floors' => $floors]);
+        return [self::galleryScalarList($cameras), self::galleryScalarList($floors)];
+    }
+
+    /**
+     * تطبيع أي قيم قادمة من DB/كاش إلى قائمة سلاسل فريدة مرتبة.
+     * يُسقط null والمصفوفات والكائنات والسلاسل الفارغة — ما يُعرض في
+     * <option value="{{ $v }}"> يجب أن يكون scalar دائمًا.
+     */
+    private static function galleryScalarList($values): array
+    {
+        $out = [];
+        if (is_iterable($values)) {
+            foreach ($values as $v) {
+                if (is_scalar($v)) {
+                    $s = trim((string) $v);
+                    if ($s !== '') $out[] = $s;
+                }
+            }
+        }
+        $out = array_values(array_unique($out));
+        sort($out, SORT_NATURAL);
+        return $out;
     }
 }

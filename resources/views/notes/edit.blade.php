@@ -3,10 +3,10 @@
 @section('content')
 @php
     $statusConfig = [
-        'draft' => ['label'=>'مسودة','cls'=>'bg-ink-100 text-ink-500 border-[#e6e9e1]','dot'=>'bg-ink-300'],
-        'pending' => ['label'=>'قيد المراجعة','cls'=>'bg-amber-50 text-amber-700 border-amber-200','dot'=>'bg-amber-400'],
-        'accepted' => ['label'=>'مقبولة','cls'=>'bg-[#eef4f0] text-[#0e6a38] border-[#cde7d6]','dot'=>'bg-[#0e6a38]'],
-        'rejected' => ['label'=>'مرفوضة','cls'=>'bg-red-50 text-red-700 border-red-200','dot'=>'bg-red-400'],
+        'draft' => ['label'=>status_label('draft'),'cls'=>'bg-ink-100 text-ink-500 border-[#e6e9e1]','dot'=>'bg-ink-300'],
+        'pending' => ['label'=>status_label('pending'),'cls'=>'bg-amber-50 text-amber-700 border-amber-200','dot'=>'bg-amber-400'],
+        'accepted' => ['label'=>status_label('accepted'),'cls'=>'bg-[#eef4f0] text-[#0e6a38] border-[#cde7d6]','dot'=>'bg-[#0e6a38]'],
+        'rejected' => ['label'=>status_label('rejected'),'cls'=>'bg-red-50 text-red-700 border-red-200','dot'=>'bg-red-400'],
     ];
     $current = $statusConfig[$note->status] ?? $statusConfig['draft'];
 @endphp
@@ -18,29 +18,28 @@
         </a>
         <div class="min-w-0">
             <div class="flex flex-wrap items-center gap-2">
-                <h1 class="text-lg font-extrabold text-ink-800 leading-none">تعديل الملاحظة</h1>
+                <h1 class="text-lg font-extrabold text-ink-800 leading-none">{{ __('ui.edit_note') }}</h1>
                 <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold border {{ $current['cls'] }}">
                     <span class="w-1.5 h-1.5 rounded-full {{ $current['dot'] }}"></span>{{ $current['label'] }}
                 </span>
-                <span class="text-xs text-ink-300 font-mono">#{{ $note->id }}</span>
             </div>
-            <p class="text-xs text-ink-400 mt-1">آخر تحديث: {{ $note->updated_at->toDatetime12() }} — الملاحظة: {{ $note->observed_at->toDatetime12() }}</p>
+            <p class="text-xs text-ink-400 mt-1">{{ $note->observed_at->toDatetime12() }}</p>
         </div>
     </div>
     @if($note->isAccepted())
-        <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0e6a38] text-white text-xs font-bold shrink-0">مُعتمدة — لا يمكن التعديل</span>
+        <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0e6a38] text-white text-xs font-bold shrink-0">{{ __('ui.accepted_locked') }}</span>
     @endif
 </div>
 
-<div class="max-w-4xl mx-auto space-y-4">
+<div class="max-w-4xl mx-auto space-y-4" data-i18n-entity="note" data-i18n-id="{{ $note->id }}">
     @if($note->status === 'rejected' && $note->rejection_reason)
         <div class="flex gap-3 p-4 bg-red-50 border border-red-200 rounded-xl">
             <svg class="w-5 h-5 text-red-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
             <div class="flex-1 min-w-0">
-                <div class="text-sm font-bold text-red-700">سبب الرفض — يرجى التصحيح</div>
-                <p class="mt-1 text-sm leading-6 text-red-600 break-words">{{ $note->rejection_reason }}</p>
+                <div class="text-sm font-bold text-red-700">{{ __('ui.reject_reason') }}</div>
+                <p class="mt-1 text-sm leading-6 text-red-600 break-words" data-i18n-field="rejection_reason">{{ l10n_text('note', $note->id, 'rejection_reason', $note->rejection_reason) }}</p>
                 @if($note->processor)
-                    <div class="mt-1.5 text-xs font-bold text-red-500">بواسطة {{ $note->processor->name }} — {{ $note->processed_at?->toDatetime12() }}</div>
+                    <div class="mt-1.5 text-xs font-bold text-red-500">{{ __('ui.by_user') }} {{ $note->processor->name }} — {{ $note->processed_at?->toDatetime12() }}</div>
                 @endif
             </div>
         </div>
@@ -49,7 +48,7 @@
     @if($note->isAccepted())
         <div class="flex gap-3 p-4 bg-[#eef4f0] border border-[#cde7d6] rounded-xl text-[#0e6a38]">
             <svg class="w-5 h-5 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-            <p class="text-sm leading-6 font-bold">هذه الملاحظة مقبولة نهائياً ولا يمكن تعديلها.</p>
+            <p class="text-sm leading-6 font-bold">{{ __('ui.accepted_locked') }}</p>
         </div>
     @endif
 
@@ -59,29 +58,29 @@
             <div id="form-errors-edit" class="hidden p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700"></div>
             <div id="upload-progress-edit" class="hidden p-4 bg-[#eef4f0] border border-[#cde7d6] rounded-xl">
                 <div class="flex items-center justify-between mb-2">
-                    <span class="text-sm font-bold text-[#0e6a38] flex items-center gap-2"><span class="w-3 h-3 border-2 border-[#0e6a38] border-t-transparent rounded-full animate-spin"></span>جاري الرفع...</span>
+                    <span class="text-sm font-bold text-[#0e6a38] flex items-center gap-2"><span class="w-3 h-3 border-2 border-[#0e6a38] border-t-transparent rounded-full animate-spin"></span>{{ __('ui.uploading') }}</span>
                     <span id="upload-progress-text-edit" class="text-xs font-bold text-ink-500">0%</span>
                 </div>
                 <div class="w-full bg-white rounded-full h-2.5 border border-[#e6e9e1] overflow-hidden">
                     <div id="upload-progress-bar-edit" class="h-2.5 rounded-full bg-[#0e6a38] transition-all duration-300" style="width:0%"></div>
                 </div>
-                <div class="mt-1 text-[11px] text-ink-400">جاري رفع الملفات الأصلية دون تعديل (الجودة 100% محفوظة) — لا تغلق الصفحة</div>
+                <div class="mt-1 text-[11px] text-ink-400">{{ __('ui.uploading_dont_close') }}</div>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                    <label class="block text-sm font-bold text-ink-700 mb-1.5">رقم الطابق <span class="text-red-500">*</span></label>
+                    <label class="block text-sm font-bold text-ink-700 mb-1.5">{{ __('ui.floor_no') }} <span class="text-red-500">*</span></label>
                     <input type="number" name="floor_number" value="{{ old('floor_number', $note->floor_number) }}" min="0" required
                         class="block w-full rounded-xl border border-[#e6e9e1] bg-white py-3 px-4 text-sm font-medium text-ink-800 focus:border-[#0e6a38] focus:ring-2 focus:ring-[#0e6a38]/10 outline-none transition">
                 </div>
                 <div>
-                    <label class="block text-sm font-bold text-ink-700 mb-1.5">رقم الكاميرا <span class="text-red-500">*</span></label>
+                    <label class="block text-sm font-bold text-ink-700 mb-1.5">{{ __('ui.cam_no') }} <span class="text-red-500">*</span></label>
                     <input type="number" name="camera_number" value="{{ old('camera_number', $note->camera_number) }}" min="1" required
                         class="block w-full rounded-xl border border-[#e6e9e1] bg-white py-3 px-4 text-sm font-medium text-ink-800 focus:border-[#0e6a38] focus:ring-2 focus:ring-[#0e6a38]/10 outline-none transition">
                 </div>
             </div>
 
             <div class="rounded-xl border border-[#e6e9e1] bg-[#f5f7f5] p-4" id="edit-datetime-wrap">
-                <label class="block text-sm font-bold text-ink-700 mb-1">الملاحظة <span class="text-red-500">*</span></label>
+                <label class="block text-sm font-bold text-ink-700 mb-1">{{ __('ui.time_label') }} <span class="text-red-500">*</span></label>
                 @php
                     $editObserved = old('observed_at', $note->observed_at->format('Y-m-d\TH:i'));
                     $editDate = $editObserved ? date('Y-m-d', strtotime($editObserved)) : '';
@@ -91,20 +90,20 @@
                 @endphp
                 <div class="space-y-3 mt-2">
                     <div>
-                        <div class="text-xs font-bold text-ink-500 mb-1.5">التاريخ</div>
+                        <div class="text-xs font-bold text-ink-500 mb-1.5">{{ __('ui.date_label') }}</div>
                         <input type="date" id="observed_date_edit" value="{{ $editDate }}" required
                             class="block w-full rounded-xl border border-[#e6e9e1] bg-white py-2.5 px-4 text-sm font-bold text-ink-800 focus:border-[#0e6a38] focus:ring-2 focus:ring-[#0e6a38]/10 outline-none transition cursor-pointer"
                             style="color-scheme: light;">
                     </div>
                     <div class="grid grid-cols-2 gap-3">
                         <div>
-                            <div class="text-xs font-bold text-ink-500 mb-1.5">بداية الملاحظة</div>
+                            <div class="text-xs font-bold text-ink-500 mb-1.5">{{ __('ui.note_start') }}</div>
                             <input type="time" id="observed_time_edit" value="{{ $editTime }}" required step="60"
                                 class="block w-full rounded-xl border border-[#e6e9e1] bg-white py-2.5 px-4 text-sm font-bold text-ink-800 focus:border-[#0e6a38] focus:ring-2 focus:ring-[#0e6a38]/10 outline-none transition cursor-pointer"
                                 style="color-scheme: light;">
                         </div>
                         <div>
-                            <div class="text-xs font-bold text-ink-500 mb-1.5">انتهاء الملاحظة</div>
+                            <div class="text-xs font-bold text-ink-500 mb-1.5">{{ __('ui.note_end') }}</div>
                             <input type="time" id="observed_end_time_edit" value="{{ $editEndTime }}" step="60"
                                 class="block w-full rounded-xl border border-[#e6e9e1] bg-white py-2.5 px-4 text-sm font-bold text-ink-800 focus:border-[#0e6a38] focus:ring-2 focus:ring-[#0e6a38]/10 outline-none transition cursor-pointer"
                                 style="color-scheme: light;">
@@ -112,10 +111,10 @@
                     </div>
                 </div>
                 <div class="mt-3 flex flex-wrap gap-1.5">
-                    <button type="button" data-preset="now" class="preset-btn-edit px-3 py-1.5 rounded-lg bg-[#0e6a38] text-white text-xs font-bold hover:bg-[#0a4d28] transition">الآن</button>
-                    <button type="button" data-preset="hour-ago" class="preset-btn-edit px-3 py-1.5 rounded-lg bg-[#fdfcfa] border border-[#e6e9e1] text-[#1a2e1f] text-xs font-bold hover:bg-[#f5f7f5] transition">قبل ساعة</button>
-                    <button type="button" data-preset="today-08" class="preset-btn-edit px-3 py-1.5 rounded-lg bg-[#fdfcfa] border border-[#e6e9e1] text-[#1a2e1f] text-xs font-bold hover:bg-[#f5f7f5] transition">اليوم 08:00</button>
-                    <button type="button" id="clear-datetime-edit" class="px-3 py-1.5 rounded-lg bg-transparent border border-[#e6e9e1] text-ink-400 text-xs font-bold hover:bg-white transition">مسح</button>
+                    <button type="button" data-preset="now" class="preset-btn-edit px-3 py-1.5 rounded-lg bg-[#0e6a38] text-white text-xs font-bold hover:bg-[#0a4d28] transition">{{ __('ui.now_btn') }}</button>
+                    <button type="button" data-preset="hour-ago" class="preset-btn-edit px-3 py-1.5 rounded-lg bg-[#fdfcfa] border border-[#e6e9e1] text-[#1a2e1f] text-xs font-bold hover:bg-[#f5f7f5] transition">{{ __('ui.hour_ago_btn') }}</button>
+                    <button type="button" data-preset="today-08" class="preset-btn-edit px-3 py-1.5 rounded-lg bg-[#fdfcfa] border border-[#e6e9e1] text-[#1a2e1f] text-xs font-bold hover:bg-[#f5f7f5] transition">{{ __('ui.today_08_btn') }}</button>
+                    <button type="button" id="clear-datetime-edit" class="px-3 py-1.5 rounded-lg bg-transparent border border-[#e6e9e1] text-ink-400 text-xs font-bold hover:bg-white transition">{{ __('ui.clear_btn') }}</button>
                 </div>
                 <div class="mt-3 flex items-center gap-2 p-2.5 rounded-lg bg-white border border-[#e6e9e1]">
                     <svg class="w-4 h-4 text-[#0e6a38] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
@@ -128,15 +127,21 @@
             </div>
 
             <div>
-                <label class="block text-sm font-bold text-ink-700 mb-1.5">الوصف <span class="text-red-500">*</span></label>
+                <label class="block text-sm font-bold text-ink-700 mb-1.5">{{ __('ui.description') }} <span class="text-red-500">*</span></label>
                 <textarea name="description" rows="5" required
                     class="block w-full rounded-xl border border-[#e6e9e1] bg-white p-4 text-sm leading-7 text-ink-800 placeholder:text-ink-300 focus:border-[#0e6a38] focus:ring-2 focus:ring-[#0e6a38]/10 outline-none transition resize-none">{{ old('description', $note->description) }}</textarea>
+                <div class="mt-3">
+                    @include('notes.partials.smart_hint', ['note' => $note])
+                </div>
+                <div class="mt-2">
+                    @include('notes.partials.translation_status', ['note' => $note])
+                </div>
             </div>
 
             @if($note->attachments->count() > 0)
                 <div class="rounded-xl border border-[#e6e9e1] bg-[#f5f7f5] p-4">
                     <div class="flex items-center justify-between mb-3">
-                        <label class="text-sm font-bold text-ink-700">المرفقات الحالية</label>
+                        <label class="text-sm font-bold text-ink-700">{{ __('ui.current_attachments') }}</label>
                         <span class="text-xs font-bold px-2 py-0.5 rounded-full bg-white border border-[#e6e9e1] text-ink-400">{{ $note->attachments->count() }} / 5</span>
                     </div>
                     <div class="space-y-2">
@@ -156,17 +161,17 @@
                                     <div class="text-xs text-ink-400">{{ $attachment->mime_type }} — {{ number_format($attachment->file_size / 1024, 1) }} KB</div>
                                 </div>
                                 <div class="flex items-center gap-1 shrink-0">
-                                    <button type="button" onclick="openAttachmentView('{{ route('notes.attachments.view', $attachment) }}', '{{ $attachment->mime_type }}', '{{ addslashes($attachment->original_name) }}')" class="w-8 h-8 rounded-lg bg-[#f5f7f5] border border-[#e6e9e1] flex items-center justify-center text-ink-400 hover:text-[#0e6a38] hover:bg-white transition" aria-label="عرض">
+                                    <button type="button" onclick="openAttachmentView('{{ route('notes.attachments.view', $attachment) }}', '{{ $attachment->mime_type }}', '{{ addslashes($attachment->original_name) }}')" class="w-8 h-8 rounded-lg bg-[#f5f7f5] border border-[#e6e9e1] flex items-center justify-center text-ink-400 hover:text-[#0e6a38] hover:bg-white transition" aria-label="{{ __('ui.view_attachment') }}">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
                                     </button>
                                     @if(auth()->user()->isReportWriter())
-                                        <a href="{{ route('notes.attachments.download', $attachment) }}" class="w-8 h-8 rounded-lg bg-[#0e6a38] text-white flex items-center justify-center hover:bg-[#0a4d28] transition" aria-label="تنزيل" title="تنزيل (للمدير فقط)">
+                                        <a href="{{ route('notes.attachments.download', $attachment) }}" class="w-8 h-8 rounded-lg bg-[#0e6a38] text-white flex items-center justify-center hover:bg-[#0a4d28] transition" aria-label="{{ __('ui.download_btn') }}" title="{{ __('ui.download_writer_only') }}">
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                                         </a>
                                     @endif
                                     @if(!$note->isAccepted())
-                                        {{-- زر حذف مرتبط بنموذج حذف مشترك خارج نموذج التعديل (نماذج متداخلة غير صالحة كانت تكسر FormData) --}}
-                                        <button type="submit" form="attach-del-form" formaction="{{ route('notes.attachments.destroy', [$note, $attachment], false) }}" formmethod="post" onclick="return confirm('هل أنت متأكد من الحذف؟')" class="w-8 h-8 rounded-lg bg-red-50 border border-red-200 flex items-center justify-center text-red-400 hover:bg-red-100 transition" aria-label="حذف">
+
+                                        <button type="submit" form="attach-del-form" formaction="{{ route('notes.attachments.destroy', [$note, $attachment], false) }}" formmethod="post" onclick="return confirm('{{ __('ui.confirm_delete') }}')" class="w-8 h-8 rounded-lg bg-red-50 border border-red-200 flex items-center justify-center text-red-400 hover:bg-red-100 transition" aria-label="{{ __('ui.file_remove') }}">
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                                         </button>
                                     @endif
@@ -179,7 +184,7 @@
 
             @if(!$note->isAccepted())
                 <div>
-                    <label class="block text-sm font-bold text-ink-700 mb-1.5">إضافة مرفقات</label>
+                    <label class="block text-sm font-bold text-ink-700 mb-1.5">{{ __('ui.add_attachments') }}</label>
                     <div class="rounded-xl border-2 border-dashed border-[#e6e9e1] bg-[#f5f7f5] hover:border-[#0e6a38] hover:bg-[#f5f7f5] p-5 text-center transition" id="edit-drop-zone">
                         <div class="mx-auto w-10 h-10 rounded-xl bg-white border border-[#e6e9e1] flex items-center justify-center">
                             <svg class="w-5 h-5 text-[#0e6a38]" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.7"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
@@ -187,15 +192,15 @@
                         <div class="mt-3 flex flex-col sm:flex-row items-center justify-center gap-2">
                             <label for="edit-files" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#0e6a38] text-white font-bold text-sm cursor-pointer hover:bg-[#0a4d28] transition">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
-                                اختيار ملفات
+                                {{ __('ui.choose_files') }}
                             </label>
                             <button type="button" id="open-camera-btn-edit" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-white border border-[#e6e9e1] text-ink-700 font-bold text-sm hover:bg-[#f5f7f5] transition">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 13a3 3 0 100-6 3 3 0 000 6z"/></svg>
-                                الكاميرا المباشرة
+                                {{ __('ui.live_camera') }}
                             </button>
                             <button type="button" id="audio-record-btn-edit" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-white border border-[#e6e9e1] text-ink-700 font-bold text-sm hover:bg-[#f5f7f5] transition">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/></svg>
-                                تسجيل صوتي
+                                {{ __('ui.audio_recording') }}
                             </button>
                         </div>
                         <div id="audio-preview-edit" class="hidden mt-3 p-3 bg-white border border-[#e6e9e1] rounded-xl">
@@ -204,32 +209,32 @@
                                     <svg class="w-5 h-5 text-red-500 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/></svg>
                                 </div>
                                 <div class="flex-1 min-w-0">
-                                    <div id="audio-preview-status-edit" class="text-sm font-bold text-ink-700">جاري طلب الميكروفون...</div>
+                                    <div id="audio-preview-status-edit" class="text-sm font-bold text-ink-700">{{ __('ui.requesting_mic') }}</div>
                                     <div id="audio-preview-timer-edit" class="text-xs text-ink-400 mt-0.5 hidden">00:00</div>
                                 </div>
-                                <button type="button" id="audio-preview-delete-edit" class="hidden shrink-0 w-8 h-8 rounded-lg hover:bg-red-50 flex items-center justify-center text-ink-400 hover:text-red-500 transition" title="حذف التسجيل">
+                                <button type="button" id="audio-preview-delete-edit" class="hidden shrink-0 w-8 h-8 rounded-lg hover:bg-red-50 flex items-center justify-center text-ink-400 hover:text-red-500 transition" title="{{ __('ui.delete_recording') }}">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
                                 </button>
                             </div>
                             <audio id="audio-preview-player-edit" class="hidden w-full mt-2 rounded-lg" controls></audio>
-                            <div id="audio-preview-pending-edit" class="hidden mt-2 text-[11px] text-[#0e6a38] font-bold">سيتم إرفاقه عند حفظ الملاحظة</div>
+                            <div id="audio-preview-pending-edit" class="hidden mt-2 text-[11px] text-[#0e6a38] font-bold">{{ __('ui.will_attach_on_save') }}</div>
                         </div>
                         <input type="file" id="edit-files" name="files[]" multiple accept="image/*,video/*,audio/*,.aac,.m4a,.mp3,.wav,.ogg,.flac,.opus,.wma,.aiff,.amr,.3ga,.weba" class="hidden">
                         <div id="edit-file-list" class="mt-3 hidden space-y-1.5 text-right"></div>
                     </div>
 
-                    {{-- Camera Live Modal for Edit --}}
+
                     <div id="camera-modal-edit" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
                         <div class="absolute inset-0 bg-ink-900/70 backdrop-blur-sm" id="camera-backdrop-edit"></div>
                         <div class="relative bg-white rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden shadow-2xl">
                             <div class="px-4 py-3 border-b border-[#e6e9e1] flex items-center justify-between shrink-0">
                                 <h3 class="text-sm font-extrabold text-ink-800 flex items-center gap-2">
                                     <span class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
-                                    الكاميرا المباشرة
-                                    <span id="camera-mode-label-edit" class="text-xs font-medium text-ink-400 mr-1">— صورة</span>
+                                    {{ __('ui.live_camera') }}
+                                    <span id="camera-mode-label-edit" class="text-xs font-medium text-ink-400 mr-1">{{ __('ui.camera_photo_mode') }}</span>
                                 </h3>
                                 <div class="flex items-center gap-1.5">
-                                    <button type="button" id="switch-camera-btn-edit" class="w-8 h-8 rounded-lg bg-[#f5f7f5] border border-[#e6e9e1] flex items-center justify-center text-ink-500 hover:text-ink-700 transition" title="تبديل الكاميرا">
+                                    <button type="button" id="switch-camera-btn-edit" class="w-8 h-8 rounded-lg bg-[#f5f7f5] border border-[#e6e9e1] flex items-center justify-center text-ink-500 hover:text-ink-700 transition" title="{{ __('ui.switch_camera') }}">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4M16 17H4m0 0l4 4m-4-4l4-4"/></svg>
                                     </button>
                                     <button type="button" id="close-camera-btn-edit" class="w-8 h-8 rounded-lg hover:bg-[#f5f7f5] flex items-center justify-center text-ink-400 hover:text-ink-700 transition">
@@ -244,28 +249,28 @@
                                     <div class="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center mx-auto mb-3">
                                         <svg class="w-6 h-6 text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.7"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
                                     </div>
-                                    <p class="text-sm text-white/70">جاري تشغيل الكاميرا...</p>
+                                    <p class="text-sm text-white/70">{{ __('ui.camera_starting') }}</p>
                                     <p id="camera-error-edit" class="hidden mt-2 text-xs text-red-300 max-w-xs mx-auto leading-5"></p>
                                 </div>
                                 <div id="camera-fallback-edit" class="w-full max-w-md p-4 border-t border-amber-200 bg-amber-50/50">
                                     <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
                                         <label class="flex flex-col items-center gap-2 p-4 rounded-xl bg-white border-2 border-dashed border-amber-300 hover:border-amber-400 hover:bg-amber-50 cursor-pointer transition text-center shadow-sm">
                                             <svg class="w-7 h-7 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9a2 2 0 012-2z"/><circle cx="12" cy="13" r="3"/></svg>
-                                            <span class="text-sm font-bold text-ink-800">التقاط صورة</span>
+                                            <span class="text-sm font-bold text-ink-800">{{ __('ui.photo_capture_fallback') }}</span>
                                             <input type="file" accept="image/*" capture="environment" class="hidden" onchange="handleFallbackFileEdit(this)">
                                         </label>
                                         <label class="flex flex-col items-center gap-2 p-4 rounded-xl bg-white border-2 border-dashed border-amber-300 hover:border-amber-400 hover:bg-amber-50 cursor-pointer transition text-center shadow-sm">
                                             <svg class="w-7 h-7 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
-                                            <span class="text-sm font-bold text-ink-800">تسجيل فيديو</span>
+                                            <span class="text-sm font-bold text-ink-800">{{ __('ui.video_recording_fallback') }}</span>
                                             <input type="file" accept="video/*" capture="environment" class="hidden" onchange="handleFallbackFileEdit(this)">
                                         </label>
                                         <label class="flex flex-col items-center gap-2 p-4 rounded-xl bg-white border-2 border-dashed border-amber-300 hover:border-amber-400 hover:bg-amber-50 cursor-pointer transition text-center shadow-sm">
                                             <svg class="w-7 h-7 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/></svg>
-                                            <span class="text-sm font-bold text-ink-800">تسجيل صوتي</span>
+                                            <span class="text-sm font-bold text-ink-800">{{ __('ui.audio_recording_fallback') }}</span>
                                             <input type="file" accept="audio/*" capture="user" class="hidden" onchange="handleFallbackFileEdit(this)">
                                         </label>
                                     </div>
-                                    <p class="mt-2 text-center text-[10px] text-ink-400">الكاميرا المباشرة (أعلى) تعمل فقط على https:// و localhost — البديل يعمل على كل شيء</p>
+                                    <p class="mt-2 text-center text-[10px] text-ink-400">{{ __('ui.camera_https_note') }}</p>
                                 </div>
                                 <div id="camera-timer-edit" class="hidden absolute top-4 right-4 bg-red-600 text-white text-xs font-bold px-2.5 py-1 rounded-full flex items-center gap-1.5">
                                     <span class="w-2 h-2 rounded-full bg-white animate-pulse"></span>
@@ -276,18 +281,18 @@
                                 <div class="flex gap-2 justify-center flex-wrap">
                                     <button type="button" id="capture-photo-btn-edit" class="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-[#0e6a38] hover:bg-[#0a4d28] text-white font-bold text-sm transition">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 9h2l2-2h4l2 2h2a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2V9a2 2 0 012-2z"/><circle cx="12" cy="13" r="3"/></svg>
-                                        التقاط صورة
+                                        {{ __('ui.capture_photo') }}
                                     </button>
                                     <button type="button" id="start-record-btn-edit" class="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-white border-2 border-red-200 text-red-600 font-bold text-sm hover:bg-red-50 transition">
                                         <span class="w-3 h-3 rounded-full bg-red-500"></span>
-                                        بدء تسجيل فيديو
+                                        {{ __('ui.start_video_recording') }}
                                     </button>
                                     <button type="button" id="stop-record-btn-edit" class="hidden flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-sm transition">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><rect x="6" y="6" width="12" height="12" rx="1"/></svg>
-                                        إيقاف وحفظ
+                                        {{ __('ui.stop_and_save') }}
                                     </button>
                                 </div>
-                                <p class="mt-2.5 text-center text-[11px] text-ink-400 leading-4">الصور والفيديو تُضاف مباشرة للمرفقات دون حفظ في معرض الجهاز</p>
+                                <p class="mt-2.5 text-center text-[11px] text-ink-400 leading-4">{{ __('ui.media_note_fallback') }}</p>
                                 <p id="camera-status-edit" class="hidden mt-2 text-center text-xs font-bold"></p>
                             </div>
                         </div>
@@ -296,12 +301,12 @@
             @endif
 
             <div class="flex gap-3 pt-4 border-t border-[#e6e9e1]">
-                <a href="{{ route('notes.index') }}" class="px-5 py-2.5 rounded-xl bg-transparent border border-[#e6e9e1] text-[#525252] font-bold text-sm hover:bg-[#f5f7f5] transition">إلغاء</a>
-                <button type="submit" class="flex-1 sm:flex-none px-6 py-2.5 rounded-xl bg-[#0e6a38] hover:bg-[#0a4d28] text-white font-bold text-sm shadow-sm transition sm:mr-auto">حفظ التعديلات</button>
+                <a href="{{ route('notes.index') }}" class="px-5 py-2.5 rounded-xl bg-transparent border border-[#e6e9e1] text-[#525252] font-bold text-sm hover:bg-[#f5f7f5] transition">{{ __('ui.cancel_btn') }}</a>
+                <button type="submit" class="flex-1 sm:flex-none px-6 py-2.5 rounded-xl bg-[#0e6a38] hover:bg-[#0a4d28] text-white font-bold text-sm shadow-sm transition sm:mr-auto">{{ __('ui.save_changes_btn') }}</button>
             </div>
         </form>
-        {{-- نموذج حذف المرفقات المشترك: خارج نموذج التعديل (التداخل غير صالح ويكسر FormData).
-             أزرار الحذف أعلاه ترتبط به عبر form="attach-del-form" مع formaction لكل مرفق. --}}
+
+
         <form id="attach-del-form" method="POST" class="hidden" aria-hidden="true">
             @csrf @method('DELETE')
         </form>
@@ -310,6 +315,66 @@
 
 @push('scripts')
 <script>
+    // Shared edit-page UI dictionary (server-rendered per locale — no Gemini).
+    const EDIT_T = {
+        chooseTime: @json(__('ui.choose_time')),
+        dateLocale: @json(app()->getLocale() === 'en' ? 'en-US' : 'ar-EG'),
+        netErr: @json(__('ui.network_error')),
+        timeoutErr: @json(__('ui.timeout_error')),
+        fAudio: @json(__('ui.file_audio')),
+        fVideo: @json(__('ui.file_video')),
+        fImage: @json(__('ui.file_image')),
+        fOther: @json(__('ui.file_other')),
+        camBadge: @json(__('ui.file_camera_badge')),
+        recBadge: @json(__('ui.file_rec')),
+        delTitle: @json(__('ui.file_remove')),
+        limitMax: @json(__('ui.max_files_exceeded')),
+        limitToast: @json(__('ui.upload_limit_files')),
+        unsupported: @json(__('ui.unsupported_file_type')),
+        imgBig: @json(__('ui.image_too_large')),
+        vidBig: @json(__('ui.video_too_large')),
+        audBig: @json(__('ui.audio_too_large')),
+        camHttps: @json(__('ui.camera_not_available_https')),
+        camUnsupported: @json(__('ui.camera_not_supported')),
+        camStarting: @json(__('ui.camera_starting')),
+        camReady: @json(__('ui.camera_ready')),
+        camPhoto: @json(__('ui.camera_photo_mode')),
+        camRec: @json(__('ui.camera_recording_mode')),
+        camFallbackErr: @json(__('ui.camera_error_fallback')),
+        camUnavailable: @json(__('ui.camera_unavailable')),
+        fileAdded: @json(__('ui.file_added_from_camera')),
+        camNotReady: @json(__('ui.camera_not_ready')),
+        captureFail: @json(__('ui.capture_failed')),
+        photoDone: @json(__('ui.photo_done_short')),
+        recUnsupported: @json(__('ui.rec_unsupported_short')),
+        recStartFail: @json(__('ui.rec_fail_short')),
+        recStarted: @json(__('ui.recording_started')),
+        vidRecorded: @json(__('ui.video_recorded')),
+        sizeBig: @json(__('ui.size_big')),
+        browserFail: @json(__('ui.browser_files_failed')),
+        browserDetail: @json(__('ui.browser_files_detail')),
+        totalBig: @json(__('ui.total_attachments_too_large')),
+        serverLimit: @json(__('ui.server_limit_exceeded')),
+        uploadingN: @json(__('ui.uploading_files_count')),
+        dontClose: @json(__('ui.upload_pct_dont_close')),
+        verify: @json(__('ui.upload_verify')),
+        attachFail: @json(__('ui.attach_fail_edit')),
+        filesKept: @json(__('ui.files_kept_edit')),
+        mediaKept: @json(__('ui.media_kept_edit')),
+        mismatchShort: @json(__('ui.files_mismatch_short')),
+        partial: @json(__('ui.server_received_partial')),
+        sendFail: @json(__('ui.send_failed_code')),
+        notSaved: @json(__('ui.not_saved_edit')),
+        timeoutTitle: @json(__('ui.timeout_title')),
+        timeoutHint: @json(__('ui.upload_timeout_hint')),
+        audioDone: @json(__('ui.audio_recorded')),
+        audioBtn: @json(__('ui.audio_recording')),
+        micReq: @json(__('ui.requesting_mic')),
+        delRec: @json(__('ui.delete_recording')),
+        stopLbl: @json(__('ui.audio_stop')),
+        recNow: @json(__('ui.audio_recording_now'))
+    };
+    function editFill(tpl, map){ var s = String(tpl == null ? '' : tpl); Object.keys(map || {}).forEach(function(k){ s = s.split(k).join(map[k]); }); return s; }
     (function(){
         const dateEl=document.getElementById('observed_date_edit');
         const timeEl=document.getElementById('observed_time_edit');
@@ -322,12 +387,12 @@
             if(!date||!time) return null;
             const d=new Date(date+'T'+time);
             if(isNaN(d)) return null;
-            try{ return d.toLocaleDateString('ar-EG',{weekday:'long',year:'numeric',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit'});}catch(e){return date+' '+time;}
+            try{ return d.toLocaleDateString(EDIT_T.dateLocale,{weekday:'long',year:'numeric',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit'});}catch(e){return date+' '+time;}
         }
         function sync(){
             const d=dateEl?.value, t=timeEl?.value, et=endTimeEl?.value;
             if(d && t){ hidden.value=d+'T'+t; const txt=toPreview(d,t); const endTxt=et?' — '+et:''; if(preview) preview.textContent=(txt||(d+' — '+t))+endTxt; hidden.setCustomValidity(''); }
-            else { hidden.value=''; if(preview) preview.textContent='— اختر التاريخ والوقت —'; }
+            else { hidden.value=''; if(preview) preview.textContent=EDIT_T.chooseTime; }
             if(d && et){
                 let endVal=d+'T'+et;
                 try{ if(t && et < t){ const nd=new Date(d+'T'+et); nd.setDate(nd.getDate()+1); const pad=n=>String(n).padStart(2,'0'); endVal=nd.getFullYear()+'-'+pad(nd.getMonth()+1)+'-'+pad(nd.getDate())+'T'+et; } }catch(_){}
@@ -349,8 +414,8 @@
         document.getElementById('clear-datetime-edit')?.addEventListener('click',()=>{ if(dateEl) dateEl.value=''; if(timeEl) timeEl.value=''; if(endTimeEl) endTimeEl.value=''; sync(); });
         sync();
     })();
-    // \u2014\u2014\u2014 \u0627\u0644\u062d\u0641\u0627\u0638 \u0639\u0644\u0649 \u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u0623\u0635\u0644\u064a 100% \u2014 \u0644\u0627 \u0636\u063a\u0637\u060c \u0644\u0627 resize\u060c \u0644\u0627 transcoding \u2014 byte-for-byte \u2014\u2014\u2014
-    async function compressImageClientEdit(file){ return file; } // preserved 100% original - no compression
+
+    async function compressImageClientEdit(file){ return file; }
     function setUploadProgressEdit(pct, detail){
         const wrap=document.getElementById('upload-progress-edit'), bar=document.getElementById('upload-progress-bar-edit'), txt=document.getElementById('upload-progress-text-edit');
         if(!wrap) return;
@@ -369,22 +434,22 @@
             xhr.timeout=600000;
             if(xhr.upload && onProgress) xhr.upload.onprogress=(e)=>{ if(e.lengthComputable){ const pct=Math.round(e.loaded/e.total*100); const loadedMB=(e.loaded/1024/1024).toFixed(1); const totalMB=(e.total/1024/1024).toFixed(1); onProgress(pct, e.loaded, e.total); } };
             xhr.onload=()=>{ let data=null; try{ data=JSON.parse(xhr.responseText);}catch(_){} resolve({status:xhr.status, ok:xhr.status>=200&&xhr.status<300, data, raw:xhr.responseText}); };
-            xhr.onerror=()=>reject(new Error('فشل الشبكة'));
-            xhr.ontimeout=()=>reject(Object.assign(new Error('انتهت مهلة الإرسال'),{name:'AbortError'}));
+            xhr.onerror=()=>reject(new Error(EDIT_T.netErr));
+            xhr.ontimeout=()=>reject(Object.assign(new Error(EDIT_T.timeoutErr),{name:'AbortError'}));
             xhr.send(fd);
         });
     }
 
-    // ——— Edit file handling with DataTransfer ———
+
     const input=document.getElementById('edit-files'),zone=document.getElementById('edit-drop-zone'),list=document.getElementById('edit-file-list');
     let fileTransferEdit = new DataTransfer();
-    // UPLOAD INTENT — عدّاد مستقل عن مخازن النقل — ROOT CAUSE FIX (انظر create.blade.php)
+
     let intendedFilesCountEdit = 0;
-    // مصدر حقيقة احتياطي: DataTransfer يُسقط ملفات الفيديو الكبيرة بصمت في بعض متصفحات الجوال
+
     let pendingFilesEdit = [];
-    // حد الملفات من السيرفر (max_file_uploads) — تجاوزه يجعل PHP يسقط الملفات الزائدة بصمت
+
     const MAX_FILES_EDIT = {{ max(1, (int) ini_get('max_file_uploads') ?: 20) }};
-    function syncInputEdit(){ try{ input.files = fileTransferEdit.files; }catch(e){ /* fileTransferEdit remains source of truth */ } }
+    function syncInputEdit(){ try{ input.files = fileTransferEdit.files; }catch(e){ } }
     function renderEdit(){
         const files=Array.from(fileTransferEdit.files);
         if(!files.length){ list.classList.add('hidden'); list.innerHTML=''; return; }
@@ -392,20 +457,20 @@
         const countersEdit={img:0,vid:0,aud:0,other:0};
         const escAttrEdit=s=>String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
         const friendlyNameEdit=f=>{
-            if(f.type.startsWith('audio/')) return 'مقطع صوتي '+ (++countersEdit.aud);
-            if(f.type.startsWith('video/')) return 'فيديو '+ (++countersEdit.vid);
-            if(f.type.startsWith('image/')) return 'صورة '+ (++countersEdit.img);
+            if(f.type.startsWith('audio/')) return EDIT_T.fAudio+' '+ (++countersEdit.aud);
+            if(f.type.startsWith('video/')) return EDIT_T.fVideo+' '+ (++countersEdit.vid);
+            if(f.type.startsWith('image/')) return EDIT_T.fImage+' '+ (++countersEdit.img);
             const ext=(f.name.split('.').pop()||'').toLowerCase();
-            return 'مرفق '+ (++countersEdit.other) + (ext && ext.length<=5 ? ' (.'+ext+')' : '');
+            return EDIT_T.fOther+' '+ (++countersEdit.other) + (ext && ext.length<=5 ? ' (.'+ext+')' : '');
         };
         list.innerHTML=files.map((f,i)=>{
             const isV=f.type.startsWith('video/');
             const isA=f.type.startsWith('audio/');
             const sz=(f.size/1024/1024).toFixed(2)+' MB';
-            const badge=f.name.startsWith('camera-')?'<span class="text-[10px] bg-[#eef4f0] text-[#0e6a38] px-1.5 py-0.5 rounded-full font-bold">كاميرا</span>':'';
-            const recBadge=f.name.startsWith('recording-')?'<span class="text-[10px] bg-red-50 text-red-600 px-1.5 py-0.5 rounded-full font-bold">تسجيل</span>':'';
+            const badge=f.name.startsWith('camera-')?'<span class="text-[10px] bg-[#eef4f0] text-[#0e6a38] px-1.5 py-0.5 rounded-full font-bold">'+EDIT_T.camBadge+'</span>':'';
+            const recBadge=f.name.startsWith('recording-')?'<span class="text-[10px] bg-red-50 text-red-600 px-1.5 py-0.5 rounded-full font-bold">'+EDIT_T.recBadge+'</span>':'';
             return `<div class="flex items-center gap-2.5 p-2.5 bg-white border border-[#e6e9e1] rounded-lg text-sm group"><span class="text-sm">${isA?'🎤':isV?'🎬':'🖼️'}</span><div class="flex-1 min-w-0 text-right"><div class="font-bold text-ink-700 truncate flex items-center gap-1.5" title="${escAttrEdit(f.name)}">${friendlyNameEdit(f)} ${badge} ${recBadge}</div><div class="text-xs text-ink-400">${sz} • ${f.type||'—'}</div></div><button type="button" data-remove-edit="${i}" class="shrink-0 w-7 h-7 rounded-lg hover:bg-red-50 text-ink-300 hover:text-red-500 flex items-center justify-center transition"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button></div>`;
-        }).join('')+(files.length>MAX_FILES_EDIT?'<p class="text-xs font-bold text-red-500">الحد '+MAX_FILES_EDIT+' ملف</p>':'');
+        }).join('')+(files.length>MAX_FILES_EDIT?'<p class="text-xs font-bold text-red-500">'+editFill(EDIT_T.limitMax,{':max':MAX_FILES_EDIT})+'</p>':'');
         list.querySelectorAll('[data-remove-edit]').forEach(btn=>{
             btn.addEventListener('click', ()=>{
                 const idx=parseInt(btn.dataset.removeEdit);
@@ -413,7 +478,7 @@
                 const dt=new DataTransfer();
                 Array.from(fileTransferEdit.files).forEach((file,j)=>{ if(j!==idx) dt.items.add(file); });
                 fileTransferEdit=dt; intendedFilesCountEdit=Math.max(0, intendedFilesCountEdit-1);
-                // حذف بالهوية (لا بالفهرس) — الفهارس قد تنحرف لو أسقط DataTransfer ملفاً
+
                 if(removedFile) pendingFilesEdit=pendingFilesEdit.filter(f=>f!==removedFile);
                 else pendingFilesEdit.splice(idx,1);
                 syncInputEdit(); renderEdit();
@@ -422,17 +487,17 @@
     }
     async function addFilesEdit(newFiles){
         for(let orig of newFiles){
-            if(fileTransferEdit.files.length>=MAX_FILES_EDIT){ alert('الحد الأقصى '+MAX_FILES_EDIT+' ملف (حد السيرفر)'); break; }
-            let file=orig; // preserved 100% original - no client compression
+            if(fileTransferEdit.files.length>=MAX_FILES_EDIT){ window.toast(editFill(EDIT_T.limitToast,{':max':MAX_FILES_EDIT})); break; }
+            let file=orig;
             const ext=file.name.split('.').pop().toLowerCase();
             const audioExts=['mp3','wav','ogg','oga','m4a','aac','wma','flac','opus','aiff','aif','amr','3ga','awb','mid','midi','au','weba'];
             const isAudio=audioExts.includes(ext)||file.type.startsWith('audio/');
             if(!['jpg','jpeg','png','webp','mp4','webm','mov','avi','3gp','mkv','m4v','mpg','3gpp'].includes(ext) && !file.type.startsWith('image/') && !file.type.startsWith('video/') && !isAudio){
-                alert('نوع غير مدعوم: '+file.name); continue;
+                window.toast(EDIT_T.unsupported); continue;
             }
-            if(file.type.startsWith('image/') && file.size>20*1024*1024){ alert('حجم الصورة كبير (الحد 20MB): '+file.name); continue; }
-            if(file.type.startsWith('video/') && file.size>100*1024*1024){ alert('حجم الفيديو كبير (الحد 100MB): '+file.name); continue; }
-            if(isAudio && file.size>100*1024*1024){ alert('حجم الصوت كبير (الحد 100MB): '+file.name); continue; }
+            if(file.type.startsWith('image/') && file.size>20*1024*1024){ window.toast(EDIT_T.imgBig); continue; }
+            if(file.type.startsWith('video/') && file.size>100*1024*1024){ window.toast(EDIT_T.vidBig); continue; }
+            if(isAudio && file.size>100*1024*1024){ window.toast(EDIT_T.audBig); continue; }
             fileTransferEdit.items.add(file);
             intendedFilesCountEdit++;
             pendingFilesEdit.push(file);
@@ -452,7 +517,7 @@
         zone.addEventListener('drop',async e=>{ e.preventDefault(); if(e.dataTransfer?.files?.length) await addFilesEdit(Array.from(e.dataTransfer.files)); });
     }
 
-    // ——— Camera Live for Edit ———
+
     const openBtnEdit=document.getElementById('open-camera-btn-edit');
     const cameraModalEdit=document.getElementById('camera-modal-edit');
     const cameraVideoEdit=document.getElementById('camera-video-edit');
@@ -483,14 +548,14 @@
         const hostElEdit=document.getElementById('camera-host-edit');
         if(hostElEdit) hostElEdit.textContent=location.host;
         if(!window.isSecureContext){
-            cameraErrorEdit.textContent='الكاميرا المباشرة تتطلب HTTPS — أنت على http://'+location.host;
+            cameraErrorEdit.textContent=editFill(EDIT_T.camHttps,{':host':location.host});
             cameraErrorEdit.classList.remove('hidden');
             if(fallbackElEdit) fallbackElEdit.classList.remove('hidden');
             cameraPlaceholderEdit.classList.add('hidden');
             return;
         }
         if(!navigator.mediaDevices?.getUserMedia){
-            cameraErrorEdit.textContent='الكاميرا غير مدعومة — استخدم الأزرار أدناه.';
+            cameraErrorEdit.textContent=EDIT_T.camUnsupported;
             cameraErrorEdit.classList.remove('hidden');
             if(fallbackElEdit) fallbackElEdit.classList.remove('hidden');
             return;
@@ -498,24 +563,24 @@
         try{
             if(currentStreamEdit) currentStreamEdit.getTracks().forEach(t=>t.stop());
             cameraErrorEdit.classList.add('hidden');
-            cameraPlaceholderEdit.querySelector('p').textContent='جاري تشغيل الكاميرا...';
+            cameraPlaceholderEdit.querySelector('p').textContent=EDIT_T.camStarting;
             const stream=await navigator.mediaDevices.getUserMedia({ video:{ facingMode: facingModeEdit, width:{ ideal:1280 }, height:{ ideal:720 } }, audio:true });
             currentStreamEdit=stream;
             cameraVideoEdit.srcObject=stream;
             cameraVideoEdit.classList.remove('hidden');
             cameraPlaceholderEdit.classList.add('hidden');
             await cameraVideoEdit.play();
-            modeLabelEdit.textContent='— جاهزة';
+            modeLabelEdit.textContent=EDIT_T.camReady;
         }catch(err){
-            cameraErrorEdit.textContent='تعذر الوصول للكاميرا المباشرة — استخدم البديل أدناه (يعمل على كل الشبكات)';
+            cameraErrorEdit.textContent=EDIT_T.camFallbackErr;
             cameraErrorEdit.classList.remove('hidden');
-            cameraPlaceholderEdit.querySelector('p').textContent='الكاميرا المباشرة غير متاحة — البديل أدناه يعمل';
+            cameraPlaceholderEdit.querySelector('p').textContent=EDIT_T.camUnavailable;
         }
     }
     window.handleFallbackFileEdit = function(input){
         if(input.files && input.files[0]){
             addFilesEdit([input.files[0]]);
-            showStatusEdit('تمت إضافة الملف من الكاميرا ✓', true);
+            showStatusEdit(EDIT_T.fileAdded, true);
             setTimeout(()=> closeCameraEdit(), 400);
             input.value='';
         }
@@ -536,21 +601,21 @@
         startBtnEdit.classList.remove('hidden'); stopBtnEdit.classList.add('hidden');
         cameraTimerEdit.classList.add('hidden');
         if(timerIntervalEdit){ clearInterval(timerIntervalEdit); timerIntervalEdit=null; }
-        modeLabelEdit.textContent='— صورة';
+        modeLabelEdit.textContent=EDIT_T.camPhoto;
     }
     function switchCameraEdit(){ facingModeEdit=facingModeEdit==='environment'?'user':'environment'; startCameraEdit(); }
     function capturePhotoEdit(){
-        if(!currentStreamEdit || !cameraVideoEdit.videoWidth){ showStatusEdit('الكاميرا غير جاهزة', false); return; }
+        if(!currentStreamEdit || !cameraVideoEdit.videoWidth){ showStatusEdit(EDIT_T.camNotReady, false); return; }
         const canvas=cameraCanvasEdit;
         canvas.width=cameraVideoEdit.videoWidth; canvas.height=cameraVideoEdit.videoHeight;
         const ctx=canvas.getContext('2d');
         if(facingModeEdit==='user'){ ctx.scale(-1,1); ctx.drawImage(cameraVideoEdit, -canvas.width, 0, canvas.width, canvas.height); }
         else ctx.drawImage(cameraVideoEdit, 0, 0);
         canvas.toBlob(blob=>{
-            if(!blob){ showStatusEdit('فشل الالتقاط', false); return; }
+            if(!blob){ showStatusEdit(EDIT_T.captureFail, false); return; }
             const file=new File([blob], `camera-${Date.now()}.jpg`, { type:'image/jpeg' });
             addFilesEdit([file]);
-            showStatusEdit('تم التقاط الصورة ✓', true);
+            showStatusEdit(EDIT_T.photoDone, true);
             cameraVideoEdit.style.opacity='0.3'; setTimeout(()=>cameraVideoEdit.style.opacity='1', 150);
         }, 'image/jpeg', 1.0);
     }
@@ -561,21 +626,21 @@
         cameraTimerTextEdit.textContent=`${m}:${s}`;
     }
     function startRecordingEdit(){
-        if(!currentStreamEdit){ showStatusEdit('الكاميرا غير جاهزة', false); return; }
-        if(!window.MediaRecorder){ showStatusEdit('التسجيل غير مدعوم', false); return; }
+        if(!currentStreamEdit){ showStatusEdit(EDIT_T.camNotReady, false); return; }
+        if(!window.MediaRecorder){ showStatusEdit(EDIT_T.recUnsupported, false); return; }
         recordedChunksEdit=[];
         let options={ mimeType:'video/webm;codecs=vp9' };
         if(!MediaRecorder.isTypeSupported(options.mimeType)) options={ mimeType:'video/webm' };
         if(!MediaRecorder.isTypeSupported(options.mimeType)) options={};
-        try{ mediaRecorderEdit=new MediaRecorder(currentStreamEdit, options); }catch(e){ showStatusEdit('فشل: '+e.message, false); return; }
+        try{ mediaRecorderEdit=new MediaRecorder(currentStreamEdit, options); }catch(e){ showStatusEdit(editFill(EDIT_T.recStartFail,{':message':e.message}), false); return; }
         mediaRecorderEdit.ondataavailable=e=>{ if(e.data.size>0) recordedChunksEdit.push(e.data); };
         mediaRecorderEdit.onstop=()=>{
             const blob=new Blob(recordedChunksEdit, { type: mediaRecorderEdit.mimeType || 'video/webm' });
             const ext=blob.type.includes('mp4')?'mp4':'webm';
             const file=new File([blob], `camera-video-${Date.now()}.${ext}`, { type: blob.type });
-            if(file.size>500*1024*1024){ showStatusEdit('حجم كبير', false); return; }
+            if(file.size>500*1024*1024){ showStatusEdit(EDIT_T.sizeBig, false); return; }
             addFilesEdit([file]);
-            showStatusEdit(`تم التسجيل (${(file.size/1024/1024).toFixed(1)} MB) ✓`, true);
+            showStatusEdit(editFill(EDIT_T.vidRecorded,{':size':(file.size/1024/1024).toFixed(1)}), true);
         };
         mediaRecorderEdit.start(100);
         isRecordingEdit=true; secondsEdit=0;
@@ -583,7 +648,7 @@
         timerIntervalEdit=setInterval(updateTimerEdit, 1000);
         startBtnEdit.classList.add('hidden'); stopBtnEdit.classList.remove('hidden');
         captureBtnEdit.disabled=true; captureBtnEdit.classList.add('opacity-50');
-        modeLabelEdit.textContent='— تسجيل...';
+        modeLabelEdit.textContent=EDIT_T.camRec;
     }
     function stopRecordingEdit(){
         if(mediaRecorderEdit && isRecordingEdit){
@@ -593,7 +658,7 @@
             cameraTimerEdit.classList.add('hidden');
             startBtnEdit.classList.remove('hidden'); stopBtnEdit.classList.add('hidden');
             captureBtnEdit.disabled=false; captureBtnEdit.classList.remove('opacity-50');
-            modeLabelEdit.textContent='— صورة';
+            modeLabelEdit.textContent=EDIT_T.camPhoto;
         }
     }
     openBtnEdit?.addEventListener('click', openCameraEdit);
@@ -605,7 +670,7 @@
     stopBtnEdit?.addEventListener('click', stopRecordingEdit);
     document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !cameraModalEdit.classList.contains('hidden')) closeCameraEdit(); });
 
-    // ——— Preserve new files on validation error (edit) ———
+
     const formEdit=document.getElementById('edit-form');
     const formErrorsEdit=document.getElementById('form-errors-edit');
     formEdit?.addEventListener('submit', async (e)=>{
@@ -615,10 +680,17 @@
         const descEl=formEdit.querySelector('textarea[name="description"]');
         const hiddenEl=document.getElementById('observed_at_edit');
         let clientErrors=[];
-        if(!floorEl.value) clientErrors.push('رقم الطابق مطلوب');
-        if(!camEl.value) clientErrors.push('رقم الكاميرا مطلوب');
-        if(!hiddenEl.value) clientErrors.push('تاريخ ووقت الملاحظة مطلوب — اختر التاريخ ووقت البداية');
-        if(!descEl.value.trim()) clientErrors.push('الوصف مطلوب');
+        const FORM_T_EDIT = {
+            floor: @json(__('ui.floor_required')),
+            camera: @json(__('ui.camera_required')),
+            datetime: @json(__('ui.datetime_required')),
+            description: @json(__('ui.description_required')),
+            fixFields: @json(__('ui.fix_fields'))
+        };
+        if(!floorEl.value) clientErrors.push(FORM_T_EDIT.floor);
+        if(!camEl.value) clientErrors.push(FORM_T_EDIT.camera);
+        if(!hiddenEl.value) clientErrors.push(FORM_T_EDIT.datetime);
+        if(!descEl.value.trim()) clientErrors.push(FORM_T_EDIT.description);
         try{
             const obs=document.getElementById('observed_at_edit')?.value;
             const obsEnd=document.getElementById('observed_end_at_edit')?.value;
@@ -630,7 +702,7 @@
         }catch(_){}
         if(clientErrors.length){
             e.preventDefault();
-            formErrorsEdit.innerHTML='<div class="font-bold mb-1">يرجى تصحيح الحقول:</div><ul class="list-disc list-inside space-y-1">'+clientErrors.map(m=>`<li>${m}</li>`).join('')+'</ul><p class="mt-2 text-xs">الملفات الجديدة محفوظة</p>';
+            formErrorsEdit.innerHTML='<div class="font-bold mb-1">'+FORM_T_EDIT.fixFields+'</div><ul class="list-disc list-inside space-y-1">'+clientErrors.map(m=>`<li>${m}</li>`).join('')+'</ul>';
             formErrorsEdit.classList.remove('hidden');
             formErrorsEdit.scrollIntoView({behavior:'smooth', block:'center'});
             return;
@@ -642,12 +714,12 @@
             if(submitBtn) submitBtn.disabled=true;
             const fd=new FormData(formEdit);
             fd.delete('files[]');
-            // مصدر الحقيقة: pendingFilesEdit (مصفوفة عادية لا تُسقط الفيديو) ثم fileTransfer ثم input
+
             let filesToSendEdit = pendingFilesEdit.length > 0 ? pendingFilesEdit.slice()
                 : (fileTransferEdit.files.length > 0 ? Array.from(fileTransferEdit.files) : Array.from(input.files));
-            // فحص ما قبل الإرسال: لا ترسل طلباً محكوماً بالفشل
+
             if(filesToSendEdit.length < intendedFilesCountEdit){
-                formErrorsEdit.innerHTML='<div class="font-bold mb-1 text-red-600">تعذّر تجهيز الملفات في المتصفح</div><p class="text-xs">اخترت '+intendedFilesCountEdit+' ملف لكن المتصفح جهّز '+filesToSendEdit.length+' فقط (يحدث مع الفيديو الكبير في بعض متصفحات الجوال). أعد اختيار الملفات ثم أعد المحاولة — لم يُرسل شيء.</p>';
+                formErrorsEdit.innerHTML='<div class="font-bold mb-1 text-red-600">'+EDIT_T.browserFail+'</div><p class="text-xs">'+editFill(EDIT_T.browserDetail,{':intended':intendedFilesCountEdit,':prepared':filesToSendEdit.length})+'</p>';
                 formErrorsEdit.classList.remove('hidden');
                 formErrorsEdit.scrollIntoView({behavior:'smooth', block:'center'});
                 if(submitBtn) submitBtn.disabled=false;
@@ -658,10 +730,10 @@
                 const ext=audioMimeToExtE(recordedAudioBlobE.type||'audio/webm');
                 fd.append('files[]', recordedAudioBlobE, 'recording-'+Date.now()+'.'+ext);
             }
-            // UPLOAD INTEGRITY: إعلان النية من عدّاد مستقل لا من مخزن النقل — ROOT CAUSE FIX
+
             const clientFilesCountEdit = intendedFilesCountEdit + (recordedAudioBlobE ? 1 : 0);
             fd.append('client_files_count', String(clientFilesCountEdit));
-            // UPLOAD FORENSIC (تشخيص فقط — لا يغيّر السلوك)
+
             try{
                 console.debug('[UPLOAD FORENSIC] intent vs transport (edit)', {
                     intended: intendedFilesCountEdit,
@@ -679,13 +751,13 @@
                 console.debug('[EDIT SUBMIT] action='+formEditActionUrl+' method=POST files='+filesToSendEdit.length+' count='+clientFilesCountEdit);
                 setUploadProgressEdit(5);
                 document.getElementById('upload-progress-edit')?.scrollIntoView({behavior:'smooth',block:'center'});
-                // Total size early check vs post_max_size (120M)
+
             let totalEditCheck = 0;
             try{ totalEditCheck = (typeof pendingFilesEdit !== 'undefined' && pendingFilesEdit?pendingFilesEdit.reduce((s,f)=>s+f.size,0):0); }catch(e){}
             if(totalEditCheck > 120*1024*1024){
                 const errElEdit2 = document.getElementById('form-errors-edit');
                 if(errElEdit2){
-                    errElEdit2.innerHTML='<div class="font-bold mb-1 text-red-600">??? ??????? ???? ??? ????? ??????</div><p class="text-xs">?????? '+(totalEditCheck/1024/1024).toFixed(1)+' MB ?????? ?? ?????? 128M.</p>';
+                    errElEdit2.innerHTML='<div class="font-bold mb-1 text-red-600">'+EDIT_T.totalBig+'</div><p class="text-xs">'+editFill(EDIT_T.serverLimit,{':size':(totalEditCheck/1024/1024).toFixed(1)})+'</p>';
                     errElEdit2.classList.remove('hidden');
                 }
                 const btnE2 = document.querySelector('#edit-form button[type="submit"]');
@@ -693,31 +765,31 @@
                 if(typeof hideUploadProgressEdit === 'function') hideUploadProgressEdit();
                 return;
             }
-            const res = await xhrUploadEdit(formEditActionUrl, fd, csrfTokenE, (pct, loaded, total)=> setUploadProgressEdit(Math.max(5, Math.min(95, pct)), 'جاري الرفع '+pct+'%'+ (loaded ? ' ('+(loaded/1024/1024).toFixed(1)+' / '+(total/1024/1024).toFixed(1)+' MB)' : '') +' — لا تغلق الصفحة'));
-                setUploadProgressEdit(98, 'تم الرفع 100%، جاري التحقق من الحفظ...');
+            const res = await xhrUploadEdit(formEditActionUrl, fd, csrfTokenE, (pct, loaded, total)=> setUploadProgressEdit(Math.max(5, Math.min(95, pct)), pct+'%'+ (loaded ? ' ('+(loaded/1024/1024).toFixed(1)+' / '+(total/1024/1024).toFixed(1)+' MB)' : '') +' '+EDIT_T.dontClose));
+                setUploadProgressEdit(98, EDIT_T.verify);
                 let data=res.data, rawTextE=res.raw;
                 const failLoudEdit = (title, errs) => {
-                    const list=(errs&&errs.length?errs:['فشل رفع المرفقات. لم يتم حفظ التعديلات.']).map(e=> typeof e==='string'?e:((e.file?e.file+': ':'')+(e.message||JSON.stringify(e)))).join('<br>');
-                    formErrorsEdit.innerHTML='<div class="font-bold mb-1 text-red-600">'+title+'</div><p class="text-xs">'+list+'</p><p class="mt-2 text-xs font-bold">الملفات الجديدة محفوظة — صحح الخطأ ثم أعد المحاولة.</p>';
+                    const list=(errs&&errs.length?errs:[EDIT_T.attachFail]).map(e=> typeof e==='string'?e:((e.file?e.file+': ':'')+(e.message||JSON.stringify(e)))).join('<br>');
+                    formErrorsEdit.innerHTML='<div class="font-bold mb-1 text-red-600">'+title+'</div><p class="text-xs">'+list+'</p><p class="mt-2 text-xs font-bold">'+EDIT_T.filesKept+'</p>';
                     formErrorsEdit.classList.remove('hidden');
                     formErrorsEdit.scrollIntoView({behavior:'smooth', block:'center'});
                     if(submitBtn) submitBtn.disabled=false;
                 };
                 if(data && data.success === false){
-                    failLoudEdit('فشل رفع المرفقات. لم يتم حفظ التعديلات.', data.attachment_errors);
+                    failLoudEdit(EDIT_T.attachFail, data.attachment_errors);
                     return;
                 }
                 if(data && typeof data.files_received==='number' && typeof data.attachments_saved==='number'){
-                    // For update, attachments_saved = newly saved count in this request.
+
                     if(data.files_received !== data.attachments_saved && data.files_received>0){
-                        // Allow case: files_received=0, attachments_saved=total? backend returns new_saved; strict check:
+
                         if(!(data.files_received===0 && (data.attachment_errors||[]).length===0)){
-                            failLoudEdit('فشل رفع المرفقات. لم يتم حفظ التعديلات.', data.attachment_errors || ['عدد الملفات المحفوظة لا يطابق المرسلة.']);
+                            failLoudEdit(EDIT_T.attachFail, data.attachment_errors || [EDIT_T.mismatchShort]);
                             return;
                         }
                     }
                     if((data.attachment_errors||[]).length>0){
-                        failLoudEdit('فشل رفع المرفقات. لم يتم حفظ التعديلات.', data.attachment_errors);
+                        failLoudEdit(EDIT_T.attachFail, data.attachment_errors);
                         return;
                     }
                 }
@@ -729,15 +801,15 @@
                 }
                 if(res.status===422){
                     if(data && (data.attachment_errors || data.success === false)){
-                        failLoudEdit('فشل رفع المرفقات. لم يتم حفظ التعديلات.', data.attachment_errors);
+                        failLoudEdit(EDIT_T.attachFail, data.attachment_errors);
                         return;
                     }
                     const errors=(data&&data.errors)||{};
-                    let html='<div class="font-bold mb-1">يرجى تصحيح الحقول:</div><ul class="list-disc list-inside space-y-1">';
+                    let html='<div class="font-bold mb-1">'+FORM_T_EDIT.fixFields+'</div><ul class="list-disc list-inside space-y-1">';
                     for(const [field,msgs] of Object.entries(errors)){
                         for(const msg of msgs) html+=`<li>${msg}</li>`;
                     }
-                    html+='</ul><p class="mt-2 text-xs font-bold text-[#0e6a38]">الملفات الجديدة محفوظة — لا تحتاج لإعادة اختيارها ✓</p>';
+                    html+='</ul><p class="mt-2 text-xs font-bold text-[#0e6a38]">'+EDIT_T.mediaKept+'</p>';
                     formErrorsEdit.innerHTML=html;
                     formErrorsEdit.classList.remove('hidden');
                     formErrorsEdit.scrollIntoView({behavior:'smooth', block:'center'});
@@ -752,16 +824,16 @@
                             +(bodySnippetE?'<div class="mt-1">Body: '+bodySnippetE+'</div>':'')
                             +'</div>';
                     }catch(_){}
-                    formErrorsEdit.innerHTML='<div class="font-bold mb-1 text-red-600">فشل الإرسال (كود: '+res.status+')</div><p class="text-xs">لم يتم حفظ التعديلات. الملفات محفوظة — أعد المحاولة.</p>'+diagE;
+                    formErrorsEdit.innerHTML='<div class="font-bold mb-1 text-red-600">'+editFill(EDIT_T.sendFail,{':code':res.status})+'</div><p class="text-xs">'+EDIT_T.notSaved+'</p>'+diagE;
                     formErrorsEdit.classList.remove('hidden');
                     formErrorsEdit.scrollIntoView({behavior:'smooth', block:'center'});
                 }
             }catch(err){
                 hideUploadProgressEdit();
                 if(err.name === 'AbortError'){
-                    formErrorsEdit.innerHTML='<div class="font-bold mb-1 text-red-600">انتهت مهلة الإرسال (10 دقائق)</div><p class="text-xs">تحقق من اتصالك أو قلل حجم المرفقات.</p>';
+                    formErrorsEdit.innerHTML='<div class="font-bold mb-1 text-red-600">'+EDIT_T.timeoutTitle+'</div><p class="text-xs">'+EDIT_T.timeoutHint+'</p>';
                 } else {
-                    formErrorsEdit.innerHTML='<div class="font-bold mb-1 text-red-600">خطأ في الشبكة</div><p class="text-xs">'+err.message+'</p>';
+                    formErrorsEdit.innerHTML='<div class="font-bold mb-1 text-red-600">'+EDIT_T.netErr+'</div><p class="text-xs">'+err.message+'</p>';
                 }
                 formErrorsEdit.classList.remove('hidden');
                 formErrorsEdit.scrollIntoView({behavior:'smooth', block:'center'});
@@ -792,7 +864,7 @@
         document.body.style.overflow="hidden";
     };
 
-    // ——— Audio Recorder (Edit) ———
+
     const audioRecordBtnEdit=document.getElementById('audio-record-btn-edit');
     const audioPreviewEdit=document.getElementById('audio-preview-edit');
     const audioPreviewIconEdit=document.getElementById('audio-preview-icon-edit');
@@ -822,7 +894,7 @@
     }
     function showAudioRecordedEdit(){
         if(audioPreviewIconEdit) audioPreviewIconEdit.innerHTML='<svg class="w-5 h-5 text-[#0e6a38]" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/></svg>';
-        if(audioPreviewStatusEdit) audioPreviewStatusEdit.textContent='تم التسجيل';
+        if(audioPreviewStatusEdit) audioPreviewStatusEdit.textContent=EDIT_T.audioDone;
         if(audioPreviewTimerEdit) audioPreviewTimerEdit.classList.remove('hidden');
         if(audioPreviewPlayerEdit){ audioPreviewPlayerEdit.classList.remove('hidden'); audioPreviewPlayerEdit.src=recordedAudioUrlE; }
         if(audioPreviewDeleteEdit) audioPreviewDeleteEdit.classList.remove('hidden');
@@ -840,7 +912,7 @@
         recordedAudioBlobE=null;
         audioRecordBtnEdit.classList.remove('bg-red-50','border-red-300','text-red-600');
         audioRecordBtnEdit.classList.add('bg-white','border-[#e6e9e1]','text-ink-700');
-        audioRecordBtnEdit.innerHTML='<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/></svg>تسجيل صوتي';
+        audioRecordBtnEdit.innerHTML='<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/></svg>'+EDIT_T.audioBtn;
         hideAudioPreviewEdit();
     }
     function getSupportedAudioMimeE(){
@@ -878,7 +950,7 @@
                     return;
                 }
                 try{
-                    showAudioPreviewEdit('جاري طلب الميكروفون...', false);
+                    showAudioPreviewEdit(EDIT_T.micReq, false);
                     audioStreamE=await navigator.mediaDevices.getUserMedia({audio:true});
                     audioChunksE=[];
                     const mime=getSupportedAudioMimeE();
@@ -894,14 +966,14 @@
                         showAudioRecordedEdit();
                         audioRecordBtnEdit.classList.remove('bg-white','border-[#e6e9e1]','text-ink-700');
                         audioRecordBtnEdit.classList.add('bg-red-50','border-red-300','text-red-600');
-                        audioRecordBtnEdit.innerHTML='<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>حذف التسجيل';
+                        audioRecordBtnEdit.innerHTML='<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>'+EDIT_T.delRec;
                     };
                     audioRecorderE.start();
                     audioStartTimeE=Date.now();
                     audioRecordBtnEdit.classList.remove('bg-white','border-[#e6e9e1]','text-ink-700');
                     audioRecordBtnEdit.classList.add('bg-red-50','border-red-300','text-red-600');
-                    audioRecordBtnEdit.innerHTML='<span class="w-3 h-3 rounded-full bg-red-500 animate-pulse"></span><span id="audio-timer-edit">00:00</span> — إيقاف';
-                    if(audioPreviewStatusEdit) audioPreviewStatusEdit.textContent='جاري التسجيل...';
+                    audioRecordBtnEdit.innerHTML='<span class="w-3 h-3 rounded-full bg-red-500 animate-pulse"></span><span id="audio-timer-edit">00:00</span> '+EDIT_T.stopLbl;
+                    if(audioPreviewStatusEdit) audioPreviewStatusEdit.textContent=EDIT_T.recNow;
                     if(audioPreviewTimerEdit) audioPreviewTimerEdit.classList.remove('hidden');
                     audioTimerE=setInterval(()=>{
                         const el=document.getElementById('audio-timer-edit');
@@ -932,14 +1004,14 @@
             </button>
         </div>
         <div class="flex-1 min-h-0 bg-ink-900 flex items-center justify-center p-4 overflow-auto">
-            <img id="attachment-view-image" class="hidden max-w-full max-h-[70vh] rounded-lg object-contain" oncontextmenu="return false;" draggable="false" alt="معاينة">
+            <img id="attachment-view-image" class="hidden max-w-full max-h-[70vh] rounded-lg object-contain" oncontextmenu="return false;" draggable="false" alt="{{ __('ui.preview_image_alt') }}">
             <video id="attachment-view-video" class="hidden max-w-full max-h-[70vh] rounded-lg" controls controlsList="nodownload" oncontextmenu="return false;" disablePictureInPicture></video>
             <audio id="attachment-view-audio" class="hidden w-full max-w-md" controls controlsList="nodownload" oncontextmenu="return false;"></audio>
-            <div id="attachment-view-fallback" class="hidden text-center text-white/70 text-sm">لا يمكن معاينة هذا النوع</div>
+            <div id="attachment-view-fallback" class="hidden text-center text-white/70 text-sm">{{ __('ui.no_match_attach') }}</div>
         </div>
         <div class="px-4 py-3 border-t border-surface-300 bg-surface-50 flex items-center justify-between gap-3 shrink-0">
-            <p class="text-xs text-ink-400">العرض فقط — التنزيل لكاتب التقرير فقط</p>
-            <button type="button" onclick="closeModal('attachment-view-modal')" class="px-4 py-2 rounded-lg bg-white border border-surface-300 text-ink-600 text-sm font-bold hover:bg-surface-100 transition">إغلاق</button>
+            <p class="text-xs text-ink-400">{{ __('ui.view_only_download') }}</p>
+            <button type="button" onclick="closeModal('attachment-view-modal')" class="px-4 py-2 rounded-lg bg-white border border-surface-300 text-ink-600 text-sm font-bold hover:bg-surface-100 transition">{{ __('ui.close_camera') }}</button>
         </div>
     </div>
 </div>

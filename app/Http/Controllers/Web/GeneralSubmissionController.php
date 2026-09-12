@@ -9,6 +9,7 @@ use App\Models\GeneralSubmissionAttachment;
 use App\Models\User;
 use App\Services\AttachmentStorageService;
 use App\Services\GeneralSubmissionService;
+use App\Services\Localization\LocalizedPresenter;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -19,7 +20,7 @@ class GeneralSubmissionController extends Controller
     use AuthorizesRequests;
     public function __construct(private GeneralSubmissionService $service, private AttachmentStorageService $storage) {}
 
-    public function index(Request $request)
+    public function index(Request $request, LocalizedPresenter $presenter)
     {
         $user = $request->user();
         $query = $this->service->getVisibleSubmissions($user)->with(['owner','reportWriters','attachments']);
@@ -28,7 +29,7 @@ class GeneralSubmissionController extends Controller
             $query->where('status', $request->status);
         }
 
-        // Quick time presets on submission date.
+
         $period = $request->input('period');
         $today = \Carbon\Carbon::today();
         if ($period === 'today') {
@@ -44,6 +45,12 @@ class GeneralSubmissionController extends Controller
         }
 
         $submissions = $query->orderByDesc('created_at')->paginate(15)->withQueryString();
+
+        // Preload عرضي واحد (محفوظ فقط — ZERO Gemini على Language Switch).
+        try {
+            $presenter->preloadSubmissions($submissions->items());
+        } catch (\Throwable) {
+        }
 
         return view('general-submissions.index', compact('submissions', 'period'));
     }
@@ -63,8 +70,10 @@ class GeneralSubmissionController extends Controller
             return $overflow;
         }
 
-        $maxFiles = max(1, (int) ini_get('max_file_uploads') ?: 20);
-        // Simplified form (description + writers only): auto-fill the rest.
+        // سقف عدد الملفات = أصغر حد بين السيرفر وسياسة التطبيق — كان 20 هنا و5 في الخدمة.
+        $maxFiles = min(max(1, (int) ini_get('max_file_uploads') ?: 20), (int) config('attachments.max_per_submission', 5));
+        $fileMaxKb = \App\Services\NoteService::uploadFileMaxKb();
+
         if (!$request->filled('floor_number')) $request->merge(['floor_number' => 0]);
         if (!$request->filled('camera_number')) $request->merge(['camera_number' => 1]);
         if (!$request->filled('observed_at')) $request->merge(['observed_at' => now()->format('Y-m-d\TH:i')]);
@@ -72,17 +81,18 @@ class GeneralSubmissionController extends Controller
             'floor_number' => ['required','integer','min:0'],
             'camera_number' => ['required','integer','min:1'],
             'observed_at' => ['required','date'],
-            'observed_end_at' => ['nullable','date','after_or_equal:observed_at'],
+            // عبور منتصف الليل يعالجه NoteService::normalizeObservedRange (موحد مع الملاحظات).
+            'observed_end_at' => ['nullable','date'],
             'description' => ['required','string','min:10','max:5000'],
             'report_writer_ids' => ['required','array','min:1'],
             'report_writer_ids.*' => ['integer','distinct','exists:users,id'],
             'files' => ['nullable','array','max:'.$maxFiles],
-            'files.*' => ['file','max:512000'],
+            'files.*' => ['file','max:'.$fileMaxKb,'mimes:jpg,jpeg,png,webp,heic,heif,tiff,tif,bmp,avif,gif,svg,mp4,webm,mov,avi,3gp,3gpp,mkv,m4v,mpg,mpeg,wmv,flv,ogv,ts,mts,m2ts,vob,asf,m2v,3g2,f4v,m4p,mp3,wav,ogg,oga,m4a,aac,wma,flac,opus,aiff,aif,amr,3ga,awb,mid,midi,au,ra,weba'],
             'client_files_count' => ['nullable','integer','min:0','max:100'],
         ], [
-            'files.max' => 'عدد الملفات يتجاوز الحد المسموح به من السيرفر (:max). أرسل على دفعات.',
+            'files.max' => __('api.files_max'),
         ], [
-            'report_writer_ids' => 'كتّاب التقارير',
+            'report_writer_ids' => __('validation.attributes.report_writer_ids'),
         ]);
 
         
@@ -90,10 +100,10 @@ class GeneralSubmissionController extends Controller
         $invalid = $writers->filter(fn($u) => !$u->isReportWriter());
         if ($invalid->count() > 0 || $writers->count() !== count($validated['report_writer_ids'])) {
             if ($this->wantsJson($request)) {
-                return response()->json(['success' => false, 'message' => 'يجب أن يكون جميع المختارين كتّاب تقارير'], 422);
+                return response()->json(['success' => false, 'message' => __('api.sub_recipients_must_writers_choice')], 422);
             }
 
-            return back()->withErrors(['report_writer_ids' => 'يجب أن يكون جميع المختارين كتّاب تقارير'])->withInput();
+            return back()->withErrors(['report_writer_ids' => __('api.sub_recipients_must_writers_choice')])->withInput();
         }
 
         $rawFiles = $request->file('files');
@@ -102,7 +112,7 @@ class GeneralSubmissionController extends Controller
 
         foreach ($receivedFiles as $f) {
             if (!$f->isValid()) {
-                $msg = "تعذّر استلام الملف {$f->getClientOriginalName()} (خطأ رفع {$f->getError()}).";
+                $msg = __('api.upload_generic', ['name' => $f->getClientOriginalName(), 'code' => $f->getError()]);
                 if ($this->wantsJson($request)) {
                     return response()->json(['success' => false, 'submission_id' => null, 'files_received' => count($receivedFiles), 'attachments_saved' => 0, 'attachment_errors' => [$msg]], 422);
                 }
@@ -124,11 +134,11 @@ class GeneralSubmissionController extends Controller
             if ($this->wantsJson($request)) {
                 return response()->json(array_merge($e->toResponseArray(null), [
                     'submission_id' => null,
-                    'message' => 'فشل رفع أحد المرفقات، ولم يتم حفظ الإرسالية.',
+                    'message' => __('api.sub_attach_failed'),
                 ]), 422);
             }
 
-            return back()->withInput()->withErrors(['files' => 'فشل رفع أحد المرفقات، ولم يتم حفظ الإرسالية.']);
+            return back()->withInput()->withErrors(['files' => __('api.sub_attach_failed')]);
         } catch (\InvalidArgumentException $e) {
             if ($this->wantsJson($request)) {
                 return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
@@ -138,10 +148,10 @@ class GeneralSubmissionController extends Controller
         } catch (\Throwable $e) {
             Log::error('[SUBMISSION] store unexpected', ['message' => $e->getMessage()]);
             if ($this->wantsJson($request)) {
-                return response()->json(['success' => false, 'message' => 'فشل إنشاء الإرسالية.'], 500);
+                return response()->json(['success' => false, 'message' => __('api.sub_create_failed')], 500);
             }
 
-            return back()->withInput()->withErrors(['general' => 'فشل إنشاء الإرسالية.']);
+            return back()->withInput()->withErrors(['general' => __('api.sub_create_failed')]);
         }
 
         $submission = $result['submission'];
@@ -158,13 +168,17 @@ class GeneralSubmissionController extends Controller
             ], 201);
         }
 
-        return redirect()->route('general-submissions.index')->with('success','تم إنشاء الإرسال العام وإرساله إلى الكتّاب المختارين');
+        return redirect()->route('general-submissions.index')->with('success', __('api.sub_web_created'));
     }
 
-    public function show(GeneralSubmission $generalSubmission)
+    public function show(GeneralSubmission $generalSubmission, LocalizedPresenter $presenter)
     {
         $this->authorize('view', $generalSubmission);
         $generalSubmission->load(['owner','reportWriters','attachments']);
+        try {
+            $presenter->preloadSubmissions([$generalSubmission]);
+        } catch (\Throwable) {
+        }
         return view('general-submissions.show', compact('generalSubmission'));
     }
 
@@ -174,10 +188,10 @@ class GeneralSubmissionController extends Controller
         try {
             $this->service->accept($generalSubmission, auth()->user());
         } catch (AttachmentUploadException $e) {
-            return redirect()->route('general-submissions.show', $generalSubmission)->withErrors(['general' => 'تعذّر القبول: '.$e->getMessage()]);
+            return redirect()->route('general-submissions.show', $generalSubmission)->withErrors(['general' => __('api.sub_accept_failed', ['error' => $e->getMessage()])]);
         }
 
-        return redirect()->route('general-submissions.show', $generalSubmission)->with('success', 'تم قبول الإرسالية');
+        return redirect()->route('general-submissions.show', $generalSubmission)->with('success', __('api.sub_web_accepted'));
     }
 
     public function reject(Request $request, GeneralSubmission $generalSubmission)
@@ -185,7 +199,7 @@ class GeneralSubmissionController extends Controller
         $this->authorize('reject', $generalSubmission);
         $request->validate(['rejection_reason' => ['required','string','min:5','max:1000']]);
         $this->service->reject($generalSubmission, auth()->user(), $request->rejection_reason);
-        return redirect()->route('general-submissions.show', $generalSubmission)->with('success', 'تم رفض الإرسالية');
+        return redirect()->route('general-submissions.show', $generalSubmission)->with('success', __('api.sub_web_rejected'));
     }
 
     
@@ -193,11 +207,11 @@ class GeneralSubmissionController extends Controller
     {
         $submission = $attachment->submission;
         if (!auth()->user()->can('view', $submission)) {
-            abort(403, 'غير مصرح لك بعرض هذا المرفق');
+            abort(403, __('api.forbidden_attach_view'));
         }
 
         if (!$this->storage->isLocalSubmission($attachment)) {
-            abort(404, 'الملف غير موجود');
+            abort(404, __('api.file_not_found'));
         }
 
         return $this->storage->fileResponseSubmission($attachment, false);
@@ -207,14 +221,14 @@ class GeneralSubmissionController extends Controller
     {
         $submission = $attachment->submission;
         if (!auth()->user()->can('view', $submission)) {
-            abort(403, 'غير مصرح لك بتحميل هذا المرفق');
+            abort(403, __('api.forbidden_attach_download'));
         }
         if (!auth()->user()->isReportWriter()) {
-            abort(403, 'التنزيل مسموح لكاتب التقرير فقط');
+            abort(403, __('api.download_writer_only'));
         }
 
         if (!$this->storage->isLocalSubmission($attachment)) {
-            abort(404, 'الملف غير موجود');
+            abort(404, __('api.file_not_found'));
         }
 
         return $this->storage->fileResponseSubmission($attachment, true);
@@ -222,13 +236,16 @@ class GeneralSubmissionController extends Controller
 
     public function sharedViewAttachment(int $attachment)
     {
-        // Guests always go to login first (even for unknown ids) — never a bare 404.
         if (!auth()->check()) {
             return redirect()->guest(route('login'));
         }
-        $model = GeneralSubmissionAttachment::findOrFail($attachment);
+        $model = GeneralSubmissionAttachment::with('submission')->findOrFail($attachment);
+        $submission = $model->submission;
+        if (!$submission || !auth()->user()->can('view', $submission)) {
+            abort(403, __('api.forbidden_attach_view'));
+        }
         if (!$this->storage->isLocalSubmission($model)) {
-            abort(404, 'الملف غير موجود');
+            abort(404, __('api.file_not_found'));
         }
 
         return view('shared.attachment', [
@@ -246,9 +263,13 @@ class GeneralSubmissionController extends Controller
         if (!auth()->check()) {
             return redirect()->guest(route('login'));
         }
-        $model = GeneralSubmissionAttachment::findOrFail($attachment);
+        $model = GeneralSubmissionAttachment::with('submission')->findOrFail($attachment);
+        $submission = $model->submission;
+        if (!$submission || !auth()->user()->can('view', $submission)) {
+            abort(403, __('api.forbidden_attach_view'));
+        }
         if (!$this->storage->isLocalSubmission($model)) {
-            abort(404, 'الملف غير موجود');
+            abort(404, __('api.file_not_found'));
         }
 
         return $this->storage->fileResponseSubmission($model, false);
@@ -264,7 +285,7 @@ class GeneralSubmissionController extends Controller
         $postMax = $this->parseBytes((string) ini_get('post_max_size'));
         $length = (int) $request->server('CONTENT_LENGTH', 0);
         if ($postMax > 0 && $length > $postMax) {
-            $msg = 'حجم الطلب يتجاوز حد الخادم post_max_size. قلل حجم/عدد المرفقات ثم أعد المحاولة.';
+            $msg = __('api.post_too_large');
             if ($this->wantsJson($request)) {
                 return response()->json(['success' => false, 'submission_id' => null, 'files_received' => 0, 'attachments_saved' => 0, 'attachment_errors' => [$msg]], 413);
             }

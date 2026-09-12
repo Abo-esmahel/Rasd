@@ -89,11 +89,15 @@ export class NotificationSoundManager {
     } catch {}
   }
 
-  async loadFromServer() {
+  async loadFromServer(prefetched = null) {
     try {
-      const res = await fetch('/notifications/preferences', { headers: { Accept: 'application/json' } });
-      if (res.ok) {
-        const data = await res.json();
+      // المدير يجلب التفضيلات مسبقاً بالتوازي — إعادة استخدامها توفر طلباً مكرراً لنفس المسار.
+      let data = prefetched;
+      if (!data || typeof data !== 'object') {
+        const res = await fetch('/notifications/preferences', { headers: { Accept: 'application/json' } });
+        if (res.ok) data = await res.json();
+      }
+      if (data) {
         if (typeof data.sound_enabled === 'boolean') this.enabled = data.sound_enabled;
         if (typeof data.volume === 'number') this.volume = Math.max(0, Math.min(100, data.volume)) / 100;
         if (data.sound_theme) this.theme = data.sound_theme;
@@ -281,8 +285,7 @@ export class NotificationSoundManager {
 
       
       try {
-        const wavBase64 = 'UklGRqQlAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YYAlAAAAAGgAQQGuAfEAA
-        
+        const wavBase64 = 'UklGRqQlAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YYAlAAAAAGgAQQGuAfEAA==';
         const audio = new Audio('data:audio/wav;base64,' + wavBase64);
         audio.volume = Math.max(0.3, Math.min(1, this.volume));
         audio.playsInline = true;

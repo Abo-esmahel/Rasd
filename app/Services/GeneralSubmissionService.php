@@ -22,7 +22,7 @@ class GeneralSubmissionService
     public function createDraft(User $user, array $data): GeneralSubmission
     {
         if (!$user->isMonitor()) {
-            throw new InvalidArgumentException('غير مصرح لك بإنشاء الإرسالات العامة');
+            throw new InvalidArgumentException(__('api.sub_unauthorized_create'));
         }
 
         $allowed = array_intersect_key($data, array_flip([
@@ -32,6 +32,8 @@ class GeneralSubmissionService
             'observed_end_at',
             'description',
         ]));
+        // نفس الفالديشن الذكية للملاحظات: عبور منتصف الليل + سقف 12 ساعة + منع المستقبل.
+        $allowed = NoteService::normalizeObservedRange($allowed);
 
         $allowed['user_id'] = $user->id;
         $allowed['status'] = GeneralSubmission::STATUS_DRAFT;
@@ -43,7 +45,7 @@ class GeneralSubmissionService
     public function createSubmissionWithAttachments(User $user, array $data, array $files, int $clientFilesCount, array $writerIds): array
     {
         if (!$user->isMonitor()) {
-            throw new InvalidArgumentException('غير مصرح لك بإنشاء الإرسالات العامة');
+            throw new InvalidArgumentException(__('api.sub_unauthorized_create'));
         }
 
         $received = array_values(array_filter($files, fn ($f) => $f instanceof UploadedFile));
@@ -52,20 +54,23 @@ class GeneralSubmissionService
 
         if ($clientFilesCount > 0 && $filesReceived < $clientFilesCount) {
             $msg = $filesReceived === 0
-                ? "تم إعلان {$clientFilesCount} ملف لكن لم يصل أي مرفق إلى الخادم. يرجى إعادة رفع الملف."
-                : "وصل {$filesReceived} من أصل {$clientFilesCount} ملف معلن فقط.";
+                ? __('api.sub_files_announced_none', ['count' => $clientFilesCount])
+                : __('api.sub_files_partial', ['received' => $filesReceived, 'count' => $clientFilesCount]);
             throw new AttachmentUploadException($msg, stage: 'transport_loss', filesReceived: $filesReceived, attachmentsSaved: 0, attachmentErrors: [$msg]);
         }
 
         
         $writers = User::whereIn('id', $writerIds)->where('role', 'report_writer')->get();
-        if ($writers->count() !== count($writerIds) || count(array_unique($writerIds)) !== count($writerIds) || $writers->isEmpty()) {
-            throw new InvalidArgumentException('يجب أن يكون جميع المستلمين من كتاب التقاريرWithout تكرار');
+        if ($writers->isEmpty() || $writers->count() !== count($writerIds)) {
+            throw new InvalidArgumentException(__('api.sub_recipients_must_writers'));
+        }
+        if (count(array_unique($writerIds)) !== count($writerIds)) {
+            throw new InvalidArgumentException(__('api.sub_no_duplicate_writers'));
         }
 
         $max = (int) config('attachments.max_per_submission', config('attachments.max_per_note', 5));
         if ($filesReceived > $max) {
-            $msg = "الحد الأقصى للمرفقات هو {$max}";
+            $msg = __('api.sub_attach_max', ['max' => $max]);
             throw new AttachmentUploadException($msg, stage: 'validation', filesReceived: $filesReceived, attachmentsSaved: 0, attachmentErrors: [$msg]);
         }
 
@@ -85,20 +90,20 @@ class GeneralSubmissionService
                     $storedPaths[] = $att->file_path;
                 } catch (AttachmentUploadException $e) {
                     $attachmentErrors[] = ['file' => $file->getClientOriginalName(), 'stage' => $e->stage, 'message' => $e->getMessage()];
-                    throw new AttachmentUploadException('فشل رفع أحد المرفقات، ولم يتم حفظ الإرسالية.', stage: $e->stage, originalName: $file->getClientOriginalName(), filesReceived: $filesReceived, attachmentsSaved: 0, attachmentErrors: $attachmentErrors, previous: $e);
+                    throw new AttachmentUploadException(__('api.sub_attach_failed'), stage: $e->stage, originalName: $file->getClientOriginalName(), filesReceived: $filesReceived, attachmentsSaved: 0, attachmentErrors: $attachmentErrors, previous: $e);
                 } catch (InvalidArgumentException $e) {
                     $attachmentErrors[] = $file->getClientOriginalName().': '.$e->getMessage();
-                    throw new AttachmentUploadException('فشل رفع أحد المرفقات، ولم يتم حفظ الإرسالية.', stage: 'validation', originalName: $file->getClientOriginalName(), filesReceived: $filesReceived, attachmentsSaved: 0, attachmentErrors: $attachmentErrors, previous: $e);
+                    throw new AttachmentUploadException(__('api.sub_attach_failed'), stage: 'validation', originalName: $file->getClientOriginalName(), filesReceived: $filesReceived, attachmentsSaved: 0, attachmentErrors: $attachmentErrors, previous: $e);
                 }
             }
 
             if ($filesReceived !== count($newAttachments)) {
-                throw new AttachmentUploadException('فشل رفع أحد المرفقات، ولم يتم حفظ الإرسالية.', stage: 'verification', filesReceived: $filesReceived, attachmentsSaved: count($newAttachments), attachmentErrors: $attachmentErrors ?: ['عدد الملفات المحفوظة لا يطابق المرسلة.']);
+                throw new AttachmentUploadException(__('api.sub_attach_failed'), stage: 'verification', filesReceived: $filesReceived, attachmentsSaved: count($newAttachments), attachmentErrors: $attachmentErrors ?: [__('api.note_attach_count_mismatch_short')]);
             }
 
             foreach ($newAttachments as $att) {
                 if (!$this->storage->exists($att->file_path)) {
-                    throw new AttachmentUploadException('فشل التحقق من المرفقات قبل الحفظ.', stage: 'verification', filesReceived: $filesReceived, attachmentsSaved: 0, attachmentErrors: ['تعذّر التحقق من وجود الملفات فعلياً.']);
+                    throw new AttachmentUploadException(__('api.note_attach_verify_before_save'), stage: 'verification', filesReceived: $filesReceived, attachmentsSaved: 0, attachmentErrors: [__('api.note_attach_files_missing_verify_short')]);
                 }
             }
 
@@ -117,15 +122,10 @@ class GeneralSubmissionService
 
             $fresh = $submission->fresh(['reportWriters', 'owner', 'attachments']);
 
-            
             try {
-                foreach ($writers as $writer) {
-                    if (!$this->hasNotification($writer, DispatchSentNotification::class, $fresh->id)) {
-                        $writer->notify(new DispatchSentNotification($fresh, $user->name));
-                    }
-                }
+                \App\Jobs\FanoutDispatchNotifications::dispatch($fresh->id, $user->name, $writers->pluck('id')->all())->afterResponse();
             } catch (\Throwable $e) {
-                Log::warning('فشل إرسال إشعارات الإرسال: '.$e->getMessage());
+                Log::warning('فشل جدولة إشعارات الإرسال: '.$e->getMessage());
             }
 
             return [
@@ -158,7 +158,7 @@ class GeneralSubmissionService
                 } catch (\Throwable $ce) {
                 }
             }
-            throw new AttachmentUploadException('فشل إنشاء الإرسالية مع المرفقات.', stage: 'db', filesReceived: $filesReceived, attachmentsSaved: 0, attachmentErrors: ['فشل إنشاء الإرسالية: '.$e->getMessage()], previous: $e);
+            throw new AttachmentUploadException(__('api.sub_attach_create_failed'), stage: 'db', filesReceived: $filesReceived, attachmentsSaved: 0, attachmentErrors: [__('api.sub_create_failed'), $e->getMessage()], previous: $e);
         }
     }
 
@@ -171,18 +171,18 @@ class GeneralSubmissionService
     private function storeSingleAttachment(User $user, GeneralSubmission $submission, UploadedFile $file): GeneralSubmissionAttachment
     {
         if ($submission->user_id !== $user->id) {
-            throw new InvalidArgumentException('غير مصرح لك بإضافة مرفقات لهذه الإرسالية');
+            throw new InvalidArgumentException(__('api.sub_unauthorized_attach'));
         }
         if (!$submission->isDraft()) {
-            throw new InvalidArgumentException('يمكن إضافة المرفقات للمسودات فقط');
+            throw new InvalidArgumentException(__('api.sub_attach_draft_only'));
         }
         $max = (int) config('attachments.max_per_submission', config('attachments.max_per_note', 5));
         if ($submission->attachments()->count() >= $max) {
-            throw new InvalidArgumentException("الحد الأقصى للمرفقات هو {$max}");
+            throw new InvalidArgumentException(__('api.sub_attach_max', ['max' => $max]));
         }
 
         if (!$file->isValid()) {
-            throw new AttachmentUploadException('تعذّر استلام الملف.', stage: 'php_upload', originalName: $file->getClientOriginalName(), filesReceived: 1, attachmentsSaved: 0);
+            throw new AttachmentUploadException(__('api.upload_receive_failed'), stage: 'php_upload', originalName: $file->getClientOriginalName(), filesReceived: 1, attachmentsSaved: 0);
         }
 
         app(NoteService::class)->validateFile($file);
@@ -208,7 +208,7 @@ class GeneralSubmissionService
                 $attachment->delete();
             } catch (\Throwable $e) {
             }
-            throw new AttachmentUploadException('فشل التحقق من حفظ المرفق.', stage: 'verification', originalName: $file->getClientOriginalName(), filesReceived: 1, attachmentsSaved: 0);
+            throw new AttachmentUploadException(__('api.note_attach_verify_db'), stage: 'verification', originalName: $file->getClientOriginalName(), filesReceived: 1, attachmentsSaved: 0);
         }
 
         return $attachment;
@@ -218,10 +218,10 @@ class GeneralSubmissionService
     {
         $submission = $attachment->submission;
         if ($submission->user_id !== $user->id) {
-            throw new InvalidArgumentException('غير مصرح لك بحذف هذا المرفق');
+            throw new InvalidArgumentException(__('api.sub_unauthorized_detach'));
         }
         if (!$submission->isDraft()) {
-            throw new InvalidArgumentException('يمكن حذف المرفقات للمسودات فقط');
+            throw new InvalidArgumentException(__('api.sub_detach_draft_only'));
         }
         $path = (string) $attachment->file_path;
         DB::transaction(function () use ($attachment, $path) {
@@ -233,11 +233,11 @@ class GeneralSubmissionService
     public function addReportWriter(GeneralSubmission $submission, User $writer): GeneralSubmission
     {
         if ($submission->status !== GeneralSubmission::STATUS_DRAFT) {
-            throw new InvalidArgumentException('يمكن إضافة كتّاب فقط للإرسالات المسودة');
+            throw new InvalidArgumentException(__('api.sub_writers_draft_only'));
         }
 
         if ($submission->reportWriters->contains('id', $writer->id)) {
-            throw new InvalidArgumentException('هذا الكاتب已被 assigned لهذه الإرسال');
+            throw new InvalidArgumentException(__('api.sub_writer_already_added'));
         }
 
         $submission->reportWriters()->attach($writer->id);
@@ -248,11 +248,11 @@ class GeneralSubmissionService
     public function removeReportWriter(GeneralSubmission $submission, User $writer): GeneralSubmission
     {
         if ($submission->status !== GeneralSubmission::STATUS_DRAFT) {
-            throw new InvalidArgumentException('يمكن إزالة كتّاب فقط للإرسالات المسودة');
+            throw new InvalidArgumentException(__('api.sub_unwriters_draft_only'));
         }
 
         if (!$submission->reportWriters->contains('id', $writer->id)) {
-            throw new InvalidArgumentException('هذا الكاتب غير assigned لهذه الإرسال');
+            throw new InvalidArgumentException(__('api.sub_writer_not_added'));
         }
 
         $submission->reportWriters()->detach($writer->id);
@@ -263,11 +263,11 @@ class GeneralSubmissionService
     public function submit(GeneralSubmission $submission, User $submitter, array $reportWriterIds): GeneralSubmission
     {
         if (!$submitter->isMonitor()) {
-            throw new InvalidArgumentException('يمكن إرسال الإرسالات العامة فقط من قبل المراقبين');
+            throw new InvalidArgumentException(__('api.sub_send_monitors_only'));
         }
 
         if ($submission->status !== GeneralSubmission::STATUS_DRAFT) {
-            throw new InvalidArgumentException('يمكن إرسال الإرسالات المسودة فقط');
+            throw new InvalidArgumentException(__('api.sub_send_draft_only'));
         }
 
         
@@ -276,17 +276,17 @@ class GeneralSubmissionService
             ->get();
 
         if ($writers->count() !== count($reportWriterIds)) {
-            throw new InvalidArgumentException('يجب أن يكون جميع المستلمين من كتاب التقارير');
+            throw new InvalidArgumentException(__('api.sub_recipients_must_writers'));
         }
 
         
         $uniqueIds = array_unique($reportWriterIds);
         if (count($uniqueIds) !== count($reportWriterIds)) {
-            throw new InvalidArgumentException('لا يمكن وجود مستلمين مكررين');
+            throw new InvalidArgumentException(__('api.sub_no_duplicate_recipients'));
         }
 
         if (count($writers) < 1) {
-            throw new InvalidArgumentException('يجب اختيار كاتب على الأقل');
+            throw new InvalidArgumentException(__('api.sub_need_writer'));
         }
 
         DB::transaction(function () use ($submission, $writers) {
@@ -305,36 +305,28 @@ class GeneralSubmissionService
 
         $fresh = $submission->fresh(['reportWriters', 'owner']);
 
-        
         try {
-            foreach ($writers as $writer) {
-                if (!$this->hasNotification($writer, DispatchSentNotification::class, $fresh->id)) {
-                    $writer->notify(new DispatchSentNotification($fresh, $submitter->name));
-                }
-            }
+            \App\Jobs\FanoutDispatchNotifications::dispatch($fresh->id, $submitter->name, $writers->pluck('id')->all())->afterResponse();
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::warning('فشل إرسال إشعارات الإرسال: '.$e->getMessage());
+            \Illuminate\Support\Facades\Log::warning('فشل جدولة إشعارات الإرسال: '.$e->getMessage());
         }
 
         return $fresh;
     }
 
-    /**
-     * Accept a submission. Submissions are NOT notes: acceptance only flips
-     * the submission status — no Note record is created.
-     */
+
     public function accept(GeneralSubmission $submission, User $writer): GeneralSubmission
     {
         if (!$writer->isReportWriter()) {
-            throw new InvalidArgumentException('يمكن قبول الإرسال فقط من قبل كتاب التقارير');
+            throw new InvalidArgumentException(__('api.sub_accept_writers_only'));
         }
 
         if ($submission->status !== GeneralSubmission::STATUS_PENDING) {
-            throw new InvalidArgumentException('يمكن قبول الإرسالات قيد المراجعة فقط');
+            throw new InvalidArgumentException(__('api.sub_accept_pending_only'));
         }
 
         if (!$submission->reportWriters()->where('users.id', $writer->id)->exists()) {
-            throw new InvalidArgumentException('غير مصرح لك بقبول هذه الإرسالية — لست من ضمن الكتّاب المعنيين');
+            throw new InvalidArgumentException(__('api.sub_accept_not_assigned'));
         }
 
         $submission->update([
@@ -360,19 +352,19 @@ class GeneralSubmissionService
     public function reject(GeneralSubmission $submission, User $writer, string $reason): GeneralSubmission
     {
         if (!$writer->isReportWriter()) {
-            throw new InvalidArgumentException('يمكن رفض الإرسال فقط من قبل كتاب التقارير');
+            throw new InvalidArgumentException(__('api.sub_reject_writers_only'));
         }
 
         if ($submission->status !== GeneralSubmission::STATUS_PENDING) {
-            throw new InvalidArgumentException('يمكن رفض الإرسالات قيد المراجعة فقط');
+            throw new InvalidArgumentException(__('api.sub_reject_pending_only'));
         }
 
         if (empty(trim($reason))) {
-            throw new InvalidArgumentException('سبب الرفض مطلوب');
+            throw new InvalidArgumentException(__('api.note_reject_reason_required'));
         }
 
         if (!$submission->reportWriters()->where('users.id', $writer->id)->exists()) {
-            throw new InvalidArgumentException('غير مصرح لك برفض هذه الإرسالية — لست من ضمن الكتّاب المعنيين');
+            throw new InvalidArgumentException(__('api.sub_reject_not_assigned'));
         }
 
         $submission->update([
@@ -416,17 +408,14 @@ class GeneralSubmissionService
     private function hasNotification(User $user, string $type, int $id): bool
     {
         try {
-            $existing = $user->notifications()->where('type', $type)->get();
-            foreach ($existing as $n) {
-                $data = $n->data;
-                if (is_string($data)) {
-                    $data = json_decode($data, true);
-                }
-                if (($data['submission_id'] ?? null) == $id || ($data['general_submission_id'] ?? null) == $id) {
-                    return true;
-                }
+            $base = $user->notifications()->where('type', $type);
+            if ($base->clone()->where('data->submission_id', $id)->exists()) {
+                return true;
             }
-        } catch (\Throwable $e) {}
-        return false;
+
+            return $base->clone()->where('data->general_submission_id', $id)->exists();
+        } catch (\Throwable $e) {
+            return false;
+        }
     }
 }

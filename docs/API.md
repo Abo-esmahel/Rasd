@@ -243,6 +243,39 @@ Authorization: Bearer <token>
 Response: [file download]
 ```
 
+## التقارير اليومية
+
+```
+GET    /api/reports
+POST   /api/reports                          {title, report_date, content?, visible_to_monitors?}
+GET    /api/reports/{id}
+PUT    /api/reports/{id}
+DELETE /api/reports/{id}
+POST   /api/reports/{id}/attach              {note_ids[]}      (مقبولة + نفس اليوم فقط)
+DELETE /api/reports/{id}/notes/{noteId}
+POST   /api/reports/{id}/reorder             {ordered_ids[]}
+POST   /api/reports/{id}/publish
+POST   /api/reports/{id}/unpublish
+POST   /api/reports/{id}/generate            {regenerate?, confirm_overwrite_manual?, include_images?}  (حد: 5/دقيقة)
+```
+
+*   المراقب يرى المنشور المرئي فقط وبدون `ai_draft_content` — الكاتب يرى الكل.
+*   أخطاء التوليد مرمزة بدقة في `error`: `AI_DISABLED/403` · `AI_AUTH/502` · `AI_RATE_LIMITED/429` (+`retry_after`) · `AI_UNAVAILABLE/503` · `AI_BAD_RESPONSE/502` · `AI_BUSY/409` · `AI_VALIDATION/422` — التفاصيل في `REPORTS.md`.
+
+## الإرسالات العامة (منفصلة عن الملاحظات)
+
+```
+GET    /api/general-submissions
+POST   /api/general-submissions
+GET    /api/general-submissions/{id}
+POST   /api/general-submissions/{id}/submit
+POST   /api/general-submissions/{id}/accept
+POST   /api/general-submissions/{id}/reject   {rejection_reason}
+GET    /api/submission-attachments/{attachment}/view
+```
+
+> القبول يقلب الحالة فقط ولا ينشئ ملاحظة.
+
 ## صيغة الاستجابة
 
 ### نجاح
@@ -268,7 +301,7 @@ Response: [file download]
 - 201: إنشاء
 - 204: حذف (بدون محتوى)
 - 400: خطأ في الطلب
-- 401: غير مصرح (صادقة مفقودة)
+- 401: غير مصرح (مصادقة مفقودة أو منتهية)
 - 403: ممنوع (تفويض)
 - 404: غير موجود
 - 422: خطأ في التحقق

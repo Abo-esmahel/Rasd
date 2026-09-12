@@ -22,12 +22,114 @@ class NoteService
         private ?WebPushService $push = null,
     ) {}
 
+    /**
+     * الحد الأقصى لحجم الملف الواحد بالكيلوبايت — مصدر واحد لكل الكنترولرز
+     * وطلبات الـ API (صور/فيديو/صوت)، مع احترام حد PHP.
+     */
+    public static function uploadFileMaxKb(): int
+    {
+        $phpMaxKb = (int) (self::parseBytesStatic((string) ini_get('upload_max_filesize')) / 1024);
+        $appMaxKb = max(
+            (int) config('attachments.max_image_size', 20480),
+            (int) config('attachments.max_video_size', 102400),
+            (int) (config('attachments.max_audio_size', 100 * 1024 * 1024) / 1024)
+        );
+        $cap = min($appMaxKb, 512000);
+
+        return $phpMaxKb > 0 ? min($phpMaxKb, $cap) : $cap;
+    }
+
+    private static function parseBytesStatic(string $value): int
+    {
+        $value = trim($value);
+        if ($value === '' || $value === '-1') {
+            return 0;
+        }
+        $unit = strtolower(substr($value, -1));
+        $number = (float) $value;
+
+        return (int) match ($unit) {
+            'g' => $number * 1024 * 1024 * 1024,
+            'm' => $number * 1024 * 1024,
+            'k' => $number * 1024,
+            default => $number,
+        };
+    }
+
+    /**
+     * فالديشن ذكية للنطاق الزمني — نقطة واحدة لكل الملاحظات والإرساليات:
+     * - عبور منتصف الليل مسموح (نهاية أصغر من البداية = اليوم التالي) بدل الرفض.
+     * - المدة القصوى 12 ساعة لمنع أخطاء الإدخال.
+     * - لا تواريخ مستقبلية (سماح ساعة واحدة لانحراف الساعات).
+     */
+    public static function normalizeObservedRange(array $data): array
+    {
+        if (empty($data['observed_at'])) {
+            return $data;
+        }
+
+        try {
+            $start = \Carbon\Carbon::parse($data['observed_at']);
+        } catch (\Throwable $e) {
+            throw new InvalidArgumentException(__('api.time_invalid'));
+        }
+
+        if ($start->gt(now()->addHour())) {
+            throw new InvalidArgumentException(__('api.time_future'));
+        }
+
+        if (! empty($data['observed_end_at'])) {
+            try {
+                $end = \Carbon\Carbon::parse($data['observed_end_at']);
+            } catch (\Throwable $e) {
+                throw new InvalidArgumentException(__('api.time_end_invalid'));
+            }
+
+            if ($end->lt($start)) {
+                // عبور منتصف الليل — نفس سلوك واجهة الملاحظات سابقاً.
+                $end->addDay();
+            }
+
+            if ($start->diffInMinutes($end) > 12 * 60) {
+                throw new InvalidArgumentException(__('api.time_range_exceeded'));
+            }
+
+            if ($end->gt(now()->addHour())) {
+                throw new InvalidArgumentException(__('api.time_end_future'));
+            }
+
+            $data['observed_end_at'] = $end->toDateTimeString();
+        }
+
+        $data['observed_at'] = $start->toDateTimeString();
+
+        return $data;
+    }
+
+    /**
+     * إبطال مستهدف للكاش بعد أي تغيير حالة — العدادات كانت تبقى قديمة 30–300 ثانية.
+     */
+    public static function flushNoteCaches(?int $userId = null): void
+    {
+        try {
+            $cache = \Illuminate\Support\Facades\Cache::store(config('cache.default'));
+            if ($userId) {
+                $cache->forget('notes-counts:'.$userId.':my');
+                $cache->forget('notes-counts:'.$userId.':all');
+                $cache->forget('profile-stats:'.$userId);
+            }
+            $cache->forget('ranking-global-stats');
+        } catch (\Throwable $e) {
+        }
+    }
+
     public function createDraft(User $user, array $data): Note
     {
         if (!$user->isMonitor() && !$user->isReportWriter()) {
-            throw new InvalidArgumentException('غير مصرح لك بإنشاء الملاحظات');
+            throw new InvalidArgumentException(__('api.note_unauthorized_create'));
         }
         $allowed = array_intersect_key($data, array_flip(['floor_number', 'camera_number', 'observed_at', 'observed_end_at', 'description']));
+        $allowed = self::normalizeObservedRange($allowed);
         $allowed['user_id'] = $user->id;
         if ($user->isReportWriter()) {
             $allowed['status'] = Note::STATUS_ACCEPTED;
@@ -49,8 +151,8 @@ class NoteService
         
         if ($clientFilesCount > 0 && $filesReceived < $clientFilesCount) {
             $msg = $filesReceived === 0
-                ? "تم إعلان {$clientFilesCount} ملف لكن لم يصل أي مرفق إلى الخادم. يرجى إعادة رفع الملف."
-                : "وصل {$filesReceived} من أصل {$clientFilesCount} ملف معلن فقط. أعد إرسال الملفات الناقصة.";
+                ? __('api.note_files_announced_none', ['count' => $clientFilesCount])
+                : __('api.note_files_partial', ['received' => $filesReceived, 'count' => $clientFilesCount]);
             Log::warning('[ATTACHMENT] transport loss before create', array_merge([
                 'user_id' => $user->id,
                 'client_files_count' => $clientFilesCount,
@@ -84,7 +186,7 @@ class NoteService
                 } catch (AttachmentUploadException $e) {
                     $attachmentErrors[] = $this->formatAttachmentError($file, $e);
                     throw new AttachmentUploadException(
-                        'فشل رفع أحد المرفقات، ولم يتم حفظ العملية.',
+                        __('api.note_attach_batch_failed_op'),
                         stage: $e->stage,
                         originalName: $file->getClientOriginalName(),
                         filesReceived: $filesReceived,
@@ -95,7 +197,7 @@ class NoteService
                 } catch (InvalidArgumentException $e) {
                     $attachmentErrors[] = $file->getClientOriginalName().': '.$e->getMessage();
                     throw new AttachmentUploadException(
-                        'فشل رفع أحد المرفقات، ولم يتم حفظ العملية.',
+                        __('api.note_attach_batch_failed_op'),
                         stage: 'validation',
                         originalName: $file->getClientOriginalName(),
                         filesReceived: $filesReceived,
@@ -110,11 +212,11 @@ class NoteService
             $attachmentsSaved = count($attachments);
             if ($filesReceived !== $attachmentsSaved) {
                 throw new AttachmentUploadException(
-                    'فشل رفع أحد المرفقات، ولم يتم حفظ العملية.',
+                    __('api.note_attach_batch_failed_op'),
                     stage: 'verification',
                     filesReceived: $filesReceived,
                     attachmentsSaved: $attachmentsSaved,
-                    attachmentErrors: $attachmentErrors ?: ['عدد الملفات المحفوظة لا يطابق عدد الملفات المرسلة.'],
+                    attachmentErrors: $attachmentErrors ?: [__('api.note_attach_count_mismatch')],
                 );
             }
 
@@ -123,16 +225,17 @@ class NoteService
                 $fresh = Attachment::where('id', $attachment->id)->where('note_id', $note->id)->first();
                 if (!$fresh || !$this->storage->exists($fresh->file_path)) {
                     throw new AttachmentUploadException(
-                        'فشل التحقق من المرفقات قبل الحفظ.',
+                        __('api.note_attach_verify_before_save'),
                         stage: 'verification',
                         filesReceived: $filesReceived,
                         attachmentsSaved: 0,
-                        attachmentErrors: ['تعذّر التحقق من وجود الملفات فعلياً قبل الحفظ.'],
+                        attachmentErrors: [__('api.note_attach_files_missing_verify')],
                     );
                 }
             }
 
             DB::commit();
+            self::flushNoteCaches($user->id);
 
             return [
                 'note' => $note->fresh(['owner', 'attachments']),
@@ -165,11 +268,11 @@ class NoteService
                 'message' => $e->getMessage(),
             ]);
             throw new AttachmentUploadException(
-                'فشل إنشاء الملاحظة مع المرفقات.',
+                __('api.note_create_with_attach_failed'),
                 stage: 'db',
                 filesReceived: $filesReceived,
                 attachmentsSaved: 0,
-                attachmentErrors: ['فشل إنشاء الملاحظة: '.$e->getMessage()],
+                attachmentErrors: [__('api.note_create_failed', ['error' => $e->getMessage()])],
                 previous: $e,
             );
         }
@@ -182,11 +285,23 @@ class NoteService
         $filesReceived = count($received);
         $clientFilesCount = max(0, $clientFilesCount);
         $attachmentsBefore = $note->attachments()->count();
+        $maxAttachments = (int) config('attachments.max_per_note', 10);
+
+        // كان بالإمكان تجاوز الحد عبر التعديل المتكرر — $attachmentsBefore حُسب ولم يُفحص أبداً.
+        if ($attachmentsBefore + $filesReceived > $maxAttachments) {
+            throw new AttachmentUploadException(
+                __('api.note_attach_max_detail', ['max' => $maxAttachments, 'before' => $attachmentsBefore, 'new' => $filesReceived]),
+                stage: 'validation',
+                filesReceived: $filesReceived,
+                attachmentsSaved: 0,
+                attachmentErrors: [__('api.note_attach_max', ['max' => $maxAttachments])],
+            );
+        }
 
         if ($clientFilesCount > 0 && $filesReceived < $clientFilesCount) {
             $msg = $filesReceived === 0
-                ? "تم إعلان {$clientFilesCount} ملف لكن لم يصل أي مرفق إلى الخادم."
-                : "وصل {$filesReceived} من أصل {$clientFilesCount} ملف معلن فقط.";
+                ? __('api.note_files_announced_none_short', ['count' => $clientFilesCount])
+                : __('api.note_files_partial_short', ['received' => $filesReceived, 'count' => $clientFilesCount]);
             Log::warning('[ATTACHMENT] transport loss before update', array_merge([
                 'user_id' => $user->id,
                 'note_id' => $note->id,
@@ -211,6 +326,7 @@ class NoteService
 
             $allowed = array_intersect_key($data, array_flip(['floor_number', 'camera_number', 'observed_at', 'observed_end_at', 'description']));
             if (!empty($allowed)) {
+                $allowed = self::normalizeObservedRange($allowed);
                 $note->update($allowed);
             }
 
@@ -222,7 +338,7 @@ class NoteService
                 } catch (AttachmentUploadException $e) {
                     $attachmentErrors[] = $this->formatAttachmentError($file, $e);
                     throw new AttachmentUploadException(
-                        'فشل رفع أحد المرفقات، ولم يتم حفظ التعديلات.',
+                        __('api.note_attach_batch_failed_edit'),
                         stage: $e->stage,
                         originalName: $file->getClientOriginalName(),
                         filesReceived: $filesReceived,
@@ -233,7 +349,7 @@ class NoteService
                 } catch (InvalidArgumentException $e) {
                     $attachmentErrors[] = $file->getClientOriginalName().': '.$e->getMessage();
                     throw new AttachmentUploadException(
-                        'فشل رفع أحد المرفقات، ولم يتم حفظ التعديلات.',
+                        __('api.note_attach_batch_failed_edit'),
                         stage: 'validation',
                         originalName: $file->getClientOriginalName(),
                         filesReceived: $filesReceived,
@@ -246,27 +362,28 @@ class NoteService
 
             if ($filesReceived !== count($newAttachments)) {
                 throw new AttachmentUploadException(
-                    'فشل رفع أحد المرفقات، ولم يتم حفظ التعديلات.',
+                    __('api.note_attach_batch_failed_edit'),
                     stage: 'verification',
                     filesReceived: $filesReceived,
                     attachmentsSaved: count($newAttachments),
-                    attachmentErrors: $attachmentErrors ?: ['عدد الملفات المحفوظة لا يطابق المرسلة.'],
+                    attachmentErrors: $attachmentErrors ?: [__('api.note_attach_count_mismatch_short')],
                 );
             }
 
             foreach ($newAttachments as $attachment) {
                 if (!$this->storage->exists($attachment->file_path)) {
                     throw new AttachmentUploadException(
-                        'فشل التحقق من المرفقات قبل الحفظ.',
+                        __('api.note_attach_verify_before_save'),
                         stage: 'verification',
                         filesReceived: $filesReceived,
                         attachmentsSaved: 0,
-                        attachmentErrors: ['تعذّر التحقق من وجود الملفات فعلياً.'],
+                        attachmentErrors: [__('api.note_attach_files_missing_verify_short')],
                     );
                 }
             }
 
             DB::commit();
+            self::flushNoteCaches($user->id);
 
             $fresh = $note->fresh(['owner', 'attachments']);
             $totalSaved = $fresh->attachments->count();
@@ -297,11 +414,11 @@ class NoteService
             }
             $this->cleanupStoredFiles($storedPaths);
             throw new AttachmentUploadException(
-                'فشل تحديث الملاحظة مع المرفقات.',
+                __('api.note_update_with_attach_failed'),
                 stage: 'db',
                 filesReceived: $filesReceived,
                 attachmentsSaved: 0,
-                attachmentErrors: ['فشل تحديث الملاحظة: '.$e->getMessage()],
+                attachmentErrors: [__('api.note_update_failed', ['error' => $e->getMessage()])],
                 previous: $e,
             );
         }
@@ -313,16 +430,23 @@ class NoteService
         if (empty($allowed)) {
             return $note->fresh();
         }
+        $allowed = self::normalizeObservedRange($allowed);
         $note->update($allowed);
+        self::flushNoteCaches($note->user_id);
+        if ($note->processed_by) {
+            self::flushNoteCaches($note->processed_by);
+        }
+
         return $note->fresh();
     }
 
     public function deleteDraft(User $user, Note $note): void
     {
         if (!$note->isDraft() || $note->user_id !== $user->id) {
-            throw new InvalidArgumentException('لا يمكن حذف هذه الملاحظة');
+            throw new InvalidArgumentException(__('api.note_delete_rejected'));
         }
         $attachments = $note->attachments()->get();
+        $ownerId = $note->user_id;
         DB::transaction(function () use ($note, $attachments) {
             foreach ($attachments as $attachment) {
                 if ($attachment->file_path) {
@@ -332,15 +456,16 @@ class NoteService
             }
             $note->delete();
         });
+        self::flushNoteCaches($ownerId);
     }
 
     public function sendNote(User $user, Note $note): Note
     {
         if ($note->user_id !== $user->id) {
-            throw new InvalidArgumentException('غير مصرح لك بإرسال هذه الملاحظة');
+            throw new InvalidArgumentException(__('api.note_unauthorized_send'));
         }
         if (!$note->isDraft()) {
-            throw new InvalidArgumentException('يمكن إرسال المسودات فقط');
+            throw new InvalidArgumentException(__('api.note_send_draft_only'));
         }
         if ($user->isReportWriter()) {
             $note->update([
@@ -360,30 +485,27 @@ class NoteService
                 'processed_at' => null,
             ]);
             $fresh = $note->fresh();
-            
+
+            // fan-out آلي في الخلفية: الريكويست يعود فوراً بلا انتظار N مستخدم.
+            // الإشعارات نفسها queued (ShouldQueue) + الـ Push عبر Job منفصل.
             try {
-                $recipients = User::where('id','!=',$user->id)->get();
-                foreach ($recipients as $recipient) {
-                    if (!$this->hasNotification($recipient, NoteSentNotification::class, $fresh->id, 'note_id', $fresh->sent_at)) {
-                        $recipient->notify(new NoteSentNotification($fresh, $user->name));
-                    }
-                    
-                    try { $this->push?->sendToUser($recipient->id, ['title'=>'ملاحظة واردة','body'=>"ملاحظة #{$fresh->id} · كاميرا {$fresh->camera_number}","url"=>'/notes/'.$fresh->id]); } catch(\Throwable $e){}
-                }
+                \App\Jobs\FanoutNoteNotifications::dispatch($fresh->id, $user->id, $user->name)->afterResponse();
             } catch (\Throwable $e) {
-                Log::warning('فشل إرسال إشعار ملاحظة جديدة: '.$e->getMessage());
+                Log::warning('فشل جدولة إشعار ملاحظة جديدة: '.$e->getMessage());
             }
         }
+        self::flushNoteCaches($user->id);
+
         return $fresh ?? $note->fresh();
     }
 
     public function acceptNote(User $user, Note $note): Note
     {
         if (!$user->isReportWriter()) {
-            throw new InvalidArgumentException('غير مصرح لك بقبول الملاحظات');
+            throw new InvalidArgumentException(__('api.note_unauthorized_accept'));
         }
         if (!$note->isPending()) {
-            throw new InvalidArgumentException('يمكن قبول الملاحظات قيد المراجعة فقط');
+            throw new InvalidArgumentException(__('api.note_accept_pending_only'));
         }
         $note->update([
             'status' => Note::STATUS_ACCEPTED,
@@ -399,19 +521,22 @@ class NoteService
         } catch (\Throwable $e) {
             Log::warning('فشل إرسال إشعار القبول: '.$e->getMessage());
         }
+        self::flushNoteCaches($fresh->user_id);
+        self::flushNoteCaches($user->id);
+
         return $fresh;
     }
 
     public function rejectNote(User $user, Note $note, string $reason): Note
     {
         if (!$user->isReportWriter()) {
-            throw new InvalidArgumentException('غير مصرح لك برفض الملاحظات');
+            throw new InvalidArgumentException(__('api.note_unauthorized_reject'));
         }
         if (!$note->isPending()) {
-            throw new InvalidArgumentException('يمكن رفض الملاحظات قيد المراجعة فقط');
+            throw new InvalidArgumentException(__('api.note_reject_pending_only'));
         }
         if (empty(trim($reason))) {
-            throw new InvalidArgumentException('سبب الرفض مطلوب');
+            throw new InvalidArgumentException(__('api.note_reject_reason_required'));
         }
         $note->update([
             'status' => Note::STATUS_REJECTED,
@@ -428,16 +553,19 @@ class NoteService
         } catch (\Throwable $e) {
             Log::warning('فشل إرسال إشعار الرفض: '.$e->getMessage());
         }
+        self::flushNoteCaches($fresh->user_id);
+        self::flushNoteCaches($user->id);
+
         return $fresh;
     }
 
     public function resendRejectedNote(User $user, Note $note): Note
     {
         if ($note->user_id !== $user->id) {
-            throw new InvalidArgumentException('غير مصرح لك بإعادة إرسال هذه الملاحظة');
+            throw new InvalidArgumentException(__('api.note_unauthorized_resend'));
         }
         if (!$note->isRejected()) {
-            throw new InvalidArgumentException('يمكن إعادة إرسال الملاحظات المرفوضة فقط');
+            throw new InvalidArgumentException(__('api.note_resend_rejected_only'));
         }
         $note->update([
             'status' => Note::STATUS_PENDING,
@@ -447,18 +575,14 @@ class NoteService
             'processed_at' => null,
         ]);
         $fresh = $note->fresh();
-        
+
         try {
-            $writers = User::where('role', 'report_writer')->get();
-            foreach ($writers as $writer) {
-                if ($writer->id === $user->id) continue;
-                if (!$this->hasNotification($writer, NoteSentNotification::class, $fresh->id, 'note_id', $fresh->sent_at)) {
-                    $writer->notify(new NoteSentNotification($fresh, $user->name));
-                }
-            }
+            \App\Jobs\FanoutNoteNotifications::dispatch($fresh->id, $user->id, $user->name, true)->afterResponse();
         } catch (\Throwable $e) {
-            Log::warning('فشل إرسال إشعار إعادة الإرسال: '.$e->getMessage());
+            Log::warning('فشل جدولة إشعار إعادة الإرسال: '.$e->getMessage());
         }
+        self::flushNoteCaches($user->id);
+
         return $fresh;
     }
 
@@ -472,17 +596,17 @@ class NoteService
     private function storeSingleAttachment(User $user, Note $note, UploadedFile $file): Attachment
     {
         if ($note->user_id !== $user->id) {
-            throw new InvalidArgumentException('غير مصرح لك بإضافة مرفقات لهذه الملاحظة');
+            throw new InvalidArgumentException(__('api.note_unauthorized_attach'));
         }
         if ($note->isRejected()) {
-            throw new InvalidArgumentException('لا يمكن تعديل مرفقات ملاحظة مرفوضة');
+            throw new InvalidArgumentException(__('api.note_attach_rejected_locked'));
         }
         if ($note->isAccepted() && $note->processed_by !== null && $note->processed_by !== $user->id) {
-            throw new InvalidArgumentException('لا يمكن تعديل مرفقات ملاحظة مقبولة اعتمدها غيرك');
+            throw new InvalidArgumentException(__('api.note_attach_accepted_locked'));
         }
         $maxAttachments = (int) config('attachments.max_per_note', 5);
         if ($note->attachments()->count() >= $maxAttachments) {
-            throw new InvalidArgumentException("الحد الأقصى للمرفقات هو $maxAttachments");
+            throw new InvalidArgumentException(__('api.note_attach_max', ['max' => $maxAttachments]));
         }
 
         
@@ -504,7 +628,6 @@ class NoteService
 
         $this->validateFile($file);
 
-        
         
         $relativePath = $this->storage->store($file, $note->id);
 
@@ -543,7 +666,7 @@ class NoteService
                 'file_exists' => $existsFile,
             ]);
             throw new AttachmentUploadException(
-                'فشل التحقق من حفظ المرفق (قاعدة البيانات أو الملف).',
+                __('api.note_attach_verify_db'),
                 stage: 'verification',
                 originalName: $file->getClientOriginalName(),
                 filesReceived: 1,
@@ -558,13 +681,13 @@ class NoteService
     {
         $note = $attachment->note;
         if ($note->user_id !== $user->id) {
-            throw new InvalidArgumentException('غير مصرح لك بحذف هذا المرفق');
+            throw new InvalidArgumentException(__('api.note_unauthorized_detach'));
         }
         if ($note->isRejected()) {
-            throw new InvalidArgumentException('لا يمكن حذف مرفقات ملاحظة مرفوضة');
+            throw new InvalidArgumentException(__('api.note_attach_detach_rejected'));
         }
         if ($note->isAccepted() && $note->processed_by !== null && $note->processed_by !== $user->id) {
-            throw new InvalidArgumentException('لا يمكن حذف مرفقات ملاحظة مقبولة اعتمدها غيرك');
+            throw new InvalidArgumentException(__('api.note_attach_detach_accepted'));
         }
         $isLocal = $this->storage->isLocal($attachment);
         $path = (string) $attachment->file_path;
@@ -582,8 +705,11 @@ class NoteService
 
     public function getVisibleNotesQuery(User $user)
     {
-        // Frontend separation: notes converted from general submissions live only in submissions lists.
-        $query = Note::with(['owner', 'attachments'])->whereNull('notes.general_submission_id');
+
+        // owner محدود الأعمدة + processor لمنع N+1 + عدّاد مرفقات بلا تحميل كل الصفوف.
+        $query = Note::with(['owner:id,name,avatar_path', 'processor:id,name'])
+            ->withCount('attachments')
+            ->whereNull('notes.general_submission_id');
         
         $query->where(function ($q) use ($user) {
             $q->where('user_id', $user->id)
@@ -613,16 +739,16 @@ class NoteService
 
     private function uploadErrorMessage(int $code, string $name): string
     {
-        $safe = trim($name) !== '' ? $name : 'الملف';
+        $safe = trim($name) !== '' ? $name : __('api.upload_file_default');
         return match ($code) {
-            UPLOAD_ERR_INI_SIZE => "الملف {$safe} يتجاوز حد الخادم upload_max_filesize.",
-            UPLOAD_ERR_FORM_SIZE => "الملف {$safe} يتجاوز الحد المسموح في النموذج.",
-            UPLOAD_ERR_PARTIAL => "وصل الملف {$safe} ناقصاً. يرجى إعادة المحاولة.",
-            UPLOAD_ERR_NO_FILE => "لم يتم استلام الملف {$safe}.",
-            UPLOAD_ERR_NO_TMP_DIR => "تعذّر حفظ الملف {$safe} مؤقتاً (إعداد الخادم).",
-            UPLOAD_ERR_CANT_WRITE => "تعذّر كتابة الملف {$safe} على الخادم.",
-            UPLOAD_ERR_EXTENSION => "رفض الخادم الملف {$safe} (إضافة PHP).",
-            default => "تعذّر استلام الملف {$safe} (خطأ رفع {$code}).",
+            UPLOAD_ERR_INI_SIZE => __('api.upload_ini', ['name' => $safe]),
+            UPLOAD_ERR_FORM_SIZE => __('api.upload_form', ['name' => $safe]),
+            UPLOAD_ERR_PARTIAL => __('api.upload_partial', ['name' => $safe]),
+            UPLOAD_ERR_NO_FILE => __('api.upload_no_file', ['name' => $safe]),
+            UPLOAD_ERR_NO_TMP_DIR => __('api.upload_no_tmp', ['name' => $safe]),
+            UPLOAD_ERR_CANT_WRITE => __('api.upload_cant_write', ['name' => $safe]),
+            UPLOAD_ERR_EXTENSION => __('api.upload_extension', ['name' => $safe]),
+            default => __('api.upload_generic', ['name' => $safe, 'code' => $code]),
         };
     }
 
@@ -647,51 +773,50 @@ class NoteService
     private function hasNotification(User $user, string $type, int $id, string $key = 'note_id', mixed $since = null): bool
     {
         try {
-            
-            
-            
+            // فحص مباشر في DB عبر JSON — بلا get() لكل الإشعارات.
             $query = $user->notifications()->where('type', $type);
             if ($since) {
                 $query->where('created_at', '>', $since);
             }
-            $existing = $query->get();
-            foreach ($existing as $n) {
-                $data = $n->data;
-                if (is_string($data)) {
-                    $data = json_decode($data, true);
+
+            // SQLite/MySQL يدعمان -> للـ JSON في where. نجرّب المفتاح المطلوب أولاً.
+            if ($query->clone()->where('data->'.$key, $id)->exists()) {
+                return true;
+            }
+            // توافق خلفي: بعض الإشعارات القديمة تخزن note_id/submission_id/general_submission_id.
+            foreach (['note_id', 'submission_id', 'general_submission_id'] as $alt) {
+                if ($alt === $key) {
+                    continue;
                 }
-                if (($data[$key] ?? null) == $id) {
+                if ($query->clone()->where('data->'.$alt, $id)->exists()) {
                     return true;
                 }
-                
-                if (($data['note_id'] ?? null) == $id || ($data['submission_id'] ?? null) == $id || ($data['general_submission_id'] ?? null) == $id) {
-                    
-                    if ($n->type === $type) {
-                        return true;
-                    }
-                }
             }
-        } catch (\Throwable $e) {}
-        return false;
+
+            return false;
+        } catch (\Throwable $e) {
+            // fallback آمن: اعتبره غير موجود لتفادي كتم إشعار مهم، مع منع التكرار عبر unique لاحقاً.
+            return false;
+        }
     }
 
     public function validateFile(UploadedFile $file): void
     {
-        $allowedMimes = ['jpg','jpeg','png','webp','heic','heif','tiff','tif','bmp','avif','gif','svg','mp4','webm','mov','avi','3gp','3gpp','mkv','m4v','mpg','mpeg','wmv','flv','ogv','ts','mts','m2ts','vob','asf','m2v','3g2','f4v','m4p','mp3','wav','ogg','oga','m4a','aac','wma','flac','opus','aiff','aif','amr','3ga','awb','mid','midi','au','ra','weba','aac','ac3','dts','alac','aiff'];
+        $allowedMimes = ['jpg','jpeg','png','webp','heic','heif','tiff','tif','bmp','avif','gif','svg','mp4','webm','mov','avi','3gp','3gpp','mkv','m4v','mpg','mpeg','wmv','flv','ogv','ts','mts','m2ts','vob','asf','m2v','3g2','f4v','m4p','mp3','wav','ogg','oga','m4a','aac','wma','flac','opus','aiff','aif','amr','3ga','awb','mid','midi','au','ra','weba','ac3','dts','alac'];
         $allowedMimeTypes = ['image/jpeg','image/png','image/webp','image/heic','image/heif','image/tiff','image/bmp','image/avif','image/gif','image/svg+xml','video/mp4','video/webm','video/quicktime','video/x-msvideo','video/3gpp','video/3gpp2','video/x-matroska','video/mpeg','video/x-ms-wmv','video/x-flv','video/ogg','video/mp2t','video/MP2T','video/x-mts','video/mpeg2','video/x-m4v','video/3gpp-tts','audio/mpeg','audio/wav','audio/x-wav','audio/wave','audio/ogg','audio/opus','audio/webm','audio/mp4','audio/x-m4a','audio/aac','audio/x-aac','audio/aacp','audio/x-aacp','audio/x-hx-aac-adts','audio/vnd.dlna.adts','audio/flac','audio/x-flac','audio/wma','audio/x-ms-wma','audio/aiff','audio/x-aiff','audio/amr','audio/3gpp','audio/midi','audio/x-midi','audio/basic','audio/vnd.wave','audio/mp4a-latm','application/octet-stream'];
         $dangerousExtensions = ['php', 'php3', 'php4', 'php5', 'phtml', 'phar', 'pht','html', 'htm', 'js', 'exe', 'sh', 'bat', 'cmd', 'cgi', 'shtml'];
         $extension = strtolower($file->getClientOriginalExtension());
         $originalName = strtolower($file->getClientOriginalName());
         if (in_array($extension, $dangerousExtensions)) {
-            throw new InvalidArgumentException('نوع الملف غير مسموح به');
+            throw new InvalidArgumentException(__('api.file_type_not_allowed'));
         }
         foreach ($dangerousExtensions as $dangerous) {
             if (str_contains($originalName, '.' . $dangerous . '.') || str_ends_with($originalName, '.' . $dangerous)) {
-                throw new InvalidArgumentException('نوع الملف غير مسموح به');
+                throw new InvalidArgumentException(__('api.file_type_not_allowed'));
             }
         }
         if (!in_array($extension, $allowedMimes)) {
-            throw new InvalidArgumentException('امتداد الملف غير مدعوم. الامتدادات المدعومة: ' . implode(', ', $allowedMimes));
+            throw new InvalidArgumentException(__('api.file_ext_not_supported', ['list' => implode(', ', $allowedMimes)]));
         }
         $realPath = $file->getRealPath();
         
@@ -706,7 +831,7 @@ class NoteService
                     $realMime = $detected;
                 }
                 if ($realMime && $realMime !== 'application/octet-stream' && !in_array($realMime, $allowedMimeTypes)) {
-                    throw new InvalidArgumentException('نوع الملف الفعلي غير مدعوم');
+                    throw new InvalidArgumentException(__('api.file_real_type_not_supported'));
                 }
             }
         }
@@ -724,15 +849,15 @@ class NoteService
         $realMimeStr = (string) $realMime;
         if (str_starts_with($realMimeStr, 'image/') && $file->getSize() > $maxImageSize) {
             $mb = round($maxImageSize / 1024 / 1024, 1);
-            throw new InvalidArgumentException("حجم الصورة يتجاوز الحد الأقصى المسموح ({$mb}MB)");
+            throw new InvalidArgumentException(__('api.file_image_too_large', ['mb' => $mb]));
         }
         if (str_starts_with($realMimeStr, 'video/') && $file->getSize() > $maxVideoSize) {
             $mb = round($maxVideoSize / 1024 / 1024, 1);
-            throw new InvalidArgumentException("حجم الفيديو يتجاوز الحد الأقصى المسموح ({$mb}MB)");
+            throw new InvalidArgumentException(__('api.file_video_too_large', ['mb' => $mb]));
         }
         if (str_starts_with($realMimeStr, 'audio/') && $file->getSize() > $maxAudioSize) {
             $mb = round($maxAudioSize / 1024 / 1024, 1);
-            throw new InvalidArgumentException("حجم الصوت يتجاوز الحد الأقصى المسموح ({$mb}MB)");
+            throw new InvalidArgumentException(__('api.file_audio_too_large', ['mb' => $mb]));
         }
     }
 

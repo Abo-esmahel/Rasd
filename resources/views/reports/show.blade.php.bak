@@ -1,0 +1,699 @@
+@extends('layouts.app')
+
+@section('content')
+@php
+    $isWriter = auth()->user()->isReportWriter();
+    $isOwner = $isWriter && (int) $report->author_id === (int) auth()->id();
+    $isDraft = $report->isDraft();
+    $notesCount = $report->notes->count();
+    $isSheet = ($sheet ?? null) !== null;
+    $pvState = $sheetImageState ?? 'none';
+    $hasApproved = in_array($pvState, ['system', 'custom'], true);
+    $canPublish = $isOwner && $isDraft && $notesCount > 0 && (trim((string) $report->content) !== '' || $hasApproved);
+    $locked = $report->isPublished() && $report->isLocked();
+    $deadline = $report->editDeadline();
+    $aiEnabled = (bool) config('ai.enabled', false);
+    $showFinal = $isOwner && $isDraft && $isSheet && !empty($editorData ?? null);
+    $showLegacy = $isOwner && $isDraft && !$isSheet;
+    $pageMenu = $isOwner && ($isDraft || !$locked);
+    $publishMissingNotes = $notesCount === 0;
+    $publishMissingApprove = trim((string) $report->content) === '' && !$hasApproved;
+    $publishHint = ($publishMissingNotes && $publishMissingApprove) ? __('ui.publish_hint_both') : ($publishMissingNotes ? __('ui.publish_hint_note') : ($publishMissingApprove ? __('ui.publish_hint_approve') : ''));
+@endphp
+
+<style>
+    [data-menu] { position: relative; }
+    [data-menu-list] {
+        position: absolute; top: calc(100% + 6px); left: 0; min-width: 190px;
+        background: #fff; border: 1px solid #e6e9e1; border-radius: 14px;
+        box-shadow: 0 12px 32px -8px rgba(26,46,31,.18); padding: 5px; z-index: 50;
+        transform-origin: top right;
+    }
+    [data-menu-list]:not(.hidden) { animation: rpt-menu-in .15s ease-out; }
+    @keyframes rpt-menu-in { from { opacity: 0; transform: scale(.97) translateY(-3px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+    [data-menu-list] .m-item {
+        display: flex; align-items: center; width: 100%; padding: 10px 12px; min-height: 44px;
+        font-size: 13px; font-weight: 700; color: #1a2e1f; border-radius: 9px;
+        text-align: right; background: transparent; border: none; cursor: pointer;
+        transition: background-color .12s ease;
+    }
+    [data-menu-list] .m-item:hover { background: #f6f7f5; }
+    [data-menu-list] .m-danger { color: #b91c1c; }
+    [data-menu-list] .m-danger:hover { background: #fef2f2; }
+    [data-menu-list] form + form,
+    [data-menu-list] a + form { border-top: 1px solid #eceee9; margin-top: 4px; padding-top: 4px; }
+    [data-menu-btn] { transition: border-color .15s ease, color .15s ease; }
+    [data-menu-btn][aria-expanded="true"] { border-color: #0e6a38; color: #0e6a38; }
+
+    .spin { animation: rspin 1s linear infinite; }
+    @keyframes rspin { to { transform: rotate(360deg); } }
+    @keyframes rpt-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes rpt-fade { from { opacity: 0; } to { opacity: 1; } }
+    .rpt-anim-in { animation: rpt-in .22s ease-out; }
+    .rpt-anim-fade { animation: rpt-fade .18s ease-out; }
+
+    .sheet-mini { position: relative; width: 100%; max-width: 480px; margin: 0 auto; aspect-ratio: 896/1200; background-size: 100% 100%; background-repeat: no-repeat; border-radius: 8px; overflow: hidden; }
+    .sheet-mini .sh-field, .sheet-mini .sh-note { position: absolute; color: #1c1917; overflow: hidden; }
+    .sheet-mini .sh-field { text-align: center; white-space: nowrap; font-weight: 700; }
+    .sheet-mini .sh-note { text-align: right; }
+
+    .rpt-btn { transition: background-color .15s ease, border-color .15s ease, color .15s ease, box-shadow .15s ease, transform .08s ease; }
+    .rpt-btn:active:not(:disabled) { transform: translateY(1px); }
+</style>
+
+{{-- التنقل + العنوان — كتلة واحدة مدمجة --}}
+<div class="flex items-center justify-between gap-3 mb-5">
+    <div class="flex items-center gap-2.5 min-w-0">
+        <a href="{{ route('reports.index') }}" class="shrink-0 inline-flex items-center justify-center w-9 h-9 rounded-lg text-[#6b7a6e] hover:text-[#0e6a38] hover:bg-[#f6f7f5] transition" aria-label="{{ __('ui.back_to_reports') }}">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+        </a>
+        <h1 class="text-base sm:text-lg font-bold text-[#1a2e1f] leading-snug truncate">{{ l10n_text('report', $report->id, 'title', $report->title) }}</h1>
+    </div>
+    <div class="flex items-center gap-1.5 shrink-0">
+        @can('export', $report)
+            @if($canPrint ?? false)
+            <a href="{{ route('reports.print', $report) }}" class="inline-flex items-center justify-center h-9 px-3 rounded-lg border border-[#e6e9e1] bg-white text-[12px] font-bold text-[#6b7a6e] hover:border-[#0e6a38] hover:text-[#0e6a38] transition">{{ __('ui.print') }}</a>
+            @endif
+        @endcan
+        @if($pageMenu)
+        <div data-menu>
+            <button type="button" data-menu-btn aria-haspopup="menu" aria-expanded="false" aria-label="{{ __('ui.report_actions') }}" class="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-[#e6e9e1] bg-white text-[#6b7a6e] hover:border-[#0e6a38] hover:text-[#0e6a38] transition">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><circle cx="10" cy="4" r="1.8"/><circle cx="10" cy="10" r="1.8"/><circle cx="10" cy="16" r="1.8"/></svg>
+            </button>
+            <div data-menu-list class="hidden" role="menu">
+                @if($isOwner && !$locked)
+                <a href="{{ route('reports.edit', $report) }}" class="m-item" role="menuitem">{{ __('ui.edit_data') }}</a>
+                @endif
+                @if($isOwner && !$isDraft && !$locked)
+                <form method="POST" action="{{ route('reports.unpublish', $report) }}" onsubmit="return confirm('{{ __('ui.unpublish_q') }}')">@csrf<button type="submit" class="m-item" role="menuitem">{{ __('ui.unpublish') }}</button></form>
+                @endif
+                @if($isOwner && ($isDraft || !$locked))
+                <form method="POST" action="{{ route('reports.destroy', $report) }}" onsubmit="return confirm('{{ __('ui.delete_final_q') }}')">@csrf @method('DELETE')<button type="submit" class="m-item m-danger" role="menuitem">{{ __('ui.delete_report') }}</button></form>
+                @endif
+            </div>
+        </div>
+        @endif
+    </div>
+</div>
+
+{{-- metadata line --}}
+<div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-[#6b7a6e] mb-5">
+    <span data-status="{{ $report->status }}" class="inline-flex items-center gap-1 font-bold {{ $report->isPublished() ? 'text-[#0e6a38]' : 'text-[#b45309]' }}">
+        <span class="w-1.5 h-1.5 rounded-full bg-current"></span>
+        {{ $report->isPublished() ? __('ui.published') : __('ui.draft') }}
+    </span>
+    <span>{{ $report->report_date->toDateString() }}</span>
+    <span>{{ $notesCount }} {{ $notesCount === 1 ? __('ui.note_one') : __('ui.notes_many') }}</span>
+    @if(!$report->visible_to_monitors)<span class="text-[11px]">{{ __('ui.hidden_from_monitors') }}</span>@endif
+    @if($isOwner && $report->isPublished())
+    <span class="text-[12px]">{{ __('ui.published_since') }} {{ $report->published_at?->format('Y-m-d H:i') }}@if($deadline && !$locked) · {{ __('ui.edit_until') }} {{ $deadline->format('Y-m-d H:i') }}@elseif($locked) · {{ __('ui.locked') }}@endif</span>
+    @endif
+</div>
+
+@if(session('success'))<div class="flex items-center gap-2 bg-[#e8f3ec] text-[#0e6a38] rounded-lg px-3.5 py-2.5 mb-4 text-[13px] font-bold rpt-anim-in">{{ session('success') }}</div>@endif
+@if($errors->any())<div class="flex items-center gap-2 bg-[#fef2f2] text-[#b91c1c] rounded-lg px-3.5 py-2.5 mb-4 text-[13px] font-bold rpt-anim-in">{{ $errors->first() }}</div>@endif
+
+{{-- المعاينة --}}
+<div>
+    @if(($pvState ?? 'none') === 'stale')
+    <p class="text-[12px] font-bold text-[#b45309] bg-[#fef3c7] rounded-lg px-3 py-2 mb-3">{{ __('ui.stale_approved') }}</p>
+    @endif
+    <link rel="stylesheet" href="{{ asset('report/css/report-engine.css') }}?v=18">
+    <div id="paper-preview-wrap" class="overflow-hidden rounded-lg" data-paper-fit data-report-id="{{ $report->id }}">
+    <p id="report-l10n-badge" class="hidden text-[12px] font-bold text-[#0e6a38] bg-[#e8f3ec] rounded-lg px-3 py-1.5 mb-2 w-fit" role="status"></p>
+    @if(!empty($htmlPreview ?? null))
+        <div id="paper-preview-html" class="report-preview" data-paper-fit-inner>
+            {!! $htmlPreview !!}
+        </div>
+    @elseif($sheet ?? null)
+        <div class="sheet-mini" id="sheet-mini" style="background-image:url('{{ $shImg }}')">
+            @include('reports.partials.sheet_fields')
+        </div>
+    @else
+        <div class="text-sm leading-7 text-[#1a2e1f] whitespace-pre-wrap bg-[#f9faf8] rounded-lg px-4 py-3 max-h-[280px] overflow-auto">{{ l10n_text('report', $report->id, 'content', $preview) }}</div>
+    @endif
+    </div>
+    <p id="paper-preview-error" class="hidden text-xs text-[#b91c1c] mt-2"></p>
+    @if(!empty($renderError ?? null))
+    <p class="text-[12px] text-[#b91c1c] mt-2">{{ $renderError }}</p>
+    @endif
+</div>
+@include('reports.partials.paper_fit')
+
+{{-- الإجراء الرئيسي: النشر --}}
+@if($isOwner && $isDraft)
+<div class="mt-5">
+    @if($canPublish)
+    <form method="POST" action="{{ route('reports.publish', $report) }}" onsubmit="return confirm('{{ __('ui.publish_q') }}')">
+        @csrf
+        <button id="publish-btn" class="rpt-btn min-h-[44px] px-7 rounded-lg bg-[#0e6a38] text-white text-sm font-bold hover:bg-[#0a4d28] disabled:opacity-40 disabled:cursor-not-allowed">{{ __('ui.publish') }}</button>
+    </form>
+    @else
+    <form id="publish-form" method="POST" action="{{ route('reports.publish', $report) }}" onsubmit="return confirm('{{ __('ui.publish_q') }}')" class="hidden">
+        @csrf
+        <button id="publish-btn" disabled class="rpt-btn min-h-[44px] px-7 rounded-lg bg-[#0e6a38] text-white text-sm font-bold hover:bg-[#0a4d28] disabled:opacity-40 disabled:cursor-not-allowed">{{ __('ui.publish') }}</button>
+    </form>
+    <p id="publish-hint" class="text-[13px] text-[#6b7a6e]">{{ $publishHint }}</p>
+    @endif
+</div>
+@endif
+
+{{-- الملاحظات --}}
+@if($isDraft || empty($htmlPreview ?? null))
+<section class="mt-6">
+    <h2 class="text-[13px] font-bold text-[#1a2e1f] mb-3">{{ __('ui.notes_with_count', ['n' => $notesCount]) }}</h2>
+    @if($notesCount)
+    <ol id="notes-order-list" class="divide-y divide-[#eceee9]">
+        @foreach($report->notes as $idx => $n)
+        <li data-note-id="{{ $n->id }}" data-i18n-entity="note" data-i18n-id="{{ $n->id }}" class="py-3 first:pt-0 last:pb-0">
+            <div class="flex items-start gap-3">
+                <span class="order-num text-[12px] text-[#9aa99a] tabular-nums mt-[3px] w-4 text-center shrink-0 font-medium">{{ $idx + 1 }}</span>
+                <div class="min-w-0 flex-1">
+                    <p class="text-[14px] leading-6 text-[#1a2e1f] line-clamp-2" title="{{ l10n_text('note', $n->id, 'description', $n->description) }}">{{ l10n_text('note', $n->id, 'description', $n->description) }}</p>
+                    <div class="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-1 text-[12px] text-[#9aa99a]">
+                        <span>{{ __('ui.camera') }} {{ $n->camera_number }}</span>
+                        <span>·</span>
+                        <span>{{ __('ui.floor') }} {{ $n->floor_number }}</span>
+                        <span>·</span>
+                        <span class="tabular-nums">{{ $n->observed_at?->format('H:i') }}</span>
+                        @if($isOwner && $isDraft)
+                        <span class="ms-auto inline-flex items-center gap-0.5">
+                            <button type="button" class="reorder-btn inline-flex items-center justify-center w-6 h-6 rounded text-[#b0bab2] hover:text-[#1a2e1f] hover:bg-[#f0f2ef] transition" data-dir="-1" aria-label="{{ __('ui.move_up') }}">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7"/></svg>
+                            </button>
+                            <button type="button" class="reorder-btn inline-flex items-center justify-center w-6 h-6 rounded text-[#b0bab2] hover:text-[#1a2e1f] hover:bg-[#f0f2ef] transition" data-dir="1" aria-label="{{ __('ui.move_down') }}">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                            </button>
+                            <form method="POST" action="{{ route('reports.detach', [$report, $n->id]) }}" onsubmit="return confirm('{{ __('ui.remove_note_confirm') }}')" class="inline">
+                                @csrf @method('DELETE')
+                                <button type="submit" class="inline-flex items-center justify-center w-6 h-6 rounded text-[#b0bab2] hover:text-[#b91c1c] hover:bg-[#fef2f2] transition" aria-label="{{ __('ui.remove') }}">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                                </button>
+                            </form>
+                        </span>
+                        @endif
+                    </div>
+                </div>
+            </div>
+        </li>
+        @endforeach
+    </ol>
+    @if($isOwner && $isDraft && $notesCount > 1)
+    <div id="reorder-error" class="hidden mt-2 rounded-lg bg-[#fef2f2] text-[#b91c1c] px-3 py-2 text-[12px]"></div>
+    @endif
+    @else
+    <p class="text-[13px] text-[#9aa99a]">{{ __('ui.no_notes_yet') }}</p>
+    @endif
+
+    @if($isOwner && $isDraft)
+    <details class="mt-3">
+        <summary class="inline-flex items-center gap-1.5 min-h-[36px] text-[13px] font-bold text-[#0e6a38] cursor-pointer list-none [&::-webkit-details-marker]:hidden select-none">
+            <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+            {{ __('ui.add_notes') }}
+        </summary>
+        <form method="POST" action="{{ route('reports.attach', $report) }}" id="attach-form" class="mt-2 rpt-anim-fade">
+            @csrf
+            <div class="grid sm:grid-cols-2 gap-1.5 max-h-52 overflow-auto rounded-lg bg-[#f9faf8] p-2">
+                @forelse($candidates as $c)
+                <label class="flex items-center gap-2.5 text-[13px] px-2.5 py-2 min-h-[40px] rounded-lg bg-white hover:bg-[#f0f2ef] cursor-pointer transition">
+                    <input type="checkbox" name="note_ids[]" value="{{ $c->id }}" checked class="w-4 h-4 shrink-0 accent-[#0e6a38] attach-check">
+                    <span class="min-w-0 break-words text-[#1a2e1f]">{{ __('ui.camera') }} {{ $c->camera_number }} · {{ $c->observed_at?->format('H:i') }}<br><span class="text-[#9aa99a]">{{ \Illuminate\Support\Str::limit(l10n_text('note', $c->id, 'description', $c->description), 70) }}</span></span>
+                </label>
+                @empty
+                <div class="text-[12px] text-[#9aa99a] p-2">{{ __('ui.none_yet') }}</div>
+                @endforelse
+            </div>
+            <div class="flex items-center gap-3 mt-2">
+                <button id="attach-submit" @disabled($candidates->isEmpty()) class="rpt-btn px-5 h-9 rounded-lg bg-[#0e6a38] text-white text-[13px] font-bold hover:bg-[#0a4d28] disabled:opacity-40 disabled:cursor-not-allowed">{{ __('ui.add_selected') }}</button>
+                <span id="attach-count" class="text-[12px] text-[#9aa99a]"></span>
+            </div>
+            <p id="attach-error" class="hidden text-[12px] text-[#b91c1c] mt-1">{{ __('ui.choose_note') }}</p>
+        </form>
+    </details>
+    @endif
+</section>
+@endif
+
+{{-- البيانات النهائية والاعتماد --}}
+@if($showFinal)
+<section class="mt-6" id="final-data-editor">
+    <div class="flex items-center justify-between gap-2 mb-3">
+        <h2 class="text-[13px] font-bold text-[#1a2e1f]">{{ __('ui.final_data') }}</h2>
+        <button type="button" id="final-fill-system" class="text-[12px] font-bold text-[#9aa99a] hover:text-[#0e6a38] transition">{{ __('ui.restore_system') }}</button>
+    </div>
+    <div class="grid gap-3" id="final-obs-list">
+        @foreach(($editorData['observations'] ?? []) as $i => $obsText)
+        <label class="grid gap-1.5">
+            <span class="text-[12px] font-bold text-[#9aa99a]">{{ __('ui.observation_n', ['n' => $i + 1]) }}</span>
+            <textarea rows="2" maxlength="2000" data-obs-idx="{{ $i }}" class="final-obs w-full border border-[#e6e9e1] rounded-lg px-3.5 py-2.5 text-[14px] leading-6 text-[#1a2e1f] bg-white transition focus:outline-none focus:border-[#0e6a38] focus:ring-1 focus:ring-[#0e6a38]/20">{{ $obsText }}</textarea>
+        </label>
+        @endforeach
+    </div>
+    <label class="mt-3 grid gap-1.5">
+        <span class="text-[12px] font-bold text-[#9aa99a]">{{ __('ui.recommendations') }}</span>
+        <textarea id="final-reco" rows="2" maxlength="2000" class="w-full border border-[#e6e9e1] rounded-lg px-3.5 py-2.5 text-[14px] leading-6 text-[#1a2e1f] bg-white transition focus:outline-none focus:border-[#0e6a38] focus:ring-1 focus:ring-[#0e6a38]/20">{{ $editorData['recommendations'] ?? '' }}</textarea>
+    </label>
+    <div class="flex flex-wrap items-center gap-2 mt-4">
+        <button type="button" id="final-approve-btn" class="rpt-btn h-10 px-6 rounded-lg bg-[#0e6a38] text-white text-[13px] font-bold hover:bg-[#0a4d28] disabled:opacity-50 disabled:cursor-not-allowed">{{ __('ui.approve') }}</button>
+        @if($aiDataEnabled ?? false)
+        <button type="button" id="final-ai-btn" class="rpt-btn inline-flex items-center justify-center gap-1.5 h-10 px-5 rounded-lg border border-[#e6e9e1] bg-white text-[#0e6a38] text-[13px] font-bold hover:border-[#0e6a38] hover:bg-[#f9faf8] disabled:opacity-50 disabled:cursor-not-allowed">
+            <svg id="final-ai-spin" class="hidden spin w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-90" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/></svg>
+            <span id="final-ai-label">{{ __('ui.smart_gen') }}</span>
+        </button>
+        @endif
+    </div>
+    <span id="final-status" class="hidden mt-2 text-[12px] text-[#9aa99a]"></span>
+    <p id="final-error" class="hidden text-[12px] text-[#b91c1c] mt-2"></p>
+</section>
+@endif
+
+{{-- المحتوى اليدوي (للتقارير خارج 1–7 فقط) --}}
+@if($showLegacy)
+<section class="mt-6">
+    <h2 class="text-[13px] font-bold text-[#1a2e1f] mb-3">{{ __('ui.content_title') }}</h2>
+    <form method="POST" action="{{ route('reports.update', $report) }}" class="grid gap-3">
+        @csrf @method('PUT')
+        <label class="grid gap-1.5">
+            <span class="text-[12px] font-bold text-[#9aa99a]">{{ __('ui.exec_summary') }}</span>
+            <textarea name="summary" id="field-summary" rows="4" maxlength="20000" class="w-full border border-[#e6e9e1] rounded-lg px-3.5 py-2.5 text-[14px] leading-6 transition focus:outline-none focus:border-[#0e6a38] focus:ring-1 focus:ring-[#0e6a38]/20">{{ old('summary', $report->summary) }}</textarea>
+        </label>
+        <label class="grid gap-1.5">
+            <span class="text-[12px] font-bold text-[#9aa99a]">{{ __('ui.recommendations') }}</span>
+            <textarea name="recommendations" id="field-reco" rows="4" maxlength="20000" class="w-full border border-[#e6e9e1] rounded-lg px-3.5 py-2.5 text-[14px] leading-6 transition focus:outline-none focus:border-[#0e6a38] focus:ring-1 focus:ring-[#0e6a38]/20">{{ old('recommendations', $report->recommendations) }}</textarea>
+        </label>
+        <div><button class="rpt-btn h-10 px-5 rounded-lg border border-[#e6e9e1] bg-white text-[13px] font-bold text-[#1a2e1f] hover:border-[#0e6a38] hover:text-[#0e6a38]">{{ __('ui.save') }}</button></div>
+    </form>
+
+    @if($isWriter)
+    <div class="mt-5">
+        <div id="ai-draft-box" class="text-[14px] leading-6 text-[#1a2e1f] whitespace-pre-wrap break-words bg-[#f9faf8] rounded-lg px-4 py-3 min-h-[60px] max-h-[280px] overflow-auto">{{ $report->ai_draft_content ?: __('ui.no_draft_yet') }}</div>
+        <div id="ai-summary-src" class="hidden">{{ $report->ai_summary }}</div>
+        <div id="ai-reco-src" class="hidden">{{ $report->ai_recommendations }}</div>
+        <div id="ai-error" class="hidden mt-2 rounded-lg bg-[#fef2f2] px-3.5 py-2.5 text-[13px]">
+            <p id="ai-error-msg" class="text-[#b91c1c]"></p>
+        </div>
+        @if($aiEnabled)
+        <form id="ai-form" method="POST" action="{{ route('reports.generate', $report) }}" data-ajax="1" class="mt-3 flex flex-wrap items-center gap-2">
+            @csrf
+            <button id="ai-generate-btn" type="submit" @disabled($notesCount === 0) class="rpt-btn inline-flex items-center gap-1.5 h-10 px-5 rounded-lg bg-[#0e6a38] text-white text-[13px] font-bold hover:bg-[#0a4d28] disabled:opacity-40 disabled:cursor-not-allowed">
+                <svg id="ai-spin" class="hidden spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-90" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/></svg>
+                <span id="ai-btn-label">{{ __('ui.gen_draft') }}</span>
+            </button>
+            <button id="ai-adopt-summary" type="button" @disabled(!$report->ai_summary) class="rpt-btn h-9 px-3.5 rounded-lg border border-[#e6e9e1] text-[12px] font-bold text-[#6b7a6e] hover:border-[#0e6a38] hover:text-[#0e6a38] disabled:opacity-40 disabled:cursor-not-allowed">{{ __('ui.adopt_summary') }}</button>
+            <button id="ai-adopt-reco" type="button" @disabled(!$report->ai_recommendations) class="rpt-btn h-9 px-3.5 rounded-lg border border-[#e6e9e1] text-[12px] font-bold text-[#6b7a6e] hover:border-[#0e6a38] hover:text-[#0e6a38] disabled:opacity-40 disabled:cursor-not-allowed">{{ __('ui.adopt_reco') }}</button>
+        </form>
+        @endif
+    </div>
+    @endif
+</section>
+@endif
+
+@if($isWriter && $report->revisions->count())
+<details class="mt-5">
+    <summary class="text-[12px] font-bold text-[#9aa99a] cursor-pointer list-none [&::-webkit-details-marker]:hidden select-none">
+        {{ __('ui.revisions_log', ['n' => $report->revisions->count()]) }}
+    </summary>
+    <div class="mt-2 divide-y divide-[#eceee9]">
+    @foreach($report->revisions as $rev)
+        <div class="text-[12px] text-[#9aa99a] py-1.5">{{ $rev->created_at?->format('Y-m-d H:i') }} · {{ $rev->editor->name ?? '—' }} · {{ \Illuminate\Support\Str::limit($rev->content_snapshot, 120) }}</div>
+    @endforeach
+    </div>
+</details>
+@endif
+
+<script>
+const RPT_T = {
+    selected: @json(__('ui.rpt_selected')),
+    reorderFailed: @json(__('ui.rpt_reorder_failed')),
+    reorderError: @json(__('ui.rpt_reorder_error')),
+    stateSystem: @json(__('ui.rpt_state_system')),
+    stateCustom: @json(__('ui.rpt_state_custom')),
+    stateStale: @json(__('ui.rpt_state_stale')),
+    stateNone: @json(__('ui.rpt_state_none')),
+    obsN: @json(__('ui.observation_n')),
+    noObs: @json(__('ui.rpt_no_obs')),
+    approving: @json(__('ui.rpt_approving')),
+    approved: @json(__('ui.rpt_approved')),
+    approveFailed: @json(__('ui.rpt_approve_failed')),
+    timeoutRetry: @json(__('ui.rpt_timeout_retry')),
+    offlineApprove: @json(__('ui.rpt_offline_approve')),
+    approve: @json(__('ui.approve')),
+    systemRestored: @json(__('ui.rpt_system_restored')),
+    generating: @json(__('ui.rpt_generating')),
+    smartGenerating: @json(__('ui.rpt_smart_generating')),
+    generated: @json(__('ui.rpt_generated')),
+    smartFailed: @json(__('ui.rpt_smart_failed')),
+    offlineGenerate: @json(__('ui.rpt_offline_generate')),
+    smartGen: @json(__('ui.smart_gen')),
+    draftDone: @json(__('ui.rpt_draft_done')),
+    generateFailed: @json(__('ui.rpt_generate_failed')),
+    genDraft: @json(__('ui.gen_draft')),
+};
+
+(function () {
+    const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
+
+    const attachForm = document.getElementById('attach-form');
+    const attachSubmit = document.getElementById('attach-submit');
+    function refreshAttachCount() {
+        if (!attachForm) return;
+        const n = attachForm.querySelectorAll('.attach-check:checked').length;
+        const total = attachForm.querySelectorAll('.attach-check').length;
+        const el = document.getElementById('attach-count');
+        if (el) el.textContent = total ? RPT_T.selected.replace(':n', n).replace(':total', total) : '';
+        if (attachSubmit) attachSubmit.disabled = total === 0 || n === 0;
+    }
+    attachForm?.addEventListener('submit', function (e) {
+        const n = attachForm.querySelectorAll('.attach-check:checked').length;
+        refreshAttachCount();
+        if (!n) { e.preventDefault(); document.getElementById('attach-error').classList.remove('hidden'); }
+    });
+    attachForm?.querySelectorAll('.attach-check').forEach(c => c.addEventListener('change', function () {
+        refreshAttachCount();
+        if (attachForm.querySelectorAll('.attach-check:checked').length) document.getElementById('attach-error')?.classList.add('hidden');
+    }));
+    refreshAttachCount();
+
+    const list = document.getElementById('notes-order-list');
+    const reorderUrl = @json(route('reports.reorder', $report));
+    const reorderErr = document.getElementById('reorder-error');
+    let reorderBusy = false;
+    function currentOrder() {
+        return Array.from(list.querySelectorAll('li[data-note-id]')).map(li => parseInt(li.dataset.noteId, 10));
+    }
+    function refreshReorderButtons() {
+        if (!list) return;
+        const items = Array.from(list.querySelectorAll('li[data-note-id]'));
+        items.forEach((li, idx) => {
+            const up = li.querySelector('.reorder-btn[data-dir="-1"]');
+            const down = li.querySelector('.reorder-btn[data-dir="1"]');
+            if (up) up.classList.toggle('hidden', reorderBusy || idx === 0);
+            if (down) down.classList.toggle('hidden', reorderBusy || idx === items.length - 1);
+        });
+    }
+    async function sendOrder(order) {
+        if (reorderBusy) return;
+        reorderBusy = true;
+        reorderErr?.classList.add('hidden');
+        refreshReorderButtons();
+        try {
+            const res = await fetch(reorderUrl, {
+                method: 'POST',
+                headers: { 'X-CSRF-TOKEN': csrf, 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json', 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ordered_ids: order }),
+            });
+            const d = await res.json().catch(() => ({}));
+            if (res.ok && d.success) { window.location.reload(); return; }
+            throw new Error(d.message || RPT_T.reorderFailed);
+        } catch (e) {
+            if (reorderErr) { reorderErr.textContent = (e && e.message) || RPT_T.reorderError; reorderErr.classList.remove('hidden'); reorderErr.classList.add('rpt-anim-in'); }
+            reorderBusy = false;
+            refreshReorderButtons();
+        }
+    }
+    list?.addEventListener('click', function (e) {
+        const btn = e.target.closest('.reorder-btn');
+        if (!btn || btn.classList.contains('hidden')) return;
+        const li = btn.closest('li[data-note-id]');
+        if (!li) return;
+        const dir = parseInt(btn.dataset.dir, 10);
+        const sib = dir < 0 ? li.previousElementSibling : li.nextElementSibling;
+        if (!sib) return;
+        if (dir < 0) list.insertBefore(li, sib);
+        else list.insertBefore(sib, li);
+        list.querySelectorAll('.order-num').forEach((s, i) => s.textContent = (i + 1));
+        refreshReorderButtons();
+        sendOrder(currentOrder());
+    });
+    refreshReorderButtons();
+
+    document.querySelectorAll('[data-menu-btn]').forEach(function (b) {
+        b.addEventListener('click', function (e) {
+            e.stopPropagation();
+            const m = b.closest('[data-menu]')?.querySelector('[data-menu-list]');
+            if (!m) return;
+            const willOpen = m.classList.contains('hidden');
+            document.querySelectorAll('[data-menu-list]').forEach(x => x.classList.add('hidden'));
+            m.classList.toggle('hidden', !willOpen);
+            b.setAttribute('aria-expanded', String(willOpen));
+        });
+    });
+    document.addEventListener('click', function (e) { if (!e.target.closest('[data-menu]')) document.querySelectorAll('[data-menu-list]').forEach(m => m.classList.add('hidden')); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') document.querySelectorAll('[data-menu-list]').forEach(m => m.classList.add('hidden')); });
+})();
+
+(function () {
+    const approveBtn = document.getElementById('final-approve-btn');
+    if (!approveBtn) return;
+    const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
+    const sysData = @json($systemData ?? ['location' => '', 'observations' => [], 'recommendations' => '']);
+    const renderUrl = @json(route('reports.render', $report));
+    const genDataUrl = @json(route('reports.generate-data', $report));
+    const reportId = @json($report->id);
+    const obsList = document.getElementById('final-obs-list');
+    const recoEl = document.getElementById('final-reco');
+    const statusEl = document.getElementById('final-status');
+    const errEl = document.getElementById('final-error');
+    const pvState = document.getElementById('pv-state');
+    const wrap = document.getElementById('paper-preview-wrap');
+    const aiBtn = document.getElementById('final-ai-btn');
+    const aiSpin = document.getElementById('final-ai-spin');
+    const aiLabel = document.getElementById('final-ai-label');
+    const verKey = 'report-pv-ver-' + reportId;
+    let busy = false;
+
+    function uuid() {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+            const r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+        });
+    }
+    function setStatus(msg) {
+        if (!statusEl) return;
+        if (!msg) { statusEl.classList.add('hidden'); statusEl.textContent = ''; }
+        else { statusEl.classList.remove('hidden'); statusEl.textContent = msg; }
+    }
+    function showError(msg) {
+        if (!errEl) return;
+        errEl.textContent = msg;
+        errEl.classList.remove('hidden');
+        errEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+    function clearError() { errEl?.classList.add('hidden'); }
+    function paintState(state) {
+        if (!pvState) return;
+        const map = {
+            system: ['bg-[#e8f3ec] text-[#0e6a38]', RPT_T.stateSystem],
+            custom: ['bg-[#e8f3ec] text-[#0e6a38]', RPT_T.stateCustom],
+            stale: ['bg-[#fef3c7] text-[#b45309]', RPT_T.stateStale],
+        };
+        const [cls, txt] = map[state] || ['bg-[#f9faf8] text-[#9aa99a]', RPT_T.stateNone];
+        pvState.className = 'text-[11px] font-bold px-2 py-0.5 rounded ' + cls;
+        pvState.textContent = txt;
+    }
+    function showHtml(html) {
+        let holder = document.getElementById('paper-preview-html');
+        if (holder) { holder.innerHTML = html; holder.classList.remove('rpt-anim-fade'); void holder.offsetWidth; holder.classList.add('rpt-anim-fade'); }
+        else if (wrap) {
+            wrap.innerHTML = '';
+            holder = document.createElement('div');
+            holder.id = 'paper-preview-html';
+            holder.className = 'report-preview rpt-anim-fade';
+            holder.setAttribute('data-paper-fit-inner', '');
+            holder.innerHTML = html;
+            wrap.appendChild(holder);
+        }
+        if (window.fitPaperPreview) window.fitPaperPreview();
+    }
+    function readEditor() {
+        const observations = Array.from(document.querySelectorAll('.final-obs'))
+            .map(t => (t.value || '').trim()).filter(t => t !== '');
+        return { location: sysData.location || '', observations, recommendations: (recoEl?.value || '').trim() };
+    }
+    function fillEditor(observations, recommendations) {
+        if (obsList && Array.isArray(observations)) {
+            obsList.innerHTML = '';
+            observations.forEach((text, i) => {
+                const label = document.createElement('label');
+                label.className = 'grid gap-1.5 rpt-anim-in';
+                const span = document.createElement('span');
+                span.className = 'text-[12px] font-bold text-[#9aa99a]';
+                span.textContent = RPT_T.obsN.replace(':n', (i + 1));
+                const ta = document.createElement('textarea');
+                ta.rows = 2; ta.maxLength = 2000;
+                ta.dataset.obsIdx = i;
+                ta.className = 'final-obs w-full border border-[#e6e9e1] rounded-lg px-3.5 py-2.5 text-[14px] leading-6 text-[#1a2e1f] bg-white transition focus:outline-none focus:border-[#0e6a38] focus:ring-1 focus:ring-[#0e6a38]/20';
+                ta.value = text || '';
+                label.appendChild(span);
+                label.appendChild(ta);
+                obsList.appendChild(label);
+            });
+        }
+        if (recoEl && recommendations !== undefined) recoEl.value = recommendations || '';
+    }
+    function markPublishedReady() {
+        const pubForm = document.getElementById('publish-form');
+        if (pubForm) pubForm.classList.remove('hidden');
+        const pub = document.getElementById('publish-btn');
+        if (pub) { pub.disabled = false; pub.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
+        const hint = document.getElementById('publish-hint');
+        if (hint) hint.classList.add('hidden');
+    }
+
+    approveBtn.addEventListener('click', async function () {
+        if (busy) return;
+        const data = readEditor();
+        if (!data.observations.length) { showError(RPT_T.noObs); return; }
+        busy = true;
+        approveBtn.disabled = true;
+        approveBtn.textContent = RPT_T.approving;
+        setStatus(RPT_T.approving);
+        clearError();
+        let v = parseInt(localStorage.getItem(verKey) || '1', 10) || 1;
+        localStorage.setItem(verKey, String(v + 1));
+        const controller = new AbortController();
+        const killer = setTimeout(() => controller.abort(), 120000);
+        try {
+            const res = await fetch(renderUrl, {
+                method: 'POST', signal: controller.signal,
+                headers: { 'X-CSRF-TOKEN': csrf, 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json', 'Content-Type': 'application/json' },
+                body: JSON.stringify({ data_version: v, request_uid: uuid(), data }),
+            });
+            const d = await res.json().catch(() => ({}));
+            if (res.ok && d.success) {
+                showHtml(d.data.html || '');
+                paintState('custom');
+                setStatus(RPT_T.approved);
+                markPublishedReady();
+            } else {
+                showError((d && d.message) || RPT_T.approveFailed);
+                setStatus('');
+            }
+        } catch (e) {
+            showError(e && e.name === 'AbortError' ? RPT_T.timeoutRetry : RPT_T.offlineApprove);
+            setStatus('');
+        } finally {
+            clearTimeout(killer);
+            busy = false;
+            approveBtn.disabled = false;
+            approveBtn.textContent = RPT_T.approve;
+        }
+    });
+
+    document.getElementById('final-fill-system')?.addEventListener('click', function () {
+        fillEditor(sysData.observations || [], sysData.recommendations || '');
+        setStatus(RPT_T.systemRestored);
+    });
+
+    aiBtn?.addEventListener('click', async function () {
+        aiBtn.disabled = true;
+        aiSpin?.classList.remove('hidden');
+        if (aiLabel) aiLabel.textContent = RPT_T.generating;
+        setStatus(RPT_T.smartGenerating);
+        clearError();
+        const controller = new AbortController();
+        const killer = setTimeout(() => controller.abort(), 170000);
+        try {
+            const res = await fetch(genDataUrl, {
+                method: 'POST', signal: controller.signal,
+                headers: { 'X-CSRF-TOKEN': csrf, 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json', 'Content-Type': 'application/json' },
+                body: JSON.stringify({}),
+            });
+            const d = await res.json().catch(() => ({}));
+            if (res.ok && d.success) {
+                fillEditor(d.data.observations || [], d.data.recommendations || '');
+                setStatus(RPT_T.generated);
+            } else {
+                showError((d && d.message) || RPT_T.smartFailed);
+                setStatus('');
+            }
+        } catch (e) {
+            showError(e && e.name === 'AbortError' ? RPT_T.timeoutRetry : RPT_T.offlineGenerate);
+            setStatus('');
+        } finally {
+            clearTimeout(killer);
+            aiBtn.disabled = false;
+            aiSpin?.classList.add('hidden');
+            if (aiLabel) aiLabel.textContent = RPT_T.smartGen;
+        }
+    });
+})();
+
+(function () {
+    const form = document.getElementById('ai-form');
+    if (!form) return;
+    const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
+    const btn = document.getElementById('ai-generate-btn');
+    const label = document.getElementById('ai-btn-label');
+    const spin = document.getElementById('ai-spin');
+    const errBox = document.getElementById('ai-error');
+    const errMsg = document.getElementById('ai-error-msg');
+    form.addEventListener('submit', async function (e) {
+        e.preventDefault();
+        errBox.classList.add('hidden');
+        btn.disabled = true;
+        spin.classList.remove('hidden');
+        label.textContent = RPT_T.generating;
+        try {
+            const res = await fetch(form.action, {
+                method: 'POST',
+                headers: { 'X-CSRF-TOKEN': csrf, 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json', 'Content-Type': 'application/json' },
+                body: JSON.stringify({ include_images: true }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (res.ok && data.success) {
+                document.getElementById('ai-draft-box').innerText = data.data.ai_draft_content || '';
+                document.getElementById('ai-summary-src').innerText = data.data.ai_summary || '';
+                document.getElementById('ai-reco-src').innerText = data.data.ai_recommendations || '';
+                document.getElementById('ai-adopt-summary').disabled = !data.data.ai_summary;
+                document.getElementById('ai-adopt-reco').disabled = !data.data.ai_recommendations;
+                label.textContent = RPT_T.draftDone;
+            } else {
+                errMsg.textContent = data.message || RPT_T.generateFailed;
+                errBox.classList.remove('hidden');
+                label.textContent = RPT_T.genDraft;
+            }
+        } catch (err) {
+            errMsg.textContent = RPT_T.offlineGenerate;
+            errBox.classList.remove('hidden');
+            label.textContent = RPT_T.genDraft;
+        } finally {
+            btn.disabled = false;
+            spin.classList.add('hidden');
+        }
+    });
+    function adopt(btnId, srcId, targetId) {
+        document.getElementById(btnId)?.addEventListener('click', function () {
+            const text = document.getElementById(srcId)?.innerText.trim() || '';
+            const target = document.getElementById(targetId);
+            if (!text || !target) return;
+            target.value = text;
+            target.focus();
+        });
+    }
+    adopt('ai-adopt-summary', 'ai-summary-src', 'field-summary');
+    adopt('ai-adopt-reco', 'ai-reco-src', 'field-reco');
+})();
+
+(function () {
+    const mini = document.getElementById('sheet-mini');
+    if (!mini) return;
+    function fit() {
+        const H = mini.clientHeight;
+        if (!H) return;
+        mini.querySelectorAll('.sh-field').forEach(function (f) {
+            let fs = H * 0.015;
+            f.style.fontSize = fs + 'px';
+            f.style.lineHeight = (H * 0.022) + 'px';
+            let g = 60;
+            while ((f.scrollWidth > f.clientWidth + 1 || f.scrollHeight > f.clientHeight + 1) && fs > H * 0.008 && g-- > 0) {
+                fs -= 0.5;
+                f.style.fontSize = fs + 'px';
+            }
+        });
+    }
+    window.addEventListener('load', fit);
+    window.addEventListener('resize', fit);
+    fit();
+})();
+</script>
+@endsection

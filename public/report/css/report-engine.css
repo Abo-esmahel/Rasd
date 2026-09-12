@@ -1,0 +1,569 @@
+/* ==========================================================================
+ * REPORT ENGINE — Official A4 camera-surveillance form (ONE layout system)
+ * Paper model: «نموذج تقرير مراقبة الكاميرات اليومي»
+ * Strictly local assets only. No CDN, no Google Fonts, no external requests.
+ * Fonts: /report/fonts/Amiri-{Regular,Bold}.ttf (official titles/names),
+ *        /report/fonts/NotoNaskhArabic-{Regular,Bold}.woff2 (body/official),
+ *        /report/fonts/ArefRuqaa-{Regular,Bold}.ttf (loaded, decorative only).
+ * Browser print is the PDF engine in this project (no dompdf/browsershot/
+ * wkhtmltopdf in composer.json): CSS targets @page A4 + @media print with
+ * conservative, widely-supported properties only (flex/grid/normal flow).
+ * Dynamic 0..100 observations: NO fixed heights, NO absolute positioning,
+ * natural flow + break rules so text wraps, flows across pages, never clips,
+ * never overlaps signatures/footer, never emits blank pages from CSS.
+ * Naming: BEM (.report__header, .report__obs-meta, ...).
+ * ========================================================================== */
+
+@font-face {
+  font-family: 'ReportTitle';
+  src: url('/report/fonts/ArefRuqaa-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'ReportTitle';
+  src: url('/report/fonts/ArefRuqaa-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'ReportBody';
+  src: url('/report/fonts/Amiri-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'ReportBody';
+  src: url('/report/fonts/Amiri-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'ReportNaskh';
+  src: url('/report/fonts/NotoNaskhArabic-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'ReportNaskh';
+  src: url('/report/fonts/NotoNaskhArabic-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+.report,
+.report *,
+.report *::before,
+.report *::after { box-sizing: border-box; }
+
+.report {
+  /* ---- page geometry ---- */
+  --page-width: 210mm;
+  --page-padding: 14mm 13mm 13mm;
+  /* ---- typography (official naskh scale — titles never dominate) ---- */
+  --font-title: 'ReportBody', 'ReportNaskh', 'Traditional Arabic', 'Simplified Arabic', serif;
+  --font-body: 'ReportNaskh', 'ReportBody', 'Traditional Arabic', 'Simplified Arabic', serif;
+  --title-size: 16pt;
+  --ministry-size: 13pt;
+  --ministry-sub-size: 10pt;
+  --dayline-size: 10pt;
+  --section-title-size: 13.5pt;
+  --obs-title-size: 12.5pt;
+  --body-size: 11pt;
+  --meta-size: 10pt;
+  --small-size: 8.5pt;
+  --line-title: 1.8;
+  --line-body: 2;
+  --line-meta: 1.8;
+  /* ---- spacing ---- */
+  --spacing-xs: 2mm;
+  --spacing-sm: 3mm;
+  --spacing-md: 4mm;
+  --spacing-lg: 6mm;
+  --section-gap: 4.5mm;
+  --block-gap: 3mm;
+  /* ---- ink (prints cleanly in black & white) ---- */
+  --paper: #ffffff;
+  --ink: #1c1a15;
+  --ink-soft: #57503f;
+  --gold: #8a6d2b;
+  --gold-soft: #b39b5f;
+  --rule: #c9b98a;
+  --border-strong: 0.6mm solid var(--gold);
+  --border-hair: 0.25mm solid var(--rule);
+
+  display: flex;
+  flex-direction: column;
+  direction: rtl;
+  font-family: var(--font-body);
+  color: var(--ink);
+  background: var(--paper);
+  width: 100%;
+  max-width: var(--page-width);
+  min-height: 238mm;
+  margin: 0 auto;
+  padding: var(--page-padding);
+  border: var(--border-strong);
+  outline: 0.25mm solid var(--gold-soft);
+  outline-offset: 1.2mm;
+  font-size: var(--body-size);
+  line-height: var(--line-body);
+  text-align: right;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+/* Density decisions come from the backend engine (count + total length).
+   Density only breathes whitespace/type — never the design identity.
+   Readability first: body never drops below 10pt. */
+.report[data-density='comfortable'] { --body-size: 11.5pt; --section-gap: 5mm;   --block-gap: 3.5mm; }
+.report[data-density='balanced']    { --body-size: 11pt;   --section-gap: 4.5mm; --block-gap: 3mm; }
+.report[data-density='compact']     { --body-size: 10.7pt; --section-gap: 3.5mm; --block-gap: 2.5mm; --page-padding: 13mm 12mm 12mm; }
+.report[data-density='dense']       { --body-size: 10.3pt; --section-gap: 3mm;   --block-gap: 2.2mm; --page-padding: 12mm 11mm 11mm; --title-size: 15pt; --ministry-size: 12pt; }
+.report { font-size: var(--body-size); }
+
+/* ---------------- Header: ministry | emblem | day+date (paper form) ---------------- */
+.report__header {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: start;
+  column-gap: 5mm;
+  break-inside: avoid;
+}
+.report__header-side { min-width: 0; display: flex; flex-direction: column; row-gap: 0.8mm; }
+.report__header-side--ministry { text-align: right; }
+.report__header-side--doc { text-align: left; }
+.report__ministry {
+  font-family: var(--font-title);
+  font-weight: 700;
+  font-size: var(--ministry-size);
+  line-height: var(--line-title);
+  margin: 0;
+}
+.report__ministry-sub {
+  font-size: var(--ministry-sub-size);
+  color: var(--ink-soft);
+  line-height: var(--line-meta);
+  margin: 0;
+}
+/* Day/date block (paper left corner): label calm, value bold. */
+.report__dayline {
+  font-size: var(--dayline-size);
+  line-height: var(--line-meta);
+  margin: 0;
+  white-space: nowrap;
+}
+.report__dayline-label { font-weight: 400; color: var(--ink-soft); }
+.report__dayline-value { font-weight: 700; }
+.report__logo {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  min-width: 0;
+  padding-top: 0.5mm;
+}
+.report__logo img {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 36mm;
+  max-height: 20mm;
+  object-fit: contain;
+}
+
+/* Official divider: thin gold rules + diamond (pure CSS, no image asset) */
+.report__divider { display: flex; align-items: center; column-gap: 3mm; margin: var(--spacing-sm) 0 0; }
+.report__divider::before,
+.report__divider::after { content: ''; flex: 1 1 0; border-top: 0.3mm solid var(--gold-soft); }
+.report__divider-mark { width: 2.2mm; height: 2.2mm; background: var(--gold); transform: rotate(45deg); flex: 0 0 auto; }
+
+/* ---------------- Form title (paper: centered) ---------------- */
+.report__form-title {
+  font-family: var(--font-title);
+  font-weight: 700;
+  font-size: var(--title-size);
+  line-height: var(--line-title);
+  text-align: center;
+  margin: var(--spacing-md) 0 0;
+  break-after: avoid;
+  break-inside: avoid;
+}
+
+/* ---------------- Info strip: number + count (once, no duplication) ---------------- */
+.report__infobar {
+  margin-top: var(--spacing-sm);
+  padding: 2mm 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2mm 10mm;
+  justify-content: space-between;
+  border-top: var(--border-hair);
+  border-bottom: var(--border-hair);
+  break-inside: avoid;
+}
+.report__infobar-cell {
+  display: flex;
+  align-items: baseline;
+  column-gap: 2mm;
+  min-width: 0;
+  font-size: var(--meta-size);
+  line-height: var(--line-meta);
+}
+.report__infobar-label { color: var(--ink-soft); white-space: nowrap; }
+.report__infobar-value { font-weight: 700; font-size: 11.5pt; overflow-wrap: anywhere; }
+
+/* ---------------- Sections: natural form flow ---------------- */
+.report__body { flex: 1 1 auto; min-width: 0; }
+.report__section { margin-top: var(--section-gap); min-width: 0; }
+.report__section-title {
+  font-family: 'ReportNaskh', 'Traditional Arabic', 'Simplified Arabic', 'ReportBody', serif;
+  font-weight: 700;
+  font-size: var(--section-title-size);
+  line-height: 1.8;
+  border-right: 1.2mm solid var(--gold);
+  padding-right: 2.5mm;
+  margin: 0 0 var(--spacing-xs);
+  break-after: avoid;
+  break-inside: avoid;
+}
+.report__section--observations,
+.report__section--recommendations { break-inside: auto; }
+
+/* Observations: dynamic numbered flow — titles never split from their block start */
+.report__observations { display: grid; grid-template-columns: 1fr; row-gap: var(--block-gap); list-style: none; margin: 0; padding: 0; }
+/* NOTE: no break-inside:avoid here on purpose — long observations MUST be
+   allowed to flow across pages. Small inner rows keep together instead. */
+.report__observation { min-width: 0; break-inside: auto; margin: 0; padding: 0 0 var(--block-gap); border-bottom: 0.25mm dotted var(--rule); }
+.report__observation:last-child { border-bottom: none; padding-bottom: 0; }
+.report__obs-head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  column-gap: 2.5mm;
+  row-gap: 1mm;
+  margin: 0 0 1mm;
+  break-after: avoid;
+  break-inside: avoid;
+}
+.report__obs-diamond { width: 2mm; height: 2mm; background: var(--gold); transform: rotate(45deg); flex: 0 0 auto; align-self: center; }
+.report__observation-title {
+  font-family: 'ReportNaskh', 'Traditional Arabic', 'Simplified Arabic', 'ReportBody', serif;
+  font-weight: 700;
+  font-size: var(--obs-title-size);
+  line-height: var(--line-title);
+  margin: 0;
+}
+/* Per-observation monitor (real note-owner name) — sits with the head. */
+.report__obs-monitor {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 2mm;
+  margin: 0 0 1mm;
+  font-size: var(--meta-size);
+  line-height: var(--line-meta);
+  break-inside: avoid;
+}
+.report__obs-monitor-value { font-weight: 700; overflow-wrap: anywhere; }
+.report__observation-body {
+  font-size: var(--body-size);
+  line-height: var(--line-body);
+  text-align: justify;
+  unicode-bidi: plaintext;
+  margin: 0 0 1.5mm;
+  orphans: 3;
+  widows: 3;
+}
+.report__observation-body:last-child { margin-bottom: 0; }
+
+/* Per-observation form rows (paper: بدء/انتهاء/مدة/كاميرا/طابق + checkboxes).
+   Rendered ONLY when truthfully mapped from real Notes. Small → keep together. */
+.report__obs-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5mm 6mm;
+  margin-top: 2mm;
+  padding-top: 2mm;
+  border-top: 0.2mm dashed var(--rule);
+  break-inside: avoid;
+}
+.report__obs-field {
+  display: flex;
+  align-items: baseline;
+  column-gap: 1.5mm;
+  min-width: 0;
+  font-size: var(--meta-size);
+  line-height: var(--line-meta);
+}
+.report__obs-label { color: var(--ink-soft); white-space: nowrap; }
+.report__obs-value { font-weight: 700; overflow-wrap: anywhere; }
+.report__obs-attach {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2mm 5mm;
+  margin-top: 1.5mm;
+  font-size: var(--meta-size);
+  line-height: var(--line-meta);
+  break-inside: avoid;
+}
+.report__checks { display: inline-flex; flex-wrap: wrap; gap: 2mm 5mm; }
+/* Print-safe checkboxes: bordered squares + ink check (no color dependency). */
+.report__check { display: inline-flex; align-items: center; column-gap: 1.5mm; white-space: nowrap; }
+.report__box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.6mm;
+  height: 3.6mm;
+  min-width: 3.6mm;
+  border: 0.3mm solid var(--ink);
+  font-size: 8pt;
+  font-weight: 700;
+  line-height: 1;
+}
+.report__box--on { border-width: 0.4mm; }
+
+/* Monitor row inside actions (paper: اسم المراقب ...) — real name only. */
+.report__monitor {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 2mm;
+  margin: 0 0 2mm;
+  font-size: var(--body-size);
+  line-height: var(--line-body);
+  break-inside: avoid;
+}
+.report__monitor-label { color: var(--ink-soft); font-size: var(--meta-size); }
+.report__monitor-value { font-weight: 700; overflow-wrap: anywhere; }
+
+/* Recommendations / immediate actions: real ordered list when numbered */
+.report__recommendations-list { margin: 0; padding: 0 6mm 0 0; display: grid; row-gap: 1.5mm; }
+.report__recommendations-item {
+  font-size: var(--body-size);
+  line-height: var(--line-body);
+  text-align: justify;
+  unicode-bidi: plaintext;
+  margin: 0;
+  padding: 0;
+  break-inside: avoid;
+  orphans: 3;
+  widows: 3;
+}
+.report__recommendations-item::marker { font-weight: 700; }
+.report__recommendations-body {
+  font-size: var(--body-size);
+  line-height: var(--line-body);
+  text-align: justify;
+  unicode-bidi: plaintext;
+  margin: 0 0 1.5mm;
+  orphans: 3;
+  widows: 3;
+}
+.report__recommendations-body:last-child { margin-bottom: 0; }
+.report__empty { color: var(--ink-soft); margin: 0; text-align: center; }
+
+/* ---------------- Signatures: monitor | approval date | supervisor ----------------
+   Form footer for ink signatures. Small → always kept together, pushed to the
+   foot when content is short (margin-top:auto), flows naturally when long. */
+.report__sign {
+  margin-top: auto;
+  padding-top: var(--spacing-lg);
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  column-gap: 8mm;
+  align-items: end;
+  break-inside: avoid;
+}
+.report__person { min-width: 0; max-width: 100%; text-align: center; break-inside: avoid; }
+.report__person--date { min-width: 32mm; }
+.report__person-role { font-size: var(--meta-size); color: var(--ink-soft); line-height: var(--line-meta); }
+.report__person-name {
+  font-family: var(--font-title);
+  font-weight: 700;
+  font-size: 12.5pt;
+  line-height: var(--line-title);
+  overflow-wrap: anywhere;
+  margin-top: 1.5mm;
+  min-height: 7mm;
+}
+.report__person-name--date { font-family: var(--font-body); font-size: 11.5pt; }
+.report__signature-caption { font-size: var(--small-size); color: var(--ink-soft); margin-top: 4mm; }
+.report__signature-line { border-bottom: 0.3mm solid var(--ink-soft); min-height: 10mm; }
+
+/* ---------------- Footer: closing rule only (no repeated identity) ---------------- */
+.report__footer { margin-top: var(--spacing-md); break-inside: avoid; }
+
+/* Mixed-direction fragments inside RTL text */
+.report__bdi { unicode-bidi: isolate; }
+.report__num { direction: ltr; unicode-bidi: embed; font-variant-numeric: tabular-nums; }
+
+/* ---------------- Preview shell (same engine, neutral backdrop) ---------------- */
+.report-preview {
+  background: #ece7d9;
+  border: 0.3mm solid var(--rule);
+  padding: 6mm 4mm;
+  overflow-x: auto;
+}
+/* Desktop preview: real A4 sheet feel — soft shadow, centered. Print removes it. */
+@media screen {
+  .report-preview .report { box-shadow: 0 10px 30px rgba(28, 25, 21, 0.14); }
+}
+
+/* ---------------- Mobile document mode (preview only — print/PDF untouched) ----------------
+   On phones the A4 sheet reflows into a full-width official reading document:
+   same identity (gold frame, divider, Ruqaa/Naskh, signatures) but stacked
+   letterhead and comfortable reading type. No scaling, no sideways scroll,
+   no justified-text rivers on narrow screens. */
+@media screen and (max-width: 640px) {
+  .report {
+    --page-padding: 22px 18px 20px;
+    --title-size: 1.32rem;
+    --ministry-size: 1.06rem;
+    --ministry-sub-size: .82rem;
+    --dayline-size: .82rem;
+    --section-title-size: 1.06rem;
+    --obs-title-size: 1rem;
+    --body-size: 1rem;
+    --meta-size: .85rem;
+    --small-size: .75rem;
+    --line-body: 1.95;
+    --line-title: 1.7;
+    --section-gap: 18px;
+    --block-gap: 12px;
+    max-width: 100%;
+    min-height: 0;
+    /* Lighter frame on narrow screens: single gold border keeps the official
+       identity without eating width; the outer outline is desktop/print only. */
+    outline: none;
+    border-width: .45mm;
+    border-radius: 8px;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  /* Letterhead stacks centered — like narrow official stationery. */
+  .report__header { grid-template-columns: 1fr; row-gap: 6px; text-align: center; }
+  .report__logo { order: -1; padding-top: 0; }
+  .report__logo img { max-width: 64px; max-height: 64px; }
+  .report__header-side { align-items: center; row-gap: 2px; }
+  .report__header-side--ministry,
+  .report__header-side--doc { text-align: center; }
+  .report__ministry-sub { letter-spacing: 0; }
+  .report__dayline { white-space: normal; }
+  .report__divider { margin-top: 12px; }
+  .report__form-title { margin-top: 14px; }
+  .report__infobar { gap: 8px 12px; padding: 10px 0; }
+  .report__infobar-value { font-size: 1rem; }
+  .report__section-title {
+    font-size: 1.06rem;
+    padding-right: 10px;
+    margin-bottom: 8px;
+  }
+  .report__observation { padding-bottom: 12px; }
+  .report__obs-head { margin-bottom: 6px; }
+  
+  /* Right-aligned (not justified) on narrow screens: justification stretches
+     short Arabic lines into ugly gaps; right alignment stays formal & clean. */
+  .report__observation-body,
+  .report__recommendations-item,
+  .report__recommendations-body {
+    font-size: 1rem;
+    line-height: 1.95;
+    text-align: right;
+  }
+  .report__obs-meta { gap: 8px 14px; }
+  .report__obs-attach { align-items: flex-start; }
+  .report__recommendations-list { padding-right: 22px; row-gap: 8px; }
+  .report-preview {
+    background: transparent;
+    border: none;
+    padding: 0;
+  }
+  /* Signatures stack centered on phones — still ink-ready, no overlap. */
+  .report__sign { grid-template-columns: 1fr; row-gap: 16px; padding-top: 20px; justify-items: center; }
+  .report__person { width: min(280px, 100%); }
+}
+
+/* ---------------- Locale-aware layout: same engine, dir from backend ----------------
+   No CSS hacks: direction follows the document's own dir attribute (rtl=ar, ltr=en).
+   Flex/grid inline axes mirror automatically; only physical-side properties
+   (text-align, border-right, padding-right) need explicit LTR counterparts. */
+.report[dir='ltr'] {
+  direction: ltr;
+  text-align: left;
+  font-family: 'Inter', var(--font-body);
+}
+.report[dir='ltr'] .report__header-side--ministry { text-align: left; }
+.report[dir='ltr'] .report__header-side--doc { text-align: right; }
+.report[dir='ltr'] .report__section-title {
+  border-right: none;
+  border-left: 1.2mm solid var(--gold);
+  padding-right: 0;
+  padding-left: 2.5mm;
+}
+.report[dir='ltr'] .report__recommendations-list { padding: 0 0 0 6mm; }
+.report[dir='ltr'] .report__ministry,
+.report[dir='ltr'] .report__form-title,
+.report[dir='ltr'] .report__observation-title,
+.report[dir='ltr'] .report__section-title { font-family: 'Inter', var(--font-body); letter-spacing: 0; }
+@media screen and (max-width: 640px) {
+  .report[dir='ltr'] .report__observation-body,
+  .report[dir='ltr'] .report__recommendations-item,
+  .report[dir='ltr'] .report__recommendations-body { text-align: left; }
+  .report[dir='ltr'] .report__section-title { padding-left: 10px; }
+  .report[dir='ltr'] .report__recommendations-list { padding-left: 22px; }
+}
+
+/* ---------------- Print / PDF (same engine, same partial) ----------------
+   Browser print → Save as PDF (no server PDF lib in this project).
+   Conservative properties only. No shadows, no outline fragmentation,
+   no overflow clipping, natural multi-page flow. */
+@media print {
+  @page { size: A4; margin: 11mm 10mm 12mm; }
+  body { background: #fff !important; }
+  .report-preview { background: #fff; border: none; padding: 0; overflow: visible; }
+  .report-preview .report { box-shadow: none; }
+  .report {
+    max-width: none;
+    /* Print fragmentation root fix: screen keeps flex column with
+       margin-top:auto to pin signatures to the foot, but flex
+       containers fragment unreliably in paged media (Chrome cuts
+       flex items mid-block / redraws borders per fragment / ejects
+       half pages that ideal preview math hides and real printer
+       hardware margins expose). Block flows naturally page to page
+       with identical type, spacing and frame. */
+    display: block;
+    min-height: auto;
+    border-width: 0.5mm;
+    /* Outline does not fragment across printed pages cleanly (can push a
+       blank trailing page) → print uses the single border only. */
+    outline: none;
+  }
+  .report__sign {
+    /* margin-top:auto only works in flex (screen); in print flow keep
+       the same visual gap through the design token. */
+    margin-top: var(--spacing-lg);
+  }
+  .report__obs-head,
+  .report__obs-monitor,
+  .report__obs-meta,
+  .report__obs-attach,
+  .report__monitor,
+  .report__section-title,
+  .report__infobar,
+  .report__header,
+  .report__form-title,
+  .report__recommendations-item,
+  .report__person,
+  .report__sign,
+  .report__footer { break-inside: avoid; }
+}

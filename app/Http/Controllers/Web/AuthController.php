@@ -24,22 +24,52 @@ class AuthController extends Controller
             'password' => ['required', 'string'],
         ]);
 
-        if (Auth::attempt($credentials)) {
+        if (Auth::attempt($credentials, $request->boolean('remember', true))) {
             $request->session()->regenerate();
-            return redirect()->intended(route('dashboard'));
+
+            // مستوى الإعدادات: وحّد اللغة بين الجلسة/الكوكي وحساب المستخدم لتبقى كل مرة.
+            $sessionLocale = $request->session()->get('locale');
+            $cookieLocale = $request->cookie('rasd_locale');
+            $user = Auth::user();
+
+            if (in_array($sessionLocale, ['ar', 'en'], true)) {
+                // اختيار الضيف قبل الدخول يصبح إعداد الحساب.
+                if (($user->locale ?? null) !== $sessionLocale) {
+                    $user->forceFill(['locale' => $sessionLocale])->save();
+                }
+                $locale = $sessionLocale;
+            } elseif (in_array($user->locale ?? null, ['ar', 'en'], true)) {
+                // إعداد الحساب المحفوظ يُطبَّق على الجلسة الحالية.
+                $locale = $user->locale;
+                $request->session()->put('locale', $locale);
+            } else {
+                $locale = in_array($cookieLocale, ['ar', 'en'], true) ? $cookieLocale : 'ar';
+                $request->session()->put('locale', $locale);
+                $user->forceFill(['locale' => $locale])->save();
+            }
+
+            return redirect()->intended(route('dashboard'))
+                ->cookie(cookie('rasd_locale', $locale, 60 * 24 * 365, '/', null, false, false));
         }
 
         return back()->withErrors([
-            'username' => 'بيانات تسجيل الدخول غير صحيحة',
+            'username' => __('api.invalid_credentials'),
         ])->onlyInput('username');
     }
 
     public function logout(Request $request)
     {
+        // احفظ لغة الإعدادات قبل مسح الجلسة لتبقى بعد الخروج.
+        $locale = $request->session()->get('locale', $request->cookie('rasd_locale', Auth::user()?->locale ?? 'ar'));
+        if (! in_array($locale, ['ar', 'en'], true)) {
+            $locale = 'ar';
+        }
         Auth::logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
+        $request->session()->put('locale', $locale);
 
-        return redirect()->route('login');
+        return redirect()->route('login')
+            ->cookie(cookie('rasd_locale', $locale, 60 * 24 * 365, '/', null, false, false));
     }
 }

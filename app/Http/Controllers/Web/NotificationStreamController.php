@@ -141,7 +141,8 @@ class NotificationStreamController extends Controller
                     if ($new->isNotEmpty()) {
                         $unread = $freshUser->unreadNotifications()->count();
                         foreach ($new as $n) {
-                            $payload = $this->normalize($n);
+                            try { $presenterSse = app(\App\Services\Localization\LocalizedPresenter::class); } catch (\Throwable) { $presenterSse = null; }
+                            $payload = $this->normalize($n, $presenterSse);
                             
                             if ($n->created_at->gt($cursor)) {
                                 $cursor = $n->created_at;
@@ -196,7 +197,7 @@ class NotificationStreamController extends Controller
     }
 
     
-    public function feed(Request $request)
+    public function feed(Request $request, \App\Services\Localization\LocalizedPresenter $presenter)
     {
         $user = Auth::user();
         $after = $request->query('after');
@@ -221,7 +222,7 @@ class NotificationStreamController extends Controller
             $query->whereNull('read_at');
         }
 
-        $notifications = $query->limit($limit)->get()->map(fn($n) => $this->normalize($n))->values();
+        $notifications = $query->limit($limit)->get()->map(fn($n) => $this->normalize($n, $presenter))->values();
         $unreadCount = $user->unreadNotifications()->count();
 
         return response()->json([
@@ -231,7 +232,7 @@ class NotificationStreamController extends Controller
         ]);
     }
 
-    private function normalize($n): array
+    private function normalize($n, ?\App\Services\Localization\LocalizedPresenter $presenter = null): array
     {
         $data = $n->data;
         if (is_string($data)) {
@@ -240,6 +241,13 @@ class NotificationStreamController extends Controller
         $rawType = $data['type'] ?? $n->type ?? 'generic';
         $priority = $data['priority'] ?? $this->inferPriority($rawType);
         $category = $data['category'] ?? $this->inferCategory($rawType);
+        try {
+            if ($presenter) {
+                $localized = $presenter->notification($data);
+                $data['title'] = $localized['title'];
+                $data['message'] = $localized['message'];
+            }
+        } catch (\Throwable) {}
 
         return [
             'id' => $n->id,

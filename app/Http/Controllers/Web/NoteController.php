@@ -8,6 +8,7 @@ use App\Models\Attachment;
 use App\Models\Note;
 use App\Models\User;
 use App\Services\AttachmentStorageService;
+use App\Services\Localization\LocalizedPresenter;
 use App\Services\NoteService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
@@ -28,7 +29,7 @@ class NoteController extends Controller
         $this->storage = $storage;
     }
 
-    public function index(Request $request)
+    public function index(Request $request, LocalizedPresenter $presenter)
     {
         $user = $request->user();
         $this->authorize('viewAny', Note::class);
@@ -56,27 +57,35 @@ class NoteController extends Controller
             $query->orderByDesc('created_at');
         }
 
-        // Live signature for silent 1s polling (list refreshes only on change).
+
         if ($request->boolean('live')) {
             return response()->json($this->notesSignature($query));
         }
 
         $notes = $query->paginate(15)->withQueryString();
 
-        $observers = User::where('role', 'monitor')->orderBy('name')->get(['id', 'name']);
+        // Preload عرضي واحد (محفوظ فقط — ZERO Gemini على Language Switch).
+        try {
+            $presenter->preloadNotes($notes->items());
+        } catch (\Throwable) {
+        }
+
+        // كاش ساعة — كانت تُجلب في كل فتح لصفحة الملاحظات.
+        // arrays فقط: مخزن الكاش (database) يعيد الأجسام ناقصة (serializable_classes=false).
+        $observers = \Illuminate\Support\Facades\Cache::remember('observers_list', 3600, fn () => User::where('role', 'monitor')->orderBy('name')->get(['id', 'name'])->map(fn ($u) => ['id' => $u->id, 'name' => $u->name])->all());
 
         $observerUser = null;
         if ($request->filled('observer')) {
-            $observerUser = User::find($request->observer);
+            $observerUser = User::select(['id', 'name'])->find($request->observer);
         }
 
         return view('notes.index', compact('notes', 'observers', 'observerUser'));
     }
 
-    public function myNotes(Request $request)
+    public function myNotes(Request $request, LocalizedPresenter $presenter)
     {
         $user = $request->user();
-        $query = Note::with(['owner','processor','attachments'])->where('user_id', $user->id)->whereNull('notes.general_submission_id');
+        $query = Note::with(['owner:id,name,avatar_path', 'processor:id,name'])->withCount('attachments')->where('user_id', $user->id)->whereNull('notes.general_submission_id');
 
         if ($request->filled('status') && in_array($request->status, ['draft','pending','accepted','rejected'], true)) {
             $query->where('status', $request->status);
@@ -91,12 +100,17 @@ class NoteController extends Controller
             $query->where('camera_number', (int) $request->camera_number);
         }
 
-        // Live signature for silent 1s polling (list refreshes only on change).
+
         if ($request->boolean('live')) {
             return response()->json($this->notesSignature($query));
         }
 
         $notes = $query->orderByDesc('created_at')->paginate(15)->withQueryString();
+
+        try {
+            $presenter->preloadNotes($notes->items());
+        } catch (\Throwable) {
+        }
 
         return view('notes.my', compact('notes'));
     }
@@ -116,45 +130,28 @@ class NoteController extends Controller
         $this->authorize('create', Note::class);
 
         $maxFiles = max(1, (int) ini_get('max_file_uploads') ?: 20);
-        
-        $phpMaxKb = (int) ($this->parseBytes((string) ini_get('upload_max_filesize')) / 1024);
-        $appMaxKb = max(
-            (int) config('attachments.max_image_size', 20480),
-            (int) config('attachments.max_video_size', 102400),
-            (int) (config('attachments.max_audio_size', 100*1024*1024) / 1024)
-        );
-        $fileMaxKb = $phpMaxKb > 0 ? min($phpMaxKb, $appMaxKb, 512000) : min($appMaxKb, 512000);
+        // مصدر واحد للحد — كان محسوباً يدوياً هنا ومختلفاً في مسار الإرساليات (500MB).
+        $fileMaxKb = \App\Services\NoteService::uploadFileMaxKb();
         $validated = $request->validate([
             'floor_number' => ['required','integer','min:0'],
             'camera_number' => ['required','integer','min:1'],
             'observed_at' => ['required','date'],
+            // عبور منتصف الليل والمدى الزمني يعالجهما NoteService::normalizeObservedRange بذكاء.
             'observed_end_at' => ['nullable','date'],
             'description' => ['required','string','min:10','max:5000'],
             'files' => ['nullable','array','max:'.$maxFiles],
-            'files.*' => ['file','max:'.$fileMaxKb],
+            'files.*' => ['file','max:'.$fileMaxKb,'mimes:jpg,jpeg,png,webp,heic,heif,tiff,tif,bmp,avif,gif,svg,mp4,webm,mov,avi,3gp,3gpp,mkv,m4v,mpg,mpeg,wmv,flv,ogv,ts,mts,m2ts,vob,asf,m2v,3g2,f4v,m4p,mp3,wav,ogg,oga,m4a,aac,wma,flac,opus,aiff,aif,amr,3ga,awb,mid,midi,au,ra,weba'],
             'client_files_count' => ['nullable','integer','min:0','max:100'],
         ], [
-            'files.max' => 'عدد الملفات يتجاوز الحد المسموح به من السيرفر (:max). أرسل على دفعات.',
-            'files.*.max' => 'حجم الملف يتجاوز الحد الأقصى (:max كيلوبايت).',
+            'files.max' => __('api.files_max'),
+            'files.*.max' => __('api.file_max'),
         ], [
-            'floor_number' => 'رقم الطابق',
-            'camera_number' => 'رقم الكاميرا',
-            'observed_at' => 'وقت الملاحظة',
-            'observed_end_at' => 'وقت انتهاء الملاحظة',
-            'description' => 'الوصف',
+            'floor_number' => __('validation.attributes.floor_number'),
+            'camera_number' => __('validation.attributes.camera_number'),
+            'observed_at' => __('validation.attributes.observed_at'),
+            'observed_end_at' => __('validation.attributes.observed_end_at'),
+            'description' => __('validation.attributes.description'),
         ]);
-
-        
-        if (!empty($validated['observed_end_at']) && !empty($validated['observed_at'])) {
-            try {
-                $start = \Carbon\Carbon::parse($validated['observed_at']);
-                $end = \Carbon\Carbon::parse($validated['observed_end_at']);
-                if ($end->lt($start)) {
-                    $end->addDay();
-                    $validated['observed_end_at'] = $end->toDateTimeString();
-                }
-            } catch (\Throwable $e) {}
-        }
 
         $rawFiles = $request->file('files');
         $receivedFiles = is_array($rawFiles) ? array_values(array_filter($rawFiles)) : ($rawFiles ? [$rawFiles] : []);
@@ -196,20 +193,20 @@ class NoteController extends Controller
             if ($this->wantsJsonResponse($request)) {
                 return response()->json(array_merge(
                     $e->toResponseArray(null),
-                    ['message' => 'فشل رفع أحد المرفقات، ولم يتم حفظ الملاحظة.']
+                    ['message' => __('api.note_attach_batch_failed')]
                 ), 422);
             }
 
             return redirect()->back()->withInput()->withErrors([
-                'files' => 'فشل رفع أحد المرفقات، ولم يتم حفظ الملاحظة: '.implode(' | ', $this->flattenErrors($e->attachmentErrors)),
+                'files' => __('api.note_attach_batch_failed').': '.implode(' | ', $this->flattenErrors($e->attachmentErrors)),
             ]);
         } catch (\Throwable $e) {
             Log::error('Note creation failed', ['request_id' => $reqId, 'error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
             if ($this->wantsJsonResponse($request)) {
-                return response()->json(['success' => false, 'note_id' => null, 'files_received' => count($receivedFiles), 'attachments_saved' => 0, 'attachment_errors' => ['فشل إنشاء الملاحظة: '.$e->getMessage()]], 500);
+                return response()->json(['success' => false, 'note_id' => null, 'files_received' => count($receivedFiles), 'attachments_saved' => 0, 'attachment_errors' => [__('api.note_create_failed', ['error' => $e->getMessage()])]], 500);
             }
 
-            return redirect()->back()->withInput()->withErrors(['general' => 'فشل إنشاء الملاحظة: '.$e->getMessage()]);
+            return redirect()->back()->withInput()->withErrors(['general' => __('api.note_create_failed', ['error' => $e->getMessage()])]);
         }
 
         $note = $result['note'];
@@ -236,13 +233,17 @@ class NoteController extends Controller
             ], 201);
         }
 
-        return redirect()->route('notes.index')->with('success', 'تم إنشاء الملاحظة بنجاح');
+        return redirect()->route('notes.index')->with('success', __('api.note_web_created'));
     }
 
-    public function show(Note $note)
+    public function show(Note $note, LocalizedPresenter $presenter)
     {
         $this->authorize('view', $note);
         $note->load(['owner','processor','attachments']);
+        try {
+            $presenter->preloadNotes([$note]);
+        } catch (\Throwable) {
+        }
         return view('notes.show', compact('note'));
     }
 
@@ -262,37 +263,21 @@ class NoteController extends Controller
         }
 
         $maxFiles = max(1, (int) ini_get('max_file_uploads') ?: 20);
-        $phpMaxKb = (int) ($this->parseBytes((string) ini_get('upload_max_filesize')) / 1024);
-        $appMaxKb = max(
-            (int) config('attachments.max_image_size', 20480),
-            (int) config('attachments.max_video_size', 102400),
-            (int) (config('attachments.max_audio_size', 100*1024*1024) / 1024)
-        );
-        $fileMaxKb = $phpMaxKb > 0 ? min($phpMaxKb, $appMaxKb, 512000) : min($appMaxKb, 512000);
+        $fileMaxKb = \App\Services\NoteService::uploadFileMaxKb();
         $validated = $request->validate([
             'floor_number' => ['required','integer','min:0'],
             'camera_number' => ['required','integer','min:1'],
             'observed_at' => ['required','date'],
+            // عبور منتصف الليل والمدى الزمني يعالجهما NoteService::normalizeObservedRange بذكاء.
             'observed_end_at' => ['nullable','date'],
             'description' => ['required','string','min:10','max:5000'],
             'files' => ['nullable','array','max:'.$maxFiles],
-            'files.*' => ['file','max:'.$fileMaxKb],
+            'files.*' => ['file','max:'.$fileMaxKb,'mimes:jpg,jpeg,png,webp,heic,heif,tiff,tif,bmp,avif,gif,svg,mp4,webm,mov,avi,3gp,3gpp,mkv,m4v,mpg,mpeg,wmv,flv,ogv,ts,mts,m2ts,vob,asf,m2v,3g2,f4v,m4p,mp3,wav,ogg,oga,m4a,aac,wma,flac,opus,aiff,aif,amr,3ga,awb,mid,midi,au,ra,weba'],
             'client_files_count' => ['nullable','integer','min:0','max:100'],
         ], [
-            'files.max' => 'عدد الملفات يتجاوز الحد المسموح به من السيرفر (:max). أرسل على دفعات.',
-            'files.*.max' => 'حجم الملف يتجاوز الحد الأقصى (:max كيلوبايت).',
+            'files.max' => __('api.files_max'),
+            'files.*.max' => __('api.file_max'),
         ]);
-
-        if (!empty($validated['observed_end_at']) && !empty($validated['observed_at'])) {
-            try {
-                $start = \Carbon\Carbon::parse($validated['observed_at']);
-                $end = \Carbon\Carbon::parse($validated['observed_end_at']);
-                if ($end->lt($start)) {
-                    $end->addDay();
-                    $validated['observed_end_at'] = $end->toDateTimeString();
-                }
-            } catch (\Throwable $e) {}
-        }
 
         $rawFiles = $request->file('files');
         $receivedFiles = is_array($rawFiles) ? array_values(array_filter($rawFiles)) : ($rawFiles ? [$rawFiles] : []);
@@ -332,20 +317,20 @@ class NoteController extends Controller
             if ($this->wantsJsonResponse($request)) {
                 return response()->json(array_merge(
                     $e->toResponseArray($note->id),
-                    ['message' => 'فشل رفع أحد المرفقات، ولم يتم حفظ التعديلات.']
+                    ['message' => __('api.note_attach_batch_failed_edit')]
                 ), 422);
             }
 
             return redirect()->back()->withInput()->withErrors([
-                'files' => 'فشل رفع أحد المرفقات، ولم يتم حفظ التعديلات: '.implode(' | ', $this->flattenErrors($e->attachmentErrors)),
+                'files' => __('api.note_attach_batch_failed_edit').': '.implode(' | ', $this->flattenErrors($e->attachmentErrors)),
             ]);
         } catch (\Throwable $e) {
             Log::error('Note update failed', ['note_id' => $note->id, 'error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
             if ($this->wantsJsonResponse($request)) {
-                return response()->json(['success' => false, 'note_id' => $note->id, 'files_received' => count($receivedFiles), 'attachments_saved' => $note->attachments()->count(), 'attachment_errors' => ['فشل تحديث الملاحظة: '.$e->getMessage()]], 500);
+                return response()->json(['success' => false, 'note_id' => $note->id, 'files_received' => count($receivedFiles), 'attachments_saved' => $note->attachments()->count(), 'attachment_errors' => [__('api.note_update_failed', ['error' => $e->getMessage()])]], 500);
             }
 
-            return redirect()->back()->withInput()->withErrors(['general' => 'فشل تحديث الملاحظة: '.$e->getMessage()]);
+            return redirect()->back()->withInput()->withErrors(['general' => __('api.note_update_failed', ['error' => $e->getMessage()])]);
         }
 
         if ($this->wantsJsonResponse($request)) {
@@ -359,7 +344,7 @@ class NoteController extends Controller
             ]);
         }
 
-        return redirect()->route('notes.index')->with('success', 'تم تحديث الملاحظة بنجاح');
+        return redirect()->route('notes.index')->with('success', __('api.note_updated'));
     }
 
     public function destroy(Note $note)
@@ -370,7 +355,7 @@ class NoteController extends Controller
         if (request()->expectsJson()) {
             return response()->json(['success' => true], 204);
         }
-        return redirect()->route('notes.index')->with('success', 'تم حذف الملاحظة');
+        return redirect()->route('notes.index')->with('success', __('api.note_deleted'));
     }
 
     public function send(Note $note)
@@ -378,7 +363,7 @@ class NoteController extends Controller
         $this->authorize('send', $note);
         $note = $this->noteService->sendNote(auth()->user(), $note);
         if (request()->expectsJson()) return response()->json(['success' => true,'status' => $note->status,'data' => $note]);
-        return redirect()->route('notes.index')->with('success', 'تم إرسال الملاحظة للمراجعة');
+        return redirect()->route('notes.index')->with('success', __('api.note_web_sent'));
     }
 
     public function accept(Note $note)
@@ -386,7 +371,7 @@ class NoteController extends Controller
         $this->authorize('accept', $note);
         $note = $this->noteService->acceptNote(auth()->user(), $note);
         if (request()->expectsJson()) return response()->json(['success' => true,'status' => $note->status,'data' => $note]);
-        return redirect()->route('notes.index')->with('success', 'تم قبول الملاحظة');
+        return redirect()->route('notes.index')->with('success', __('api.note_accepted'));
     }
 
     public function reject(Request $request, Note $note)
@@ -395,7 +380,7 @@ class NoteController extends Controller
         $request->validate(['rejection_reason' => ['required','string','min:5','max:1000']]);
         $note = $this->noteService->rejectNote(auth()->user(), $note, $request->rejection_reason);
         if (request()->expectsJson()) return response()->json(['success' => true,'status' => $note->status,'data' => $note]);
-        return redirect()->route('notes.index')->with('success', 'تم رفض الملاحظة');
+        return redirect()->route('notes.index')->with('success', __('api.note_rejected'));
     }
 
     public function resend(Note $note)
@@ -403,7 +388,7 @@ class NoteController extends Controller
         $this->authorize('resend', $note);
         $note = $this->noteService->resendRejectedNote(auth()->user(), $note);
         if (request()->expectsJson()) return response()->json(['success' => true,'status' => $note->status,'data' => $note]);
-        return redirect()->route('notes.index')->with('success', 'تمت إعادة إرسال الملاحظة');
+        return redirect()->route('notes.index')->with('success', __('api.note_resent'));
     }
 
     
@@ -427,20 +412,20 @@ class NoteController extends Controller
         $file = $request->file('file');
         if (!$file || !$file->isValid()) {
             $code = $file ? (int) $file->getError() : UPLOAD_ERR_NO_FILE;
-            $msg = $this->uploadErrorMessage($code, $file?->getClientOriginalName() ?? 'الملف');
+            $msg = $this->uploadErrorMessage($code, $file?->getClientOriginalName() ?? __('api.upload_file_default'));
             return response()->json(['success'=>false,'message'=>$msg], 422);
         }
 
         try {
             $attachment = $this->noteService->addAttachment($request->user(), $note, $file);
-            return response()->json(['success'=>true,'data'=>$attachment,'message'=>'تم رفع المرفق'], 201);
+            return response()->json(['success'=>true,'data'=>$attachment,'message'=>__('api.note_attach_uploaded')], 201);
         } catch (\App\Exceptions\AttachmentUploadException $e) {
             return response()->json(['success'=>false,'message'=>$e->getMessage(),'stage'=>$e->stage], 422);
         } catch (\InvalidArgumentException $e) {
             return response()->json(['success'=>false,'message'=>$e->getMessage()], 422);
         } catch (\Throwable $e) {
             Log::error('[ATTACHMENT] web single upload failed', ['note_id'=>$note->id,'message'=>$e->getMessage()]);
-            return response()->json(['success'=>false,'message'=>'تعذر حفظ المرفق: '.$e->getMessage()], 500);
+            return response()->json(['success'=>false,'message'=>__('api.note_attach_save_failed', ['error' => $e->getMessage()])], 500);
         }
     }
 
@@ -450,7 +435,7 @@ class NoteController extends Controller
         $this->authorize('removeAttachment', $note);
         $this->noteService->removeAttachment(auth()->user(), $attachment);
         if (request()->expectsJson()) return response()->json(['success' => true], 204);
-        return back()->with('success', 'تم حذف المرفق');
+        return back()->with('success', __('api.note_attach_deleted'));
     }
 
     
@@ -458,44 +443,43 @@ class NoteController extends Controller
     {
         $user = auth()->user();
         $note = $attachment->note;
-        if (!$user->can('view', $note)) abort(403, 'غير مصرح لك بعرض هذا المرفق');
+        if (!$user->can('view', $note)) abort(403, __('api.forbidden_attach_view'));
 
         if ($this->storage->isLocal($attachment)) {
             return $this->storage->fileResponse($attachment, false);
         }
 
-        abort(404, 'الملف غير موجود');
+        abort(404, __('api.file_not_found'));
     }
 
     public function downloadAttachment(Attachment $attachment)
     {
         $user = auth()->user();
         $note = $attachment->note;
-        if (!$user->can('view', $note)) abort(403, 'غير مصرح لك بتحميل هذا المرفق');
+        if (!$user->can('view', $note)) abort(403, __('api.forbidden_attach_download'));
 
-        if (!$user->isReportWriter()) abort(403, 'التنزيل مسموح لكاتب التقرير فقط');
+        if (!$user->isReportWriter()) abort(403, __('api.download_writer_only'));
 
         if ($this->storage->isLocal($attachment)) {
             return $this->storage->fileResponse($attachment, true);
         }
 
-        abort(404, 'الملف غير موجود');
+        abort(404, __('api.file_not_found'));
     }
 
-    /**
-     * Shared viewer page for WhatsApp sharing: login required (auth middleware).
-     * Renders a dedicated page with a proper player (image / video / audio).
-     * Download button is shown to report writers only.
-     */
+
     public function sharedViewAttachment(int $attachment)
     {
-        // Guests always go to login first (even for unknown ids) — never a bare 404.
         if (!auth()->check()) {
             return redirect()->guest(route('login'));
         }
-        $model = Attachment::findOrFail($attachment);
+        $model = Attachment::with('note')->findOrFail($attachment);
+        $note = $model->note;
+        if (!$note || !auth()->user()->can('view', $note)) {
+            abort(403, __('api.forbidden_attach_view'));
+        }
         if (!$this->storage->isLocal($model)) {
-            abort(404, 'الملف غير موجود');
+            abort(404, __('api.file_not_found'));
         }
 
         return view('shared.attachment', [
@@ -508,18 +492,19 @@ class NoteController extends Controller
         ]);
     }
 
-    /**
-     * Raw file bytes for the share viewer player (login required).
-     * Always streams inline (view only, never download).
-     */
+
     public function sharedFileAttachment(int $attachment)
     {
         if (!auth()->check()) {
             return redirect()->guest(route('login'));
         }
-        $model = Attachment::findOrFail($attachment);
+        $model = Attachment::with('note')->findOrFail($attachment);
+        $note = $model->note;
+        if (!$note || !auth()->user()->can('view', $note)) {
+            abort(403, __('api.forbidden_attach_view'));
+        }
         if (!$this->storage->isLocal($model)) {
-            abort(404, 'الملف غير موجود');
+            abort(404, __('api.file_not_found'));
         }
 
         return $this->storage->fileResponse($model, false);
@@ -530,10 +515,7 @@ class NoteController extends Controller
         return $request->expectsJson() || $request->ajax() || $request->wantsJson();
     }
 
-    /**
-     * Lightweight fingerprint of the currently filtered notes list.
-     * Used by silent 1s polling: two columns only, no relations, no views.
-     */
+
     private function notesSignature($query): array
     {
         $fp = (clone $query)->reorder()->orderByDesc('notes.updated_at')->limit(60)
@@ -564,16 +546,16 @@ class NoteController extends Controller
     
     private function uploadErrorMessage(int $code, string $name): string
     {
-        $safe = trim($name) !== '' ? $name : 'الملف';
+        $safe = trim($name) !== '' ? $name : __('api.upload_file_default');
         return match ($code) {
-            UPLOAD_ERR_INI_SIZE => "الملف {$safe} يتجاوز حد الخادم upload_max_filesize.",
-            UPLOAD_ERR_FORM_SIZE => "الملف {$safe} يتجاوز الحد المسموح في النموذج.",
-            UPLOAD_ERR_PARTIAL => "وصل الملف {$safe} ناقصاً. يرجى إعادة المحاولة.",
-            UPLOAD_ERR_NO_FILE => "لم يتم استلام الملف {$safe}.",
-            UPLOAD_ERR_NO_TMP_DIR => "تعذّر حفظ الملف {$safe} مؤقتاً (إعداد الخادم).",
-            UPLOAD_ERR_CANT_WRITE => "تعذّر كتابة الملف {$safe} على الخادم.",
-            UPLOAD_ERR_EXTENSION => "رفض الخادم الملف {$safe} (إضافة PHP).",
-            default => "تعذّر استلام الملف {$safe} (خطأ رفع {$code}).",
+            UPLOAD_ERR_INI_SIZE => __('api.upload_ini', ['name' => $safe]),
+            UPLOAD_ERR_FORM_SIZE => __('api.upload_form', ['name' => $safe]),
+            UPLOAD_ERR_PARTIAL => __('api.upload_partial', ['name' => $safe]),
+            UPLOAD_ERR_NO_FILE => __('api.upload_no_file', ['name' => $safe]),
+            UPLOAD_ERR_NO_TMP_DIR => __('api.upload_no_tmp', ['name' => $safe]),
+            UPLOAD_ERR_CANT_WRITE => __('api.upload_cant_write', ['name' => $safe]),
+            UPLOAD_ERR_EXTENSION => __('api.upload_extension', ['name' => $safe]),
+            default => __('api.upload_generic', ['name' => $safe, 'code' => $code]),
         };
     }
 
@@ -583,7 +565,7 @@ class NoteController extends Controller
         $postMax = $this->parseBytes((string) ini_get('post_max_size'));
         $length = (int) $request->server('CONTENT_LENGTH', 0);
         if ($postMax > 0 && $length > $postMax) {
-            $msg = 'حجم الطلب يتجاوز حد الخادم post_max_size. قلل حجم/عدد المرفقات ثم أعد المحاولة.';
+            $msg = __('api.post_too_large');
             Log::warning('[UPLOAD INTEGRITY] post_max_size overflow', [
                 'content_length' => $length,
                 'post_max_size' => ini_get('post_max_size'),

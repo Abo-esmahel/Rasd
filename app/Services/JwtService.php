@@ -13,7 +13,12 @@ class JwtService
 
     public function __construct()
     {
-        $this->secret = config('jwt.secret', '');
+        $secret = (string) config('jwt.secret', '');
+        // رفض الإقلاع بسر فارغ أو ضعيف حتى لا تصبح التوكنات قابلة للتزوير.
+        if (strlen($secret) < 32 || in_array($secret, ['', 'your-256-bit-secret-key-change-in-production', 'secret', 'changeme'], true)) {
+            throw new \RuntimeException(__('api.jwt_misconfigured'));
+        }
+        $this->secret = $secret;
         $this->expiry = (int) config('jwt.expiry_minutes', 60);
     }
 
@@ -66,7 +71,8 @@ class JwtService
             return null;
         }
 
-        $blacklisted = Cache::get("jwt_blacklist:$token");
+        // مفتاح القائمة السوداء مجزأ (hash) لتفادي طول المفتاح وتسريب التوكن في مفاتيح الكاش.
+        $blacklisted = Cache::get($this->blacklistKey($token));
         if ($blacklisted) {
             return null;
         }
@@ -88,8 +94,13 @@ class JwtService
 
         $ttl = max($payloadData['exp'] - now()->timestamp, 0);
         if ($ttl > 0) {
-            Cache::put("jwt_blacklist:$token", true, $ttl);
+            Cache::put($this->blacklistKey($token), true, $ttl);
         }
+    }
+
+    private function blacklistKey(string $token): string
+    {
+        return 'jwt_blacklist:'.hash('sha256', $token);
     }
 
     private function base64UrlEncode(string $data): string

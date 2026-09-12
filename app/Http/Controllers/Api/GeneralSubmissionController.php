@@ -249,7 +249,7 @@ class GeneralSubmissionController extends Controller
         $submission = $attachment->submission;
 
         if (!$user->can('view', $submission)) {
-            return response()->json(['success' => false, 'message' => 'غير مصرح لك بعرض هذا المرفق'], 403);
+            return response()->json(['success' => false, 'message' => __('api.forbidden_attach_view')], 403);
         }
 
         if (!$this->storage->isLocalSubmission($attachment)) {
@@ -265,11 +265,11 @@ class GeneralSubmissionController extends Controller
         $submission = $attachment->submission;
 
         if (!$user->can('view', $submission)) {
-            return response()->json(['success' => false, 'message' => 'غير مصرح لك بتحميل هذا المرفق'], 403);
+            return response()->json(['success' => false, 'message' => __('api.forbidden_attach_download')], 403);
         }
 
         if (!$user->isReportWriter()) {
-            return response()->json(['success' => false, 'message' => 'التنزيل مسموح لكاتب التقرير فقط'], 403);
+            return response()->json(['success' => false, 'message' => __('api.download_writer_only')], 403);
         }
 
         if (!$this->storage->isLocalSubmission($attachment)) {

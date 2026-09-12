@@ -13,10 +13,8 @@ class StoreAttachmentRequest extends FormRequest
 
     public function rules(): array
     {
-        $maxSize = max(
-            (int) config('attachments.max_image_size', 20480),
-            (int) config('attachments.max_video_size', 102400)
-        );
+        // موحد مع باقي المسارات ومع حد PHP — كان يتجاهل حد الصوت وحد الخادم.
+        $maxSize = \App\Services\NoteService::uploadFileMaxKb();
 
         return [
             'file' => [
@@ -31,9 +29,9 @@ class StoreAttachmentRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'file.required' => 'يجب اختيار ملف مرفق',
-            'file.max' => 'حجم الملف يتجاوز الحد الأقصى المسموح',
-            'file.mimes' => 'امتداد الملف غير مدعوم',
+            'file.required' => __('validation.required', ['attribute' => __('validation.attributes.file')]),
+            'file.max' => __('validation.max.file', ['attribute' => __('validation.attributes.file'), 'max' => ':max']),
+            'file.mimes' => __('validation.mimes', ['attribute' => __('validation.attributes.file')]),
         ];
     }
 }

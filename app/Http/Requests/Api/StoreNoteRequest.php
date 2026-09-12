@@ -17,8 +17,10 @@ class StoreNoteRequest extends FormRequest
             'floor_number' => ['required', 'integer', 'min:0'],
             'camera_number' => ['required', 'integer', 'min:1'],
             'observed_at' => ['required', 'date'],
-            'observed_end_at' => ['nullable', 'date', 'after_or_equal:observed_at'],
-            'description' => ['required', 'string', 'max:5000'],
+            // عبور منتصف الليل والمدى يعالجهما NoteService::normalizeObservedRange في الخدمة.
+            'observed_end_at' => ['nullable', 'date'],
+            // min:10 موحد مع واجهة الويب — كان مفقوداً في API فيقبل وصفاً من حرف واحد.
+            'description' => ['required', 'string', 'min:10', 'max:5000'],
         ];
     }
 }

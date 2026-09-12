@@ -20,6 +20,13 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'auth.api' => AuthenticateApi::class,
         ]);
+        $middleware->web(append: [
+            \App\Http\Middleware\SetLocale::class,
+        ]);
+        $middleware->api(append: [
+            \App\Http\Middleware\SetApiLocale::class,
+        ]);
+        $middleware->append(\App\Http\Middleware\SecurityHeaders::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
@@ -29,8 +36,13 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->report(function (MethodNotAllowedHttpException $e) {
             try {
                 $req = request();
+                // تنقية السجلات: لا تسجل التوكنات أو الكوكيز أو كامل الترويسات.
+                $safeHeaders = [];
+                foreach (['content-type', 'accept', 'x-requested-with'] as $h) {
+                    $v = $req->header($h);
+                    if ($v !== null) $safeHeaders[$h] = is_array($v) ? array_slice($v, 0, 2) : substr((string) $v, 0, 120);
+                }
                 Log::warning('[405 FORENSIC] MethodNotAllowed', [
-                    'url' => $req->fullUrl(),
                     'path' => $req->path(),
                     'method' => $req->method(),
                     'ip' => $req->ip(),
@@ -40,8 +52,8 @@ return Application::configure(basePath: dirname(__DIR__))
                     'x_requested_with' => $req->header('X-Requested-With'),
                     'has_files' => $req->hasFile('files'),
                     'files_count' => is_array($req->file('files')) ? count($req->file('files')) : ($req->hasFile('files') ? 1 : 0),
-                    'all_input_keys' => array_keys($req->all()),
-                    'headers' => $req->headers->all(),
+                    'all_input_keys' => array_slice(array_keys($req->all()), 0, 30),
+                    'headers' => $safeHeaders,
                 ]);
             } catch (\Throwable $ex) {
                 Log::warning('[405 FORENSIC] logging failed: '.$ex->getMessage());

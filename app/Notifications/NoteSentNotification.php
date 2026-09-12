@@ -4,9 +4,10 @@ namespace App\Notifications;
 
 use App\Models\Note;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
 
-class NoteSentNotification extends Notification
+class NoteSentNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 
@@ -33,8 +34,8 @@ class NoteSentNotification extends Notification
             'sender_name' => $this->senderName,
             'sender_id' => $this->note->user_id,
             'observed_at' => $this->note->observed_at?->toIso8601String(),
-            'title' => 'واردة · كاميرا '.$this->note->camera_number,
-            'message' => "من {$this->senderName} — طابق {$this->note->floor_number} · {$this->note->observed_at?->format('H:i')}",
+            'title_key' => 'notifications.note_sent_title',
+            'message_key' => 'notifications.note_sent_message',
             'url' => '/notes/'.$this->note->id,
             'type' => 'note_sent',
             'category' => 'note',

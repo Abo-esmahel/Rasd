@@ -3,12 +3,36 @@
 @section('content')
 <div class="max-w-3xl mx-auto">
     <div class="flex items-center gap-3 mb-5">
-        <a href="{{ route('profile.show') }}" class="w-9 h-9 rounded-lg bg-white border border-surface-300 flex items-center justify-center text-ink-400 hover:text-ink-700 hover:bg-surface-100 transition">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+        <a href="{{ route('profile.show') }}" aria-label="{{ __('ui.back') }}" class="w-9 h-9 rounded-lg bg-white border border-surface-300 flex items-center justify-center text-ink-400 hover:text-ink-700 hover:bg-surface-100 transition">
+            <svg class="w-4 h-4 rtl:rotate-0 ltr:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
         </a>
         <div>
-            <h1 class="text-xl font-extrabold text-ink-800 leading-none">تعديل الملف الشخصي</h1>
-            <p class="text-sm text-ink-400 mt-1">حدّث صورتك واسمك والرقم الشخصي وكلمة المرور</p>
+            <h1 class="text-xl font-extrabold text-ink-800 leading-none">{{ __('ui.edit_profile') }}</h1>
+            <p class="text-sm text-ink-400 mt-1">{{ __('ui.edit_profile_hint') }}</p>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-2xl border border-surface-300 overflow-hidden mb-5">
+        <div class="px-6 py-4 flex items-center gap-3">
+            <div class="w-9 h-9 rounded-lg bg-sage-100 text-sage-700 flex items-center justify-center shrink-0">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 21a9 9 0 100-18 9 9 0 000 18zm0 0c2.5 0 4.5-4 4.5-9S14.5 3 12 3 7.5 7 7.5 12s2 9 4.5 9zM3.5 9h17M3.5 15h17"/></svg>
+            </div>
+            <div class="min-w-0 flex-1">
+                <h2 class="text-sm font-extrabold text-ink-800">{{ __('ui.language_title') }}</h2>
+                <p class="text-[11px] text-ink-400 font-bold">{{ __('ui.data_stays') }}</p>
+            </div>
+            <div class="flex gap-2 shrink-0">
+                <form method="POST" action="{{ route('locale.update') }}">
+                    @csrf
+                    <input type="hidden" name="locale" value="ar">
+                    <button type="submit" data-lang-btn="ar" class="px-4 py-2 rounded-xl border text-xs font-extrabold transition {{ app()->getLocale() === 'ar' ? 'border-sage-600 bg-sage-600 text-white' : 'border-surface-300 bg-white text-ink-600 hover:bg-surface-100' }}">{{ __('ui.arabic') }}</button>
+                </form>
+                <form method="POST" action="{{ route('locale.update') }}">
+                    @csrf
+                    <input type="hidden" name="locale" value="en">
+                    <button type="submit" data-lang-btn="en" class="px-4 py-2 rounded-xl border text-xs font-extrabold transition {{ app()->getLocale() === 'en' ? 'border-sage-600 bg-sage-600 text-white' : 'border-surface-300 bg-white text-ink-600 hover:bg-surface-100' }}">{{ __('ui.english') }}</button>
+                </form>
+            </div>
         </div>
     </div>
 
@@ -18,7 +42,7 @@
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
             </div>
             <div>
-                <h2 class="text-sm font-extrabold text-ink-800">بيانات الحساب</h2>
+                <h2 class="text-sm font-extrabold text-ink-800">{{ __('ui.account_data') }}</h2>
             </div>
         </div>
 
@@ -26,7 +50,7 @@
             @csrf @method('PUT')
 
             <div class="rounded-2xl border-2 border-dashed border-surface-300 bg-surface-50 p-6">
-                <label class="block text-sm font-bold text-ink-800 mb-4 text-center sm:text-right">الصورة الشخصية </label>
+                <label class="block text-sm font-bold text-ink-800 mb-4 text-center sm:text-start">{{ __('ui.avatar_label') }}</label>
                 <div class="flex flex-col sm:flex-row items-center gap-6">
                     <div class="relative group shrink-0">
                         <div id="avatar-preview" class="shrink-0 rounded-full overflow-hidden bg-white border-2 border-surface-300 shadow-md flex items-center justify-center" style="width:min(320px,72vw);height:min(320px,72vw);border-radius:9999px;overflow:hidden;flex-shrink:0;">
@@ -36,23 +60,23 @@
                                 <span class="text-6xl font-extrabold text-sage-700">{{ $user->initial }}</span>
                             @endif
                         </div>
-                        <label for="avatar" class="absolute -bottom-1.5 -right-1.5 w-8 h-8 rounded-full border-2 border-white flex items-center justify-center text-white shadow-md cursor-pointer transition" style="background-color:#1f6f4a" title="تغيير الصورة">
+                        <label for="avatar" class="absolute -bottom-1.5 -end-1.5 w-8 h-8 rounded-full border-2 border-white flex items-center justify-center text-white shadow-md cursor-pointer transition" style="background-color:#1f6f4a" title="{{ __('ui.change_avatar') }}" aria-label="{{ __('ui.change_avatar') }}">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9a2 2 0 012-2z"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 13a3 3 0 100-6 3 3 0 000 6z"/></svg>
                         </label>
                     </div>
-                    <div class="flex-1 w-full sm:text-right text-center">
+                    <div class="flex-1 w-full sm:text-start text-center">
                         <label for="avatar" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl text-white text-sm font-bold cursor-pointer transition shadow-sm" style="background-color:#1f6f4a">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
-                            اختيار صورة جديدة
+                            {{ __('ui.choose_new_avatar') }}
                         </label>
                         <input type="file" id="avatar" name="avatar" accept="image/jpeg,image/png,image/jpg,image/webp" class="hidden">
                         <p id="avatar-file-name" class="mt-1.5 text-xs font-bold text-sage-700 hidden"></p>
-                        <p class="mt-1.5 text-[11px] text-ink-400">بعد اختيار الصورة ستظهر معاينة لقصّها داخل إطار دائري قبل الحفظ</p>
+
                         @error('avatar') <p class="mt-2 text-xs text-red-500 font-bold bg-red-50 border border-red-200 rounded-lg px-3 py-2">{{ $message }}</p> @enderror
                         @if($user->avatar_path)
                             <label class="mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white border border-red-200 text-xs font-bold text-red-600 cursor-pointer hover:bg-red-50 transition">
                                 <input type="checkbox" name="remove_avatar" value="1" class="rounded border-red-300 text-red-600 focus:ring-red-500/20 w-3.5 h-3.5">
-                                حذف الصورة الحالية
+                                {{ __('ui.delete_avatar') }}
                             </label>
                         @endif
                     </div>
@@ -61,19 +85,19 @@
 
             <div class="grid sm:grid-cols-2 gap-4">
                 <div>
-                    <label class="block text-sm font-bold text-ink-700 mb-1.5">الاسم الكامل <span class="text-red-500">*</span></label>
+                    <label class="block text-sm font-bold text-ink-700 mb-1.5">{{ __('ui.full_name_label') }} <span class="text-red-500">*</span></label>
                     <input type="text" name="name" value="{{ old('name', $user->name) }}" required
                         class="block w-full rounded-xl border border-surface-300 bg-white py-3 px-4 text-sm font-bold text-ink-800 placeholder:text-ink-300 focus:border-sage-500 focus:ring-2 focus:ring-sage-500/10 outline-none transition @error('name') border-red-400 @enderror">
                     @error('name') <p class="mt-1 text-xs text-red-500 font-bold">{{ $message }}</p> @enderror
                 </div>
                 <div>
-                    <label class="block text-sm font-bold text-ink-700 mb-1.5">اسم المستخدم <span class="text-red-500">*</span></label>
+                    <label class="block text-sm font-bold text-ink-700 mb-1.5">{{ __('ui.username_label_profile') }} <span class="text-red-500">*</span></label>
                     <input type="text" name="username" value="{{ old('username', $user->username) }}" required dir="ltr"
                         class="block w-full rounded-xl border border-surface-300 bg-white py-3 px-4 text-sm font-bold text-ink-800 placeholder:text-ink-300 focus:border-sage-500 focus:ring-2 focus:ring-sage-500/10 outline-none transition text-left @error('username') border-red-400 @enderror">
                     @error('username') <p class="mt-1 text-xs text-red-500 font-bold">{{ $message }}</p> @enderror
                 </div>
                 <div class="sm:col-span-2">
-                    <label class="block text-sm font-bold text-ink-700 mb-1.5">رقم الجوال (واتساب)</label>
+                    <label class="block text-sm font-bold text-ink-700 mb-1.5">{{ __('ui.phone_whatsapp_label') }}</label>
                     <input type="text" name="personal_number" value="{{ old('personal_number', $user->personal_number) }}" dir="ltr" maxlength="20" placeholder="09XXXXXXXX"
                         class="block w-full rounded-xl border border-surface-300 bg-white py-3 px-4 text-sm font-bold text-ink-800 placeholder:text-ink-300 focus:border-sage-500 focus:ring-2 focus:ring-sage-500/10 outline-none transition text-left tracking-widest @error('personal_number') border-red-400 @enderror">
                     @error('personal_number') <p class="mt-1 text-xs text-red-500 font-bold">{{ $message }}</p> @enderror
@@ -81,18 +105,17 @@
             </div>
 
             <div class="rounded-xl bg-surface-50 border border-surface-300 p-4">
-                <div class="text-xs font-bold text-ink-500 mb-2">الدور الحالي</div>
+                <div class="text-xs font-bold text-ink-500 mb-2">{{ __('ui.current_role_label') }}</div>
                 <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold {{ $user->isMonitor() ? 'bg-sage-50 text-sage-700 border border-sage-200' : 'bg-white text-ink-600 border border-surface-300' }}">
-                    {{ $user->isMonitor() ? 'مُراقب ميداني' : 'كاتب تقارير' }}
+                    {{ $user->isMonitor() ? __('ui.role_monitor') : __('ui.role_writer') }}
                 </div>
             </div>
 
             <div class="border-t border-surface-300 pt-5">
-                <h3 class="text-sm font-bold text-ink-700 mb-1">تغيير كلمة المرور <span class="text-ink-300 font-medium text-xs">— اختياري</span></h3>
-                <p class="text-xs text-ink-400 mb-3">اتركها فارغة إذا لا تريد التغيير</p>
+                <h3 class="text-sm font-bold text-ink-700 mb-3">{{ __('ui.change_password') }}</h3>
                 <div class="space-y-3">
                     <div>
-                        <label class="block text-sm font-bold text-ink-600 mb-1.5">كلمة المرور الحالية</label>
+                        <label class="block text-sm font-bold text-ink-600 mb-1.5">{{ __('ui.current_password_label') }}</label>
                         <input type="password" name="current_password" autocomplete="current-password"
                             class="block w-full rounded-xl border border-surface-300 bg-white py-3 px-4 text-sm font-bold text-ink-800 placeholder:text-ink-300 focus:border-sage-500 focus:ring-2 focus:ring-sage-500/10 outline-none transition @error('current_password') border-red-400 @enderror"
                             placeholder="••••••••">
@@ -100,26 +123,26 @@
                     </div>
                     <div class="grid sm:grid-cols-2 gap-3">
                         <div>
-                            <label class="block text-sm font-bold text-ink-600 mb-1.5">كلمة المرور الجديدة</label>
+                            <label class="block text-sm font-bold text-ink-600 mb-1.5">{{ __('ui.new_password_label') }}</label>
                             <input type="password" name="password" autocomplete="new-password"
                                 class="block w-full rounded-xl border border-surface-300 bg-white py-3 px-4 text-sm font-bold text-ink-800 placeholder:text-ink-300 focus:border-sage-500 focus:ring-2 focus:ring-sage-500/10 outline-none transition @error('password') border-red-400 @enderror"
-                                placeholder="8 أحرف على الأقل">
+                                placeholder="{{ __('ui.pass_min') }}">
                             @error('password') <p class="mt-1 text-xs text-red-500 font-bold">{{ $message }}</p> @enderror
                         </div>
                         <div>
-                            <label class="block text-sm font-bold text-ink-600 mb-1.5">تأكيد الجديدة</label>
+                            <label class="block text-sm font-bold text-ink-600 mb-1.5">{{ __('ui.confirm_password_label') }}</label>
                             <input type="password" name="password_confirmation" autocomplete="new-password"
                                 class="block w-full rounded-xl border border-surface-300 bg-white py-3 px-4 text-sm font-bold text-ink-800 placeholder:text-ink-300 focus:border-sage-500 focus:ring-2 focus:ring-sage-500/10 outline-none transition"
-                                placeholder="أعد كتابتها">
+                                placeholder="{{ __('ui.retype') }}">
                         </div>
                     </div>
                 </div>
             </div>
 
             <div class="flex gap-3 pt-4 border-t border-surface-300">
-                <a href="{{ route('profile.show') }}" class="px-5 py-2.5 rounded-xl border border-surface-300 bg-white text-ink-500 font-bold text-sm hover:bg-surface-100 transition">إلغاء</a>
-                <button type="submit" class="flex-1 sm:flex-none px-6 py-2.5 rounded-xl text-white font-bold text-sm transition shadow-sm sm:mr-auto" style="background-color:#1f6f4a">
-                    حفظ التعديلات
+                <a href="{{ route('profile.show') }}" class="px-5 py-2.5 rounded-xl border border-surface-300 bg-white text-ink-500 font-bold text-sm hover:bg-surface-100 transition">{{ __('ui.cancel') }}</a>
+                <button type="submit" class="flex-1 sm:flex-none px-6 py-2.5 rounded-xl text-white font-bold text-sm transition shadow-sm sm:ms-auto" style="background-color:#1f6f4a">
+                    {{ __('ui.save_changes_btn') }}
                 </button>
             </div>
         </form>
@@ -130,33 +153,41 @@
     <div class="absolute inset-0 bg-ink-900/70 backdrop-blur-sm" onclick="cancelCrop()"></div>
     <div class="relative bg-white rounded-2xl shadow-2xl w-full overflow-hidden" style="max-width:700px;">
         <div class="px-4 py-3 border-b border-surface-300 flex items-center justify-between">
-            <h3 class="text-sm font-extrabold text-ink-800">قص الصورة الشخصية</h3>
-            <button type="button" onclick="cancelCrop()" class="w-8 h-8 rounded-lg hover:bg-surface-100 flex items-center justify-center text-ink-400 hover:text-ink-700 transition" aria-label="إلغاء">
+            <h3 class="text-sm font-extrabold text-ink-800">{{ __('ui.crop_avatar_title') }}</h3>
+            <button type="button" onclick="cancelCrop()" class="w-8 h-8 rounded-lg hover:bg-surface-100 flex items-center justify-center text-ink-400 hover:text-ink-700 transition" aria-label="{{ __('ui.cancel') }}">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
         </div>
         <div class="p-4">
             <div id="crop-stage" style="position:relative;width:100%;max-width:620px;margin:0 auto;aspect-ratio:1/1;overflow:hidden;background:#0f1a13;border-radius:16px;touch-action:none;cursor:grab;">
-                <img id="crop-img" alt="قص الصورة" draggable="false" style="position:absolute;left:0;top:0;max-width:none;user-select:none;-webkit-user-drag:none;pointer-events:none;">
+                <img id="crop-img" alt="{{ __('ui.crop_avatar_title') }}" draggable="false" style="position:absolute;left:0;top:0;max-width:none;user-select:none;-webkit-user-drag:none;pointer-events:none;">
                 <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;">
                     <div id="crop-circle" style="border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 999px rgba(10,20,12,.55);"></div>
                 </div>
             </div>
             <div class="flex items-center gap-3 mt-4">
                 <svg class="w-4 h-4 text-ink-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M10 18a8 8 0 110-16 8 8 0 010 16zm-3-8h6"/></svg>
-                <input type="range" id="crop-zoom" min="100" max="400" value="100" class="flex-1 accent-primary" aria-label="تكبير الصورة">
+                <input type="range" id="crop-zoom" min="100" max="400" value="100" class="flex-1 accent-primary" aria-label="{{ __('ui.zoom_avatar') }}">
                 <svg class="w-5 h-5 text-ink-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M10 18a8 8 0 110-16 8 8 0 010 16zm-3-8h6M7 10h.01"/></svg>
             </div>
-            <p class="mt-2 text-center text-[11px] text-ink-400">اسحب الصورة لتحريكها داخل الدائرة — الناتج دائري ثابت مثل واتساب</p>
+            <p class="mt-2 text-center text-[11px] text-ink-400">{{ __('ui.crop_drag_hint') }}</p>
         </div>
         <div class="px-4 py-3 border-t border-surface-300 bg-surface-50 flex gap-2">
-            <button type="button" id="crop-confirm" class="flex-1 px-4 py-2.5 rounded-xl text-white text-sm font-bold transition" style="background-color:#1f6f4a">اعتماد</button>
-            <button type="button" onclick="cancelCrop()" class="flex-1 px-4 py-2.5 rounded-xl bg-white border border-surface-300 text-ink-600 text-sm font-bold hover:bg-surface-100 transition">إلغاء</button>
+            <button type="button" id="crop-confirm" class="flex-1 px-4 py-2.5 rounded-xl text-white text-sm font-bold transition" style="background-color:#1f6f4a">{{ __('ui.approve') }}</button>
+            <button type="button" onclick="cancelCrop()" class="flex-1 px-4 py-2.5 rounded-xl bg-white border border-surface-300 text-ink-600 text-sm font-bold hover:bg-surface-100 transition">{{ __('ui.cancel') }}</button>
         </div>
     </div>
 </div>
 @push('scripts')
 <script>
+    const avatarI18n = {
+        tooLarge: @json(__('ui.avatar_too_large')),
+        readFailed: @json(__('ui.avatar_read_failed')),
+        cropFailed: @json(__('ui.avatar_crop_failed')),
+        cropUnsupported: @json(__('ui.avatar_crop_unsupported')),
+        ready: @json(__('ui.avatar_ready')),
+        previewAlt: @json(__('ui.preview_avatar_alt')),
+    };
     const avatarInput = document.getElementById('avatar');
     const avatarPreview = document.getElementById('avatar-preview');
     const avatarFileName = document.getElementById('avatar-file-name');
@@ -168,6 +199,7 @@
     const cropZoom = document.getElementById('crop-zoom');
     let cropState = null;
     let cropDrag = null;
+    let originalFile = null;
 
     function cropMetrics(){
         const S = cropStage.clientWidth || 300;
@@ -196,7 +228,12 @@
         if(cropZoom) cropZoom.value = 100;
     }
     function cancelCrop(){
-        if(avatarInput) avatarInput.value = '';
+        if(avatarInput && originalFile){
+            const dt = new DataTransfer();
+            dt.items.add(originalFile);
+            avatarInput.files = dt.files;
+        }
+        originalFile = null;
         cleanupCrop();
         closeModal(cropModalId);
     }
@@ -204,11 +241,12 @@
     avatarInput?.addEventListener('change', e=>{
         const f = e.target.files[0];
         if(!f) return;
-        if(f.size > 10*1024*1024){ alert('حجم الصورة كبير — الحد 10MB'); e.target.value=''; return; }
+        if(f.size > 10*1024*1024){ window.toast(avatarI18n.tooLarge); e.target.value=''; originalFile = null; return; }
+        originalFile = f;
         const url = URL.createObjectURL(f);
         const probe = new Image();
         probe.onload = ()=>{
-            if(!probe.naturalWidth || !probe.naturalHeight){ URL.revokeObjectURL(url); alert('تعذر قراءة الصورة'); e.target.value=''; return; }
+            if(!probe.naturalWidth || !probe.naturalHeight){ URL.revokeObjectURL(url); window.toast(avatarI18n.readFailed); e.target.value=''; originalFile = null; return; }
             cleanupCrop();
             cropState = {url, img: probe, nw: probe.naturalWidth, nh: probe.naturalHeight, base: 1, zoom: 1, cx: 0, cy: 0};
             cropImg.src = url;
@@ -224,7 +262,7 @@
                 cropApply();
             });
         };
-        probe.onerror = ()=>{ URL.revokeObjectURL(url); alert('تعذر قراءة الصورة'); e.target.value=''; };
+        probe.onerror = ()=>{ URL.revokeObjectURL(url); window.toast(avatarI18n.readFailed); e.target.value=''; originalFile = null; };
         probe.src = url;
     });
     function cropSize(){ return cropStage.clientWidth || 300; }
@@ -266,21 +304,22 @@
         canvas.width = 512;
         canvas.height = 512;
         canvas.getContext('2d').drawImage(cropState.img, sx, sy, s, s, 0, 0, 512, 512);
-        const done = (blob)=>{
-            if(!blob){ alert('تعذر قص الصورة'); return; }
+const done = (blob)=>{
+            if(!blob){ window.toast(avatarI18n.cropFailed); return; }
             const file = new File([blob], 'avatar.jpg', {type: 'image/jpeg'});
             const dt = new DataTransfer();
             dt.items.add(file);
             avatarInput.files = dt.files;
             const prevUrl = URL.createObjectURL(blob);
-            avatarPreview.innerHTML = '<img src="' + prevUrl + '" class="object-cover" style="width:100%;height:100%;object-fit:cover;display:block;" alt="معاينة الصورة">';
-            avatarFileName.textContent = 'avatar.jpg (' + (file.size / 1024).toFixed(0) + ' KB) — جاهزة للحفظ';
+            avatarPreview.innerHTML = '<img src="' + prevUrl + '" class="object-cover" style="width:100%;height:100%;object-fit:cover;display:block;" alt="' + avatarI18n.previewAlt.replace(/"/g, '"') + '">';
+            avatarFileName.textContent = 'avatar.jpg (' + (file.size / 1024).toFixed(0) + ' KB) — ' + avatarI18n.ready;
             avatarFileName.classList.remove('hidden');
+            originalFile = null;
             cleanupCrop();
             closeModal(cropModalId);
         };
         if(canvas.toBlob){ canvas.toBlob(done, 'image/jpeg', 0.92); }
-        else { alert('المتصفح لا يدعم قص الصور'); }
+        else { window.toast(avatarI18n.cropUnsupported); }
     });
 </script>
 @endpush

@@ -4,23 +4,22 @@
 <div id="notif-center-page" class="max-w-3xl mx-auto">
     <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-6">
         <div>
-            <h1 class="text-xl font-extrabold text-text-primary dark:text-text-primary tracking-tight">سجل الإشعارات</h1>
-            <p class="text-sm text-text-secondary dark:text-text-secondary mt-1">متابعة فورية لحالة ملاحظاتك — تحديث لحظي</p>
+            <h1 class="text-xl font-extrabold text-text-primary dark:text-text-primary tracking-tight">{{ __('ui.notifications_title') }}</h1>
             <div id="notif-center-status" class="mt-1.5 text-xs text-text-muted dark:text-text-muted" aria-live="polite"></div>
         </div>
         <div class="flex items-center gap-2 shrink-0">
             @if($unreadCount > 0)
-                <button type="button" id="center-mark-all" class="px-4 py-2 rounded-xl bg-surface-elevated border border-border text-text-secondary dark:text-text-secondary text-sm font-bold hover:bg-surface-muted dark:hover:bg-surface-muted transition">تحديد الكل كمقروء</button>
+                <button type="button" id="center-mark-all" class="px-4 py-2 rounded-xl bg-surface-elevated border border-border text-text-secondary dark:text-text-secondary text-sm font-bold hover:bg-surface-muted dark:hover:bg-surface-muted transition">{{ __('ui.mark_all_short') }}</button>
             @endif
-            <a href="{{ route('notes.index') }}" class="px-4 py-2 rounded-xl bg-primary text-white text-sm font-bold hover:bg-primary-hover transition shadow-sm">الملاحظات</a>
+            <a href="{{ route('notes.index') }}" class="px-4 py-2 rounded-xl bg-primary text-white text-sm font-bold hover:bg-primary-hover transition shadow-sm">{{ __('ui.observations_section') }}</a>
         </div>
     </div>
 
 
     @php $filter = request('filter', 'all'); @endphp
     <div class="mb-5 border-b border-border -mx-4 sm:mx-0 px-4 sm:px-0 overflow-x-auto">
-        <nav class="flex gap-6 min-w-max" aria-label="تصفية الإشعارات">
-            @foreach(['all'=>'الكل','unread'=>'غير مقروءة','read'=>'مقروءة'] as $key=>$label)
+        <nav class="flex gap-6 min-w-max" aria-label="{{ __('ui.filter_notif') }}">
+            @foreach(['all'=>__('ui.all'),'unread'=>__('ui.unread_label'),'read'=>__('ui.read_label')] as $key=>$label)
                 @php $isActive = $filter === $key; $url = route('notifications.index', array_filter(['filter'=>$key !== 'all' ? $key : null])); @endphp
                 <a href="{{ $url }}" class="relative py-3 text-[13px] whitespace-nowrap border-b-2 transition {{ $isActive ? 'border-primary text-text-primary dark:text-text-primary font-bold' : 'border-transparent text-text-muted dark:text-text-muted hover:text-text-secondary dark:hover:text-text-secondary font-medium' }}">{{ $label }}</a>
             @endforeach
@@ -35,7 +34,7 @@
             <div class="w-14 h-14 rounded-2xl bg-surface-muted flex items-center justify-center mx-auto">
                 <svg class="w-7 h-7 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M14 10h4.586a1 1 0 011.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
             </div>
-            <h3 class="mt-4 text-base font-bold text-text-primary dark:text-text-primary">لا توجد إشعارات</h3>
+            <h3 class="mt-4 text-base font-bold text-text-primary dark:text-text-primary">{{ __('ui.no_notifications') }}</h3>
         </div>
     @else
         <div id="notif-center-list" class="space-y-3" role="feed" aria-busy="false">
@@ -56,8 +55,8 @@
                         else $url = route('notifications.index');
                     }
 
-                    $title = $data['title'] ?? ($isRejected ? 'مرفوض' : ($isAccepted ? 'تم القبول' : 'واردة'));
-                    $shortMsg = $data['message'] ?? 'إشعار جديد';
+                    $title = $data['title'] ?? ($isRejected ? __('ui.rejected_status') : ($isAccepted ? __('ui.accepted_status') : __('ui.notif_incoming')));
+                    $shortMsg = $data['message'] ?? __('ui.new_notif');
                     $sender = $data['sender_name'] ?? $data['processor_name'] ?? null;
                     $iconBg = $isRejected ? 'bg-surface-elevated border border-red-200 dark:border-red-900/30 text-red-600 dark:text-red-400' : ($isAccepted ? 'bg-surface-elevated border border-border text-primary dark:text-green-400' : 'bg-surface-elevated border border-border text-amber-600 dark:text-amber-400');
                     $iconPath = $isRejected
@@ -80,19 +79,17 @@
                             <p class="text-xs font-medium text-text-secondary dark:text-text-secondary mt-1 leading-5 line-clamp-1">{{ $shortMsg }}</p>
                             <p class="text-[11px] text-text-muted dark:text-text-muted mt-1 truncate">
                                 @if($sender) {{ $sender }} · @endif
-                                كاميرا {{ $data['camera_number'] ?? '—' }} · طابق {{ $data['floor_number'] ?? '—' }}
+                                {{ __('ui.camera_floor_format', ['camera' => $data['camera_number'] ?? '—', 'floor' => $data['floor_number'] ?? '—']) }}
                             </p>
                             @if(!empty($data['reason']))
                             <div class="mt-2.5 text-xs leading-5 text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900/30 rounded-lg px-3 py-2 line-clamp-2">
-                                {{ $data['reason'] }}
+                                {{ l10n_text('notification', $notification->id, 'reason', $data['reason']) }}
                             </div>
                             @endif
                             <div class="mt-3 flex items-center gap-2">
-                                <a href="{{ $url }}" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-primary text-white text-xs font-bold hover:bg-primary-hover transition shadow-sm" data-notif-action="open">عرض التفاصيل</a>
+                                <a href="{{ $url }}" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-primary text-white text-xs font-bold hover:bg-primary-hover transition shadow-sm" data-notif-action="open">{{ __('ui.view_details') }}</a>
                                 @if(is_null($notification->read_at))
-                                    <button type="button" data-notif-id="{{ $notification->id }}" class="notif-mark-one px-3 py-1.5 rounded-lg bg-surface-elevated border border-border text-text-secondary dark:text-text-secondary text-xs font-bold hover:bg-surface-muted dark:hover:bg-surface-muted transition" aria-label="تحديد كمقروء">تمت القراءة</button>
-                                @else
-                                    <span class="text-[11px] text-text-muted dark:text-text-muted mr-auto">مقروء</span>
+                                    <button type="button" data-notif-id="{{ $notification->id }}" class="notif-mark-one px-3 py-1.5 rounded-lg bg-surface-elevated border border-border text-text-secondary dark:text-text-secondary text-xs font-bold hover:bg-surface-muted dark:hover:bg-surface-muted transition" aria-label="{{ __('ui.mark_read') }}">{{ __('ui.mark_one_short') }}</button>
                                 @endif
                             </div>
                         </div>
@@ -116,12 +113,23 @@ document.addEventListener('DOMContentLoaded', () => {
   const liveEl = document.getElementById('notif-center-live');
   const markAllBtn = document.getElementById('center-mark-all');
 
+  const NOTIF_T = {
+    connected: @json(__('ui.notif_connected')),
+    reconnecting: @json(__('ui.notif_reconnecting')),
+    disconnected: @json(__('ui.notif_disconnected')),
+    markedOne: @json(__('ui.notif_marked_one')),
+    updateFailed: @json(__('ui.notif_update_failed')),
+    arrived: @json(__('ui.notif_arrived')),
+    generic: @json(__('ui.notif_generic')),
+    read: @json(__('ui.mark_one_short')),
+    unread: @json(__('ui.unread_label'))
+  };
   function updateStatus(state) {
     if (!statusEl) return;
     const map = {
-      'CONNECTED': '● متصل — التحديث فوري',
-      'RECONNECTING': '○ يعيد الاتصال…',
-      'DISCONNECTED': '○ غير متصل — يحاول إعادة الاتصال',
+      'CONNECTED': NOTIF_T.connected,
+      'RECONNECTING': NOTIF_T.reconnecting,
+      'DISCONNECTED': NOTIF_T.disconnected,
     };
     statusEl.textContent = map[state] || '';
     statusEl.dataset.state = (state||'').toLowerCase();
@@ -154,19 +162,19 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       const card = btn.closest('[role="article"]');
-      if (card) {
-        card.classList.remove('border-red-200','bg-red-50/30','border-[#cde7d6]','bg-[#eef4f0]/30','border-amber-200','bg-amber-50/30');
-        card.classList.add('border-border');
-        const badge = card.querySelector('[aria-label="غير مقروء"]');
-        if (badge) badge.outerHTML = '<span class="mr-auto text-text-muted dark:text-text-muted">مقروء</span>';
-        btn.remove();
-        if (liveEl) liveEl.textContent = 'تم تحديد الإشعار كمقروء';
+        if (card) {
+          card.classList.remove('border-red-200','bg-red-50/30','border-[#cde7d6]','bg-[#eef4f0]/30','border-amber-200','bg-amber-50/30');
+          card.classList.add('border-border');
+          const badge = card.querySelector('[aria-label="' + NOTIF_T.unread + '"]');
+          if (badge) badge.outerHTML = '<span class="mr-auto text-text-muted dark:text-text-muted">' + NOTIF_T.read + '</span>';
+          btn.remove();
+          if (liveEl) liveEl.textContent = NOTIF_T.markedOne;
+        }
+      } catch (err) {
+        btn.disabled = false;
+        btn.textContent = NOTIF_T.read;
+        window.toast(NOTIF_T.updateFailed);
       }
-    } catch (err) {
-      btn.disabled = false;
-      btn.textContent = 'تحديد كمقروء';
-      alert('تعذر تحديد الإشعار كمقروء');
-    }
   });
 
   markAllBtn?.addEventListener('click', async () => {
@@ -182,13 +190,13 @@ document.addEventListener('DOMContentLoaded', () => {
         location.reload();
       }
       document.querySelectorAll('.notif-mark-one').forEach(b=>b.remove());
-      document.querySelectorAll('[role="article"]').forEach(card=>{
-        card.classList.remove('border-red-200','bg-red-50/30','border-[#cde7d6]','bg-[#eef4f0]/30','border-amber-200','bg-amber-50/30');
-        card.classList.add('border-border');
-        const badge = card.querySelector('[aria-label="غير مقروء"]');
-        if (badge) badge.outerHTML = '<span class="mr-auto text-text-muted dark:text-text-muted">مقروء</span>';
-      });
-      if (liveEl) liveEl.textContent = 'تم تحديد كل الإشعارات كمقروءة';
+        document.querySelectorAll('[role="article"]').forEach(card=>{
+          card.classList.remove('border-red-200','bg-red-50/30','border-[#cde7d6]','bg-[#eef4f0]/30','border-amber-200','bg-amber-50/30');
+          card.classList.add('border-border');
+          const badge = card.querySelector('[aria-label="' + NOTIF_T.unread + '"]');
+          if (badge) badge.outerHTML = '<span class="mr-auto text-text-muted dark:text-text-muted">' + NOTIF_T.read + '</span>';
+        });
+        if (liveEl) liveEl.textContent = NOTIF_T.markedOne;
       markAllBtn.remove();
     } catch {
       markAllBtn.disabled = false;
@@ -209,7 +217,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (listEl.querySelector(`[data-notif-id="${n.id}"]`)) return;
 
 
-      if (liveEl) liveEl.textContent = 'وصل إشعار جديد: ' + (n.data?.message || 'إشعار');
+      if (liveEl) liveEl.textContent = NOTIF_T.arrived + (n.data?.message || NOTIF_T.generic);
     }
   });
 });

@@ -4,9 +4,10 @@ namespace App\Notifications;
 
 use App\Models\Note;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
 
-class NoteRejectedNotification extends Notification
+class NoteRejectedNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 
@@ -35,8 +36,8 @@ class NoteRejectedNotification extends Notification
             'reason' => $this->reason,
             'processor_name' => $this->processorName,
             'observed_at' => $this->note->observed_at?->toIso8601String(),
-            'title' => 'مرفوضة · كاميرا '.$this->note->camera_number,
-            'message' => "رفضها {$this->processorName} — {$this->reason}",
+            'title_key' => 'notifications.note_rejected_title',
+            'message_key' => 'notifications.note_rejected_message',
             'url' => '/notes/'.$this->note->id,
             'type' => 'note_rejected',
             'category' => 'note',

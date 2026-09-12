@@ -3,27 +3,14 @@
 @section('content')
 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
     <div class="flex items-center gap-3">
-        <a href="{{ route('notes.index') }}" class="w-9 h-9 rounded-lg bg-white border border-[#e6e9e1] flex items-center justify-center text-ink-400 hover:text-ink-700 hover:bg-[#f5f7f5] transition" aria-label="العودة">
+        <a href="{{ route('notes.index') }}" class="w-9 h-9 rounded-lg bg-white border border-[#e6e9e1] flex items-center justify-center text-ink-400 hover:text-ink-700 hover:bg-[#f5f7f5] transition" aria-label="{{ __('ui.back_aria') }}">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
         </a>
         <div>
-            <h1 class="text-xl font-extrabold text-ink-800 leading-none">ملاحظة جديدة</h1>
-            <p class="text-sm text-ink-400 mt-1 hidden sm:block">
-                @if(auth()->user()->isReportWriter())
-                    دوّن ملاحظة — تُقبل فوراً وتظهر في جميع الملاحظات
-                @else
-                    وثّق ملاحظة ميدانية — تُحفظ كمسودة حتى تُرسل
-                @endif
-            </p>
+            <h1 class="text-xl font-extrabold text-ink-800 leading-none">{{ __('ui.new_note_title') }}</h1>
         </div>
     </div>
-    <div class="hidden sm:flex items-center gap-2 text-xs font-bold text-ink-400 bg-white border border-[#e6e9e1] rounded-full px-3 py-1.5">
-        @if(auth()->user()->isReportWriter())
-            <span class="w-1.5 h-1.5 rounded-full bg-sage-600"></span>تُقبل فوراً
-        @else
-            <span class="w-1.5 h-1.5 rounded-full bg-ink-300"></span>مسودة
-        @endif
-    </div>
+
 </div>
 
 <div class="max-w-4xl mx-auto">
@@ -33,34 +20,33 @@
             <div id="form-errors" class="hidden p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700"></div>
             <div id="upload-progress" class="hidden p-4 bg-[#eef4f0] border border-[#cde7d6] rounded-xl">
                 <div class="flex items-center justify-between mb-2">
-                    <span class="text-sm font-bold text-[#0e6a38] flex items-center gap-2"><span class="w-3 h-3 border-2 border-[#0e6a38] border-t-transparent rounded-full animate-spin"></span>جاري الرفع...</span>
+                    <span class="text-sm font-bold text-[#0e6a38] flex items-center gap-2"><span class="w-3 h-3 border-2 border-[#0e6a38] border-t-transparent rounded-full animate-spin"></span>{{ __('ui.uploading') }}</span>
                     <span id="upload-progress-text" class="text-xs font-bold text-ink-500">0%</span>
                 </div>
                 <div class="w-full bg-white rounded-full h-2.5 border border-[#e6e9e1] overflow-hidden">
                     <div id="upload-progress-bar" class="h-2.5 rounded-full bg-[#0e6a38] transition-all duration-300" style="width:0%"></div>
                 </div>
-                <div id="upload-progress-detail" class="mt-1 text-[11px] text-ink-400">جاري رفع الملفات الأصلية دون تعديل (الجودة 100% محفوظة) — لا تغلق الصفحة</div>
+                <div id="upload-progress-detail" class="mt-1 text-[11px] text-ink-400">{{ __('ui.uploading_dont_close') }}</div>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                    <label for="floor_number" class="block text-sm font-bold text-ink-700 mb-1.5">رقم الطابق <span class="text-red-500">*</span></label>
+                    <label for="floor_number" class="block text-sm font-bold text-ink-700 mb-1.5">{{ __('ui.floor_label') }} <span class="text-red-500">*</span></label>
                     <input type="number" id="floor_number" name="floor_number" value="{{ old('floor_number') }}" min="0" required inputmode="numeric"
                         class="block w-full rounded-xl border border-[#e6e9e1] bg-white py-3 px-4 text-sm font-medium text-ink-800 placeholder:text-ink-300 focus:border-[#0e6a38] focus:ring-2 focus:ring-[#0e6a38]/10 outline-none transition @error('floor_number') border-red-400 @enderror"
-                        placeholder="مثال: 3">
+                        placeholder="3">
                     @error('floor_number') <p class="mt-1 text-xs font-bold text-red-500">{{ $message }}</p> @enderror
                 </div>
                 <div>
-                    <label for="camera_number" class="block text-sm font-bold text-ink-700 mb-1.5">رقم الكاميرا <span class="text-red-500">*</span></label>
+                    <label for="camera_number" class="block text-sm font-bold text-ink-700 mb-1.5">{{ __('ui.camera_label') }} <span class="text-red-500">*</span></label>
                     <input type="number" id="camera_number" name="camera_number" value="{{ old('camera_number') }}" min="1" required inputmode="numeric"
                         class="block w-full rounded-xl border border-[#e6e9e1] bg-white py-3 px-4 text-sm font-medium text-ink-800 placeholder:text-ink-300 focus:border-[#0e6a38] focus:ring-2 focus:ring-[#0e6a38]/10 outline-none transition @error('camera_number') border-red-400 @enderror"
-                        placeholder="مثال: 12">
+                        placeholder="12">
                     @error('camera_number') <p class="mt-1 text-xs font-bold text-red-500">{{ $message }}</p> @enderror
                 </div>
             </div>
 
             <div class="rounded-xl border border-[#e6e9e1] bg-[#f5f7f5] p-4">
-                <label class="block text-sm font-bold text-ink-700 mb-1">الملاحظة <span class="text-red-500">*</span></label>
-                <p class="text-xs text-ink-400 mb-3">التاريخ والوقت الفعليين للملاحظة — وقت البداية ووقت الانتهاء</p>
+                <label class="block text-sm font-bold text-ink-700 mb-1">{{ __('ui.time_label') }} <span class="text-red-500">*</span></label>
                 @php
                     $oldObserved = old('observed_at');
                     $oldDate = $oldObserved ? date('Y-m-d', strtotime($oldObserved)) : '';
@@ -70,20 +56,20 @@
                 @endphp
                 <div class="space-y-3">
                     <div>
-                        <div class="text-xs font-bold text-ink-500 mb-1.5">التاريخ</div>
+                        <div class="text-xs font-bold text-ink-500 mb-1.5">{{ __('ui.date_label') }}</div>
                         <input type="date" id="observed_date" value="{{ $oldDate }}" required
                             class="block w-full rounded-xl border border-[#e6e9e1] bg-white py-2.5 px-4 text-sm font-bold text-ink-800 focus:border-[#0e6a38] focus:ring-2 focus:ring-[#0e6a38]/10 outline-none transition cursor-pointer"
                             style="color-scheme: light;">
                     </div>
                     <div class="grid grid-cols-2 gap-3">
                         <div>
-                            <div class="text-xs font-bold text-ink-500 mb-1.5">بداية الملاحظة</div>
+                            <div class="text-xs font-bold text-ink-500 mb-1.5">{{ __('ui.start_label') }}</div>
                             <input type="time" id="observed_time" value="{{ $oldTime }}" required step="60"
                                 class="block w-full rounded-xl border border-[#e6e9e1] bg-white py-2.5 px-4 text-sm font-bold text-ink-800 focus:border-[#0e6a38] focus:ring-2 focus:ring-[#0e6a38]/10 outline-none transition cursor-pointer"
                                 style="color-scheme: light;">
                         </div>
                         <div>
-                            <div class="text-xs font-bold text-ink-500 mb-1.5">انتهاء الملاحظة</div>
+                            <div class="text-xs font-bold text-ink-500 mb-1.5">{{ __('ui.end_label') }}</div>
                             <input type="time" id="observed_end_time" value="{{ $oldEndTime }}" step="60"
                                 class="block w-full rounded-xl border border-[#e6e9e1] bg-white py-2.5 px-4 text-sm font-bold text-ink-800 focus:border-[#0e6a38] focus:ring-2 focus:ring-[#0e6a38]/10 outline-none transition cursor-pointer"
                                 style="color-scheme: light;">
@@ -91,14 +77,14 @@
                     </div>
                 </div>
                 <div class="mt-3 flex flex-wrap gap-1.5">
-                    <button type="button" data-preset="now" class="preset-btn px-3 py-1.5 rounded-lg bg-[#0e6a38] text-white text-xs font-bold hover:bg-[#0a4d28] transition">الآن</button>
-                    <button type="button" data-preset="hour-ago" class="preset-btn px-3 py-1.5 rounded-lg bg-[#fdfcfa] border border-[#e6e9e1] text-[#1a2e1f] text-xs font-bold hover:bg-[#f5f7f5] transition">قبل ساعة</button>
-                    <button type="button" data-preset="today-08" class="preset-btn px-3 py-1.5 rounded-lg bg-[#fdfcfa] border border-[#e6e9e1] text-[#1a2e1f] text-xs font-bold hover:bg-[#f5f7f5] transition">اليوم 08:00</button>
-                    <button type="button" id="clear-datetime" class="px-3 py-1.5 rounded-lg bg-transparent border border-[#e6e9e1] text-ink-400 text-xs font-bold hover:bg-white transition">مسح</button>
+                    <button type="button" data-preset="now" class="preset-btn px-3 py-1.5 rounded-lg bg-[#0e6a38] text-white text-xs font-bold hover:bg-[#0a4d28] transition">{{ __('ui.now_btn') }}</button>
+                    <button type="button" data-preset="hour-ago" class="preset-btn px-3 py-1.5 rounded-lg bg-[#fdfcfa] border border-[#e6e9e1] text-[#1a2e1f] text-xs font-bold hover:bg-[#f5f7f5] transition">{{ __('ui.hour_ago_btn') }}</button>
+                    <button type="button" data-preset="today-08" class="preset-btn px-3 py-1.5 rounded-lg bg-[#fdfcfa] border border-[#e6e9e1] text-[#1a2e1f] text-xs font-bold hover:bg-[#f5f7f5] transition">{{ __('ui.today_08_btn') }}</button>
+                    <button type="button" id="clear-datetime" class="px-3 py-1.5 rounded-lg bg-transparent border border-[#e6e9e1] text-ink-400 text-xs font-bold hover:bg-white transition">{{ __('ui.clear_btn') }}</button>
                 </div>
                 <div class="mt-3 flex items-center gap-2 p-2.5 rounded-lg bg-white border border-[#e6e9e1]">
                     <svg class="w-4 h-4 text-[#0e6a38] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                    <div id="observed_preview" class="text-sm font-bold text-ink-700 truncate">— اختر التاريخ والوقت —</div>
+                    <div id="observed_preview" class="text-sm font-bold text-ink-700 truncate">{{ __('ui.choose_time') }}</div>
                 </div>
                 <input type="hidden" name="observed_at" id="observed_at" value="{{ old('observed_at') }}">
                 <input type="hidden" name="observed_end_at" id="observed_end_at" value="{{ old('observed_end_at') }}">
@@ -107,20 +93,23 @@
             </div>
 
             <div>
-                <label for="description" class="block text-sm font-bold text-ink-700 mb-1.5">الوصف <span class="text-red-500">*</span></label>
+                <label for="description" class="block text-sm font-bold text-ink-700 mb-1.5">{{ __('ui.description_label') }} <span class="text-red-500">*</span></label>
                 <div class="relative">
                     <textarea id="description" name="description" rows="5" required maxlength="5000"
                         class="block w-full rounded-xl border border-[#e6e9e1] bg-white p-4 text-sm leading-7 text-ink-800 placeholder:text-ink-300 focus:border-[#0e6a38] focus:ring-2 focus:ring-[#0e6a38]/10 outline-none transition resize-none @error('description') border-red-400 @enderror"
-                        placeholder="صف ما تم رصده بدقة...">{{ old('description') }}</textarea>
+                        placeholder="{{ __('ui.desc_placeholder') }}">{{ old('description') }}</textarea>
                     <div class="absolute bottom-3 left-3 text-[11px] font-bold text-ink-400 bg-white border border-[#e6e9e1] rounded-full px-2 py-0.5">
                         <span id="desc-count">0</span> / 5000
                     </div>
                 </div>
                 @error('description') <p class="mt-1 text-xs font-bold text-red-500">{{ $message }}</p> @enderror
+                <div class="mt-3">
+                    @include('notes.partials.smart_hint')
+                </div>
             </div>
 
             <div>
-                <label class="block text-sm font-bold text-ink-700 mb-1.5">المرفقات <span class="text-ink-300 font-medium text-xs">— اختياري</span></label>
+                <label class="block text-sm font-bold text-ink-700 mb-1.5">{{ __('ui.attachments_label') }} <span class="text-ink-300 font-medium text-xs">{{ __('ui.attachments_optional') }}</span></label>
                 <div class="rounded-xl border-2 border-dashed border-[#e6e9e1] bg-[#f5f7f5] hover:border-[#0e6a38] hover:bg-[#f5f7f5] transition p-5 text-center group" id="drop-zone">
                     <div class="mx-auto w-10 h-10 rounded-xl bg-white border border-[#e6e9e1] flex items-center justify-center group-hover:border-[#0e6a38] transition">
                         <svg class="w-5 h-5 text-[#0e6a38]" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.7"><path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
@@ -128,16 +117,16 @@
                     <div class="mt-3 flex flex-col sm:flex-row items-center justify-center gap-2">
                         <label for="files" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#0e6a38] text-white font-bold text-sm cursor-pointer hover:bg-[#0a4d28] transition">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
-                            اختيار ملفات
+                            {{ __('ui.choose_files') }}
                         </label>
-                        <span class="sm:hidden text-xs text-ink-400">أو</span>
+                        <span class="sm:hidden text-xs text-ink-400">{{ __('ui.or_word') }}</span>
                         <button type="button" id="open-camera-btn" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#fdfcfa] border border-[#e6e9e1] text-[#1a2e1f] font-bold text-sm hover:bg-[#f5f7f5] transition">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 13a3 3 0 100-6 3 3 0 000 6z"/></svg>
-                            الكاميرا المباشرة
+                            {{ __('ui.live_camera') }}
                         </button>
                         <button type="button" id="audio-record-btn" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#fdfcfa] border border-[#e6e9e1] text-[#1a2e1f] font-bold text-sm hover:bg-[#f5f7f5] transition">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/></svg>
-                            تسجيل صوتي
+                            {{ __('ui.audio_recording') }}
                         </button>
                     </div>
                     <div id="audio-preview" class="hidden mt-3 p-3 bg-white border border-[#e6e9e1] rounded-xl">
@@ -146,35 +135,35 @@
                                 <svg class="w-5 h-5 text-red-500 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/></svg>
                             </div>
                             <div class="flex-1 min-w-0">
-                                <div id="audio-preview-status" class="text-sm font-bold text-ink-700">جاري طلب الميكروفون...</div>
+                                <div id="audio-preview-status" class="text-sm font-bold text-ink-700">{{ __('ui.requesting_mic') }}</div>
                                 <div id="audio-preview-timer" class="text-xs text-ink-400 mt-0.5 hidden">00:00</div>
                             </div>
-                            <button type="button" id="audio-preview-delete" class="hidden shrink-0 w-8 h-8 rounded-lg hover:bg-red-50 flex items-center justify-center text-ink-400 hover:text-red-500 transition" title="حذف التسجيل">
+                            <button type="button" id="audio-preview-delete" class="hidden shrink-0 w-8 h-8 rounded-lg hover:bg-red-50 flex items-center justify-center text-ink-400 hover:text-red-500 transition" title="{{ __('ui.delete_recording') }}">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
                             </button>
                         </div>
                         <audio id="audio-preview-player" class="hidden w-full mt-2 rounded-lg" controls></audio>
-                        <div id="audio-preview-pending" class="hidden mt-2 text-[11px] text-[#0e6a38] font-bold">سيتم إرفاقه عند حفظ الملاحظة</div>
+                        <div id="audio-preview-pending" class="hidden mt-2 text-[11px] text-[#0e6a38] font-bold">{{ __('ui.will_attach_on_save') }}</div>
                     </div>
                     <input type="file" id="files" name="files[]" multiple accept="image/*,video/*,audio/*,.aac,.m4a,.mp3,.wav,.ogg,.flac,.opus,.wma,.aiff,.amr,.3ga,.weba" class="hidden">
                     <div id="file-list" class="mt-3 hidden text-right space-y-1.5"></div>
                 </div>
 
-                {{-- Camera Live Modal --}}
+
                 <div id="camera-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
                     <div class="absolute inset-0 bg-ink-900/70 backdrop-blur-sm" id="camera-backdrop"></div>
                     <div class="relative bg-white rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden shadow-2xl">
                         <div class="px-4 py-3 border-b border-[#e6e9e1] flex items-center justify-between shrink-0">
                             <h3 class="text-sm font-extrabold text-ink-800 flex items-center gap-2">
                                 <span class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
-                                الكاميرا المباشرة
-                                <span id="camera-mode-label" class="text-xs font-medium text-ink-400 mr-1">— صورة</span>
+                                {{ __('ui.live_camera') }}
+                                <span id="camera-mode-label" class="text-xs font-medium text-ink-400 mr-1">{{ __('ui.camera_photo_mode') }}</span>
                             </h3>
                             <div class="flex items-center gap-1.5">
-                                <button type="button" id="switch-camera-btn" class="w-8 h-8 rounded-lg bg-[#f5f7f5] border border-[#e6e9e1] flex items-center justify-center text-ink-500 hover:text-ink-700 transition" title="تبديل الكاميرا">
+                                <button type="button" id="switch-camera-btn" class="w-8 h-8 rounded-lg bg-[#f5f7f5] border border-[#e6e9e1] flex items-center justify-center text-ink-500 hover:text-ink-700 transition" title="{{ __('ui.switch_camera') }}">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4M16 17H4m0 0l4 4m-4-4l4-4"/></svg>
                                 </button>
-                                <button type="button" id="close-camera-btn" class="w-8 h-8 rounded-lg hover:bg-[#f5f7f5] flex items-center justify-center text-ink-400 hover:text-ink-700 transition">
+                                <button type="button" id="close-camera-btn" class="w-8 h-8 rounded-lg hover:bg-[#f5f7f5] flex items-center justify-center text-ink-400 hover:text-ink-700 transition" title="{{ __('ui.close_camera') }}">
                                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
                                 </button>
                             </div>
@@ -186,24 +175,24 @@
                                 <div class="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center mx-auto mb-3">
                                     <svg class="w-6 h-6 text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.7"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
                                 </div>
-                                <p class="text-sm text-white/70">جاري تشغيل الكاميرا...</p>
+                                <p class="text-sm text-white/70">{{ __('ui.camera_starting') }}</p>
                                 <p id="camera-error" class="hidden mt-2 text-xs text-red-300 max-w-xs mx-auto leading-5"></p>
                             </div>
                             <div id="camera-fallback" class="w-full max-w-md p-4 border-t border-amber-200 bg-amber-50/50">
                                 <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
                                     <label class="flex flex-col items-center gap-2 p-4 rounded-xl bg-white border-2 border-dashed border-amber-300 hover:border-amber-400 hover:bg-amber-50 cursor-pointer transition text-center shadow-sm">
                                         <svg class="w-7 h-7 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9a2 2 0 012-2z"/><circle cx="12" cy="13" r="3"/></svg>
-                                        <span class="text-sm font-bold text-ink-800">التقاط صورة</span>
+                                        <span class="text-sm font-bold text-ink-800">{{ __('ui.photo_capture_fallback') }}</span>
                                         <input type="file" accept="image/*" capture="environment" class="hidden" onchange="handleFallbackFile(this)">
                                     </label>
                                     <label class="flex flex-col items-center gap-2 p-4 rounded-xl bg-white border-2 border-dashed border-amber-300 hover:border-amber-400 hover:bg-amber-50 cursor-pointer transition text-center shadow-sm">
                                         <svg class="w-7 h-7 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
-                                        <span class="text-sm font-bold text-ink-800">تسجيل فيديو</span>
+                                        <span class="text-sm font-bold text-ink-800">{{ __('ui.video_recording_fallback') }}</span>
                                         <input type="file" accept="video/*" capture="environment" class="hidden" onchange="handleFallbackFile(this)">
                                     </label>
                                     <label class="flex flex-col items-center gap-2 p-4 rounded-xl bg-white border-2 border-dashed border-amber-300 hover:border-amber-400 hover:bg-amber-50 cursor-pointer transition text-center shadow-sm">
                                         <svg class="w-7 h-7 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/></svg>
-                                        <span class="text-sm font-bold text-ink-800">تسجيل صوتي</span>
+                                        <span class="text-sm font-bold text-ink-800">{{ __('ui.audio_recording_fallback') }}</span>
                                         <input type="file" accept="audio/*" capture="user" class="hidden" onchange="handleFallbackFile(this)">
                                     </label>
                                 </div>
@@ -217,18 +206,18 @@
                             <div class="flex gap-2 justify-center flex-wrap">
                                 <button type="button" id="capture-photo-btn" class="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-[#0e6a38] hover:bg-[#0a4d28] text-white font-bold text-sm transition">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 9h2l2-2h4l2 2h2a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2V9a2 2 0 012-2z"/><circle cx="12" cy="13" r="3"/></svg>
-                                    التقاط صورة
+                                    {{ __('ui.capture_photo') }}
                                 </button>
                                 <button type="button" id="start-record-btn" class="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-white border-2 border-red-200 text-red-600 font-bold text-sm hover:bg-red-50 transition">
                                     <span class="w-3 h-3 rounded-full bg-red-500"></span>
-                                    بدء تسجيل فيديو
+                                    {{ __('ui.start_video_recording') }}
                                 </button>
                                 <button type="button" id="stop-record-btn" class="hidden flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-sm transition">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><rect x="6" y="6" width="12" height="12" rx="1"/></svg>
-                                    إيقاف وحفظ
+                                    {{ __('ui.stop_and_save') }}
                                 </button>
                             </div>
-                            <p class="mt-2.5 text-center text-[11px] text-ink-400 leading-4">الصور والفيديو تُضاف مباشرة للمرفقات دون حفظ في معرض الجهاز</p>
+                            <p class="mt-2.5 text-center text-[11px] text-ink-400 leading-4">{{ __('ui.media_note_fallback') }}</p>
                             <p id="camera-status" class="hidden mt-2 text-center text-xs font-bold"></p>
                         </div>
                     </div>
@@ -236,13 +225,13 @@
             </div>
 
             <div class="flex flex-col-reverse sm:flex-row gap-3 pt-5 border-t border-[#e6e9e1]">
-                <a href="{{ route('notes.index') }}" class="px-5 py-2.5 rounded-xl bg-transparent border border-[#e6e9e1] text-[#525252] font-bold text-sm hover:bg-[#f5f7f5] transition">إلغاء</a>
+                <a href="{{ route('notes.index') }}" class="px-5 py-2.5 rounded-xl bg-transparent border border-[#e6e9e1] text-[#525252] font-bold text-sm hover:bg-[#f5f7f5] transition">{{ __('ui.cancel_btn') }}</a>
                 <div class="flex-1 flex flex-col sm:flex-row gap-2 sm:justify-end">
                     @if(auth()->user()->isReportWriter())
-                        <button type="submit" name="action" value="save" class="px-6 py-2.5 rounded-xl bg-[#0e6a38] hover:bg-[#0a4d28] text-white font-bold text-sm shadow-sm transition">حفظ الملاحظة</button>
+                        <button type="submit" name="action" value="save" class="px-6 py-2.5 rounded-xl bg-[#0e6a38] hover:bg-[#0a4d28] text-white font-bold text-sm shadow-sm transition">{{ __('ui.save_note_btn') }}</button>
                     @else
-                        <button type="submit" name="action" value="save" class="px-5 py-2.5 rounded-xl bg-[#fdfcfa] border border-[#e6e9e1] text-[#1a2e1f] font-bold text-sm hover:bg-[#f5f7f5] transition">حفظ كمسودة</button>
-                        <button type="submit" name="action" value="send" class="px-6 py-2.5 rounded-xl bg-[#0e6a38] hover:bg-[#0a4d28] text-white font-bold text-sm shadow-sm transition">حفظ وإرسال للمراجعة</button>
+                        <button type="submit" name="action" value="save" class="px-5 py-2.5 rounded-xl bg-[#fdfcfa] border border-[#e6e9e1] text-[#1a2e1f] font-bold text-sm hover:bg-[#f5f7f5] transition">{{ __('ui.save_draft_btn') }}</button>
+                        <button type="submit" name="action" value="send" class="px-6 py-2.5 rounded-xl bg-[#0e6a38] hover:bg-[#0a4d28] text-white font-bold text-sm shadow-sm transition">{{ __('ui.save_and_send_btn') }}</button>
                     @endif
                 </div>
             </div>
@@ -265,7 +254,7 @@
             const d=new Date(date+'T'+time);
             if(isNaN(d)) return null;
             const opts={weekday:'long', year:'numeric', month:'long', day:'numeric', hour:'2-digit', minute:'2-digit'};
-            try{ return d.toLocaleDateString('ar-EG',opts);}catch(e){ return date+' '+time; }
+            try{ return d.toLocaleDateString(CRT_T.dateLocale,opts);}catch(e){ return date+' '+time; }
         }
         function sync(){
             const d=dateEl?.value, t=timeEl?.value, et=endTimeEl?.value;
@@ -277,11 +266,11 @@
                 hidden.setCustomValidity('');
             } else {
                 hidden.value='';
-                if(preview){ preview.textContent='— اختر التاريخ والوقت —'; }
+                if(preview){ preview.textContent=CRT_T.chooseTime; }
             }
             if(d && et){
                 let endVal=d+'T'+et;
-                // إذا كان وقت الانتهاء أبكر من وقت البداية، اعتبره اليوم التالي
+
                 try{ if(t && et < t){ const nd=new Date(d+'T'+et); nd.setDate(nd.getDate()+1); const pad=n=>String(n).padStart(2,'0'); endVal=nd.getFullYear()+'-'+pad(nd.getMonth()+1)+'-'+pad(nd.getDate())+'T'+et; } }catch(_){}
                 hiddenEnd.value = endVal;
             }
@@ -303,14 +292,14 @@
         sync();
         document.getElementById('create-form')?.addEventListener('submit',e=>{
             sync();
-            if(!hidden.value){ e.preventDefault(); hidden.setCustomValidity('يرجى اختيار التاريخ والوقت'); hidden.reportValidity(); }
+            if(!hidden.value){ e.preventDefault(); hidden.setCustomValidity(FORM_T.datetime); hidden.reportValidity(); }
         });
     })();
     const desc=document.getElementById('description'),cnt=document.getElementById('desc-count');
     if(desc&&cnt){const u=()=>cnt.textContent=desc.value.length;desc.addEventListener('input',u);u();}
 
-    // ——— Original File Preservation — الملف الأصلي يصل كما هو 100% بدون أي ضغط/إعادة ترميز/تغيير bytes ———
-    async function compressImageClient(file){ return file; } // NO-OP: يحافظ على الملف الأصلي byte-for-byte
+
+    async function compressImageClient(file){ return file; }
     function setUploadProgress(pct, detail){
         const wrap=document.getElementById('upload-progress'), bar=document.getElementById('upload-progress-bar'), txt=document.getElementById('upload-progress-text'), det=document.getElementById('upload-progress-detail');
         if(!wrap) return;
@@ -332,27 +321,26 @@
                 xhr.upload.onprogress=(e)=>{ if(e.lengthComputable){ const pct=Math.round(e.loaded/e.total*100); const loadedMB=(e.loaded/1024/1024).toFixed(1); const totalMB=(e.total/1024/1024).toFixed(1); onProgress(pct, e.loaded, e.total); } };
             }
             xhr.onload=()=>{ let data=null; try{ data=JSON.parse(xhr.responseText);}catch(_){} resolve({status:xhr.status, ok:xhr.status>=200&&xhr.status<300, data, raw:xhr.responseText, headers:xhr.getAllResponseHeaders()}); };
-            xhr.onerror=()=>reject(new Error('فشل الشبكة'));
-            xhr.ontimeout=()=>reject(Object.assign(new Error('انتهت مهلة الإرسال'),{name:'AbortError'}));
+            xhr.onerror=()=>reject(new Error(CRT_T.netErr));
+            xhr.ontimeout=()=>reject(Object.assign(new Error(CRT_T.timeoutErr),{name:'AbortError'}));
             xhr.send(formData);
         });
     }
 
-    // ——— File handling with DataTransfer + Camera Live ———
+
     const input=document.getElementById('files'),zone=document.getElementById('drop-zone'),list=document.getElementById('file-list');
     let fileTransfer = new DataTransfer();
-    // UPLOAD INTENT — عدّاد مستقل عن مخازن النقل (fileTransfer/input.files).
-    // يُرسل كـ client_files_count دائماً، فيكشف الخادم أي فقدان حتى لو فُرّغت مخازن النقل — ROOT CAUSE FIX
+
+
     let intendedFilesCount = 0;
-    // مصدر حقيقة احتياطي بمصفوفة عادية: DataTransfer يُسقط ملفات الفيديو الكبيرة
-    // بصمت في بعض متصفحات الجوال (fileTransfer فارغ رغم الاختيار) — pendingFiles لا يُفقد أبداً
+
+
     let pendingFiles = [];
-    // حد الملفات من السيرفر (max_file_uploads) — تجاوزه يجعل PHP يسقط الملفات الزائدة بصمت
+
     const MAX_FILES = {{ max(1, (int) ini_get('max_file_uploads') ?: 20) }};
 
-    // fileTransfer هو مصدر الحقيقة للإرسال؛ فشل تعيين input.files (بعض متصفحات الجوال)
-    // يجب ألا يقتل المعاينة ولا الإرسال — ROOT CAUSE FIX
-    function syncInput(){ try{ input.files = fileTransfer.files; }catch(e){ /* fileTransfer remains source of truth */ } }
+
+function syncInput(){ try{ input.files = fileTransfer.files; }catch(e){ } }
     function renderFiles(){
         const files=Array.from(fileTransfer.files);
         if(!files.length){ list.classList.add('hidden'); list.innerHTML=''; return; }
@@ -360,30 +348,30 @@
         const counters={img:0,vid:0,aud:0,other:0};
         const escAttr=s=>String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
         const friendlyName=f=>{
-            if(f.type.startsWith('audio/')) return 'مقطع صوتي '+ (++counters.aud);
-            if(f.type.startsWith('video/')) return 'فيديو '+ (++counters.vid);
-            if(f.type.startsWith('image/')) return 'صورة '+ (++counters.img);
+            if(f.type.startsWith('audio/')) return CRT_T.fAudio+' '+ (++counters.aud);
+            if(f.type.startsWith('video/')) return CRT_T.fVideo+' '+ (++counters.vid);
+            if(f.type.startsWith('image/')) return CRT_T.fImage+' '+ (++counters.img);
             const ext=(f.name.split('.').pop()||'').toLowerCase();
-            return 'مرفق '+ (++counters.other) + (ext && ext.length<=5 ? ' (.'+ext+')' : '');
+            return CRT_T.fOther+' '+ (++counters.other) + (ext && ext.length<=5 ? ' (.'+ext+')' : '');
         };
         list.innerHTML=files.map((f,i)=>{
             const isV=f.type.startsWith('video/');
             const isA=f.type.startsWith('audio/');
             const sz=(f.size/1024/1024).toFixed(2)+' MB';
-            const camBadge = f.name.startsWith('camera-') ? '<span class="text-[10px] bg-[#eef4f0] text-[#0e6a38] px-1.5 py-0.5 rounded-full font-bold">كاميرا</span>' : '';
-            const recBadge = f.name.startsWith('recording-') ? '<span class="text-[10px] bg-red-50 text-red-600 px-1.5 py-0.5 rounded-full font-bold">تسجيل</span>' : '';
+            const camBadge = f.name.startsWith('camera-') ? '<span class="text-[10px] bg-[#eef4f0] text-[#0e6a38] px-1.5 py-0.5 rounded-full font-bold">'+escAttr(CRT_T.camBadge)+'</span>' : '';
+            const recBadge = f.name.startsWith('recording-') ? '<span class="text-[10px] bg-red-50 text-red-600 px-1.5 py-0.5 rounded-full font-bold">'+escAttr(CRT_T.recBadge)+'</span>' : '';
             return `<div class="flex items-center gap-2.5 p-2.5 bg-white border border-[#e6e9e1] rounded-lg text-sm group">
                 <span class="text-sm">${isA?'🎤':isV?'🎬':'🖼️'}</span>
                 <div class="flex-1 min-w-0 text-right">
                     <div class="font-bold text-ink-700 truncate flex items-center gap-1.5" title="${escAttr(f.name)}">${friendlyName(f)} ${camBadge} ${recBadge}</div>
                     <div class="text-xs text-ink-400">${sz} • ${f.type||'—'}</div>
                 </div>
-                <button type="button" data-remove="${i}" class="shrink-0 w-7 h-7 rounded-lg hover:bg-red-50 text-ink-300 hover:text-red-500 flex items-center justify-center transition" title="حذف">
+                <button type="button" data-remove="${i}" class="shrink-0 w-7 h-7 rounded-lg hover:bg-red-50 text-ink-300 hover:text-red-500 flex items-center justify-center transition" title="${escAttr(CRT_T.delTitle)}">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
                 </button>
             </div>`;
-        }).join('') + (files.length>MAX_FILES?'<p class="text-xs font-bold text-red-500">الحد الأقصى '+MAX_FILES+' ملف — احذف بعضها</p>':'');
-        // bind remove
+        }).join('') + (files.length>MAX_FILES?'<p class="text-xs font-bold text-red-500">'+escAttr(crtFill(CRT_T.limitMax,{':max':MAX_FILES}))+'</p>':'');
+
         list.querySelectorAll('[data-remove]').forEach(btn=>{
             btn.addEventListener('click', ()=>{
                 const idx=parseInt(btn.dataset.remove);
@@ -391,7 +379,7 @@
                 const dt=new DataTransfer();
                 Array.from(fileTransfer.files).forEach((file,j)=>{ if(j!==idx) dt.items.add(file); });
                 fileTransfer=dt; intendedFilesCount=Math.max(0, intendedFilesCount-1);
-                // حذف بالهوية (لا بالفهرس) — الفهارس قد تنحرف لو أسقط DataTransfer ملفاً
+
                 if(removedFile) pendingFiles=pendingFiles.filter(f=>f!==removedFile);
                 else pendingFiles.splice(idx,1);
                 syncInput(); renderFiles();
@@ -400,18 +388,18 @@
     }
     async function addFiles(newFiles){
         for(let orig of newFiles){
-            if(fileTransfer.files.length>=MAX_FILES){ alert('الحد الأقصى '+MAX_FILES+' ملف (حد السيرفر)'); break; }
-            // ضغط الصور تلقائياً قبل الإضافة — يوفر الوقت والحجم
-            let file=orig; // preserved 100% original - no client compression
+            if(fileTransfer.files.length>=MAX_FILES){ window.toast(crtFill(CRT_T.limitToast,{':max':MAX_FILES})); break; }
+
+            let file=orig;
             const ext=file.name.split('.').pop().toLowerCase();
             const audioExts=['mp3','wav','ogg','oga','m4a','aac','wma','flac','opus','aiff','aif','amr','3ga','awb','mid','midi','au','weba'];
             const isAudio=audioExts.includes(ext)||file.type.startsWith('audio/');
             if(!['jpg','jpeg','png','webp','mp4','webm','mov','avi','3gp','mkv','m4v','mpg','3gpp'].includes(ext) && !file.type.startsWith('image/') && !file.type.startsWith('video/') && !isAudio){
-                alert('نوع غير مدعوم: '+file.name); continue;
+                window.toast(CRT_T.unsupported); continue;
             }
-            if(file.type.startsWith('image/') && file.size>20*1024*1024){ alert('حجم الصورة كبير (الحد 20MB): '+file.name); continue; }
-            if(file.type.startsWith('video/') && file.size>100*1024*1024){ alert('حجم الفيديو كبير (الحد 100MB): '+file.name); continue; }
-            if(isAudio && file.size>100*1024*1024){ alert('حجم الصوت كبير (الحد 100MB): '+file.name); continue; }
+            if(file.type.startsWith('image/') && file.size>20*1024*1024){ window.toast(CRT_T.imgBig); continue; }
+            if(file.type.startsWith('video/') && file.size>100*1024*1024){ window.toast(CRT_T.vidBig); continue; }
+            if(isAudio && file.size>100*1024*1024){ window.toast(CRT_T.audBig); continue; }
             fileTransfer.items.add(file);
             intendedFilesCount++;
             pendingFiles.push(file);
@@ -435,7 +423,7 @@
         });
     }
 
-    // ——— Camera Live (photo + video) ———
+
     const openBtn=document.getElementById('open-camera-btn');
     const cameraModal=document.getElementById('camera-modal');
     const cameraVideo=document.getElementById('camera-video');
@@ -466,14 +454,14 @@
         const hostEl = document.getElementById('camera-host');
         if(hostEl) hostEl.textContent = location.host;
         if(!window.isSecureContext){
-            cameraError.textContent='الكاميرا المباشرة تتطلب اتصال آمن (HTTPS) — أنت على http://' + location.host;
+            cameraError.textContent=crtFill(CRT_T.camHttps,{':host':location.host});
             cameraError.classList.remove('hidden');
             if(fallbackEl) fallbackEl.classList.remove('hidden');
             cameraPlaceholder.classList.add('hidden');
             return;
         }
         if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
-            cameraError.textContent='الكاميرا غير مدعومة في هذا المتصفح — استخدم الأزرار أدناه.';
+            cameraError.textContent=CRT_T.camUnsupported;
             cameraError.classList.remove('hidden');
             if(fallbackEl) fallbackEl.classList.remove('hidden');
             return;
@@ -481,7 +469,7 @@
         try{
             if(currentStream) currentStream.getTracks().forEach(t=>t.stop());
             cameraError.classList.add('hidden');
-            cameraPlaceholder.querySelector('p').textContent='جاري تشغيل الكاميرا...';
+            cameraPlaceholder.querySelector('p').textContent=CRT_T.camStarting;
             const stream=await navigator.mediaDevices.getUserMedia({
                 video:{ facingMode: facingMode, width:{ ideal: 1280 }, height:{ ideal: 720 } },
                 audio:true
@@ -491,18 +479,18 @@
             cameraVideo.classList.remove('hidden');
             cameraPlaceholder.classList.add('hidden');
             await cameraVideo.play();
-            modeLabel.textContent='— جاهزة';
+            modeLabel.textContent=CRT_T.camReady;
         }catch(err){
             console.error(err);
-            cameraError.textContent='تعذر الوصول للكاميرا المباشرة — استخدم البديل أدناه (يعمل على كل الشبكات)';
+            cameraError.textContent=CRT_T.camFallbackErr;
             cameraError.classList.remove('hidden');
-            cameraPlaceholder.querySelector('p').textContent='الكاميرا المباشرة غير متاحة — البديل أدناه يعمل';
+            cameraPlaceholder.querySelector('p').textContent=CRT_T.camUnavailable;
         }
     }
     window.handleFallbackFile = function(input){
         if(input.files && input.files[0]){
             addFiles([input.files[0]]);
-            showStatus('تمت إضافة الملف من الكاميرا ✓', true);
+            showStatus(CRT_T.fileAdded, true);
             setTimeout(()=> closeCamera(), 400);
             input.value='';
         }
@@ -514,7 +502,7 @@
         cameraVideo.srcObject=null;
         cameraVideo.classList.add('hidden');
         cameraPlaceholder.classList.remove('hidden');
-        cameraPlaceholder.querySelector('p').textContent='جاري تشغيل الكاميرا...';
+        cameraPlaceholder.querySelector('p').textContent=CRT_T.camStarting;
         cameraError.classList.add('hidden');
         if(isRecording) stopRecording();
     }
@@ -527,12 +515,12 @@
         cameraModal.classList.add('hidden');
         document.body.style.overflow='';
         stopCamera();
-        // reset UI
+
         startBtn.classList.remove('hidden');
         stopBtn.classList.add('hidden');
         cameraTimer.classList.add('hidden');
         if(timerInterval){ clearInterval(timerInterval); timerInterval=null; }
-        modeLabel.textContent='— صورة';
+        modeLabel.textContent=CRT_T.camPhoto;
     }
     function switchCamera(){
         facingMode = facingMode==='environment' ? 'user' : 'environment';
@@ -540,22 +528,22 @@
     }
     function capturePhoto(){
         if(!currentStream || !cameraVideo.videoWidth){
-            showStatus('الكاميرا غير جاهزة', false); return;
+            showStatus(CRT_T.camNotReady, false); return;
         }
         const canvas=cameraCanvas;
         canvas.width=cameraVideo.videoWidth;
         canvas.height=cameraVideo.videoHeight;
         const ctx=canvas.getContext('2d');
-        // mirror if front camera
+
         if(facingMode==='user'){ ctx.scale(-1,1); ctx.drawImage(cameraVideo, -canvas.width, 0, canvas.width, canvas.height); }
         else ctx.drawImage(cameraVideo, 0, 0);
         canvas.toBlob(blob=>{
-            if(!blob){ showStatus('فشل الالتقاط', false); return; }
+            if(!blob){ showStatus(CRT_T.captureFail, false); return; }
             const file=new File([blob], `camera-${Date.now()}.jpg`, { type:'image/jpeg' });
-            if(fileTransfer.files.length>=MAX_FILES){ showStatus('الحد '+MAX_FILES+' ملف', false); return; }
+            if(fileTransfer.files.length>=MAX_FILES){ showStatus(crtFill(CRT_T.limitToast,{':max':MAX_FILES}), false); return; }
             addFiles([file]);
-            showStatus('تم التقاط الصورة وإضافتها ✓', true);
-            // shutter flash effect
+            showStatus(CRT_T.photoDone, true);
+
             cameraVideo.style.opacity='0.3';
             setTimeout(()=>cameraVideo.style.opacity='1', 150);
         }, 'image/jpeg', 1.0);
@@ -567,23 +555,23 @@
         cameraTimerText.textContent=`${m}:${s}`;
     }
     function startRecording(){
-        if(!currentStream){ showStatus('الكاميرا غير جاهزة', false); return; }
-        if(!window.MediaRecorder){ showStatus('التسجيل غير مدعوم — استخدم التقاط صور', false); return; }
+        if(!currentStream){ showStatus(CRT_T.camNotReady, false); return; }
+        if(!window.MediaRecorder){ showStatus(CRT_T.recUnsupported, false); return; }
         recordedChunks=[];
         let options={ mimeType:'video/webm;codecs=vp9' };
         if(!MediaRecorder.isTypeSupported(options.mimeType)) options={ mimeType:'video/webm' };
         if(!MediaRecorder.isTypeSupported(options.mimeType)) options={};
         try{
             mediaRecorder=new MediaRecorder(currentStream, options);
-        }catch(e){ showStatus('فشل بدء التسجيل: '+e.message, false); return; }
+        }catch(e){ showStatus(crtFill(CRT_T.recStartFail,{':message':e.message}), false); return; }
         mediaRecorder.ondataavailable=e=>{ if(e.data.size>0) recordedChunks.push(e.data); };
         mediaRecorder.onstop=()=>{
             const blob=new Blob(recordedChunks, { type: mediaRecorder.mimeType || 'video/webm' });
             const ext = blob.type.includes('mp4') ? 'mp4' : 'webm';
             const file=new File([blob], `camera-video-${Date.now()}.${ext}`, { type: blob.type });
-            if(file.size>500*1024*1024){ showStatus('حجم الفيديو كبير جداً', false); return; }
+            if(file.size>500*1024*1024){ showStatus(CRT_T.vidBig, false); return; }
             addFiles([file]);
-            showStatus(`تم تسجيل الفيديو (${(file.size/1024/1024).toFixed(1)} MB) ✓`, true);
+            showStatus(crtFill(CRT_T.vidRecorded,{':size':(file.size/1024/1024).toFixed(1)}), true);
         };
         mediaRecorder.start(100);
         isRecording=true;
@@ -594,8 +582,8 @@
         startBtn.classList.add('hidden');
         stopBtn.classList.remove('hidden');
         captureBtn.disabled=true; captureBtn.classList.add('opacity-50');
-        modeLabel.textContent='— تسجيل...';
-        showStatus('بدأ التسجيل — اضغط إيقاف عند الانتهاء', true);
+        modeLabel.textContent=CRT_T.camRec;
+        showStatus(CRT_T.recStarted, true);
     }
     function stopRecording(){
         if(mediaRecorder && isRecording){
@@ -606,7 +594,7 @@
             startBtn.classList.remove('hidden');
             stopBtn.classList.add('hidden');
             captureBtn.disabled=false; captureBtn.classList.remove('opacity-50');
-            modeLabel.textContent='— صورة';
+            modeLabel.textContent=CRT_T.camPhoto;
         }
     }
 
@@ -620,7 +608,7 @@
     document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !cameraModal.classList.contains('hidden')) closeCamera(); });
     document.addEventListener('visibilitychange', ()=>{ if(document.hidden && !cameraModal.classList.contains('hidden')) stopCamera(); });
 
-    // ——— Preserve files on validation error (AJAX) ———
+
     const formEl = document.getElementById('create-form');
     const formErrorsEl = document.getElementById('form-errors');
     let submitActionVal = 'save';
@@ -628,23 +616,89 @@
         btn.addEventListener('click', ()=>{ submitActionVal = btn.value; });
     });
     formEl?.addEventListener('submit', async (e)=>{
-        // مزامنة وقت الملاحظة قبل أي تحقق — يمنع hidden قديم من إظهار خطأ كاذب
+
         try{ if(typeof sync==='function') sync(); }catch(_){}
         const floorEl=document.getElementById('floor_number');
         const camEl=document.getElementById('camera_number');
         const descEl=document.getElementById('description');
         const hiddenEl=document.getElementById('observed_at');
         let clientErrors=[];
-        if(!floorEl.value) clientErrors.push('رقم الطابق مطلوب');
-        if(!camEl.value) clientErrors.push('رقم الكاميرا مطلوب');
-        if(!hiddenEl.value) clientErrors.push('تاريخ ووقت الملاحظة مطلوب — اختر التاريخ ووقت البداية');
-        if(!descEl.value.trim()) clientErrors.push('الوصف مطلوب');
-        // تحقق إضافي: إذا كان وقت الانتهاء موجوداً ويسبق وقت البداية، اعتبره اليوم التالي (شائع عند المراقبة الليلية)
+        const FORM_T = {
+            floor: @json(__('ui.floor_required')),
+            camera: @json(__('ui.camera_required')),
+            datetime: @json(__('ui.datetime_required')),
+            description: @json(__('ui.description_required')),
+            fixFields: @json(__('ui.fix_fields'))
+        };
+        // Shared create-page UI dictionary (server-rendered per locale — no Gemini).
+        const CRT_T = {
+            chooseTime: @json(__('ui.choose_time')),
+            dateLocale: @json(app()->getLocale() === 'en' ? 'en-US' : 'ar-EG'),
+            netErr: @json(__('ui.network_error')),
+            timeoutErr: @json(__('ui.timeout_error')),
+            fAudio: @json(__('ui.file_audio')),
+            fVideo: @json(__('ui.file_video')),
+            fImage: @json(__('ui.file_image')),
+            fOther: @json(__('ui.file_other')),
+            camBadge: @json(__('ui.file_camera_badge')),
+            recBadge: @json(__('ui.file_rec')),
+            delTitle: @json(__('ui.file_remove')),
+            limitMax: @json(__('ui.max_files_exceeded')),
+            limitToast: @json(__('ui.upload_limit_files')),
+            unsupported: @json(__('ui.unsupported_file_type')),
+            imgBig: @json(__('ui.image_too_large')),
+            vidBig: @json(__('ui.video_too_large')),
+            audBig: @json(__('ui.audio_too_large')),
+            camHttps: @json(__('ui.camera_not_available_https')),
+            camUnsupported: @json(__('ui.camera_not_supported')),
+            camStarting: @json(__('ui.camera_starting')),
+            camReady: @json(__('ui.camera_ready')),
+            camPhoto: @json(__('ui.camera_photo_mode')),
+            camRec: @json(__('ui.camera_recording_mode')),
+            camFallbackErr: @json(__('ui.camera_error_fallback')),
+            camUnavailable: @json(__('ui.camera_unavailable')),
+            fileAdded: @json(__('ui.file_added_from_camera')),
+            camNotReady: @json(__('ui.camera_not_ready')),
+            captureFail: @json(__('ui.capture_failed')),
+            photoDone: @json(__('ui.photo_captured')),
+            recUnsupported: @json(__('ui.recording_not_supported')),
+            recStartFail: @json(__('ui.recording_start_failed')),
+            recStarted: @json(__('ui.recording_started')),
+            vidRecorded: @json(__('ui.video_recorded')),
+            browserFail: @json(__('ui.browser_files_failed')),
+            browserDetail: @json(__('ui.browser_files_detail')),
+            totalBig: @json(__('ui.total_attachments_too_large')),
+            serverLimit: @json(__('ui.server_limit_exceeded')),
+            uploadingN: @json(__('ui.uploading_files_count')),
+            dontClose: @json(__('ui.upload_pct_dont_close')),
+            verify: @json(__('ui.upload_verify')),
+            attachFail: @json(__('ui.attach_fail')),
+            filesKept: @json(__('ui.files_kept')),
+            mediaKept: @json(__('ui.media_kept')),
+            mismatchShort: @json(__('ui.files_mismatch_short')),
+            partial: @json(__('ui.server_received_partial')),
+            sendFail: @json(__('ui.send_failed_code')),
+            notSaved: @json(__('ui.not_saved_retry')),
+            timeoutTitle: @json(__('ui.timeout_title')),
+            timeoutHint: @json(__('ui.upload_timeout_hint')),
+            audioDone: @json(__('ui.audio_recorded')),
+            audioBtn: @json(__('ui.audio_recording')),
+            micReq: @json(__('ui.requesting_mic')),
+            delRec: @json(__('ui.delete_recording')),
+            stopLbl: @json(__('ui.audio_stop')),
+            recNow: @json(__('ui.audio_recording_now'))
+        };
+        function crtFill(tpl, map){ var s = String(tpl == null ? '' : tpl); Object.keys(map || {}).forEach(function(k){ s = s.split(k).join(map[k]); }); return s; }
+        if(!floorEl.value) clientErrors.push(FORM_T.floor);
+        if(!camEl.value) clientErrors.push(FORM_T.camera);
+        if(!hiddenEl.value) clientErrors.push(FORM_T.datetime);
+        if(!descEl.value.trim()) clientErrors.push(FORM_T.description);
+
         try{
             const obs=document.getElementById('observed_at')?.value;
             const obsEnd=document.getElementById('observed_end_at')?.value;
             if(obs && obsEnd && new Date(obsEnd) < new Date(obs)){
-                // تلقائياً اعتبر الانتهاء في اليوم التالي — بدل رفض الفالديشن
+
                 const d=new Date(obsEnd); d.setDate(d.getDate()+1);
                 const pad=n=>String(n).padStart(2,'0');
                 document.getElementById('observed_end_at').value=d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'T'+pad(d.getHours())+':'+pad(d.getMinutes());
@@ -652,7 +706,7 @@
         }catch(_){}
         if(clientErrors.length){
             e.preventDefault();
-            formErrorsEl.innerHTML='<div class="font-bold mb-1">يرجى تصحيح الحقول:</div><ul class="list-disc list-inside space-y-1">'+clientErrors.map(m=>`<li>${m}</li>`).join('')+'</ul><p class="mt-2 text-xs">الملفات محفوظة ولن تضيع</p>';
+            formErrorsEl.innerHTML='<div class="font-bold mb-1">'+FORM_T.fixFields+'</div><ul class="list-disc list-inside space-y-1">'+clientErrors.map(m=>`<li>${m}</li>`).join('')+'</ul>';
             formErrorsEl.classList.remove('hidden');
             formErrorsEl.scrollIntoView({behavior:'smooth', block:'center'});
             return;
@@ -664,12 +718,12 @@
             if(submitBtn) submitBtn.disabled=true;
             const fd=new FormData(formEl);
             fd.delete('files[]');
-            // مصدر الحقيقة: pendingFiles (مصفوفة عادية لا تُسقط الفيديو) ثم fileTransfer ثم input
+
             const filesToSend = pendingFiles.length > 0 ? pendingFiles.slice()
                 : (fileTransfer.files.length > 0 ? Array.from(fileTransfer.files) : Array.from(input.files));
-            // فحص ما قبل الإرسال: لا ترسل طلباً محكوماً بالفشل — أوقف مبكراً برسالة واضحة
+
             if(filesToSend.length < intendedFilesCount){
-                formErrorsEl.innerHTML='<div class="font-bold mb-1 text-red-600">تعذّر تجهيز الملفات في المتصفح</div><p class="text-xs">اخترت '+intendedFilesCount+' ملف لكن المتصفح جهّز '+filesToSend.length+' فقط (يحدث مع الفيديو الكبير في بعض متصفحات الجوال). أعد اختيار الملفات ثم أعد المحاولة — لم يُرسل شيء.</p>';
+                formErrorsEl.innerHTML='<div class="font-bold mb-1 text-red-600">'+CRT_T.browserFail+'</div><p class="text-xs">'+crtFill(CRT_T.browserDetail,{':intended':intendedFilesCount,':prepared':filesToSend.length})+'</p>';
                 formErrorsEl.classList.remove('hidden');
                 formErrorsEl.scrollIntoView({behavior:'smooth', block:'center'});
                 if(submitBtn) submitBtn.disabled=false;
@@ -680,11 +734,11 @@
                 const ext=audioMimeToExt(recordedAudioBlob.type||'audio/webm');
                 fd.append('files[]', recordedAudioBlob, 'recording-'+Date.now()+'.'+ext);
             }
-            // UPLOAD INTEGRITY: إعلان النية من عدّاد مستقل (intendedFilesCount) لا من مخزن النقل،
-            // حتى لو فُرّغ fileTransfer/input.files يكشف الخادم الفقدان بدل النجاح الكاذب — ROOT CAUSE FIX
+
+
             const clientFilesCount = intendedFilesCount + (recordedAudioBlob ? 1 : 0);
             fd.append('client_files_count', String(clientFilesCount));
-            // UPLOAD FORENSIC (تشخيص فقط — لا يغيّر السلوك)
+
             try{
                 console.debug('[UPLOAD FORENSIC] intent vs transport', {
                     intended: intendedFilesCount,
@@ -698,10 +752,10 @@
                 });
             }catch(_){}
             fd.set('action', submitActionVal);
-            // Total size early check vs post_max_size (120M safety margin, server is 128M) - prevent silent empty POST
+
             const totalBytesCreate = filesToSend.reduce((s,f)=>s+f.size,0) + (recordedAudioBlob?recordedAudioBlob.size:0);
             if(totalBytesCreate > 120*1024*1024){
-                formErrorsEl.innerHTML='<div class="font-bold mb-1 text-red-600">إجمالي المرفقات كبير جداً</div><p class="text-xs">الحجم الإجمالي '+(totalBytesCreate/1024/1024).toFixed(1)+' MB يتجاوز الحد الآمن 120M (حد الخادم 128M). قلل العدد أو حجم الملفات ثم أعد المحاولة — لم يُرسل شيء.</p>';
+                formErrorsEl.innerHTML='<div class="font-bold mb-1 text-red-600">'+CRT_T.totalBig+'</div><p class="text-xs">'+crtFill(CRT_T.serverLimit,{':size':(totalBytesCreate/1024/1024).toFixed(1)})+'</p>';
                 formErrorsEl.classList.remove('hidden');
                 formErrorsEl.scrollIntoView({behavior:'smooth',block:'center'});
                 if(submitBtn) submitBtn.disabled=false;
@@ -712,34 +766,34 @@
                 const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
                 const formActionUrl = formEl.getAttribute('action');
                 console.debug('[CREATE SUBMIT] action='+formActionUrl+' method=POST filesToSend='+filesToSend.length+' clientCount='+clientFilesCount);
-                setUploadProgress(5, 'جاري رفع '+filesToSend.length+' ملف...');
+                setUploadProgress(5, crtFill(CRT_T.uploadingN,{':count':filesToSend.length}));
                 document.getElementById('upload-progress')?.scrollIntoView({behavior:'smooth',block:'center'});
-                const res = await xhrUpload(formActionUrl, fd, csrfToken, (pct, loaded, total)=> setUploadProgress(Math.max(5, Math.min(95, pct)), 'جاري الرفع '+pct+'%'+ (loaded ? ' ('+(loaded/1024/1024).toFixed(1)+' / '+(total/1024/1024).toFixed(1)+' MB)' : '') +' — لا تغلق الصفحة'));
-                setUploadProgress(98, 'تم الرفع 100%، جاري التحقق من الحفظ والتحقق من سلامة الملفات...');
+                const res = await xhrUpload(formActionUrl, fd, csrfToken, (pct, loaded, total)=> setUploadProgress(Math.max(5, Math.min(95, pct)), pct+'%'+ (loaded ? ' ('+(loaded/1024/1024).toFixed(1)+' / '+(total/1024/1024).toFixed(1)+' MB)' : '') +' '+CRT_T.dontClose));
+                setUploadProgress(98, CRT_T.verify);
                 let data=res.data, rawText=res.raw;
                 const failLoud = (title, errs) => {
-                    const list=(errs&&errs.length?errs:['فشل رفع المرفقات. لم يتم حفظ الملاحظة.']).map(e=> typeof e==='string'?e:((e.file?e.file+': ':'')+(e.message||JSON.stringify(e)))).join('<br>');
-                    // STRICT: attachment failure MUST NEVER become note success — keep files, allow retry.
-                    formErrorsEl.innerHTML='<div class="font-bold mb-1 text-red-600">'+title+'</div><p class="text-xs">'+list+'</p><p class="mt-2 text-xs font-bold">الملفات المختارة محفوظة — صحح الخطأ ثم أعد المحاولة (لا تغلق الصفحة).</p>';
+                    const list=(errs&&errs.length?errs:[CRT_T.attachFail]).map(e=> typeof e==='string'?e:((e.file?e.file+': ':'')+(e.message||JSON.stringify(e)))).join('<br>');
+
+                    formErrorsEl.innerHTML='<div class="font-bold mb-1 text-red-600">'+title+'</div><p class="text-xs">'+list+'</p><p class="mt-2 text-xs font-bold">'+CRT_T.filesKept+'</p>';
                     formErrorsEl.classList.remove('hidden');
                     formErrorsEl.scrollIntoView({behavior:'smooth', block:'center'});
                     if(submitBtn) submitBtn.disabled=false;
                 };
                 if(data && data.success === false){
-                    failLoud('فشل رفع المرفقات. لم يتم حفظ الملاحظة.', data.attachment_errors);
+                    failLoud(CRT_T.attachFail, data.attachment_errors);
                     return;
                 }
                 if(data && typeof data.files_received==='number' && typeof data.attachments_saved==='number'){
                     if(data.files_received !== data.attachments_saved){
-                        failLoud('فشل رفع المرفقات. لم يتم حفظ الملاحظة.', data.attachment_errors || ['عدد الملفات المحفوظة لا يطابق المرسلة.']);
+                        failLoud(CRT_T.attachFail, data.attachment_errors || [CRT_T.mismatchShort]);
                         return;
                     }
                     if((data.attachment_errors||[]).length>0){
-                        failLoud('فشل رفع المرفقات. لم يتم حفظ الملاحظة.', data.attachment_errors);
+                        failLoud(CRT_T.attachFail, data.attachment_errors);
                         return;
                     }
                     if(data.files_received < clientFilesCount){
-                        failLoud('فشل رفع المرفقات. لم يتم حفظ الملاحظة.', ['أرسلت '+clientFilesCount+' ملف لكن استلم الخادم '+data.files_received+' فقط.']);
+                        failLoud(CRT_T.attachFail, [crtFill(CRT_T.partial,{':sent':clientFilesCount,':received':data.files_received})]);
                         return;
                     }
                 }
@@ -751,17 +805,17 @@
                     return;
                 }
                 if(res.status===422){
-                    // Attachment contract (success=false) already handled above; here = Laravel validation errors.
+
                     if(data && (data.attachment_errors || data.success === false)){
-                        failLoud('فشل رفع المرفقات. لم يتم حفظ الملاحظة.', data.attachment_errors);
+                        failLoud(CRT_T.attachFail, data.attachment_errors);
                         return;
                     }
                     const errors=(data&&data.errors)||{};
-                    let html='<div class="font-bold mb-1">يرجى تصحيح الحقول:</div><ul class="list-disc list-inside space-y-1">';
+                    let html='<div class="font-bold mb-1">'+FORM_T.fixFields+'</div><ul class="list-disc list-inside space-y-1">';
                     for(const [field,msgs] of Object.entries(errors)){
                         for(const msg of msgs) html+=`<li>${msg}</li>`;
                     }
-                    html+='</ul><p class="mt-2 text-xs font-bold text-[#0e6a38]">الصور والفيديوهات محفوظة — لا تحتاج لإعادة اختيارها ✓</p>';
+                    html+='</ul><p class="mt-2 text-xs font-bold text-[#0e6a38]">'+CRT_T.mediaKept+'</p>';
                     formErrorsEl.innerHTML=html;
                     formErrorsEl.classList.remove('hidden');
                     formErrorsEl.scrollIntoView({behavior:'smooth', block:'center'});
@@ -776,16 +830,16 @@
                             +(bodySnippet?'<div class="mt-1">Body: '+bodySnippet+'</div>':'')
                             +'</div>';
                     }catch(_){}
-                    formErrorsEl.innerHTML='<div class="font-bold mb-1 text-red-600">فشل الإرسال (كود: '+res.status+')</div><p class="text-xs">لم يتم حفظ الملاحظة. الملفات محفوظة — أعد المحاولة.</p>'+diag;
+                    formErrorsEl.innerHTML='<div class="font-bold mb-1 text-red-600">'+crtFill(CRT_T.sendFail,{':code':res.status})+'</div><p class="text-xs">'+CRT_T.notSaved+'</p>'+diag;
                     formErrorsEl.classList.remove('hidden');
                     formErrorsEl.scrollIntoView({behavior:'smooth', block:'center'});
                 }
             }catch(err){
                 hideUploadProgress();
                 if(err.name === 'AbortError'){
-                    formErrorsEl.innerHTML='<div class="font-bold mb-1 text-red-600">انتهت مهلة الإرسال (10 دقائق)</div><p class="text-xs">تحقق من اتصالك أو قلل حجم المرفقات.</p>';
+                    formErrorsEl.innerHTML='<div class="font-bold mb-1 text-red-600">'+CRT_T.timeoutTitle+'</div><p class="text-xs">'+CRT_T.timeoutHint+'</p>';
                 } else {
-                    formErrorsEl.innerHTML='<div class="font-bold mb-1 text-red-600">خطأ في الشبكة</div><p class="text-xs">'+err.message+'</p>';
+                    formErrorsEl.innerHTML='<div class="font-bold mb-1 text-red-600">'+CRT_T.netErr+'</div><p class="text-xs">'+err.message+'</p>';
                 }
                 formErrorsEl.classList.remove('hidden');
                 formErrorsEl.scrollIntoView({behavior:'smooth', block:'center'});
@@ -796,7 +850,7 @@
         }
     });
 
-    // ——— Audio Recorder ———
+
     const audioRecordBtn=document.getElementById('audio-record-btn');
     const audioPreview=document.getElementById('audio-preview');
     const audioPreviewIcon=document.getElementById('audio-preview-icon');
@@ -826,7 +880,7 @@
     }
     function showAudioRecorded(){
         if(audioPreviewIcon) audioPreviewIcon.innerHTML='<svg class="w-5 h-5 text-[#0e6a38]" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/></svg>';
-        if(audioPreviewStatus) audioPreviewStatus.textContent='تم التسجيل';
+        if(audioPreviewStatus) audioPreviewStatus.textContent=CRT_T.audioDone;
         if(audioPreviewTimer) audioPreviewTimer.classList.remove('hidden');
         if(audioPreviewPlayer){ audioPreviewPlayer.classList.remove('hidden'); audioPreviewPlayer.src=recordedAudioUrl; }
         if(audioPreviewDelete) audioPreviewDelete.classList.remove('hidden');
@@ -844,7 +898,7 @@
         recordedAudioBlob=null;
         audioRecordBtn.classList.remove('bg-red-50','border-red-300','text-red-600');
         audioRecordBtn.classList.add('bg-[#fdfcfa]','border-[#e6e9e1]','text-[#1a2e1f]');
-        audioRecordBtn.innerHTML='<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/></svg>تسجيل صوتي';
+        audioRecordBtn.innerHTML='<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/></svg>'+CRT_T.audioBtn;
         hideAudioPreview();
     }
     function getSupportedAudioMime(){
@@ -882,7 +936,7 @@
                     return;
                 }
                 try{
-                    showAudioPreview('جاري طلب الميكروفون...', false);
+                    showAudioPreview(CRT_T.micReq, false);
                     audioStream=await navigator.mediaDevices.getUserMedia({audio:true});
                     audioChunks=[];
                     const mime=getSupportedAudioMime();
@@ -898,14 +952,14 @@
                         showAudioRecorded();
                         audioRecordBtn.classList.remove('bg-[#fdfcfa]','border-[#e6e9e1]','text-[#1a2e1f]');
                         audioRecordBtn.classList.add('bg-red-50','border-red-300','text-red-600');
-                        audioRecordBtn.innerHTML='<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>حذف التسجيل';
+                        audioRecordBtn.innerHTML='<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>'+CRT_T.delRec;
                     };
                     audioRecorder.start();
                     audioStartTime=Date.now();
                     audioRecordBtn.classList.remove('bg-[#fdfcfa]','border-[#e6e9e1]','text-[#1a2e1f]');
                     audioRecordBtn.classList.add('bg-red-50','border-red-300','text-red-600');
-                    audioRecordBtn.innerHTML='<span class="w-3 h-3 rounded-full bg-red-500 animate-pulse"></span><span id="audio-timer">00:00</span> — إيقاف';
-                    if(audioPreviewStatus) audioPreviewStatus.textContent='جاري التسجيل...';
+                    audioRecordBtn.innerHTML='<span class="w-3 h-3 rounded-full bg-red-500 animate-pulse"></span><span id="audio-timer">00:00</span> '+CRT_T.stopLbl;
+                    if(audioPreviewStatus) audioPreviewStatus.textContent=CRT_T.recNow;
                     if(audioPreviewTimer) audioPreviewTimer.classList.remove('hidden');
                     audioTimer=setInterval(()=>{
                         const el=document.getElementById('audio-timer');

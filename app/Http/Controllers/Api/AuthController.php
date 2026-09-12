@@ -27,7 +27,7 @@ class AuthController extends Controller
 
         if (!$user || !Hash::check($request->password, $user->password)) {
             throw ValidationException::withMessages([
-                'username' => ['بيانات تسجيل الدخول غير صحيحة'],
+                'username' => [__('api.invalid_credentials')],
             ]);
         }
 
@@ -35,7 +35,7 @@ class AuthController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'تم تسجيل الدخول بنجاح',
+            'message' => __('api.logged_in'),
             'data' => [
                 'token' => $token,
                 'user' => [
@@ -57,7 +57,7 @@ class AuthController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'تم تسجيل الخروج بنجاح',
+            'message' => __('api.logged_out'),
         ]);
     }
 

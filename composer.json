@@ -6,7 +6,7 @@
     "keywords": ["laravel", "framework"],
     "license": "MIT",
     "require": {
-        "php": "^8.3",
+        "php": "^8.4",
         "ext-bcmath": "*",
         "ext-ctype": "*",
         "ext-curl": "*",
@@ -28,8 +28,8 @@
         "ext-zip": "*",
         "laravel/framework": "^13.17",
         "laravel/tinker": "^3.0",
-        "livewire/livewire": "*",
-        "minishlink/web-push": "*",
+        "livewire/livewire": "^4.0",
+        "minishlink/web-push": "^11.0",
         "symfony/clock": "^7.4",
         "symfony/console": "^7.4",
         "symfony/css-selector": "^7.4",
@@ -61,7 +61,10 @@
             "App\\": "app/",
             "Database\\Factories\\": "database/factories/",
             "Database\\Seeders\\": "database/seeders/"
-        }
+        },
+        "files": [
+            "app/Support/localization.php"
+        ]
     },
     "autoload-dev": {
         "psr-4": {

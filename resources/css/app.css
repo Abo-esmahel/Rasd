@@ -1,33 +1,36 @@
 @import 'tailwindcss';
 
+/* دارك مود بالكلاس .dark (زر الثيم) وليس بتفضيل النظام.
+   بدون هذا السطر Tailwind v4 يغلف كل dark: بـ @media (prefers-color-scheme:dark)
+   فيبقى الكارت غامقًا والصفحة فاتحة عند التبديل لليت — وهو خلل المعرض المبلغ عنه. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
 @source '../views/**/*.blade.php';
 @source '../js/**/*.js';
 
 @theme {
-    --font-sans: 'Cairo', ui-sans-serif, system-ui, -apple-system, sans-serif;
-    --font-cairo: 'Cairo', 'Segoe UI', Tahoma, sans-serif;
+    --font-sans: 'Almarai', ui-sans-serif, system-ui, -apple-system, sans-serif;
+    --font-cairo: 'Almarai', 'Segoe UI', Tahoma, sans-serif;
 
-    /* Syrian Government Identity — Professional Light System */
+
     --color-sy-green: #0e6a38;
     --color-sy-green-dark: #0a4d28;
     --color-sy-green-soft: #eef4f0;
     --color-sy-red: #c41e1e;
     --color-sy-black: #0f1a13;
 
-    /* White — softened to warm paper so cards/panels never glare pure-white */
-    --color-white: #fafbf8;
 
-    /* Surface scale — warm neutral steps for hover / subtle panels / borders.
-       Cards sit on --color-background (#eceee9); borders stay soft, never stark. */
+    --color-white: #ffffff;
+
+
     --color-surface-50: #f0f3ec;
     --color-surface-100: #e7ece3;
     --color-surface-200: #d9e0d2;
     --color-surface-300: #d3dac9;
 
-    /* Ink scale — warm gray-green text. 700/800 carry primary content,
-       300/400 are strictly secondary/muted labels. */
+
     --color-ink-100: #e8ece5;
     --color-ink-200: #ccd4c9;
     --color-ink-300: #7f8c81;
@@ -38,8 +41,7 @@
     --color-ink-800: #1d2921;
     --color-ink-900: #121915;
 
-    /* Sage scale — calm identity-green family. 600/700 are the brand greens,
-       used sparingly for accents; 50/100 are quiet tinted backgrounds. */
+
     --color-sage-50: #ecf3ed;
     --color-sage-100: #dbe9dd;
     --color-sage-200: #c0d7c4;
@@ -48,19 +50,19 @@
     --color-sage-600: #0e6a38;
     --color-sage-700: #0a4d28;
 
-    /* Surface Hierarchy — calm, warm, not white-on-white */
-    --color-background: #eceee9;      /* Page — warm stone, 93.5% L */
-    --color-surface: #fdfcfa;         /* Header / Sidebar — warm paper, 99% */
-    --color-surface-elevated: #ffffff;/* Cards / Modals — pure white, elevation */
-    --color-surface-muted: #f5f7f5;   /* Subtle hover / muted bg */
-    --color-surface-input: #ffffff;   /* Inputs — always elevated */
 
-    --color-border: #e6e9e1;          /* Subtle but visible */
+    --color-background: #eceee9;
+    --color-surface: #fdfcfa;
+    --color-surface-elevated: #ffffff;
+    --color-surface-muted: #f5f7f5;
+    --color-surface-input: #ffffff;
+
+    --color-border: #e6e9e1;
     --color-border-strong: #d4ddd3;
 
-    --color-text-primary: #1a1a1a;    /* Ink-800 — strong */
-    --color-text-secondary: #525252;  /* Ink-500 — secondary */
-    --color-text-muted: #737373;      /* Ink-400 — muted only */
+    --color-text-primary: #1a1a1a;
+    --color-text-secondary: #525252;
+    --color-text-muted: #737373;
 
     --color-primary: #0e6a38;
     --color-primary-hover: #0a4d28;
@@ -72,15 +74,65 @@
     --radius-gov-xl: 22px;
 }
 
-/* Base — Light Hierarchy (layered so height/width utilities always win over the img default) */
+
 @layer base {
-* { font-family: 'Cairo','Segoe UI',Tahoma,sans-serif; }
-html { scroll-behavior: smooth; scrollbar-gutter: stable; }
+* { font-family: 'Almarai','Segoe UI',Tahoma,sans-serif; }
+html { scroll-behavior: smooth; scrollbar-gutter: stable; overscroll-behavior-y: auto; touch-action: pan-x pan-y; }
+
+/* RTL/LTR Logical Properties — direction-aware spacing/alignment */
+[dir="rtl"] {
+    --inline-start: right;
+    --inline-end: left;
+}
+[dir="ltr"] {
+    --inline-start: left;
+    --inline-end: right;
+}
+
+/* Logical margin/padding utilities */
+.mt-logical { margin-top: var(--space); }
+.mb-logical { margin-bottom: var(--space); }
+.ms-logical { margin-inline-start: var(--space); }
+.me-logical { margin-inline-end: var(--space); }
+.ps-logical { padding-inline-start: var(--space); }
+.pe-logical { padding-inline-end: var(--space); }
+
+/* Flex/grid direction follows dir */
+.flex-auto-dir { flex-direction: row; }
+[dir="rtl"] .flex-auto-dir { flex-direction: row-reverse; }
+.grid-auto-dir { grid-auto-flow: row; }
+[dir="rtl"] .grid-auto-dir { direction: rtl; }
+
+/* Text alignment follows dir */
+.text-auto { text-align: start; }
+[dir="rtl"] .text-auto { text-align: right; }
+[dir="ltr"] .text-auto { text-align: left; }
+.text-auto-end { text-align: end; }
+[dir="rtl"] .text-auto-end { text-align: left; }
+[dir="ltr"] .text-auto-end { text-align: right; }
+
+/* Float logical */
+.float-auto { float: inline-start; }
+[dir="rtl"] .float-auto { float: right; }
+[dir="ltr"] .float-auto { float: left; }
+.float-auto-end { float: inline-end; }
+[dir="rtl"] .float-auto-end { float: left; }
+[dir="ltr"] .float-auto-end { float: right; }
+
+/* Icon/arrow mirroring for LTR */
+[dir="ltr"] .mirror-rtl { transform: scaleX(-1); }
+
+/* Font switching per locale */
+html[lang="en"] * { font-family: 'Inter','Almarai','Segoe UI',Tahoma,sans-serif; }
+html[lang="en"] body { letter-spacing: 0; }
+html[lang="en"] .font-mono { font-family: ui-monospace,SFMono-Regular,Menlo,monospace; }
 body {
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    overflow-x: hidden;
+    overflow-x: clip;
+    overscroll-behavior-y: auto;
+    touch-action: pan-x pan-y;
     background: var(--color-background);
     color: var(--color-text-primary);
 }
@@ -89,13 +141,13 @@ img, video, iframe { max-width: 100%; height: auto; display: block; }
 :focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
 ::selection { background: var(--color-primary); color: #fff; }
 
-/* Scrollbar — muted warm, visible */
+
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: var(--color-background); }
 ::-webkit-scrollbar-thumb { background: #c2cbc1; border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: #9aa99a; }
 
-/* ——— Surface System ——— */
+
 .surface-page { background: var(--color-background); }
 .surface { background: var(--color-surface); border: 1px solid var(--color-border); }
 .surface-elevated {
@@ -109,7 +161,7 @@ img, video, iframe { max-width: 100%; height: auto; display: block; }
     border: 1px solid var(--color-border);
 }
 
-/* Cards — elevated, not flat white-on-white */
+
 .gov-card {
     background: var(--color-surface-elevated);
     border: 1px solid var(--color-border);
@@ -121,7 +173,7 @@ img, video, iframe { max-width: 100%; height: auto; display: block; }
     box-shadow: 0 4px 12px rgba(26,46,31,0.08);
 }
 
-/* Inputs — distinct from card */
+
 .gov-input {
     background: var(--color-surface-input);
     border: 1px solid var(--color-border);
@@ -138,7 +190,7 @@ img, video, iframe { max-width: 100%; height: auto; display: block; }
 }
 .gov-input:disabled { background: var(--color-surface-muted); color: var(--color-text-muted); }
 
-/* Buttons hierarchy */
+
 .btn-primary {
     background: var(--color-primary);
     color: #fff;
@@ -160,16 +212,16 @@ img, video, iframe { max-width: 100%; height: auto; display: block; }
 }
 .btn-ghost:hover { background: var(--color-surface-muted); color: var(--color-text-primary); }
 
-/* Typography — clear contrast, not all gray */
+
 .text-primary { color: var(--color-text-primary); }
 .text-secondary { color: var(--color-text-secondary); }
 .text-muted { color: var(--color-text-muted); }
 
-/* Borders — subtle but visible */
+
 .border-default { border-color: var(--color-border); }
 .border-strong { border-color: var(--color-border-strong); }
 
-/* Line clamp */
+
 .line-clamp-2 {
     display: -webkit-box;
     -webkit-line-clamp: 2;
@@ -177,16 +229,17 @@ img, video, iframe { max-width: 100%; height: auto; display: block; }
     overflow: hidden;
 }
 
-/* Syrian hairline */
+
 .sy-hairline {
     background: linear-gradient(to left, var(--color-sy-green) 0%, var(--color-sy-green) 33.33%, #ffffff 33.33%, #ffffff 66.66%, var(--color-sy-black) 66.66%, var(--color-sy-black) 100%);
     height: 3px;
 }
 
-/* Pagination */
+
 nav[role="navigation"] { display:flex; justify-content:center; }
 
-/* ——— Harmonious Dark — balanced, not black ——— */
+
+html { color-scheme: light; }
 html.dark { color-scheme: dark; }
 html.dark body { background: #1e2320; color: #e7ece5; }
 html.dark ::-webkit-scrollbar-track { background: #232923; }
@@ -198,7 +251,7 @@ html.dark .bg-\[\#fdfcfa\]\/80{background-color:rgba(37,43,38,0.85) !important}
 html.dark .bg-\[\#f1f3f0\]{background-color:#1e2320 !important}
 html.dark .bg-\[\#f6f7f5\]{background-color:#252b26 !important}
 html.dark .bg-\[\#eceee9\]{background-color:#1e2320 !important}
-html.dark .bg-white{background-color:#2a302b !important}
+html.dark .bg-white{background-color:#252b26 !important}
 html.dark .border-\[\#e6e9e1\]{border-color:#2e352e !important}
 html.dark .border-\[\#eceee9\]{border-color:#2e352e !important}
 html.dark .text-\[\#1a2e1f\]{color:#e7ece5 !important}
@@ -208,7 +261,7 @@ html.dark input,html.dark textarea,html.dark select{background-color:#2a302b !im
 html.dark .hover\:bg-white:hover,html.dark .hover\:bg-\[\#fdfcfa\]:hover{background-color:#2e352e !important}
 html.dark .hover\:bg-\[\#eceee9\]:hover{background-color:#2a302b !important}
 html.dark .hover\:bg-\[\#f6f7f5\]:hover,html.dark .hover\:bg-surface-50:hover{background-color:#2e352e !important}
-/* ——— Notifications Drawer — side panel replacing the old dropdown popup ——— */
+
 .notif-overlay{position:fixed;top:58px;right:0;bottom:0;left:0;z-index:30;background:rgba(15,26,19,.22);opacity:0;transition:opacity .3s ease;}
 .notif-overlay.is-visible{opacity:1;}
 .notif-drawer{position:fixed;top:58px;bottom:0;left:0;z-index:60;width:min(90vw,430px);display:flex;flex-direction:column;background:#fdfcfa;border-left:1px solid #e6e9e1;box-shadow:14px 0 28px -18px rgba(15,26,19,.25);transform:translateX(-106%);visibility:hidden;transition:transform .34s cubic-bezier(.32,.72,0,1),visibility 0s linear .34s;}
@@ -216,6 +269,18 @@ html.dark .hover\:bg-\[\#f6f7f5\]:hover,html.dark .hover\:bg-surface-50:hover{ba
 @media(min-width:768px){.notif-drawer{width:min(36vw,450px);}}
 @media(min-width:1280px){.notif-drawer{width:min(33vw,480px);}}
 @media(prefers-reduced-motion:reduce){.notif-drawer,.notif-overlay{transition:none;}}
+
+/* درج قائمة الموبايل — نفس ميكانيك درج الإشعارات، من جهة البداية (يمين في RTL). */
+.menu-overlay{position:fixed;top:58px;right:0;bottom:0;left:0;z-index:30;background:rgba(15,26,19,.22);opacity:0;transition:opacity .3s ease;}
+.menu-overlay.is-visible{opacity:1;}
+.menu-drawer{position:fixed;top:58px;bottom:0;z-index:60;width:min(84vw,320px);display:flex;flex-direction:column;background:#fdfcfa;border-inline-end:1px solid #e6e9e1;visibility:hidden;transition:transform .34s cubic-bezier(.32,.72,0,1),visibility 0s linear .34s;}
+html[dir="rtl"] .menu-drawer{right:0;box-shadow:-14px 0 28px -18px rgba(15,26,19,.25);transform:translateX(106%);}
+html[dir="ltr"] .menu-drawer{left:0;box-shadow:14px 0 28px -18px rgba(15,26,19,.25);transform:translateX(-106%);}
+.menu-drawer.is-open{transform:none;visibility:visible;transition:transform .34s cubic-bezier(.32,.72,0,1);}
+html[dir="rtl"] .menu-drawer.is-open,html[dir="ltr"] .menu-drawer.is-open{transform:none;visibility:visible;}
+@media(min-width:768px){.menu-drawer,.menu-overlay{display:none !important;}}
+@media(prefers-reduced-motion:reduce){.menu-drawer,.menu-overlay{transition:none;}}
+.menu-body{flex:1;min-height:0;overflow-y:auto;scrollbar-width:thin;}
 .notif-topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 18px 8px;}
 .notif-topbar-main{display:flex;align-items:center;gap:8px;min-width:0;}
 .notif-heading{font-size:15px;font-weight:800;color:#1a2e1f;margin:0;line-height:1.4;}
@@ -261,7 +326,7 @@ button.notif-footnote:hover{color:#1a2e1f;}
 .notif-empty-svg{width:26px;height:26px;}
 .notif-empty-title{margin-top:14px;font-size:14px;font-weight:800;color:#1a2e1f;}
 .notif-empty-hint{margin-top:6px;font-size:12px;line-height:1.8;color:#737373;}
-/* Drawer dark mode — same calm dark palette as the rest of the system */
+
 html.dark .notif-drawer{background:#252b26;border-left-color:#2e352e;box-shadow:14px 0 28px -18px rgba(0,0,0,.55);}
 html.dark .notif-overlay{background:rgba(10,15,11,.45);}
 html.dark .notif-heading{color:#e7ece5;}
@@ -292,7 +357,12 @@ html.dark button.notif-footnote:hover{color:#e7ece5;}
 html.dark .notif-empty-ic{background:#2a302b;border-color:#2e352e;color:#8a9a8a;}
 html.dark .notif-empty-title{color:#e7ece5;}
 html.dark .notif-empty-hint{color:#9bb0a0;}
-/* — Notifications log page (/notifications): Dark Mode (scoped, dark-only, mirrors layout inline style) — */
+
+html.dark .menu-drawer{background:#252b26;border-inline-end-color:#2e352e;}
+html[dir="rtl"].dark .menu-drawer{box-shadow:-14px 0 28px -18px rgba(0,0,0,.55);}
+html[dir="ltr"].dark .menu-drawer{box-shadow:14px 0 28px -18px rgba(0,0,0,.55);}
+html.dark .menu-overlay{background:rgba(10,15,11,.45);}
+
 html.dark #notif-center-page .bg-surface-elevated{background-color:#252b26 !important}
 html.dark #notif-center-page .bg-surface-muted{background-color:#1e2320 !important}
 html.dark #notif-center-page .border-border{border-color:#343a34 !important}
@@ -312,8 +382,8 @@ html.dark #notif-center-page nav .border-gray-300{border-color:#343a34 !importan
 html.dark #notif-center-page nav .bg-gray-200{background-color:#2e352e !important}
 html.dark #notif-center-page nav .hover\:bg-gray-100:hover{background-color:#2e352e !important}
 html.dark #notif-center-page nav .hover\:text-gray-700:hover,html.dark #notif-center-page nav .hover\:text-gray-400:hover{color:#e7ece5 !important}
-/* — New light-token mirrors (dark-only): keep dark mode identical now that the
-   ink/sage/surface scales and softened white generate real utilities — */
+
+
 html.dark .bg-ink-300{background-color:#6b7a6e !important}
 html.dark .bg-ink-800{background-color:#2e352e !important}
 html.dark .bg-ink-900{background-color:#121915 !important}

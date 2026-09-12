@@ -1,0 +1,118 @@
+@extends('layouts.app')
+
+@section('content')
+<div class="max-w-2xl mx-auto w-full">
+    {{-- الترويسة: رجوع + أيقونة الهوية + عنوان ووصف --}}
+    <div class="flex items-center gap-3 mb-4">
+        <a href="{{ route('reports.index') }}" aria-label="{{ __('ui.back_to_reports_aria') }}" class="w-11 h-11 shrink-0 rounded-xl bg-[#fdfcfa] border border-[#e6e9e1] flex items-center justify-center text-[#6b7a6e] hover:text-[#0e6a38] hover:border-[#0e6a38] transition">
+            <svg class="w-4 h-4 rtl:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+        </a>
+        <div class="w-11 h-11 rounded-2xl bg-[#0e6a38] text-white flex items-center justify-center shadow-sm shrink-0">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+        </div>
+        <div class="min-w-0">
+            <h1 class="text-lg sm:text-xl font-extrabold text-[#1a2e1f] leading-tight">{{ __('ui.new_report_title') }}</h1>
+            <p class="text-[13px] text-[#6b7a6e] leading-5 mt-0.5">{{ __('ui.new_report_subtitle') }}</p>
+        </div>
+    </div>
+
+    <form method="POST" action="{{ route('reports.store') }}" id="report-create" class="bg-[#fdfcfa] border border-[#e6e9e1] rounded-2xl p-4 sm:p-6 grid gap-5 shadow-sm" novalidate data-translations='{"daily_report_prefix":@json(__("ui.daily_report")),"creating_draft":@json(__("ui.creating_draft")),"review_fields":@json(__("ui.review_fields_alert")),"title_min":@json(__("ui.title_min_error")),"date_invalid":@json(__("ui.date_invalid_error"))}'>
+        @csrf
+        @if($errors->has('general'))<div class="text-sm text-[#b91c1c] dark:text-[#fca5a5] bg-[#fef2f2] dark:bg-[#450a0a]/50 border border-[#fecaca] dark:border-[#7f1d1d] rounded-xl px-3.5 py-2.5">{{ $errors->first('general') }}</div>@endif
+        <div id="form-alert" class="hidden text-sm text-[#b91c1c] dark:text-[#fca5a5] bg-[#fef2f2] dark:bg-[#450a0a]/50 border border-[#fecaca] dark:border-[#7f1d1d] rounded-xl px-3.5 py-2.5"></div>
+
+        <div class="grid gap-1.5">
+            <label for="report-title" class="text-sm font-bold text-[#1a2e1f]">{{ __('ui.report_title_label') }}</label>
+            <input id="report-title" name="title" maxlength="255" value="{{ old('title') }}" placeholder="{{ __('ui.auto_title_placeholder') }}" class="w-full min-h-[48px] text-base sm:text-sm bg-white border border-[#e6e9e1] rounded-xl px-3.5 py-2.5 text-[#1a2e1f] placeholder:text-[#9aa99a] focus:outline-none focus:ring-2 focus:ring-[#0e6a38]/30 focus:border-[#0e6a38] transition">
+            <p class="text-xs text-[#6b7a6e] leading-5">{{ __('ui.report_title_hint') }}</p>
+            <span class="field-error hidden text-xs text-[#b91c1c] dark:text-[#fca5a5]">{{ __('ui.title_min_error') }}</span>
+            @error('title')<span class="text-xs text-[#b91c1c] dark:text-[#fca5a5]">{{ $message }}</span>@enderror
+        </div>
+
+        <div class="grid gap-1.5">
+            <label for="report-date" class="text-sm font-bold text-[#1a2e1f]">{{ __('ui.report_date_label') }}</label>
+            <input id="report-date" type="date" name="report_date" required max="{{ date('Y-m-d') }}" value="{{ old('report_date', date('Y-m-d')) }}" class="w-full min-h-[48px] text-base sm:text-sm bg-white border border-[#e6e9e1] rounded-xl px-3.5 py-2.5 text-[#1a2e1f] focus:outline-none focus:ring-2 focus:ring-[#0e6a38]/30 focus:border-[#0e6a38] transition">
+            <span class="field-error hidden text-xs text-[#b91c1c] dark:text-[#fca5a5]">{{ __('ui.date_invalid_error') }}</span>
+            @error('report_date')<span class="text-xs text-[#b91c1c] dark:text-[#fca5a5]">{{ $message }}</span>@enderror
+        </div>
+
+        <div class="flex items-center justify-between gap-3 rounded-xl border border-[#e6e9e1] bg-white px-3.5 py-3">
+            <div class="min-w-0">
+                <div class="text-sm font-bold text-[#1a2e1f]">{{ __('ui.visible_to_monitors') }}</div>
+                <p class="text-xs text-[#6b7a6e] leading-5 mt-0.5">{{ __('ui.visible_to_monitors_hint') }}</p>
+            </div>
+            <span class="r-switch"><input type="checkbox" name="visible_to_monitors" value="1" @checked(old('visible_to_monitors', true)) aria-label="{{ __('ui.visible_to_monitors') }}"><span class="track"></span></span>
+        </div>
+
+        <div class="flex items-start gap-2.5 rounded-xl bg-[#e8f3ec] border border-[#cde7d6] px-3.5 py-3">
+            <svg class="w-4 h-4 mt-0.5 shrink-0 text-[#0e6a38]" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <p class="text-[13px] leading-6 text-[#0e6a38]">{{ __('ui.auto_attach_hint') }}</p>
+        </div>
+
+        <div class="flex flex-col-reverse sm:flex-row sm:items-center gap-2.5 pt-1">
+            <a href="{{ route('reports.index') }}" class="inline-flex items-center justify-center px-5 min-h-[48px] sm:min-h-[44px] rounded-xl border border-[#e6e9e1] bg-white text-sm font-bold text-[#4a5a4f] hover:border-[#0e6a38] hover:text-[#0e6a38] transition">{{ __('ui.cancel') }}</a>
+            <button id="create-btn" class="w-full sm:w-auto sm:ms-auto px-8 min-h-[48px] sm:min-h-[44px] rounded-xl bg-[#0e6a38] hover:bg-[#0a4d28] text-white font-bold text-base sm:text-sm transition disabled:opacity-60">{{ __('ui.create_draft_btn') }}</button>
+        </div>
+    </form>
+</div>
+<style>
+    .r-switch { position: relative; display: inline-block; width: 48px; height: 26px; flex-shrink: 0; }
+    .r-switch input { opacity: 0; width: 0; height: 0; }
+    .r-switch .track { position: absolute; inset: 0; border-radius: 999px; background: #e6e9e1; transition: .2s; }
+    .r-switch .track::before { content: ''; position: absolute; height: 20px; width: 20px; top: 3px; right: 3px; background: #fff; border-radius: 50%; transition: .2s; box-shadow: 0 1px 2px rgba(0,0,0,.25); }
+    .r-switch input:checked + .track { background: #0e6a38; }
+    .r-switch input:checked + .track::before { transform: translateX(-22px); }
+    .r-switch input:focus-visible + .track { outline: 2px solid #0e6a38; outline-offset: 2px; }
+    .invalid { border-color: #ef4444 !important; }
+</style>
+<script>
+(function () {
+    const form = document.getElementById('report-create');
+    if (!form) return;
+    const translations = JSON.parse(form.dataset.translations || '{}');
+    const title = form.querySelector('[name=title]');
+    const date = form.querySelector('[name=report_date]');
+    const btn = document.getElementById('create-btn');
+    const alertBox = document.getElementById('form-alert');
+    // التاريخ المحلي لجهاز المستخدم (وليس UTC) — حتى لا يُرفض "اليوم" ظلماً بفارق المنطقة الزمنية
+    function localToday() {
+        const d = new Date();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return d.getFullYear() + '-' + m + '-' + day;
+    }
+    date.max = localToday();
+    function showAlert(msg) {
+        alertBox.textContent = msg;
+        alertBox.classList.remove('hidden');
+        alertBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+    [title, date].forEach(el => el?.addEventListener('input', () => {
+        el.classList.remove('invalid');
+        el.closest('div.grid')?.querySelector('.field-error')?.classList.add('hidden');
+        alertBox.classList.add('hidden');
+    }));
+    form.addEventListener('submit', function (e) {
+        // اسم افتراضي رسمي عند ترك العنوان فارغاً
+        if (title.value.trim() === '' && date.value) {
+            title.value = (translations.daily_report_prefix || @json(__('ui.daily_report'))) + ' — ' + date.value;
+        }
+        const badTitle = title.value.trim().length > 0 && title.value.trim().length < 3;
+        const badDate = !date.value || date.value > localToday();
+        title.classList.toggle('invalid', badTitle);
+        date.classList.toggle('invalid', badDate);
+        title.closest('div.grid').querySelector('.field-error').classList.toggle('hidden', !badTitle);
+        date.closest('div.grid').querySelector('.field-error').classList.toggle('hidden', !badDate);
+        if (badTitle || badDate) {
+            e.preventDefault();
+            showAlert(translations.review_fields || @json(__('ui.review_fields_alert')));
+            return;
+        }
+        // تغذية راجعة فورية — الزر يستجيب دائماً فلا يبدو أنه "يفشل بصمت"
+        btn.disabled = true;
+        btn.textContent = translations.creating_draft || @json(__('ui.creating_draft'));
+    });
+})();
+</script>
+@endsection
+

@@ -5,8 +5,7 @@
     <div class="flex items-center gap-3 mb-5">
         <a href="{{ route('general-submissions.index') }}" class="w-9 h-9 rounded-lg bg-white border border-[#e6e9e1] flex items-center justify-center text-ink-400 hover:text-ink-700 transition">‹</a>
         <div>
-            <h1 class="text-xl font-extrabold text-ink-800">إرسال عام جديد</h1>
-            <p class="text-sm text-ink-400">اختر كاتبًا واحدًا أو عدة كتّاب لإرسال الملاحظة</p>
+            <h1 class="text-xl font-extrabold text-ink-800">{{ __('ui.sub_new_title') }}</h1>
         </div>
     </div>
 
@@ -16,26 +15,26 @@
             <div id="gs-form-errors" class="hidden p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700"></div>
             <div id="gs-upload-progress" class="hidden p-4 bg-[#eef4f0] border border-[#cde7d6] rounded-xl">
                 <div class="flex items-center justify-between mb-2">
-                    <span class="text-sm font-bold text-[#0e6a38] flex items-center gap-2"><span class="w-3 h-3 border-2 border-[#0e6a38] border-t-transparent rounded-full animate-spin"></span>جاري الرفع...</span>
+                    <span class="text-sm font-bold text-[#0e6a38] flex items-center gap-2"><span class="w-3 h-3 border-2 border-[#0e6a38] border-t-transparent rounded-full animate-spin"></span>{{ __('ui.uploading') }}</span>
                     <span id="gs-upload-progress-text" class="text-xs font-bold text-ink-500">0%</span>
                 </div>
                 <div class="w-full bg-white rounded-full h-2.5 border border-[#e6e9e1] overflow-hidden">
                     <div id="gs-upload-progress-bar" class="h-2.5 rounded-full bg-[#0e6a38] transition-all duration-300" style="width:0%"></div>
                 </div>
-                <div id="gs-upload-progress-detail" class="mt-1 text-[11px] text-ink-400">جاري رفع الملفات الأصلية دون تعديل (الجودة 100% محفوظة) — لا تغلق الصفحة</div>
+                <div id="gs-upload-progress-detail" class="mt-1 text-[11px] text-ink-400">{{ __('ui.uploading_dont_close') }}</div>
             </div>
 
             <div>
-                <label class="block text-sm font-bold text-ink-700 mb-1.5">الوصف <span class="text-red-500">*</span></label>
-                <textarea name="description" rows="4" required maxlength="5000" class="block w-full rounded-xl border border-[#e6e9e1] bg-white p-4 text-sm leading-7 focus:border-[#0e6a38] focus:ring-2 focus:ring-[#0e6a38]/10 outline-none @error('description') border-red-400 @enderror" placeholder="صف ما تم رصده بدقة...">{{ old('description') }}</textarea>
+                <label class="block text-sm font-bold text-ink-700 mb-1.5">{{ __('ui.description_label') }} <span class="text-red-500">*</span></label>
+                <textarea name="description" rows="4" required maxlength="5000" class="block w-full rounded-xl border border-[#e6e9e1] bg-white p-4 text-sm leading-7 focus:border-[#0e6a38] focus:ring-2 focus:ring-[#0e6a38]/10 outline-none @error('description') border-red-400 @enderror" placeholder="{{ __('ui.desc_ph') }}">{{ old('description') }}</textarea>
                 @error('description') <p class="text-xs text-red-500 mt-1">{{ $message }}</p> @enderror
             </div>
 
             <div>
-                <label class="block text-sm font-bold text-ink-700 mb-2">كتّاب التقارير <span class="text-red-500">*</span> <span class="text-xs font-normal text-ink-400">— اختر واحدًا أو أكثر</span></label>
+                <label class="block text-sm font-bold text-ink-700 mb-2">{{ __('ui.writers_short') }} <span class="text-red-500">*</span></label>
                 <div class="rounded-xl border border-[#e6e9e1] bg-[#f5f7f5] p-4">
                     @if($writers->isEmpty())
-                        <p class="text-sm text-ink-400">لا يوجد كتّاب تقارير حاليًا</p>
+                        <p class="text-sm text-ink-400">{{ __('ui.no_writers') }}</p>
                     @else
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                             @foreach($writers as $writer)
@@ -53,11 +52,11 @@
             </div>
 
             <div>
-                <label class="block text-sm font-bold text-ink-700 mb-1.5">المرفقات <span class="text-ink-300 font-medium text-xs">— اختياري (صور / فيديو / صوت)</span></label>
+                <label class="block text-sm font-bold text-ink-700 mb-1.5">{{ __('ui.attachments_label') }} <span class="text-ink-300 font-medium text-xs">{{ __('ui.attach_optional_media') }}</span></label>
                 <div class="rounded-xl border-2 border-dashed border-[#e6e9e1] bg-[#f5f7f5] hover:border-[#0e6a38] transition p-5 text-center" id="gs-drop-zone">
-                    <label for="gs-files" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#0e6a38] text-white font-bold text-sm cursor-pointer hover:bg-[#0a4d28] transition">اختيار ملفات</label>
-                    <button type="button" id="gs-cam-photo-btn" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-white border border-[#e6e9e1] text-ink-700 font-bold text-sm hover:border-[#0e6a38] hover:text-[#0e6a38] transition">📷 تصوير</button>
-                    <button type="button" id="gs-cam-video-btn" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-white border border-[#e6e9e1] text-ink-700 font-bold text-sm hover:border-[#0e6a38] hover:text-[#0e6a38] transition">🎥 فيديو</button>
+                    <label for="gs-files" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#0e6a38] text-white font-bold text-sm cursor-pointer hover:bg-[#0a4d28] transition">{{ __('ui.choose_files') }}</label>
+                    <button type="button" id="gs-cam-photo-btn" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-white border border-[#e6e9e1] text-ink-700 font-bold text-sm hover:border-[#0e6a38] hover:text-[#0e6a38] transition">📷 {{ __('ui.shoot') }}</button>
+                    <button type="button" id="gs-cam-video-btn" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-white border border-[#e6e9e1] text-ink-700 font-bold text-sm hover:border-[#0e6a38] hover:text-[#0e6a38] transition">🎥 {{ __('ui.file_video') }}</button>
                     <input type="file" id="gs-cam-photo-input" accept="image/*" capture="environment" class="hidden">
                     <input type="file" id="gs-cam-video-input" accept="video/*" capture="environment" class="hidden">
                     <input type="file" id="gs-files" name="files[]" multiple accept="image/*,video/*,audio/*,.aac,.m4a,.mp3,.wav,.ogg,.flac,.opus,.wma,.aiff,.amr,.3ga,.weba" class="hidden">
@@ -67,8 +66,8 @@
             </div>
 
             <div class="flex gap-3 pt-2">
-                <button type="submit" class="flex-1 py-3 rounded-xl bg-[#0e6a38] hover:bg-[#0a4d28] text-white font-bold text-sm transition">إرسال إلى المختارين</button>
-                <a href="{{ route('general-submissions.index') }}" class="px-6 py-3 rounded-xl bg-white border border-[#e6e9e1] text-ink-600 font-bold text-sm hover:bg-[#f5f7f5] transition">إلغاء</a>
+                <button type="submit" class="flex-1 py-3 rounded-xl bg-[#0e6a38] hover:bg-[#0a4d28] text-white font-bold text-sm transition">{{ __('ui.send_selected') }}</button>
+                <a href="{{ route('general-submissions.index') }}" class="px-6 py-3 rounded-xl bg-white border border-[#e6e9e1] text-ink-600 font-bold text-sm hover:bg-[#f5f7f5] transition">{{ __('ui.cancel_btn') }}</a>
             </div>
         </form>
     </div>
@@ -100,12 +99,37 @@
             xhr.timeout=600000;
             if(xhr.upload && onProgress) xhr.upload.onprogress=(e)=>{ if(e.lengthComputable){ const pct=Math.round(e.loaded/e.total*100); onProgress(pct, e.loaded, e.total); } };
             xhr.onload=()=>{ let data=null; try{ data=JSON.parse(xhr.responseText);}catch(_){} resolve({status:xhr.status, ok:xhr.status>=200&&xhr.status<300, data, raw:xhr.responseText}); };
-            xhr.onerror=()=>reject(new Error('فشل الشبكة'));
-            xhr.ontimeout=()=>reject(Object.assign(new Error('انتهت مهلة الإرسال (10 دقائق)'),{name:'AbortError'}));
+            xhr.onerror=()=>reject(new Error(GSUB_T.netErr));
+            xhr.ontimeout=()=>reject(Object.assign(new Error(GSUB_T.timeoutErr),{name:'AbortError'}));
             xhr.send(fd);
         });
     }
     const MAX_FILES={{ max(1, (int) ini_get('max_file_uploads') ?: 20) }};
+    // Shared submission-create UI dictionary (server-rendered per locale — no Gemini).
+    const GSUB_T = {
+        netErr: @json(__('ui.network_error')),
+        timeoutErr: @json(__('ui.timeout_title')),
+        timeoutHint: @json(__('ui.upload_timeout_hint')),
+        fAudio: @json(__('ui.file_audio')),
+        fVideo: @json(__('ui.file_video')),
+        fImage: @json(__('ui.file_image')),
+        fOther: @json(__('ui.file_other')),
+        limitToast: @json(__('ui.upload_limit_files')),
+        unsupported: @json(__('ui.unsupported_file_type')),
+        imgBig: @json(__('ui.image_too_large')),
+        vidBig: @json(__('ui.video_too_large')),
+        audBig: @json(__('ui.audio_too_large')),
+        totalBig: @json(__('ui.total_attachments_too_large')),
+        subTotal: @json(__('ui.sub_total_big')),
+        uploadingN: @json(__('ui.uploading_files_count')),
+        dontClose: @json(__('ui.upload_pct_dont_close')),
+        verify: @json(__('ui.upload_verify')),
+        attachFail: @json(__('ui.sub_attach_fail')),
+        filesKept: @json(__('ui.files_kept_short')),
+        fixFields: @json(__('ui.fix_fields')),
+        sendFail: @json(__('ui.send_failed_code'))
+    };
+    function gsubFill(tpl, map){ var s = String(tpl == null ? '' : tpl); Object.keys(map || {}).forEach(function(k){ s = s.split(k).join(map[k]); }); return s; }
     function sync(){ try{ input.files=transfer.files; }catch(e){} }
     function render(){
         const files=Array.from(transfer.files);
@@ -114,11 +138,11 @@
         const counters={img:0,vid:0,aud:0,other:0};
         const escAttr=s=>String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
         const friendlyName=f=>{
-            if(f.type.startsWith('audio/')) return 'مقطع صوتي '+ (++counters.aud);
-            if(f.type.startsWith('video/')) return 'فيديو '+ (++counters.vid);
-            if(f.type.startsWith('image/')) return 'صورة '+ (++counters.img);
+            if(f.type.startsWith('audio/')) return GSUB_T.fAudio+' '+ (++counters.aud);
+            if(f.type.startsWith('video/')) return GSUB_T.fVideo+' '+ (++counters.vid);
+            if(f.type.startsWith('image/')) return GSUB_T.fImage+' '+ (++counters.img);
             const ext=(f.name.split('.').pop()||'').toLowerCase();
-            return 'مرفق '+ (++counters.other) + (ext && ext.length<=5 ? ' (.'+ext+')' : '');
+            return GSUB_T.fOther+' '+ (++counters.other) + (ext && ext.length<=5 ? ' (.'+ext+')' : '');
         };
         list.innerHTML=files.map((f,i)=>{
             const sz=(f.size/1024/1024).toFixed(2)+' MB';
@@ -136,14 +160,14 @@
     }
     function addFiles(arr){
         for(const file of arr){
-            if(transfer.files.length>=MAX_FILES){ alert('الحد الأقصى '+MAX_FILES+' ملف'); break; }
+            if(transfer.files.length>=MAX_FILES){ window.toast(gsubFill(GSUB_T.limitToast,{':max':MAX_FILES})); break; }
             const ext=file.name.split('.').pop().toLowerCase();
             const audioExts=['mp3','wav','ogg','oga','m4a','aac','wma','flac','opus','aiff','aif','amr','3ga','awb','mid','midi','au','weba'];
             const isAudio=audioExts.includes(ext)||file.type.startsWith('audio/');
-            if(!['jpg','jpeg','png','webp','mp4','webm','mov','avi','3gp','mkv','m4v','mpg','3gpp'].includes(ext)&&!file.type.startsWith('image/')&&!file.type.startsWith('video/')&&!isAudio){ alert('نوع غير مدعوم: '+file.name); continue; }
-            if(file.type.startsWith('image/')&&file.size>20*1024*1024){ alert('حجم الصورة كبير (20MB): '+file.name); continue; }
-            if(file.type.startsWith('video/')&&file.size>100*1024*1024){ alert('حجم الفيديو كبير (100MB): '+file.name); continue; }
-            if(isAudio&&file.size>100*1024*1024){ alert('حجم الصوت كبير (100MB): '+file.name); continue; }
+            if(!['jpg','jpeg','png','webp','mp4','webm','mov','avi','3gp','mkv','m4v','mpg','3gpp'].includes(ext)&&!file.type.startsWith('image/')&&!file.type.startsWith('video/')&&!isAudio){ window.toast(GSUB_T.unsupported); continue; }
+            if(file.type.startsWith('image/')&&file.size>20*1024*1024){ window.toast(GSUB_T.imgBig); continue; }
+            if(file.type.startsWith('video/')&&file.size>100*1024*1024){ window.toast(GSUB_T.vidBig); continue; }
+            if(isAudio&&file.size>100*1024*1024){ window.toast(GSUB_T.audBig); continue; }
             transfer.items.add(file); pendingGs.push(file); intended++;
         }
         sync(); render();
@@ -170,7 +194,7 @@
         
         const totalBytesGs = toSend.reduce((s,f)=>s+f.size,0);
         if(totalBytesGs > 120*1024*1024){
-            errEl.innerHTML='<div class="font-bold mb-1 text-red-600">إجمالي المرفقات كبير جداً</div><p class="text-xs">الحجم الإجمالي '+(totalBytesGs/1024/1024).toFixed(1)+' MB يتجاوز الحد 128M. قلل المرفقات ثم أعد المحاولة.</p>';
+            errEl.innerHTML='<div class="font-bold mb-1 text-red-600">'+GSUB_T.totalBig+'</div><p class="text-xs">'+gsubFill(GSUB_T.subTotal,{':size':(totalBytesGs/1024/1024).toFixed(1)})+'</p>';
             errEl.classList.remove('hidden');
             errEl.scrollIntoView({behavior:'smooth',block:'center'});
             if(btn) btn.disabled=false;
@@ -180,36 +204,36 @@
         fd.append('client_files_count',String(announced));
         try{
             const csrfTokenGs=document.querySelector('meta[name="csrf-token"]')?.content || '';
-            setGsProgress(5, 'جاري رفع '+toSend.length+' ملف...');
+            setGsProgress(5, gsubFill(GSUB_T.uploadingN,{':count':toSend.length}));
             document.getElementById('gs-upload-progress')?.scrollIntoView({behavior:'smooth',block:'center'});
-            const res=await xhrUploadGs(formEl.action, fd, csrfTokenGs, (pct, loaded, total)=> setGsProgress(Math.max(5, Math.min(95, pct)), 'جاري الرفع '+pct+'%'+ (loaded ? ' ('+(loaded/1024/1024).toFixed(1)+' / '+(total/1024/1024).toFixed(1)+' MB)' : '')+' — لا تغلق الصفحة'));
-            setGsProgress(98, 'تم الرفع 100%، جاري التحقق من الحفظ...');
+            const res=await xhrUploadGs(formEl.action, fd, csrfTokenGs, (pct, loaded, total)=> setGsProgress(Math.max(5, Math.min(95, pct)), pct+'%'+ (loaded ? ' ('+(loaded/1024/1024).toFixed(1)+' / '+(total/1024/1024).toFixed(1)+' MB)' : '')+' '+GSUB_T.dontClose));
+            setGsProgress(98, GSUB_T.verify);
             let data=res.data
             const fail=(t,errs)=>{
                 hideGsProgress();
-                const list=(errs&&errs.length?errs:['فشل رفع المرفقات. لم يتم حفظ الإرسالية.']).map(x=>typeof x==='string'?x:((x.file?x.file+': ':'')+(x.message||JSON.stringify(x)))).join('<br>');
-                errEl.innerHTML='<div class="font-bold mb-1 text-red-600">'+t+'</div><p class="text-xs">'+list+'</p><p class="mt-2 text-xs font-bold">الملفات محفوظة — أعد المحاولة.</p>';
+                const list=(errs&&errs.length?errs:[GSUB_T.attachFail]).map(x=>typeof x==='string'?x:((x.file?x.file+': ':'')+(x.message||JSON.stringify(x)))).join('<br>');
+                errEl.innerHTML='<div class="font-bold mb-1 text-red-600">'+t+'</div><p class="text-xs">'+list+'</p><p class="mt-2 text-xs font-bold">'+GSUB_T.filesKept+'</p>';
                 errEl.classList.remove('hidden'); errEl.scrollIntoView({behavior:'smooth',block:'center'});
                 if(btn) btn.disabled=false;
             };
-            if(data&&data.success===false){ fail('فشل رفع المرفقات. لم يتم حفظ الإرسالية.',data.attachment_errors); return; }
+            if(data&&data.success===false){ fail(GSUB_T.attachFail,data.attachment_errors); return; }
             if(data&&typeof data.files_received==='number'&&typeof data.attachments_saved==='number'){
-                if(data.files_received!==data.attachments_saved){ fail('فشل رفع المرفقات. لم يتم حفظ الإرسالية.',data.attachment_errors); return; }
-                if((data.attachment_errors||[]).length>0){ fail('فشل رفع المرفقات. لم يتم حفظ الإرسالية.',data.attachment_errors); return; }
+                if(data.files_received!==data.attachments_saved){ fail(GSUB_T.attachFail,data.attachment_errors); return; }
+                if((data.attachment_errors||[]).length>0){ fail(GSUB_T.attachFail,data.attachment_errors); return; }
             }
             if(res.ok&&data&&data.success!==false){ window.location.href="{{ route('general-submissions.index', [], false) }}"; return; }
             if(res.status===422){
-                if(data&&(data.attachment_errors||data.success===false)){ fail('فشل رفع المرفقات. لم يتم حفظ الإرسالية.',data.attachment_errors); return; }
-                const errs=(data&&data.errors)||{}; let html='<div class="font-bold mb-1">يرجى تصحيح الحقول:</div><ul class="list-disc list-inside space-y-1">';
+                if(data&&(data.attachment_errors||data.success===false)){ fail(GSUB_T.attachFail,data.attachment_errors); return; }
+                const errs=(data&&data.errors)||{}; let html='<div class="font-bold mb-1">'+GSUB_T.fixFields+'</div><ul class="list-disc list-inside space-y-1">';
                 for(const [k,ms] of Object.entries(errs)) for(const m of ms) html+=`<li>${m}</li>`;
                 html+='</ul>'; errEl.innerHTML=html; errEl.classList.remove('hidden');
-            } else { fail('فشل الإرسال (كود: '+res.status+')',[]); }
+            } else { fail(gsubFill(GSUB_T.sendFail,{':code':res.status}),[]); }
         }catch(err){
             hideGsProgress();
             if(err.name === 'AbortError'){
-                errEl.innerHTML='<div class="font-bold mb-1 text-red-600">انتهت مهلة الإرسال (10 دقائق)</div><p class="text-xs">تحقق من اتصالك أو قلل حجم المرفقات.</p>';
+                errEl.innerHTML='<div class="font-bold mb-1 text-red-600">'+GSUB_T.timeoutErr+'</div><p class="text-xs">'+GSUB_T.timeoutHint+'</p>';
             } else {
-                errEl.innerHTML='<div class="font-bold text-red-600">خطأ في الشبكة</div><p class="text-xs">'+(err.message||'')+'</p>';
+                errEl.innerHTML='<div class="font-bold text-red-600">'+GSUB_T.netErr+'</div><p class="text-xs">'+(err.message||'')+'</p>';
             }
             errEl.classList.remove('hidden');
         }finally{ hideGsProgress(); if(btn) btn.disabled=false; }

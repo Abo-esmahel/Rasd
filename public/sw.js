@@ -1,4 +1,4 @@
-﻿const CACHE_STATIC = 'rasd-root-v15-avatar-fix';
+﻿const CACHE_STATIC = 'rasd-root-v17-i18n-fix';
 const CACHE_API = 'rasd-api-v1';
 const STATIC_ASSETS = [
   '/',
@@ -13,6 +13,10 @@ const NEVER_CACHE_PATTERNS = [
   '/notifications/stream',
   '/notifications/feed',
   '/notifications/unread-count',
+  '/notifications/preferences',
+  '/push/',
+  '/locale',
+  '/translations/',
   '/livewire',
   '/broadcasting/auth',
   '/_diag',

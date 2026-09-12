@@ -1,0 +1,37 @@
+@extends('layouts.app')
+
+@section('content')
+<div class="max-w-2xl mx-auto sm:mx-0 w-full">
+    <h1 class="text-lg sm:text-xl font-extrabold text-[#1a2e1f] mb-1">{{ __('ui.edit_data') }}</h1>
+    @if($report->isPublished() && $report->editDeadline())<p class="text-[13px] text-[#6b7a6e] mb-4">{{ __('ui.edit_until') }} {{ $report->editDeadline()->format('Y-m-d H:i') }}</p>@endif
+    <form method="POST" action="{{ route('reports.update', $report) }}" class="bg-[#fdfcfa] border border-[#e6e9e1] rounded-2xl p-4 sm:p-5 grid gap-4 shadow-sm">
+        @csrf @method('PUT')
+        <label class="grid gap-1.5 text-sm font-medium text-[#4a5a4f]">{{ __('ui.report_title_label') }}
+            <input name="title" minlength="3" maxlength="255" value="{{ old('title', $report->title) }}" class="w-full min-h-[48px] text-base sm:text-sm border border-[#e6e9e1] rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#0e6a38]/30 focus:border-[#0e6a38]">
+            @error('title')<span class="text-xs text-[#b91c1c]">{{ $message }}</span>@enderror
+        </label>
+        <label class="grid gap-1.5 text-sm font-medium text-[#4a5a4f]">{{ __('ui.report_date_label') }}
+            <input type="date" name="report_date" max="{{ date('Y-m-d') }}" value="{{ old('report_date', $report->report_date->toDateString()) }}" class="w-full min-h-[48px] text-base sm:text-sm border border-[#e6e9e1] rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#0e6a38]/30 focus:border-[#0e6a38]">
+            <span class="text-[11px] font-normal text-[#9aa99a]">{{ __('ui.report_date_match_hint') }}</span>
+            @error('report_date')<span class="text-xs text-[#b91c1c]">{{ $message }}</span>@enderror
+        </label>
+        <label class="flex items-center justify-between gap-3 cursor-pointer min-h-[48px] text-sm font-medium text-[#4a5a4f]">{{ __('ui.visible_to_monitors') }}
+            <span class="r-switch"><input type="checkbox" name="visible_to_monitors" value="1" @checked(old('visible_to_monitors', $report->visible_to_monitors))><span class="track"></span></span>
+        </label>
+        @if($errors->has('general'))<div class="text-sm text-[#b91c1c] bg-[#fef2f2] border border-[#fecaca] rounded-xl px-3.5 py-2.5">{{ $errors->first('general') }}</div>@endif
+        <div class="grid grid-cols-2 sm:flex gap-2">
+            <button class="px-6 py-3 sm:py-2.5 min-h-[48px] sm:min-h-0 rounded-xl bg-[#0e6a38] hover:bg-[#0a4d28] text-white font-bold text-base sm:text-sm transition">{{ __('ui.save') }}</button>
+            <a href="{{ route('reports.show', $report) }}" class="inline-flex items-center justify-center px-5 py-3 sm:py-2.5 min-h-[48px] sm:min-h-0 rounded-xl border border-[#e6e9e1] text-base sm:text-sm font-medium text-[#4a5a4f]">{{ __('ui.back') }}</a>
+        </div>
+    </form>
+</div>
+<style>
+    .r-switch { position: relative; display: inline-block; width: 44px; height: 24px; flex-shrink: 0; }
+    .r-switch input { opacity: 0; width: 0; height: 0; }
+    .r-switch .track { position: absolute; inset: 0; border-radius: 999px; background: #e6e9e1; transition: .2s; }
+    .r-switch .track::before { content: ''; position: absolute; height: 18px; width: 18px; top: 3px; right: 3px; background: #fff; border-radius: 50%; transition: .2s; box-shadow: 0 1px 2px rgba(0,0,0,.25); }
+    .r-switch input:checked + .track { background: #0e6a38; }
+    .r-switch input:checked + .track::before { transform: translateX(-20px); }
+</style>
+@endsection
+

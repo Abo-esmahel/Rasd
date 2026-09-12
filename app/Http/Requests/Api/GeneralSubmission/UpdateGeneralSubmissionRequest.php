@@ -25,7 +25,7 @@ class UpdateGeneralSubmissionRequest extends FormRequest
                     if ($value !== null) {
                         $writer = User::find($value);
                         if (!$writer || !$writer->isReportWriter()) {
-                            $fail('يجب أن يكون المستخدم كاتب تقارير');
+                            $fail(__('api.validation_user_must_writer'));
                         }
                     }
                 },
@@ -37,8 +37,8 @@ class UpdateGeneralSubmissionRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'report_writer_id.integer' => 'معرف الكاتب يجب أن يكون رقماً',
-            'report_writer_id.exists' => 'الكاتب غير موجود',
+            'report_writer_id.integer' => __('api.validation_writer_id_integer'),
+            'report_writer_id.exists' => __('api.validation_writer_not_found'),
         ];
     }
 }

@@ -1,0 +1,48 @@
+<?php
+
+return [
+    'required' => 'The :attribute field is required.',
+    'string' => 'The :attribute field must be a string.',
+    'integer' => 'The :attribute field must be an integer.',
+    'numeric' => 'The :attribute field must be a number.',
+    'array' => 'The :attribute field must be an array.',
+    'boolean' => 'The :attribute field must be true or false.',
+    'date' => 'The :attribute field must be a valid date.',
+    'min' => [
+        'string' => 'The :attribute field must be at least :min characters.',
+        'numeric' => 'The :attribute field must be at least :min.',
+        'array' => 'The :attribute field must have at least :min items.',
+        'file' => 'The :attribute field must be at least :min kilobytes.',
+    ],
+    'max' => [
+        'string' => 'The :attribute field may not be greater than :max characters.',
+        'numeric' => 'The :attribute field may not be greater than :max.',
+        'array' => 'The :attribute field may not have more than :max items.',
+        'file' => 'The :attribute field may not be greater than :max kilobytes.',
+    ],
+    'in' => 'The selected :attribute is invalid.',
+    'exists' => 'The selected :attribute does not exist.',
+    'unique' => 'The :attribute is already taken.',
+    'email' => 'The :attribute field must be a valid email.',
+    'confirmed' => 'The :attribute confirmation does not match.',
+    'file' => 'The :attribute field must be a file.',
+    'image' => 'The :attribute field must be an image.',
+    'mimes' => 'The :attribute file extension is not supported.',
+    'mimetypes' => 'The :attribute file type is not supported.',
+
+    'attributes' => [
+        'floor_number' => 'floor number',
+        'camera_number' => 'camera number',
+        'observed_at' => 'observation time',
+        'observed_end_at' => 'observation end time',
+        'description' => 'description',
+        'report_writer_ids' => 'report writers',
+        'report_writer_id' => 'report writer',
+        'file' => 'file',
+        'files' => 'files',
+        'title' => 'title',
+        'username' => 'username',
+        'password' => 'password',
+        'name' => 'name',
+    ],
+];
