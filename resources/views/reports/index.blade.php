@@ -12,10 +12,16 @@
         </div>
     </div>
     @if(auth()->user()->isReportWriter())
-    <a href="{{ route('reports.create') }}" class="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-[#0e6a38] hover:bg-[#0a4d28] text-white font-bold text-sm shadow-sm transition">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
-        {{ __('ui.new_report') }}
-    </a>
+    <div class="flex items-center gap-2 shrink-0">
+        <a href="{{ route('reports.insights') }}" class="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#fdfcfa] border border-[#e6e9e1] hover:border-[#0e6a38] text-[#0e6a38] font-bold text-sm shadow-sm transition">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3v18h18M7 15l4-6 4 3 4-7"/></svg>
+            {{ __('ui.view_insights') }}
+        </a>
+        <a href="{{ route('reports.create') }}" class="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-[#0e6a38] hover:bg-[#0a4d28] text-white font-bold text-sm shadow-sm transition">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+            {{ __('ui.new_report') }}
+        </a>
+    </div>
     @endif
 </div>
 

@@ -50,7 +50,7 @@
     <title>{{ $title ?? __('ui.app_name') }} — {{ __('ui.ministry') }}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Almarai:wght@300;400;700;800&family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Almarai:wght@300;400;700;800&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
 
     @vite(['resources/css/app.css'])
     <script type="module" src="/pwa/js/print-layout-engine.js?v=EDITORIAL-v4.2.1-N3-DESCRIPTION-FIX-2026-09-06"></script>

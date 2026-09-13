@@ -33,7 +33,26 @@ class ReportController extends Controller
         $reports = $query->orderByDesc('report_date')->paginate(15)->withQueryString();
         try { $presenter->preloadReports($reports->items()); } catch (\Throwable) {}
 
-        return view('reports.index', compact('reports'));
+        $canViewInsights = $request->user()->can('viewInsights', Report::class);
+
+        return view('reports.index', compact('reports', 'canViewInsights'));
+    }
+
+    /**
+     * لوحة مؤشرات كتّاب التقارير — صفحة مستقلة + JSON للفلترة بدون تحديث.
+     * الحماية: كتّاب فقط (403 للمراقب حتى بالرابط المباشر).
+     */
+    public function insights(Request $request, \App\Services\ReportInsightsService $insights)
+    {
+        $this->authorize('viewInsights', Report::class);
+        $range = \App\Services\ReportInsightsService::normalizeRange($request->query('range'));
+        $data = $insights->get($range);
+
+        if ($request->expectsJson() || $request->ajax()) {
+            return response()->json(['success' => true, 'data' => $data]);
+        }
+
+        return view('reports.insights', ['insights' => $data]);
     }
 
     public function create()

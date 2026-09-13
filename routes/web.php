@@ -168,6 +168,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/submission-attachments/{attachment}/download', [\App\Http\Controllers\Web\GeneralSubmissionController::class, 'downloadAttachment'])->name('submission-attachments.download');
 
 
+    Route::get('/reports/insights', [\App\Http\Controllers\Web\ReportController::class, 'insights'])->name('reports.insights');
     Route::get('/reports', [\App\Http\Controllers\Web\ReportController::class, 'index'])->name('reports.index');
     Route::get('/reports/create', [\App\Http\Controllers\Web\ReportController::class, 'create'])->name('reports.create');
     Route::post('/reports', [\App\Http\Controllers\Web\ReportController::class, 'store'])->name('reports.store');

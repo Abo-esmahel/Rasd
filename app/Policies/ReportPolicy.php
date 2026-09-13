@@ -12,6 +12,11 @@ class ReportPolicy
         return $user->isMonitor() || $user->isReportWriter();
     }
 
+    public function viewInsights(User $user): bool
+    {
+        return $user->isReportWriter();
+    }
+
     public function view(User $user, Report $report): bool
     {
         if ($user->isReportWriter()) {
