@@ -8,11 +8,6 @@ use App\Models\Report;
 use App\Models\User;
 use InvalidArgumentException;
 
-/**
- * توليد بيانات التقرير (وليس الصورة) بواسطة Gemini كنص منظم JSON.
- * مرحلة منفصلة تماماً عن Image Rendering — الناتج يعود للمحرر للمراجعة
- * ولا يُحفظ ولا يُولّد صورة تلقائياً.
- */
 class ReportAiDataService
 {
     public function __construct(private AiTextGeneratorInterface $generator)
@@ -192,8 +187,6 @@ class ReportAiDataService
             return '';
         }
         // Explicit Arabic-aware boundary (\b is unreliable after Arabic
-        // letters): a bare "لا" must NOT swallow real prohibitions such as
-        // "لا تترك الأبواب مفتوحة".
         if (preg_match('/^(لا\s+(توجد|يوجد|حاجة|داعي)|بدون|لاشيء|لا شيء)(?=\s|$|[.،,:؛!؟\-–—])/u', $stripped)
             || in_array($stripped, ['لا', 'لا يوجد', 'لا توجد'], true)) {
             return '';

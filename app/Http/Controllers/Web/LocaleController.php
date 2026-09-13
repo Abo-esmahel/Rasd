@@ -18,12 +18,8 @@ class LocaleController extends Controller
         $locale = $validated['locale'];
         App::setLocale($locale);
 
-        // ضيف + مسجل: session دائماً.
         $request->session()->put('locale', $locale);
 
-        // مسجل: حفظ دائم في DB ليبقى عبر الأجهزة.
-        // ملاحظة: أي فشل في DB (مثال: عمود locale غير موجود في بيئة قديمة)
-        // يجب ألا يكسر تبديل اللغة — session + cookie تكفي كـ fallback.
         if ($request->user()) {
             try {
                 $request->user()->forceFill(['locale' => $locale])->save();

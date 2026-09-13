@@ -6,11 +6,6 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * معرّف الكيان نصّي (تقارير/ملاحظات رقمية، إشعارات UUID).
-     * إعادة بناء بدون doctrine/dbal (غير مثبت): الجدول كاش عرض فقط
-     * ويُعاد ملؤه تلقائياً — لا بيانات أعمال هنا.
-     */
     public function up(): void
     {
         Schema::dropIfExists('content_translations');

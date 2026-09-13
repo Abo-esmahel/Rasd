@@ -25,16 +25,14 @@ class GeminiAiTextGenerator implements AiTextGeneratorInterface
     private function call(string $system, string $user, array $images): AiResult
     {
         $apiKey = (string) config('ai.gemini.api_key', '');
-        $model = (string) config('ai.gemini.model', 'gemini-3.6-flash');
+        $model = (string) config('ai.gemini.model', 'gemini-3.5-flash');
         $configured = max(10, (int) config('ai.gemini.timeout', 60));
         $maxTokens = max(256, (int) config('ai.gemini.max_output_tokens', 4096));
 
-        // مهلة HTTP يجب أن تبقى دائماً أقصر من حد تنفيذ PHP، وإلا قتل PHP
-        // السكربت بخطأ Maximum execution time قبل أن يرد Gemini (خطأ قاتل لا يُلتقط).
         $phpLimit = (int) @ini_get('max_execution_time');
         $timeout = $configured;
         if ($phpLimit > 0) {
-            $safeMax = $phpLimit - 15; // هامش لمعالجة DB والعرض بعد رد Gemini
+            $safeMax = $phpLimit - 15;
             if ($safeMax < 10) {
                 $safeMax = 10;
             }
@@ -66,7 +64,6 @@ class GeminiAiTextGenerator implements AiTextGeneratorInterface
         try {
             // asJson forces UTF-8 JSON encoding (critical for Arabic prompts).
             // Gemini requires the key as a query parameter.
-            // connectTimeout منفصل حتى لا يعلق الاتصال الأولي حتى نهاية timeout الكلي.
             $response = Http::asJson()->connectTimeout(10)->timeout($timeout)->retry(0)
                 ->post("https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key=" . urlencode($apiKey), $payload);
         } catch (ConnectionException $e) {
@@ -215,11 +212,6 @@ class GeminiAiTextGenerator implements AiTextGeneratorInterface
         return null;
     }
 
-    /**
-     * Gemini نادراً ما يرسل ترويسة Retry-After. المدة الحقيقية غالباً في
-     * جسم الخطأ: error.details[].retryDelay ("35s") أو داخل error.message
-     * ("Please retry in 42.3s"). نفحص الترويسة أولاً ثم الجسم.
-     */
     private function parseRetryAfterFromResponse($response): ?int
     {
         $fromHeader = $this->parseRetryAfter($response->header('Retry-After'));
@@ -273,7 +265,6 @@ class GeminiAiTextGenerator implements AiTextGeneratorInterface
         if ($value === '') {
             return null;
         }
-        // صيغ مثل "35s" أو "12.5s" أو "35"
         if (preg_match('/^([\d.]+)\s*s?$/i', $value, $m)) {
             $parsed = (int) ceil((float) $m[1]);
             return $parsed >= 1 ? $parsed : null;

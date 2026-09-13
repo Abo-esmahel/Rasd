@@ -11,23 +11,8 @@ use App\Services\Localization\TranslationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
-/**
- * Smart Note Translation — الزر/الحالة (عرض + جدولة خلفية فقط).
- *
- * Architecture:
- *   Note Source → Translation Service → Gemini Provider (background only)
- *   → Stored Translation → Presentation Resolver → UI
- *
- * - status: قراءة محفوظة فقط — ZERO Gemini (آمن لـ Language Switch polling).
- * - retry: جدولة Job خلفي فقط — لا ترجمة متزامنة، لا كسر للحفظ.
- * - لا مصطلحات تقنية للمستخدم (بلا Gemini/Provider/Hash/API).
- */
 class NoteTranslationController extends Controller
 {
-    /**
-     * حالة الترجمة + النص العرضي الحالي (محفوظ أو placeholder بلغة الواجهة).
-     * GET /notes/{note}/translation-status — قراءة فقط، بلا Gemini.
-     */
     public function status(Note $note, LocalizedPresenter $presenter)
     {
         $this->authorize('view', $note);
@@ -59,10 +44,6 @@ class NoteTranslationController extends Controller
         ]);
     }
 
-    /**
-     * إعادة جدولة الترجمة الخلفية للحقول الناقصة فقط (dedup بالبصمة).
-     * POST /notes/{note}/translation-retry — خلفية فقط، بلا Gemini متزامن.
-     */
     public function retry(Request $request, Note $note, TranslationService $service)
     {
         $this->authorize('view', $note);
@@ -73,17 +54,16 @@ class NoteTranslationController extends Controller
             $candidates['rejection_reason'] = (string) $note->rejection_reason;
         }
 
-        // الحقول التي تحتاج فعلاً هذه اللغة (تجاهل التقني/نفس اللغة).
         $missing = [];
         foreach ($candidates as $field => $source) {
             $source = trim($source);
             if ($source === '' || mb_strlen($source) > TranslationService::MAX_FIELD_CHARS) {
                 continue;
             }
-            if (!$service->shouldTranslate($source)) {
+            if (!$service->shouldTranslateCached($source)) {
                 continue;
             }
-            $sourceLang = SourceLanguage::detect($source);
+            $sourceLang = TranslationService::detectCached($source);
             if ($sourceLang === $locale || $sourceLang === SourceLanguage::NEUTRAL) {
                 continue;
             }
@@ -94,11 +74,27 @@ class NoteTranslationController extends Controller
         }
 
         if ($missing === []) {
+            $reason = 'nothing';
+            foreach ($candidates as $field => $source) {
+                $src = trim($source);
+                if ($src === '') { $reason = 'empty'; break; }
+                if (!$service->shouldTranslateCached($src)) { $reason = 'technical'; break; }
+                $sl = TranslationService::detectCached($src);
+                if ($sl === $locale) { $reason = 'same_lang'; break; }
+                if ($service->resolveStored('note', $note->id, $field, $src, $locale) !== null) { $reason = 'already_ready'; break; }
+            }
+            $msg = match($reason) {
+                'same_lang' => $locale === 'en' ? 'Text is already in English — no translation needed' : 'النص بالفعل بالعربية — لا حاجة للترجمة',
+                'technical' => __('ui.note_translation_nothing_to_do'),
+                'already_ready' => __('ui.note_translation_ready'),
+                default => __('ui.note_translation_nothing_to_do'),
+            };
             return response()->json([
                 'ok' => true,
                 'locale' => $locale,
                 'queued' => false,
-                'message' => __('ui.note_translation_nothing_to_do'),
+                'reason' => $reason,
+                'message' => $msg,
             ]);
         }
 

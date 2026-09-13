@@ -151,14 +151,14 @@
 
 <div id="avatar-crop-modal" data-modal class="hidden fixed inset-0 z-[70] flex items-center justify-center p-4">
     <div class="absolute inset-0 bg-ink-900/70 backdrop-blur-sm" onclick="cancelCrop()"></div>
-    <div class="relative bg-white rounded-2xl shadow-2xl w-full overflow-hidden" style="max-width:700px;">
-        <div class="px-4 py-3 border-b border-surface-300 flex items-center justify-between">
+    <div class="relative bg-white rounded-2xl shadow-2xl w-full flex flex-col overflow-hidden" style="max-width:700px;max-height:min(700px,90vh);">
+        <div class="px-4 py-3 border-b border-surface-300 flex items-center justify-between shrink-0">
             <h3 class="text-sm font-extrabold text-ink-800">{{ __('ui.crop_avatar_title') }}</h3>
             <button type="button" onclick="cancelCrop()" class="w-8 h-8 rounded-lg hover:bg-surface-100 flex items-center justify-center text-ink-400 hover:text-ink-700 transition" aria-label="{{ __('ui.cancel') }}">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
         </div>
-        <div class="p-4">
+        <div class="p-4 overflow-y-auto min-h-0">
             <div id="crop-stage" style="position:relative;width:100%;max-width:620px;margin:0 auto;aspect-ratio:1/1;overflow:hidden;background:#0f1a13;border-radius:16px;touch-action:none;cursor:grab;">
                 <img id="crop-img" alt="{{ __('ui.crop_avatar_title') }}" draggable="false" style="position:absolute;left:0;top:0;max-width:none;user-select:none;-webkit-user-drag:none;pointer-events:none;">
                 <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;">
@@ -172,7 +172,7 @@
             </div>
             <p class="mt-2 text-center text-[11px] text-ink-400">{{ __('ui.crop_drag_hint') }}</p>
         </div>
-        <div class="px-4 py-3 border-t border-surface-300 bg-surface-50 flex gap-2">
+        <div class="px-4 py-3 border-t border-surface-300 bg-surface-50 flex gap-2 shrink-0">
             <button type="button" id="crop-confirm" class="flex-1 px-4 py-2.5 rounded-xl text-white text-sm font-bold transition" style="background-color:#1f6f4a">{{ __('ui.approve') }}</button>
             <button type="button" onclick="cancelCrop()" class="flex-1 px-4 py-2.5 rounded-xl bg-white border border-surface-300 text-ink-600 text-sm font-bold hover:bg-surface-100 transition">{{ __('ui.cancel') }}</button>
         </div>

@@ -22,10 +22,6 @@ class NoteService
         private ?WebPushService $push = null,
     ) {}
 
-    /**
-     * الحد الأقصى لحجم الملف الواحد بالكيلوبايت — مصدر واحد لكل الكنترولرز
-     * وطلبات الـ API (صور/فيديو/صوت)، مع احترام حد PHP.
-     */
     public static function uploadFileMaxKb(): int
     {
         $phpMaxKb = (int) (self::parseBytesStatic((string) ini_get('upload_max_filesize')) / 1024);
@@ -56,37 +52,34 @@ class NoteService
         };
     }
 
-    /**
-     * فالديشن ذكية للنطاق الزمني — نقطة واحدة لكل الملاحظات والإرساليات:
-     * - عبور منتصف الليل مسموح (نهاية أصغر من البداية = اليوم التالي) بدل الرفض.
-     * - المدة القصوى 12 ساعة لمنع أخطاء الإدخال.
-     * - لا تواريخ مستقبلية (سماح ساعة واحدة لانحراف الساعات).
-     */
     public static function normalizeObservedRange(array $data): array
     {
         if (empty($data['observed_at'])) {
             return $data;
         }
 
+        $configuredTz = (string) config('app.timezone', 'Asia/Damascus');
+        $parseTz = $configuredTz === 'UTC' ? 'Asia/Damascus' : $configuredTz;
+
         try {
-            $start = \Carbon\Carbon::parse($data['observed_at']);
+            $start = \Carbon\Carbon::parse($data['observed_at'], $parseTz);
         } catch (\Throwable $e) {
             throw new InvalidArgumentException(__('api.time_invalid'));
         }
 
-        if ($start->gt(now()->addHour())) {
+        $now = \Carbon\Carbon::now($parseTz);
+        if ($start->gt($now->copy()->addHour())) {
             throw new InvalidArgumentException(__('api.time_future'));
         }
 
         if (! empty($data['observed_end_at'])) {
             try {
-                $end = \Carbon\Carbon::parse($data['observed_end_at']);
+                $end = \Carbon\Carbon::parse($data['observed_end_at'], $parseTz);
             } catch (\Throwable $e) {
                 throw new InvalidArgumentException(__('api.time_end_invalid'));
             }
 
             if ($end->lt($start)) {
-                // عبور منتصف الليل — نفس سلوك واجهة الملاحظات سابقاً.
                 $end->addDay();
             }
 
@@ -94,21 +87,18 @@ class NoteService
                 throw new InvalidArgumentException(__('api.time_range_exceeded'));
             }
 
-            if ($end->gt(now()->addHour())) {
+            if ($end->gt($now->copy()->addHour())) {
                 throw new InvalidArgumentException(__('api.time_end_future'));
             }
 
-            $data['observed_end_at'] = $end->toDateTimeString();
+            $data['observed_end_at'] = $end->setTimezone($parseTz)->toDateTimeString();
         }
 
-        $data['observed_at'] = $start->toDateTimeString();
+        $data['observed_at'] = $start->setTimezone($parseTz)->toDateTimeString();
 
         return $data;
     }
 
-    /**
-     * إبطال مستهدف للكاش بعد أي تغيير حالة — العدادات كانت تبقى قديمة 30–300 ثانية.
-     */
     public static function flushNoteCaches(?int $userId = null): void
     {
         try {
@@ -162,6 +152,18 @@ class NoteService
             throw new AttachmentUploadException(
                 $msg,
                 stage: 'transport_loss',
+                filesReceived: $filesReceived,
+                attachmentsSaved: 0,
+                attachmentErrors: [$msg],
+            );
+        }
+
+        $maxAttachments = (int) config('attachments.max_per_note', 10);
+        if ($filesReceived > $maxAttachments) {
+            $msg = __('api.note_attach_max', ['max' => $maxAttachments]);
+            throw new AttachmentUploadException(
+                $msg,
+                stage: 'validation',
                 filesReceived: $filesReceived,
                 attachmentsSaved: 0,
                 attachmentErrors: [$msg],
@@ -287,7 +289,6 @@ class NoteService
         $attachmentsBefore = $note->attachments()->count();
         $maxAttachments = (int) config('attachments.max_per_note', 10);
 
-        // كان بالإمكان تجاوز الحد عبر التعديل المتكرر — $attachmentsBefore حُسب ولم يُفحص أبداً.
         if ($attachmentsBefore + $filesReceived > $maxAttachments) {
             throw new AttachmentUploadException(
                 __('api.note_attach_max_detail', ['max' => $maxAttachments, 'before' => $attachmentsBefore, 'new' => $filesReceived]),
@@ -486,8 +487,6 @@ class NoteService
             ]);
             $fresh = $note->fresh();
 
-            // fan-out آلي في الخلفية: الريكويست يعود فوراً بلا انتظار N مستخدم.
-            // الإشعارات نفسها queued (ShouldQueue) + الـ Push عبر Job منفصل.
             try {
                 \App\Jobs\FanoutNoteNotifications::dispatch($fresh->id, $user->id, $user->name)->afterResponse();
             } catch (\Throwable $e) {
@@ -706,7 +705,6 @@ class NoteService
     public function getVisibleNotesQuery(User $user)
     {
 
-        // owner محدود الأعمدة + processor لمنع N+1 + عدّاد مرفقات بلا تحميل كل الصفوف.
         $query = Note::with(['owner:id,name,avatar_path', 'processor:id,name'])
             ->withCount('attachments')
             ->whereNull('notes.general_submission_id');
@@ -773,17 +771,14 @@ class NoteService
     private function hasNotification(User $user, string $type, int $id, string $key = 'note_id', mixed $since = null): bool
     {
         try {
-            // فحص مباشر في DB عبر JSON — بلا get() لكل الإشعارات.
             $query = $user->notifications()->where('type', $type);
             if ($since) {
                 $query->where('created_at', '>', $since);
             }
 
-            // SQLite/MySQL يدعمان -> للـ JSON في where. نجرّب المفتاح المطلوب أولاً.
             if ($query->clone()->where('data->'.$key, $id)->exists()) {
                 return true;
             }
-            // توافق خلفي: بعض الإشعارات القديمة تخزن note_id/submission_id/general_submission_id.
             foreach (['note_id', 'submission_id', 'general_submission_id'] as $alt) {
                 if ($alt === $key) {
                     continue;
@@ -795,7 +790,6 @@ class NoteService
 
             return false;
         } catch (\Throwable $e) {
-            // fallback آمن: اعتبره غير موجود لتفادي كتم إشعار مهم، مع منع التكرار عبر unique لاحقاً.
             return false;
         }
     }

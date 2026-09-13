@@ -39,11 +39,9 @@ class NotificationController extends Controller
             ]);
         }
 
-        // للـ Blade: حضّر data مع عرض محلّي عبر نفس Resolver (يدعم القديم والجديد)
         $viewNotifications = $paginator->getCollection()->map(function ($n) use ($presenter) {
             $data = is_string($n->data) ? json_decode($n->data, true) : (array) $n->data;
             $localized = $presenter->notification($data);
-            // title/message محلّية للعرض؛ احتفظ بالأصل أيضاً للـ data الأصلية إن لزم
             $data = array_merge($data, ['title' => $localized['title'], 'message' => $localized['message']]);
             return (object)[
                 'id' => $n->id,
@@ -76,10 +74,8 @@ class NotificationController extends Controller
         ]);
         $ids = $validated['ids'] ?? [];
         if (empty($ids)) {
-            // تحديث جماعي واحد بدل تحميل الكل ثم UPDATE لكل صف (N+1).
             $user->unreadNotifications()->update(['read_at' => now()]);
         } else {
-            // مقيد بإشعارات المستخدم فقط — لا IDOR.
             $user->notifications()->whereIn('id', $ids)->whereNull('read_at')->update(['read_at' => now()]);
         }
         $unread = $user->unreadNotifications()->count();
@@ -97,9 +93,6 @@ class NotificationController extends Controller
     public function preferences(Request $request)
     {
         $pref = NotificationPreference::forUser(Auth::id());
-        // تنقّل مباشر بالمتصفح (شريط العنوان/back) لendpoint مخصص للـ fetch فقط
-        // كان يعرض صفحة JSON بيضاء تُفهم كخطأ — أعد التوجيه لمركز الإشعارات بدلاً من ذلك.
-        // طلبات الـ fetch ترسل Accept: application/json أو X-Requested-With فتبقى JSON.
         if (! $request->expectsJson() && ! $request->ajax() && ! $request->wantsJson()) {
             return redirect()->route('notifications.index');
         }
@@ -131,7 +124,6 @@ class NotificationController extends Controller
         $rawType = $data['type'] ?? $n->type ?? 'generic';
         $priority = $data['priority'] ?? $this->inferPriority($rawType);
         $category = $data['category'] ?? $this->inferCategory($rawType);
-        // عرض محلّي للـ title/message (يدعم القديم title/message والجديد title_key/message_key)
         try {
             if ($presenter) {
                 $localized = $presenter->notification($data);

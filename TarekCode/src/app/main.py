@@ -26,11 +26,49 @@ from PySide6.QtCore import QLockFile, QDir, QStandardPaths
 from PySide6.QtWidgets import QApplication, QMessageBox
 from PySide6.QtGui import QIcon
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
-)
+from app.utils.redaction import redact_text
 
+
+# --- Centralized Redaction Filter ---
+class RedactionFilter(logging.Filter):
+    """Ensures all log records pass through redaction before output."""
+    def filter(self, record: logging.LogRecord) -> bool:
+        if isinstance(record.msg, str):
+            record.msg = redact_text(record.msg)
+        # Also redact args if they contain strings
+        if record.args:
+            new_args = []
+            for arg in record.args:
+                if isinstance(arg, str):
+                    new_args.append(redact_text(arg))
+                elif isinstance(arg, dict):
+                    new_args.append(redact_text(str(arg)))
+                else:
+                    new_args.append(arg)
+            record.args = tuple(new_args)
+        return True
+
+
+def setup_logging(level: int = logging.INFO, log_file: str | None = None) -> None:
+    """Configure application-wide logging with redaction filter."""
+    handlers: list[logging.Handler] = [logging.StreamHandler()]
+    if log_file:
+        handlers.append(logging.FileHandler(log_file, encoding="utf-8"))
+
+    for h in handlers:
+        h.addFilter(RedactionFilter())
+        h.setFormatter(logging.Formatter(
+            "%(asctime)s | %(levelname)s | %(name)s | %(message)s"
+        ))
+
+    logging.basicConfig(level=level, handlers=handlers, force=True)
+
+    # Silence noisy loggers
+    logging.getLogger("PySide6").setLevel(logging.WARNING)
+    logging.getLogger("keyring").setLevel(logging.WARNING)
+
+
+setup_logging()
 logger = logging.getLogger(__name__)
 
 
@@ -41,13 +79,36 @@ def ensure_single_instance(app: QApplication) -> QLockFile | None:
     Returns lock (kept alive) or None if already running.
     """
     lock_path = Path(os.environ.get("TEMP", str(Path.home()))) / "OpenCodeAPIManager.lock"
-    # Alternative: QStandardPaths::TempLocation
     lock = QLockFile(str(lock_path))
     lock.setStaleLockTime(0)
+    # Try to acquire lock with 100ms timeout
     if not lock.tryLock(100):
-        # Try to show message then exit
         return None
+    # Write PID to lock file for debugging
+    try:
+        lock.write(os.getpid().to_bytes(8, "little", signed=False))
+    except Exception:
+        pass
     return lock
+
+
+def _try_focus_existing_window() -> bool:
+    """Try to find and focus existing OpenCode API Manager window (Windows only)."""
+    if os.name != "nt":
+        return False
+    try:
+        import ctypes
+        user32 = ctypes.windll.user32
+        # Find window by class name or title
+        hwnd = user32.FindWindowW(None, "OpenCode API Manager")
+        if hwnd:
+            # Restore if minimized
+            user32.ShowWindow(hwnd, 9)  # SW_RESTORE
+            user32.SetForegroundWindow(hwnd)
+            return True
+    except Exception:
+        pass
+    return False
 
 
 def main() -> int:
@@ -59,6 +120,8 @@ def main() -> int:
     # Single instance check
     lock = ensure_single_instance(app)
     if lock is None:
+        # Try to focus existing instance
+        _try_focus_existing_window()
         # Use QMessageBox if possible, else just exit
         try:
             QMessageBox.warning(
@@ -68,7 +131,6 @@ def main() -> int:
             )
         except Exception:
             pass
-        # Try to focus existing? On Windows we could FindWindow, but simple exit is spec-compliant ("prevent second instance")
         logger.warning("Second instance blocked by mutex")
         return 0
 

@@ -176,7 +176,6 @@ class ReportController extends Controller
 
     public function generate(Request $request, Report $report): JsonResponse
     {
-        // دفاع إضافي: التوليد يحتاج حتى ~60 ثانية لرد Gemini، وحد PHP الافتراضي 30 ثانية يقتله.
         if (function_exists('set_time_limit')) {
             @set_time_limit(120);
         }

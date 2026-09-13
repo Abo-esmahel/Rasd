@@ -89,8 +89,6 @@ export class NotificationManager {
     this.liveRegion = this.ensureLiveRegion();
 
     
-    // الطلبات الثلاثة مستقلة — بالتوازي بدل التسلسل (3 RTT متتالية → واحدة).
-    // ملاحظة: loadPreferences تُرجع بيانات التفضيلات لإعادة استخدامها في الصوت بلا طلب ثانٍ.
     const [prefsData] = await Promise.all([
       this.loadPreferences(),
       this.fetchNotifications({ silent: true }),
@@ -139,8 +137,6 @@ export class NotificationManager {
     });
 
 
-    // أُزيل مؤقت الـ 60s: عامل الـ poll يضرب كل 30s أصلاً — كان طلباً مكرراً بلا فائدة.
-    // المزامنة عند الظهور/التركيز (أعلاه) باقية لأنها بمبادرة المستخدم.
     this.log('[MANAGER] ready');
   }
 
@@ -513,8 +509,6 @@ export class NotificationManager {
   }
 
   connectPolling() {
-    // إصلاح الأداء: 5s كان يولّد ~12 req/min لكل تب + قفل session file + SQLite lock.
-    // 30s كافية للإشعارات، مع إيقاف كامل عندما تكون الصفحة مخفية.
     const interval = 30000;
     this.log(`[POLL] starting fallback polling (every ${interval/1000}s)`);
     this.setConnectionState('CONNECTED'); 
@@ -532,7 +526,6 @@ export class NotificationManager {
       this.pollTimer = setInterval(() => this.fetchNotifications({ silent: true }), interval);
     }
     
-    // جلب فوري فقط إذا لم نجلب منذ لحظات (init يجلب مسبقاً بالتوازي) — يمنع طلباً مكرراً عند كل اتصال.
     if (Date.now() - (this._lastFetchAt || 0) > 10000) {
       this.fetchNotifications({ silent: true });
     }
@@ -995,14 +988,15 @@ export class NotificationManager {
     if (data.note_id) return `/notes/${data.note_id}`;
     if (data.submission_id) return `/general-submissions/${data.submission_id}`;
     if (data.general_submission_id) return `/general-submissions/${data.general_submission_id}`;
-    return '/notifications';
+    if (data.report_id) return `/reports/${data.report_id}`;
+    return null;
   }
 
   handleClick(notification) {
     const url = this.resolveUrl(notification);
     this.log('[CLICK] notification', notification.id, url);
-    
     this.markOneAsRead(notification.id, { silent: true }).catch(() => {});
+    if (!url) return;
     window.location.href = url;
   }
 
@@ -1026,7 +1020,8 @@ export class NotificationManager {
       const rawType = data.type || n.type || 'generic';
       const cfg = getTypeConfig(rawType);
       const isUnread = !n.read_at;
-      const url = this.escapeHtml(this.resolveUrl(n));
+      const rawUrl = this.resolveUrl(n);
+      const url = this.escapeHtml(rawUrl || '');
       const title = this.escapeHtml(data.title || cfgLabel(cfg) || NOTIF_FB.notif);
       const body = this.escapeHtml(data.message || '');
       const time = this.escapeHtml(n.created_at_human || NOTIF_FB.now);
@@ -1038,8 +1033,12 @@ export class NotificationManager {
       const reason = data.reason ? `<div class="notif-reason">${this.escapeHtml(data.reason)}</div>` : '';
       const tone = cfg.color === 'green' ? 'green' : cfg.color === 'amber' ? 'amber' : cfg.color === 'red' ? 'red' : 'slate';
 
+      const openTag = rawUrl
+        ? `<a href="${url}" data-id="${this.escapeHtml(n.id)}" class="notif-card${isUnread ? ' is-unread' : ''}" tabindex="0">`
+        : `<div data-id="${this.escapeHtml(n.id)}" class="notif-card${isUnread ? ' is-unread' : ''}" tabindex="0">`;
+      const closeTag = rawUrl ? `</a>` : `</div>`;
       return `
-        <a href="${url}" data-id="${this.escapeHtml(n.id)}" class="notif-card${isUnread ? ' is-unread' : ''}" tabindex="0">
+        ${openTag}
           <div class="notif-ic notif-ic--${tone}" aria-hidden="true">
             <svg class="notif-ic-svg" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.9"><path stroke-linecap="round" stroke-linejoin="round" d="${this.iconPathFor(cfg.icon)}"/></svg>
           </div>
@@ -1053,7 +1052,7 @@ export class NotificationManager {
             ${(metaStr || sender) ? `<span class="notif-meta">${sender ? sender + (metaStr ? ' · ' + metaStr : '') : metaStr}</span>` : ''}
             ${reason}
           </div>
-        </a>
+        ${closeTag}
       `;
     }).join('');
 
@@ -1063,7 +1062,6 @@ export class NotificationManager {
   
   async fetchNotifications({ silent = false } = {}) {
     try {
-      // لا تضرب السيرفر و التب مخفي — وفّر ~50% من طلبات الخلفية.
       if (typeof document !== 'undefined' && document.hidden && silent) {
         return;
       }
@@ -1379,7 +1377,6 @@ export class NotificationManager {
   async subscribePush(){
     try{
       const reg = await navigator.serviceWorker.ready;
-      // المشترك أصلاً لا يحتاج أي طلب شبكة — كان يجلب مفتاح VAPID في كل تحميل صفحة.
       const existing = await reg.pushManager.getSubscription();
       if(existing) { this.log('[PUSH] already subscribed'); return existing; }
       const vapidRes = await fetch('/push/vapid-public-key', {headers:{Accept:'application/json','X-Requested-With':'XMLHttpRequest'}, credentials:'same-origin'});

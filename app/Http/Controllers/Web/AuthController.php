@@ -27,19 +27,16 @@ class AuthController extends Controller
         if (Auth::attempt($credentials, $request->boolean('remember', true))) {
             $request->session()->regenerate();
 
-            // مستوى الإعدادات: وحّد اللغة بين الجلسة/الكوكي وحساب المستخدم لتبقى كل مرة.
             $sessionLocale = $request->session()->get('locale');
             $cookieLocale = $request->cookie('rasd_locale');
             $user = Auth::user();
 
             if (in_array($sessionLocale, ['ar', 'en'], true)) {
-                // اختيار الضيف قبل الدخول يصبح إعداد الحساب.
                 if (($user->locale ?? null) !== $sessionLocale) {
                     $user->forceFill(['locale' => $sessionLocale])->save();
                 }
                 $locale = $sessionLocale;
             } elseif (in_array($user->locale ?? null, ['ar', 'en'], true)) {
-                // إعداد الحساب المحفوظ يُطبَّق على الجلسة الحالية.
                 $locale = $user->locale;
                 $request->session()->put('locale', $locale);
             } else {
@@ -59,7 +56,6 @@ class AuthController extends Controller
 
     public function logout(Request $request)
     {
-        // احفظ لغة الإعدادات قبل مسح الجلسة لتبقى بعد الخروج.
         $locale = $request->session()->get('locale', $request->cookie('rasd_locale', Auth::user()?->locale ?? 'ar'));
         if (! in_array($locale, ['ar', 'en'], true)) {
             $locale = 'ar';

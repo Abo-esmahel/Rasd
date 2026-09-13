@@ -104,7 +104,7 @@
             xhr.send(fd);
         });
     }
-    const MAX_FILES={{ max(1, (int) ini_get('max_file_uploads') ?: 20) }};
+    const MAX_FILES={{ min(max(1, (int) ini_get('max_file_uploads') ?: 20), (int) config('attachments.max_per_submission', 5)) }};
     // Shared submission-create UI dictionary (server-rendered per locale — no Gemini).
     const GSUB_T = {
         netErr: @json(__('ui.network_error')),
@@ -158,11 +158,35 @@
             sync(); render();
         }));
     }
-    function addFiles(arr){
-        for(const file of arr){
+    // ضغط صور JPEG/WEBP قبل الرفع — نفس الامتداد ونفس الـmime (لا PNG/HEIC/GIF حتى لا ينكسر فالديشن mimes).
+    async function compressGsImage(file){
+        try{
+            const t=file.type||'';
+            const ext=(file.name.split('.').pop()||'').toLowerCase();
+            const ok=(t==='image/jpeg'&&(ext==='jpg'||ext==='jpeg'))||(t==='image/webp'&&ext==='webp');
+            if(!ok) return file;
+            if(file.size<900*1024) return file;
+            if(typeof createImageBitmap!=='function') return file;
+            const bmp=await createImageBitmap(file).catch(()=>null);
+            if(!bmp) return file;
+            const MAXD=1920, w=bmp.width, h=bmp.height;
+            const scale=Math.min(1,MAXD/Math.max(w,h));
+            if(scale>=1&&file.size<2.5*1024*1024){ if(bmp.close) bmp.close(); return file; }
+            const c=document.createElement('canvas');
+            c.width=Math.max(1,Math.round(w*scale)); c.height=Math.max(1,Math.round(h*scale));
+            c.getContext('2d').drawImage(bmp,0,0,c.width,c.height);
+            if(bmp.close) bmp.close();
+            const blob=await new Promise(r=>{ try{ c.toBlob(r,t,0.82); }catch(_){ r(null); } });
+            if(!blob||blob.size>=file.size) return file;
+            return new File([blob],file.name,{type:t,lastModified:Date.now()});
+        }catch(_){ return file; }
+    }
+    async function addFiles(arr){
+        for(const orig of arr){
+            const file=await compressGsImage(orig);
             if(transfer.files.length>=MAX_FILES){ window.toast(gsubFill(GSUB_T.limitToast,{':max':MAX_FILES})); break; }
             const ext=file.name.split('.').pop().toLowerCase();
-            const audioExts=['mp3','wav','ogg','oga','m4a','aac','wma','flac','opus','aiff','aif','amr','3ga','awb','mid','midi','au','weba'];
+            const audioExts=['mp3','wav','ogg','oga','m4a','aac','wma','flac','opus','aiff','aif','amr','3ga','awb','mid','midi','au','weba','ac3','dts','alac'];
             const isAudio=audioExts.includes(ext)||file.type.startsWith('audio/');
             if(!['jpg','jpeg','png','webp','mp4','webm','mov','avi','3gp','mkv','m4v','mpg','3gpp'].includes(ext)&&!file.type.startsWith('image/')&&!file.type.startsWith('video/')&&!isAudio){ window.toast(GSUB_T.unsupported); continue; }
             if(file.type.startsWith('image/')&&file.size>20*1024*1024){ window.toast(GSUB_T.imgBig); continue; }
@@ -172,14 +196,14 @@
         }
         sync(); render();
     }
-    input?.addEventListener('change',e=>{ addFiles(Array.from(e.target.files)); input.value=''; sync(); });
+    input?.addEventListener('change',async e=>{ await addFiles(Array.from(e.target.files)); input.value=''; sync(); });
     const camPhoto=document.getElementById('gs-cam-photo-input'),camVideo=document.getElementById('gs-cam-video-input');
     document.getElementById('gs-cam-photo-btn')?.addEventListener('click',()=>camPhoto?.click());
     document.getElementById('gs-cam-video-btn')?.addEventListener('click',()=>camVideo?.click());
-    camPhoto?.addEventListener('change',e=>{ addFiles(Array.from(e.target.files)); camPhoto.value=''; sync(); });
-    camVideo?.addEventListener('change',e=>{ addFiles(Array.from(e.target.files)); camVideo.value=''; sync(); });
+    camPhoto?.addEventListener('change',async e=>{ await addFiles(Array.from(e.target.files)); camPhoto.value=''; sync(); });
+    camVideo?.addEventListener('change',async e=>{ await addFiles(Array.from(e.target.files)); camVideo.value=''; sync(); });
     ['dragenter','dragover'].forEach(ev=>zone?.addEventListener(ev,e=>{e.preventDefault();}));
-    zone?.addEventListener('drop',e=>{ e.preventDefault(); if(e.dataTransfer?.files?.length) addFiles(Array.from(e.dataTransfer.files)); });
+    zone?.addEventListener('drop',async e=>{ e.preventDefault(); if(e.dataTransfer?.files?.length) await addFiles(Array.from(e.dataTransfer.files)); });
     formEl?.addEventListener('submit',async e=>{
         if(!(transfer.files.length>0||intended>0)) return; 
         e.preventDefault();

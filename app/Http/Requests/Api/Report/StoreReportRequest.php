@@ -13,7 +13,6 @@ class StoreReportRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
-        // اسم افتراضي رسمي عند ترك العنوان فارغاً (مطابق لسلوك الواجهة)
         if (trim((string) $this->input('title', '')) === '') {
             $this->merge(['title' => __('report.daily_title_default', ['date' => $this->input('report_date', now()->toDateString())])]);
         }

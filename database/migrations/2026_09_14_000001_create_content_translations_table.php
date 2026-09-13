@@ -6,11 +6,6 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Translation Cache منفصل تماماً عن Business Data.
-     * الأصل العربي يبقى في جداوله؛ هنا تُحفظ الترجمات العرضية فقط.
-     * صف واحد لكل (entity, id, field, locale) مع بصمة المصدر للـinvalidation.
-     */
     public function up(): void
     {
         Schema::create('content_translations', function (Blueprint $table) {

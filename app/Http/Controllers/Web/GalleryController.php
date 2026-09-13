@@ -106,11 +106,6 @@ class GalleryController extends Controller
         $page->setCollection($items);
 
 
-        // فلاتر المعرض: 4 استعلامات distinct في كل فتح — كاش 5 دقائق لكل مستخدم.
-        // arrays فقط + مفتاح بإصدار + تحقق ذاتي: مخزن الكاش (database) قد يعيد
-        // قيمًا قديمة/ناقصة (__PHP_Incomplete_Class) بعد تغيير الكود — أي شكل
-        // غير متوقع = تجاهل + إعادة بناء، لا 500 أبدًا. القوائم تُطبَّع لسلاسل
-        // نصية فريدة مرتبة حتى لا تصل مصفوفة/كائن إلى {{ }} في الواجهة أبدًا.
         $filtersKey = 'gallery-filters:v2:'.$user->id;
         $cameras = $floors = [];
         try {
@@ -118,8 +113,6 @@ class GalleryController extends Controller
             if (is_array($cached) && isset($cached[0], $cached[1]) && is_array($cached[0]) && is_array($cached[1])) {
                 $cameras = self::galleryScalarList($cached[0]);
                 $floors = self::galleryScalarList($cached[1]);
-                // شكل صالح ظاهريًا لكنه لا يحوي أي scalar (قيم قديمة مسمومة):
-                // أعد البناء بدل تقديم فلاتر فارغة.
                 if ((count($cached[0]) > 0 && count($cameras) === 0) || (count($cached[1]) > 0 && count($floors) === 0)) {
                     throw new \RuntimeException('gallery filters cache holds no scalars');
                 }
@@ -142,11 +135,6 @@ class GalleryController extends Controller
         return view('gallery.index', ['attachments' => $page, 'cameras' => $cameras, 'floors' => $floors]);
     }
 
-    /**
-     * بناء قوائم الفلاتر من المصدرين + تطبيع صارم لسلاسل نصية.
-     *
-     * @return array{0: array<int,string>, 1: array<int,string>}
-     */
     private static function buildGalleryFilters($user): array
     {
         $noteBase = Note::query()->whereNull('notes.general_submission_id')
@@ -163,11 +151,6 @@ class GalleryController extends Controller
         return [self::galleryScalarList($cameras), self::galleryScalarList($floors)];
     }
 
-    /**
-     * تطبيع أي قيم قادمة من DB/كاش إلى قائمة سلاسل فريدة مرتبة.
-     * يُسقط null والمصفوفات والكائنات والسلاسل الفارغة — ما يُعرض في
-     * <option value="{{ $v }}"> يجب أن يكون scalar دائمًا.
-     */
     private static function galleryScalarList($values): array
     {
         $out = [];

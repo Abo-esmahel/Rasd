@@ -18,8 +18,6 @@ class AuthenticateApi
 
     public function handle(Request $request, Closure $next): Response
     {
-        // التوكن عبر Authorization: Bearer فقط — منع تمريره في URL
-        // لأنه يُسجَّل في اللوقات وسجل المتصفح ويتسرب عبر Referer.
         $token = $request->bearerToken();
 
         if (!$token) {

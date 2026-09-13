@@ -100,6 +100,7 @@
 </div>
 
 
+<div id="notes-list">
 @if($notes->count() === 0)
     <div class="bg-surface-50 rounded-xl border border-surface-300 p-10 text-center">
         <div class="w-14 h-14 rounded-2xl bg-surface-100 flex items-center justify-center mx-auto">
@@ -135,7 +136,7 @@
         </div>
 
         @foreach($notes as $note)
-            <div class="note-row grid grid-cols-[1fr_auto_auto] gap-4 items-center px-5 py-3.5 border-b border-surface-300 last:border-b-0 cursor-pointer hover:bg-surface-50 transition-colors" onclick="openModal('detail-{{ $note->id }}')" data-i18n-entity="note" data-i18n-id="{{ $note->id }}">
+            <div class="note-row grid grid-cols-[1fr_auto_auto] gap-4 items-center px-5 py-3.5 border-b border-surface-300 last:border-b-0 cursor-pointer hover:bg-surface-50 transition-colors" onclick="openModal('detail-{{ $note->id }}')" data-note-card data-i18n-entity="note" data-i18n-id="{{ $note->id }}">
 
 
                 <div class="min-w-0">
@@ -171,26 +172,26 @@
 
                 <div class="w-28 flex justify-center">
                     @if($note->isDraft())
-                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-ink-100 text-ink-600">
+                        <span class="note-badge inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-ink-100 text-ink-600">
                             <span class="w-1.5 h-1.5 rounded-full bg-ink-300"></span>{{ __('ui.draft_status') }}
                         </span>
                     @elseif($note->isPending())
-                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                        <span class="note-badge inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
                             <span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>{{ __('ui.pending_status') }}
                         </span>
                     @elseif($note->isAccepted())
-                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-sage-50 text-sage-700 border border-sage-200">
+                        <span class="note-badge inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-sage-50 text-sage-700 border border-sage-200">
                             <span class="w-1.5 h-1.5 rounded-full bg-sage-600"></span>{{ __('ui.accepted_status') }}
                         </span>
                     @elseif($note->isRejected())
-                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-red-50 text-red-700 border border-red-200">
+                        <span class="note-badge inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-red-50 text-red-700 border border-red-200">
                             <span class="w-1.5 h-1.5 rounded-full bg-red-400"></span>{{ __('ui.rejected_status') }}
                         </span>
                     @endif
                 </div>
 
 
-                <div class="w-36 flex justify-center" onclick="event.stopPropagation()">
+                <div class="w-36 flex justify-center note-actions" onclick="event.stopPropagation()">
                 @if(!$note->isRejected() && $note->owner->whatsapp_number)
                     @php
                         $statusLabel = status_label($note->status);
@@ -246,17 +247,17 @@
 
     <div class="sm:hidden space-y-3">
         @foreach($notes as $note)
-            <div class="bg-white rounded-xl border border-[#e6e9e1] shadow-sm p-4 hover:shadow-md hover:border-[#d4ddd3] transition" onclick="openModal('detail-{{ $note->id }}')" role="button" data-i18n-entity="note" data-i18n-id="{{ $note->id }}">
+            <div class="bg-white rounded-xl border border-[#e6e9e1] shadow-sm p-4 hover:shadow-md hover:border-[#d4ddd3] transition" onclick="openModal('detail-{{ $note->id }}')" role="button" data-note-card data-i18n-entity="note" data-i18n-id="{{ $note->id }}">
                 <div class="flex items-start justify-between gap-2 mb-2">
                     <div class="flex items-center gap-2">
                         @if($note->isDraft())
-                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-ink-100 text-[#525252]"><span data-status="draft">{{ __('ui.draft') }}</span></span>
+                            <span class="note-badge inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-ink-100 text-[#525252]"><span data-status="draft">{{ __('ui.draft') }}</span></span>
                         @elseif($note->isPending())
-                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200"><span data-status="pending">{{ __('ui.pending') }}</span></span>
+                            <span class="note-badge inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200"><span data-status="pending">{{ __('ui.pending') }}</span></span>
                         @elseif($note->isAccepted())
-                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-[#eef4f0] text-[#0e6a38] border border-[#cde7d6]"><span data-status="accepted">{{ __('ui.accepted') }}</span></span>
+                            <span class="note-badge inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-[#eef4f0] text-[#0e6a38] border border-[#cde7d6]"><span data-status="accepted">{{ __('ui.accepted') }}</span></span>
                         @elseif($note->isRejected())
-                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-red-50 text-red-700 border border-red-200"><span data-status="rejected">{{ __('ui.rejected') }}</span></span>
+                            <span class="note-badge inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-red-50 text-red-700 border border-red-200"><span data-status="rejected">{{ __('ui.rejected') }}</span></span>
                         @endif
                     </div>
                     <span class="text-xs text-ink-300">{{ $note->observed_at->toTime12() }}{{ $note->observed_end_at ? ' — '.$note->observed_end_at->toTime12() : '' }}</span>
@@ -336,6 +337,7 @@
         </div>
     @endif
 @endif
+</div>
 
 
 @foreach($notes as $note)

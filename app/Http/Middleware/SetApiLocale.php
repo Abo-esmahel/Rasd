@@ -7,13 +7,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\App;
 use Symfony\Component\HttpFoundation\Response;
 
-/**
- * locale-aware للـAPI دون كسر التوافق:
- * ?locale=ar|en > لغة المستخدم المحفوظة > Accept-Language > ar (الافتراضي الحالي).
- *
- * - يحدد لغة الرسائل البشرية (message/title) فقط — القيم التجارية لا تتغير.
- * - العملاء القدامى بلا locale يستمرون بالعربية كما قبل (non-breaking).
- */
 class SetApiLocale
 {
     public const SUPPORTED = ['ar', 'en'];

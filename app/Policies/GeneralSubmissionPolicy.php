@@ -11,8 +11,6 @@ class GeneralSubmissionPolicy
     
     public function viewAny(User $user): bool
     {
-        // الكتّاب يرون الإرساليات المسندة إليهم عبر getVisibleSubmissions —
-        // كانت monitor فقط فتحجب الكتّاب عن القائمة.
         return $user->isMonitor() || $user->isReportWriter();
     }
 

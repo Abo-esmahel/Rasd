@@ -1,7 +1,6 @@
 @extends('layouts.app')
 
 @section('content')
-{{-- ترويسة الصفحة --}}
 <div class="flex flex-wrap items-center justify-between gap-3 mb-5">
     <div class="flex items-center gap-3">
         <div class="w-11 h-11 rounded-2xl bg-[#0e6a38] text-white flex items-center justify-center shadow-sm shrink-0">
@@ -77,7 +76,6 @@
     $sheetN = ($notesN >= 1 && $notesN <= $sheetMax) ? (int) $notesN : null;
 @endphp
     <article class="report-card group relative bg-[#fdfcfa] border border-[#e6e9e1] rounded-[18px] shadow-sm hover:shadow-md hover:border-[#0e6a38]/40 hover:-translate-y-0.5 transition" data-i18n-entity="report" data-i18n-id="{{ $r->id }}">
-        {{-- صورة الورقة برقمها فقط --}}
         <div class="report-sheet-banner relative h-32 sm:h-36 overflow-hidden rounded-t-[17px] border-b border-[#e6e9e1] bg-[#f1f3f0]">
             @if($sheetN)
                 <img src="{{ route('report-sheets.image', $sheetN) }}" alt="{{ __('ui.sheet_alt', ['n' => $sheetN]) }}" loading="lazy" class="h-full w-full object-cover object-top">
@@ -110,7 +108,7 @@
                             </div>
                         </details>
                         @else
-                        {{-- عنصر شبح بنفس مقاس زر القائمة حتى تبقى الشارة على نفس المحور في كل البطاقات --}}
+                        
                         <span class="w-10 h-10 sm:w-8 sm:h-8 shrink-0" aria-hidden="true"></span>
                         @endif
                     </div>

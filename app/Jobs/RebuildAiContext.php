@@ -25,7 +25,6 @@ class RebuildAiContext implements ShouldQueue
 
     public function handle(ReportContextService $contexts): void
     {
-        // منع التزاحم: إذا كان هناك بناء جارٍ، تخطَّ — سيُعاد الجدولة عند الحفظ التالي.
         $lock = Cache::lock('ai-context-rebuild', 110);
         if (! $lock->get()) {
             return;

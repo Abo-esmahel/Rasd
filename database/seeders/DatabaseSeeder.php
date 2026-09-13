@@ -12,7 +12,6 @@ class DatabaseSeeder extends Seeder
     {
         $password = Hash::make('password');
 
-        // آمن للتكرار: التشغيل الثاني كان ينفجر بـ UNIQUE constraint على username.
         $users = [
             ['name' => 'طارق عبد الرحمن', 'username' => 'tariq', 'role' => 'monitor'],
             ['name' => 'هادي سهلي', 'username' => 'hadi', 'role' => 'monitor'],
@@ -22,7 +21,10 @@ class DatabaseSeeder extends Seeder
         ];
 
         foreach ($users as $u) {
-            User::firstOrCreate(['username' => $u['username']], $u + ['password' => $password]);
+            $user = User::firstOrCreate(['username' => $u['username']], $u + ['password' => $password]);
+            if (!$user->wasRecentlyCreated && ($user->role !== $u['role'] || $user->name !== $u['name'])) {
+                $user->update(['name' => $u['name'], 'role' => $u['role']]);
+            }
         }
     }
 }

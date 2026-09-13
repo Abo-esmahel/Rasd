@@ -10,15 +10,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
 
-/**
- * HTML Rendering pipeline — محرك المعاينة الحالي (HTML/CSS فقط):
- * FinalReportData → اختيار حتمي للقالب (Backend فقط) → حفظ → HTML.
- *
- * - العقد: render/renderSystem/systemHash/latestPayloadForEditor.
- * - لا GD ولا PNG ولا imagettftext — النص HTML حقيقي RTL.
- * - preview_url يشير إلى route يعيد نفس القالب (Preview ≈ Print ≈ PDF).
- * - Gemini (نص فقط) لا يرى القوالب ولا يختارها إطلاقاً.
- */
 class ReportHtmlRenderingService
 {
     public function __construct(
@@ -32,12 +23,6 @@ class ReportHtmlRenderingService
         return "report-html-render-{$reportId}";
     }
 
-    /**
-     * اعتماد بيانات نهائية (FinalReportData) وإعادة render للـHTML.
-     *
-     * @param  array{location?: mixed, observations?: mixed, recommendations?: mixed}  $data
-     * @return array{generation_id: string, data_version: int, template: string, screen: ?string, preview_url: string, html: string, cached: bool, generated_at: string, request_uid: ?string}
-     */
     public function render(User $user, Report $report, array $data, int $dataVersion = 1, ?string $requestUid = null): array
     {
         if (!$user->isReportWriter() || (int) $report->author_id !== (int) $user->id) {
@@ -52,12 +37,9 @@ class ReportHtmlRenderingService
             throw new InvalidArgumentException(__('api.report_fill_draft_only'));
         }
 
-        // تطبيع دفاعي: كل Observation مرة واحدة، وطي التكرارات الملتصقة
-        // (base×N → base) قبل التحقق والحفظ، حتى لا تُخزَّن بيانات ملوثة.
         $data['observations'] = \App\Services\Report\ReportEngine::normalizeObservations($data['observations'] ?? []);
         $data['recommendations'] = \App\Services\Report\ReportEngine::normalizeText($data['recommendations'] ?? '');
 
-        // رقم التقرير والتاريخ حقائق من السيرفر — تُتجاهل أي قيم قادمة من العميل.
         $payload = ReportRenderPayload::fromArray([
             'report_number' => (string) $fresh->id,
             'date' => $fresh->report_date ? $fresh->report_date->toDateString() : '',
@@ -66,7 +48,6 @@ class ReportHtmlRenderingService
             'recommendations' => $data['recommendations'] ?? '',
         ]);
 
-        // القالب يُحسم من السيرفر حسب العدد — أي قالب قادم من العميل يُتجاهل.
         $selected = $this->selector->selectForPayload($payload);
         if (!$selected) {
             throw new InvalidArgumentException(__('api.report_render_range'));
@@ -81,7 +62,6 @@ class ReportHtmlRenderingService
         }
 
         try {
-            // Cache: نفس الـpayload → إعادة استخدام بدون جيل جديد.
             $existing = ReportSheetRender::where('report_id', $fresh->id)->where('payload_hash', $hash)->first();
             if ($existing) {
                 if (empty($existing->payload)) {
@@ -164,7 +144,6 @@ class ReportHtmlRenderingService
         }
     }
 
-    /** توليد من بيانات النظام الافتراضية (الحالة الافتراضية عند الفتح). */
     public function renderSystem(User $user, Report $report, int $dataVersion = 1): array
     {
         $system = $this->dataBuilder->systemData($report->loadMissing(['author', 'notes']));
@@ -172,13 +151,10 @@ class ReportHtmlRenderingService
         return $this->render($user, $report, $system, $dataVersion);
     }
 
-    /** بصمة بيانات النظام الحالية — مرجع كشف القِدم (مطابق لبصمة renderSystem). */
     public function systemHash(Report $report): string
     {
         try {
             $system = $this->dataBuilder->systemData($report->loadMissing(['author', 'notes']));
-            // نفس تطبيع مسار render (إسقاط الفوارغ وطيّ التكرار التام) — وإلا اعتُبرت
-            // النسخة المعتمدة stale فوراً عند تطابق نصوص الملاحظات واستحال النشر.
             $system['observations'] = \App\Services\Report\ReportEngine::normalizeObservations($system['observations']);
             $key = $this->selector->keyForCount(count($system['observations']));
             if ($key === null) {
@@ -191,11 +167,6 @@ class ReportHtmlRenderingService
         }
     }
 
-    /**
-     * حالة التقرير: none | system | custom | stale — من DB فقط (بلا ملفات PNG).
-     *
-     * @return array{state: string, render: ?ReportSheetRender}
-     */
     public function htmlState(Report $report): array
     {
         $latest = $this->latestFor($report);
@@ -213,13 +184,11 @@ class ReportHtmlRenderingService
         return ['state' => 'stale', 'render' => $latest];
     }
 
-    /** توافق مع المتصلين القدامى (imageState) — نفس المنطق بلا صور. */
     public function imageState(Report $report): array
     {
         return $this->htmlState($report);
     }
 
-    /** أحدث render للتقرير (للمعاينة والطباعة). */
     public function latestFor(Report $report): ?ReportSheetRender
     {
         try {
@@ -229,11 +198,6 @@ class ReportHtmlRenderingService
         }
     }
 
-    /**
-     * آخر بيانات نهائية معتمدة (FinalReportData) لإعادة تحميل المحرر.
-     *
-     * @return array{observations: string[], recommendations: string}|null
-     */
     public function latestPayloadForEditor(Report $report): ?array
     {
         $latest = $this->latestFor($report);
@@ -262,7 +226,6 @@ class ReportHtmlRenderingService
         }
     }
 
-    /** بناء HTML من payload — وثيقة المحرك الواحد (نفسها للمعاينة والطباعة). */
     public function htmlFor(Report $report, ?ReportSheetRender $row = null): ?string
     {
         $row ??= $this->latestFor($report);
@@ -272,13 +235,31 @@ class ReportHtmlRenderingService
         $report->loadMissing(['author']);
 
         try {
+            $locale = \App\Services\Localization\SourceLanguage::normalizeLocale(app()->getLocale());
+            $observations = array_values($row->payload['observations']);
+            $recommendations = (string) ($row->payload['recommendations'] ?? '');
+
+            if ($locale === 'en') {
+                try {
+                    $presenter = app(\App\Services\Localization\LocalizedPresenter::class);
+                    $localized = $presenter->reportPayload($report->id, [
+                        'observations' => $observations,
+                        'recommendations' => $recommendations,
+                    ], 'en');
+                    $observations = $localized['observations'];
+                    $recommendations = $localized['recommendations'];
+                } catch (\Throwable) {
+                }
+            }
+
             $doc = app(\App\Services\Report\ReportEngine::class)->build($report, [
                 'report_number' => (string) ($row->payload['report_number'] ?? $report->id),
                 'date' => (string) ($row->payload['date'] ?? ($report->report_date ? $report->report_date->toDateString() : '')),
                 'location' => (string) ($row->payload['location'] ?? ''),
-                'observations' => array_values($row->payload['observations']),
-                'recommendations' => (string) ($row->payload['recommendations'] ?? ''),
+                'observations' => $observations,
+                'recommendations' => $recommendations,
             ], [
+                'locale' => $locale,
                 'generated_at' => $row->updated_at?->format('Y-m-d H:i') ?? '',
                 'generation_id' => $row->generationId(),
             ]);
@@ -322,11 +303,6 @@ class ReportHtmlRenderingService
         ]);
     }
 
-    /**
-     * بعد مزامنة التوصيات يتغير systemHash (التوصيات جزء منه) — حدّث
-     * system_hash للصف ليعكس ما بعد الاعتماد، وإلا ظهرت النسخة المعتمدة
-     * حديثاً كـ stale فوراً وبدّلتها المعاينة التلقائية بنسخة النظام.
-     */
     private function refreshSystemHash(Report $report, ReportSheetRender $row): void
     {
         try {
@@ -342,9 +318,6 @@ class ReportHtmlRenderingService
     /** @return array{generation_id: string, data_version: int, template: string, screen: ?string, preview_url: string, html: string, cached: bool, generated_at: string, request_uid: ?string} */
     private function meta(Report $fresh, ReportSheetRender $row, ReportRenderPayload $payload, array $selected, int $dataVersion, bool $cached, ?string $requestUid): array
     {
-        // اعتماد payload جديد (custom أو system) = UPDATE للمحتوى المعروض —
-        // جدولة تدفئة observations/recommendations خلفياً (بلا Gemini متزامن،
-        // بلا مساس بالمصدر). القراءة/Language Switch تقرأ المحفوظ فقط.
         $this->warmPayloadProjections((int) $fresh->id, $payload);
         $fresh->loadMissing(['author']);
         $generatedAt = $row->updated_at?->format('Y-m-d H:i') ?? '';
@@ -367,13 +340,6 @@ class ReportHtmlRenderingService
         ];
     }
 
-    /**
-     * تدفئة projections الـ payload المعتمد (custom أو system) — خلفية فقط.
-     *
-     * STRICT: لا Gemini متزامن، لا مساس بالمصدر. مفاتيح observation:{i}
-     * مطابقة تماماً لمفاتيح LocalizedPresenter::reportPayload عند القراءة،
-     * وsource_hash يُبطل القديم تلقائياً عند تغيّر النص.
-     */
     private function warmPayloadProjections(int $reportId, ReportRenderPayload $payload): void
     {
         try {
@@ -401,7 +367,7 @@ class ReportHtmlRenderingService
             $uiLocale = \App\Services\Localization\SourceLanguage::normalizeLocale(app()->getLocale());
             $target = null;
             foreach ($fields as $text) {
-                $lang = \App\Services\Localization\SourceLanguage::detect($text);
+                $lang = \App\Services\Localization\TranslationService::detectCached($text);
                 if ($lang === \App\Services\Localization\SourceLanguage::ARABIC) {
                     $target = 'en';
                     break;

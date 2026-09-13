@@ -7,19 +7,6 @@ use App\Services\Localization\SourceLanguage;
 use App\Services\Localization\TranslationService;
 use Illuminate\Http\Request;
 
-/**
- * البيانات الديناميكية المحفوظة للصفحة الحالية — Presentation Layer.
- *
- * STRICT (Language Switch):
- *   Locale → Existing localized data → Render — ZERO Gemini هنا إطلاقاً.
- * - قراءة محفوظة فقط (Cache/DB مطابقة للبصمة) — لا Provider، لا storm.
- * - الترجمة الخلفية تحدث فقط عند CREATE/UPDATE (Observer+Job) أو زر
- *   إعادة المحاولة الصريح — لا علاقة لـ Language Switch بـ Gemini.
- * - المفقود يُترك للـ placeholder الم rendered سيرفرياً (لا مصدر مسرّب).
- *
- * الاستجابة: presentation data فقط (locale + translations) — بلا أي تفاصيل
- * تقنية (لا provider، لا cache stats، لا ai flags).
- */
 class DynamicTranslationController extends Controller
 {
     public function translatePage(Request $request, TranslationService $service)
@@ -28,8 +15,6 @@ class DynamicTranslationController extends Controller
             'locale' => ['nullable', 'string', 'in:ar,en'],
             'items' => ['required', 'array', 'min:1', 'max:'.TranslationService::MAX_ITEMS],
             'items.*.type' => ['required', 'string', 'in:report,note,submission,notification'],
-            // المعرّف رقمي أو UUID نصي — التحقق الصارم داخل TranslationService::validId.
-            // (بلا max هنا: max على الرقم يعني القيمة لا الطول — الخدمة ترفض الطويل.)
             'items.*.id' => ['required'],
             'items.*.fields' => ['required', 'array', 'min:1', 'max:10'],
             'items.*.fields.*' => ['nullable', 'string', 'max:'.TranslationService::MAX_FIELD_CHARS],
@@ -44,7 +29,6 @@ class DynamicTranslationController extends Controller
             }
         }
 
-        // stored-only: النسخ المحفوظة مسبقاً فقط — المفقود يُتجاهل (placeholder سيرفري).
         $translations = $service->resolveStoredMany($refs, $locale);
 
         return response()->json([
@@ -54,10 +38,6 @@ class DynamicTranslationController extends Controller
         ]);
     }
 
-    /**
-     * إعادة جدولة خلفية عامة (note|submission) — للحقول الناقصة فقط.
-     * POST /translations/retry — خلفية فقط، ZERO Gemini متزامن.
-     */
     public function retry(Request $request, TranslationService $service)
     {
         $validated = $request->validate([
@@ -86,10 +66,10 @@ class DynamicTranslationController extends Controller
             if ($source === '' || mb_strlen($source) > TranslationService::MAX_FIELD_CHARS) {
                 continue;
             }
-            if (!$service->shouldTranslate($source)) {
+            if (!$service->shouldTranslateCached($source)) {
                 continue;
             }
-            $sourceLang = SourceLanguage::detect($source);
+            $sourceLang = TranslationService::detectCached($source);
             if ($sourceLang === $locale || $sourceLang === SourceLanguage::NEUTRAL) {
                 continue;
             }
@@ -100,9 +80,19 @@ class DynamicTranslationController extends Controller
         }
 
         if ($missing === []) {
+            $reason = 'nothing';
+            foreach ($candidates as $field => $src) {
+                $s = trim($src);
+                if ($s === '') { $reason='empty'; break; }
+                if (!$service->shouldTranslateCached($s)) { $reason='technical'; break; }
+                $sl = TranslationService::detectCached($s);
+                if ($sl === $locale) { $reason='same_lang'; break; }
+                if ($service->resolveStored($type, $model->id, $field, $s, $locale) !== null) { $reason='already_ready'; break; }
+            }
+            $msg = $reason==='same_lang' ? ($locale==='en'?'Already in English':'بالفعل بالعربية') : ($reason==='already_ready'?__('ui.note_translation_ready'):__('ui.note_translation_nothing_to_do'));
             return response()->json([
-                'ok' => true, 'locale' => $locale, 'queued' => false,
-                'message' => __('ui.note_translation_nothing_to_do'),
+                'ok' => true, 'locale' => $locale, 'queued' => false, 'reason'=>$reason,
+                'message' => $msg,
             ]);
         }
 

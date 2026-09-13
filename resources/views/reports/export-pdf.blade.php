@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('content')
-{{-- تصدير PDF — نفس التقرير الرسمي. متاح فقط لمن يملك Export (Backend يمنع المراقب). --}}
+
 <div class="flex flex-wrap items-center justify-between gap-2 mb-3 no-print">
     <a href="{{ route('reports.index') }}" class="inline-flex items-center gap-1 min-h-[44px] text-sm text-[#6b7a6e] hover:text-[#0e6a38] transition">{{ back_arrow() }} {{ __('ui.back_to_reports') }}</a>
     <div class="flex items-center gap-2 w-full sm:w-auto">

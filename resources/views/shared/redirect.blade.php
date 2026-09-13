@@ -3,7 +3,6 @@
 @section('content')
 <div class="min-h-[60vh] flex items-center justify-center py-8">
     <section class="w-full max-w-md overflow-hidden rounded-3xl border border-surface-300 bg-white shadow-sm" aria-live="polite">
-        {{-- الشريط الهندسي العلوي --}}
         <div class="relative overflow-hidden bg-gradient-to-l from-sage-600 via-[#0d5c31] to-[#083a20] px-6 pt-8 pb-12 text-center">
             <div class="pointer-events-none absolute -top-14 -left-12 h-44 w-44 rounded-full bg-white/10 blur-2xl" aria-hidden="true"></div>
             <div class="pointer-events-none absolute -bottom-20 right-6 h-52 w-52 rounded-full bg-black/15 blur-3xl" aria-hidden="true"></div>
@@ -24,7 +23,6 @@
             </div>
         </div>
 
-        {{-- الجسم --}}
         <div class="px-6 sm:px-8 pb-6 sm:pb-8 -mt-6">
             <div class="rounded-2xl border border-surface-300 bg-surface-50 px-5 py-5 text-center">
                 <h1 class="text-lg font-extrabold text-ink-800 leading-snug">{{ $title }}</h1>
@@ -34,7 +32,6 @@
                 @endisset
             </div>
 
-            {{-- العدّاد --}}
             <div class="mt-4 flex items-center gap-3 rounded-2xl border border-surface-300 bg-white px-4 py-3">
                 <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sage-600 font-extrabold tabular-nums text-white text-lg" id="sr-count" aria-hidden="true">{{ $delay }}</span>
                 <div class="min-w-0 flex-1">
@@ -45,7 +42,6 @@
                 </div>
             </div>
 
-            {{-- الأزرار --}}
             <div class="mt-4 grid gap-2">
                 <a href="{{ $target }}" id="sr-go" class="inline-flex items-center justify-center gap-2 rounded-xl bg-sage-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-sage-700 transition">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3"/></svg>

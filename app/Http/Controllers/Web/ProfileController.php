@@ -60,7 +60,6 @@ class ProfileController extends Controller
 
     private function getStats(\App\Models\User $user): array
     {
-        // استعلام واحد بدل 5 counts + كاش دقيقتين — الصفحة كانت تضرب DB خمس مرات.
         return \Illuminate\Support\Facades\Cache::remember('profile-stats:'.$user->id, 120, function () use ($user) {
             $counts = $user->notes()->selectRaw('status, COUNT(*) as c')->groupBy('status')->pluck('c', 'status')->toArray();
 

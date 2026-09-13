@@ -14,7 +14,6 @@ class JwtService
     public function __construct()
     {
         $secret = (string) config('jwt.secret', '');
-        // رفض الإقلاع بسر فارغ أو ضعيف حتى لا تصبح التوكنات قابلة للتزوير.
         if (strlen($secret) < 32 || in_array($secret, ['', 'your-256-bit-secret-key-change-in-production', 'secret', 'changeme'], true)) {
             throw new \RuntimeException(__('api.jwt_misconfigured'));
         }
@@ -71,7 +70,6 @@ class JwtService
             return null;
         }
 
-        // مفتاح القائمة السوداء مجزأ (hash) لتفادي طول المفتاح وتسريب التوكن في مفاتيح الكاش.
         $blacklisted = Cache::get($this->blacklistKey($token));
         if ($blacklisted) {
             return null;

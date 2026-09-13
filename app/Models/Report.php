@@ -20,7 +20,6 @@ class Report extends Model
     const MODE_MANUAL = 'manual';
     const MODE_HYBRID = 'hybrid';
 
-    /** مهلة التعديل بعد النشر بالساعات — بعدها يُقفل التقرير نهائياً. */
     const EDIT_WINDOW_HOURS = 12;
 
     protected $fillable = [
@@ -77,7 +76,6 @@ class Report extends Model
         return $this->status === self::STATUS_PUBLISHED;
     }
 
-    /** نهاية مهلة التعديل (null للمسودات). */
     public function editDeadline(): ?Carbon
     {
         if (!$this->isPublished()) {
@@ -91,7 +89,6 @@ class Report extends Model
         return Carbon::parse($base)->addHours(self::EDIT_WINDOW_HOURS);
     }
 
-    /** true عندما تجاوز التقرير المنشور مهلة التعديل — يُقفل نهائياً. */
     public function isLocked(): bool
     {
         if (!$this->isPublished()) {

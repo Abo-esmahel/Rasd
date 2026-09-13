@@ -85,7 +85,6 @@ Route::get('/health/nojs', function () {
     return response('<html><body><h1>OK '.now()->toIso8601String().'</h1><p>no JS test - if you see this, server is fast</p><a href="/login">go login</a></body></html>',200)->header('Content-Type','text/html');
 });
 
-// بوابة التوجيه الذكي — رسالة جميلة + عدّاد + انتقال تلقائي لوجهة داخلية فقط.
 Route::get('/r', [SmartRedirectController::class, 'show'])
     ->name('smart.redirect')
     ->middleware('throttle:60,1');
@@ -108,7 +107,6 @@ Route::get('/s/submission-attachments/{attachment}/file', [\App\Http\Controllers
 Route::post('/locale', [\App\Http\Controllers\Web\LocaleController::class, 'update'])->name('locale.update')->middleware('throttle:30,1');
 
 Route::middleware('auth')->group(function () {
-    // ترجمة البيانات الديناميكية للصفحة الحالية فقط — Presentation Layer (دفعة منظمة + Cache).
     Route::post('/translations/page', [\App\Http\Controllers\Web\DynamicTranslationController::class, 'translatePage'])->name('translations.page')->middleware('throttle:30,1');
 
     Route::get('/dashboard', function () {
@@ -124,11 +122,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/notes/{note}/reject', [NoteController::class, 'reject'])->name('notes.reject');
     Route::post('/notes/{note}/resend', [NoteController::class, 'resend'])->name('notes.resend');
 
-    // Smart Note Translation — حالة (قراءة محفوظة فقط) + إعادة خلفية.
-    // ZERO Gemini متزامن هنا: status يقرأ المخزن، retry يجدول Job فقط.
     Route::get('/notes/{note}/translation-status', [\App\Http\Controllers\Web\NoteTranslationController::class, 'status'])->name('notes.translation.status')->middleware('throttle:60,1');
     Route::post('/notes/{note}/translation-retry', [\App\Http\Controllers\Web\NoteTranslationController::class, 'retry'])->name('notes.translation.retry')->middleware('throttle:10,1');
-    // إعادة عامة (note|submission) — نفس الضمانات.
     Route::post('/translations/retry', [\App\Http\Controllers\Web\DynamicTranslationController::class, 'retry'])->name('translations.retry')->middleware('throttle:10,1');
 
     Route::post('/notes/{note}/attachments', [NoteController::class, 'storeAttachment'])->name('notes.attachments.store');
@@ -194,14 +189,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/reports/{report}/filled-sheet', [\App\Http\Controllers\Web\ReportController::class, 'filledSheetImage'])->name('reports.filled-sheet.image');
     Route::get('/reports/{report}/sheet-html', [\App\Http\Controllers\Web\ReportController::class, 'sheetHtml'])->name('reports.sheet-html');
     Route::get('/reports/{report}/print', [\App\Http\Controllers\Web\ReportController::class, 'print'])->name('reports.print');
-    // Export/Preview — داخل Tab التقارير فقط. Preview=Inline بلا تنزيل (View)،
-    // وتصدير PDF/صورة (Export فقط — المراقب 403 حتى عبر URL مباشر).
     Route::get('/reports/{report}/preview', [\App\Http\Controllers\Web\ReportController::class, 'preview'])->name('reports.preview');
-    // الوثيقة الرسمية باللغة الحالية — نفس المحرك، عرض فقط بلا حفظ (JSON fragment للتبديل بدون Reload).
     Route::get('/reports/{report}/localized', [\App\Http\Controllers\Web\ReportController::class, 'localized'])->name('reports.localized')->middleware('throttle:30,1');
     Route::get('/reports/{report}/export-pdf', [\App\Http\Controllers\Web\ReportController::class, 'exportPdf'])->name('reports.export.pdf');
     Route::get('/reports/{report}/export-image', [\App\Http\Controllers\Web\ReportController::class, 'exportImage'])->name('reports.export.image');
 });
 
-// أي مسار غير موجود → صفحة توجيه ذكية (404 جميلة) بدل صفحة فارغة.
 Route::fallback([SmartRedirectController::class, 'missing'])->name('smart.missing');

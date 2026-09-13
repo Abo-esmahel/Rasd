@@ -10,13 +10,6 @@ function init() {
       console.warn('[NOTIFICATIONS] disabled via nosse');
       return;
     }
-    
-    
-    if (location.port === '8000' && (location.hostname === '192.168.10.138' || location.hostname === '127.0.0.1')) {
-      
-      
-      
-    }
   } catch {}
   const userIdMeta = document.querySelector('meta[name="user-id"]')?.content || window.NOTIF_USER_ID || null;
   const userId = userIdMeta ? parseInt(userIdMeta, 10) : null;

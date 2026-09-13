@@ -4,10 +4,6 @@ namespace App\Services;
 
 use App\Models\Report;
 
-/**
- * الاختيار الذكي للورقة الرسمية بحسب عدد الملاحظات (1-7).
- * خارج النطاق (0 أو أكثر من 7) → null لتُستخدم الطباعة العامة.
- */
 class ReportSheetService
 {
     public function resolve(Report $report): ?array
@@ -37,7 +33,6 @@ class ReportSheetService
         if (isset($templates[$n]['file'])) {
             return public_path('images/التقارير/' . $templates[$n]['file']);
         }
-        // توافق قديم: مجلد لكل قالب (إن وُجد)
         $pattern = (string) config('report_sheets.folder_pattern', '');
         if ($pattern !== '') {
             $legacy = public_path('images/التقارير/' . sprintf($pattern, $n) . '/' . config('report_sheets.file', 'screen.png'));

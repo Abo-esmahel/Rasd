@@ -51,6 +51,7 @@
         if (!id) return;
         btn.disabled = true;
         var orig = btn.textContent;
+        btn.textContent = (window.RASD_LOCALE==='en'?'Queuing…':'جارٍ الجدولة…');
         try {
             var csrf = document.querySelector('meta[name="csrf-token"]');
             var url = (l10nType && l10nType !== 'note')
@@ -73,6 +74,23 @@
             if (data && data.message) {
                 if (window.toast) window.toast(data.message);
                 else btn.textContent = data.message;
+            }
+            if (data && data.queued) {
+                btn.textContent = (window.RASD_LOCALE==='en'?'Queued — checking…':'تمت الجدولة — جارٍ المتابعة…');
+                // polling صادق: فحص الحالة كل 3 ثوان حتى 30 ثانية، ثم reload للنص المترجم
+                var tries=0; var iv=setInterval(async function(){
+                    tries++; if(tries>10){ clearInterval(iv); location.reload(); return; }
+                    try{
+                        var sRes=await fetch('/notes/'+encodeURIComponent(id)+'/translation-status?locale='+(window.RASD_LOCALE==='en'?'en':'ar'),{headers:{'Accept':'application/json','X-Requested-With':'XMLHttpRequest'}});
+                        var sData=await sRes.json();
+                        if(sData && sData.state==='ready'){ clearInterval(iv); if(window.toast) window.toast(sData.message||'Ready'); setTimeout(function(){ location.reload(); }, 900); }
+                        else if(sData && sData.state==='pending'){ btn.textContent = (window.RASD_LOCALE==='en'?'Translating… ('+tries+'/10)':'جارٍ الترجمة… ('+tries+'/10)'); }
+                    }catch(_){}
+                }, 3000);
+            } else if (data && data.reason==='same_lang') {
+                // تبرير صادق: لا حاجة، أعد التفعيل فوراً
+                setTimeout(function(){ btn.disabled=false; btn.textContent=orig; }, 1500);
+                return;
             }
         } catch(_){
             btn.disabled = false;

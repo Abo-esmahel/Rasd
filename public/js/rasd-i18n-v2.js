@@ -163,15 +163,13 @@
       });
     });
 
-    // Also intercept native form submit for /locale (covers Enter key, programmatic submit, no-JS fallback is still handled via fetch)
-    // Use capture to beat other handlers
+    // Also intercept native form submit for /locale (covers Enter key, programmatic submit)
     if (!window.__rasdLocaleSubmitBound) {
       window.__rasdLocaleSubmitBound = true;
       document.addEventListener('submit', function (e) {
         var form = e.target;
         try {
           if (!form || !form.action) return;
-          // Only intercept locale forms
           var action = '';
           try { action = new URL(form.action, location.href).pathname; } catch (_) { action = form.getAttribute('action') || ''; }
           if (action !== '/locale' && !action.endsWith('/locale')) return;

@@ -7,26 +7,17 @@ use App\Models\User;
 use Illuminate\Support\Facades\Storage;
 use InvalidArgumentException;
 
-/**
- * تعبئة الورقة الرسمية بالرسم المحلي (Backend):
- * يرسم قالب screen-N المختار (بحسب عدد الملاحظات 1-7) مع بيانات
- * التقرير، ويحفظ الصورة المعبأة لعرضها في المعاينة والطباعة.
- * لا AI صور هنا — Gemini (نص فقط) يبقى في مسار generate-data.
- */
 class ReportSheetFillService
 {
     public const DISK = 'public';
 
     public function dataHash(Report $report): string
     {
-        // بصمة بيانات النظام عبر نفس مسار الـrender (قالب حتمي + حقول السيرفر).
         return app(\App\Services\ReportPreview\ReportHtmlRenderingService::class)->systemHash($report);
     }
 
     public function hasFilled(Report $report): bool
     {
-        // مسار HTML: الوجود = صف render في DB (image_path قد يكون null بعد الـmigration).
-        // توافق: الصفوف القديمة (PNG) تُحتسب أيضاً إن كان ملفها موجوداً.
         try {
             if (\App\Models\ReportSheetRender::where('report_id', $report->id)->exists()) {
                 return true;
@@ -47,10 +38,6 @@ class ReportSheetFillService
         return (string) $report->ai_sheet_data_hash !== $this->dataHash($report);
     }
 
-    /**
-     * توليد الورقة المعبأة وحفظها (زر يدوي — المالك فقط، والمسودة فقط).
-     * يفوّض إلى ReportHtmlRenderingService ببيانات النظام الافتراضية (HTML محلي).
-     */
     public function fill(User $user, Report $report): Report
     {
         app(\App\Services\ReportPreview\ReportHtmlRenderingService::class)->renderSystem($user, $report);

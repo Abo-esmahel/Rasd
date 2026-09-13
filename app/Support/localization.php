@@ -1,17 +1,9 @@
 <?php
 
-/**
- * Localization presentation helpers — سكر Blade فوق LocalizedPresenter.
- * لا منطق لغوي هنا إطلاقاً — كل القرارات داخل الـResolver المركزي.
- */
 
 use App\Services\Localization\LocalizedPresenter;
 
 if (!function_exists('l10n_text')) {
-    /**
-     * Localized presentation text لحقل كيان — STRICT: محفوظ فقط + placeholder
-     * بلغة الواجهة عند الغياب (ZERO Gemini، ZERO Arabic في English).
-     */
     function l10n_text(string $type, int|string $id, string $field, ?string $source, ?string $locale = null): string
     {
         try {
@@ -28,9 +20,6 @@ if (!function_exists('l10n_text')) {
 }
 
 if (!function_exists('translation_state')) {
-    /**
-     * حالة ترجمة حقل — قراءة فقط (بلا Gemini): ready|pending|source.
-     */
     function translation_state(string $type, int|string $id, string $field, ?string $source, ?string $locale = null): string
     {
         try {

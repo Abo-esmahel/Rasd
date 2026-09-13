@@ -42,8 +42,6 @@ final class ReportEngine
     {
         $report->loadMissing(['author', 'notes.attachments', 'notes.owner:id,name']);
 
-        // Locale-aware layout: نفس المحرك، نفس الـHTML/CSS — البيانات فقط تتبدل.
-        // ar → rtl رسمي عربي. en → ltr رسمي أجنبي. القيم الداخلية لا تتغير.
         $locale = strtolower(trim((string) ($context['locale'] ?? app()->getLocale() ?? 'ar')));
         if (!in_array($locale, ['ar', 'en'], true)) {
             $locale = 'ar';
@@ -81,13 +79,12 @@ final class ReportEngine
         // Per-observation structured facts (observer / camera / floor / times / attachments).
         // Truthful mapping only: index i ↔ i-th note in pivot order WHEN counts match.
         // Mismatch (AI merge/dedupe) → meta omitted gracefully, text stays untouched.
-        $obsMeta = $this->observationDetails($report, $count);
+        $obsMeta = $this->observationDetails($report, $count, $locale);
         $observers = $this->distinctObservers($report, $count);
 
         $obsItems = [];
         foreach (array_values($observations) as $i => $text) {
             $obsItems[] = [
-                // Paper form wording: «ملاحظة رقم 1» — numbers, not ordinals.
                 'title' => $isEn ? 'Observation '.($i + 1) : 'ملاحظة رقم '.($i + 1),
                 'paragraphs' => self::splitParagraphs($text),
                 'meta' => $obsMeta[$i] ?? null,
@@ -108,14 +105,12 @@ final class ReportEngine
             'day_name' => $dayName,
             'day_label' => $isEn ? 'Day' : 'اليوم',
             // Distinct monitor names from the underlying notes (pivot order).
-            // Used for «اسم المراقب الذي قام بمتابعة الكاميرات» — real names only.
             'observers' => $observers,
             'approval_date' => $approvalDate,
             'notes_count' => $count,
             'report_number' => $reportNumber,
             'report_date' => $date,
             // Single official identity block — report number + date appear ONCE.
-            // القيم (الأرقام/التواريخ) تبقى كما هي — الـlabels فقط تتبدل.
             // Kept for backward compatibility; template prefers explicit keys above.
             'meta' => array_values(array_filter([
                 $reportNumber !== '' ? ['label' => $isEn ? 'Report Number' : 'رقم التقرير', 'value' => $reportNumber, 'num' => true] : null,
@@ -128,7 +123,6 @@ final class ReportEngine
             'signature_caption' => $isEn ? 'Signature' : 'التوقيع',
             // Real persons only (no invented facts). Rendered as a small
             // corner signature block WITHOUT any approval heading/panel.
-            // الأسماء تبقى كما هي — الدور فقط يتبدل حسب اللغة.
             'responsibles' => $this->responsibles($report, $payload, $locale),
             // No closing identity text: the header owns the official identity.
             // The footer is a visual closing rule only.
@@ -195,7 +189,6 @@ final class ReportEngine
         $out = [];
         foreach (array_values($raw) as $o) {
             $text = self::normalizeText(is_array($o) ? ($o['text'] ?? '') : $o);
-            // Meta already rendered separately (camera/floor/start) — لا تكررها في النص
             $text = self::stripObservationMeta($text);
             if ($text === '') {
                 continue;
@@ -302,17 +295,6 @@ final class ReportEngine
         return ['items' => [], 'paragraphs' => self::splitParagraphs($text)];
     }
 
-    /**
-     * Split on a genuine sequential list numbering 1, 2, 3, … only.
-     *
-     * A bare "N. " pattern is NOT enough: content numbers such as
-     * "كاميرا رقم 5." or "نسبة 95%." must never be treated as list
-     * markers. Only a run starting at 1 with consecutive increments is
-     * accepted; anything else stays untouched inside its paragraph.
-     * Dates (2026-09-11) and times (17:42) never match the pattern anyway.
-     *
-     * @return string[]
-     */
     private static function splitNumberedSequence(string $text): array
     {
         if (!preg_match_all('/(?:^|\s)(\d{1,2})\s*[.)]\s+/u', $text, $m, \PREG_OFFSET_CAPTURE)) {
@@ -347,12 +329,6 @@ final class ReportEngine
         return count($items) >= 2 ? array_values($items) : [];
     }
 
-    /**
-     * Strip leading camera/floor/time prefix already shown in meta row.
-     * e.g. "كاميرا 14 • طابق 5 • 06:15 — النص" → "النص"
-     *      "Camera 14 • Floor 5 • 06:15 — Text" → "Text"
-     * Keeps the human observation only — meta is rendered separately.
-     */
     public static function stripObservationMeta(string $text): string
     {
         $t = trim($text);
@@ -363,14 +339,11 @@ final class ReportEngine
         $prev = null;
         while ($prev !== $t) {
             $prev = $t;
-            // Arabic: كاميرا 14 • طابق 5 • 06:15 — (also with , / - | separators)
             $t = preg_replace('/^\s*كاميرا\s*\d+\s*[•·\|\/\-–—]\s*طابق\s*\d+\s*[•·\|\/\-–—]\s*\d{1,2}:\d{2}(?::\d{2})?\s*(?:[صم]|AM|PM)?\s*[—–\-•·]+\s*/u', '', $t) ?? $t;
             // English: Camera 14 • Floor 5 • 06:15 —
             $t = preg_replace('/^\s*Camera\s*\d+\s*[•·\|\/\-–—]\s*Floor\s*\d+\s*[•·\|\/\-–—]\s*\d{1,2}:\d{2}(?::\d{2})?\s*(?:AM|PM)?\s*[—–\-•·]+\s*/iu', '', $t) ?? $t;
-            // Fallback without bullets: "كاميرا 14 طابق 5 06:15 - النص"
             $t = preg_replace('/^\s*كاميرا\s*\d+\s+طابق\s*\d+\s+\d{1,2}:\d{2}(?::\d{2})?\s*[-–—]+\s*/u', '', $t) ?? $t;
             $t = preg_replace('/^\s*Camera\s*\d+\s+Floor\s*\d+\s+\d{1,2}:\d{2}(?::\d{2})?\s*[-–—]+\s*/iu', '', $t) ?? $t;
-            // Generic leading time: "06:15 — النص" (when camera/floor omitted)
             // Only strip if dash follows time and there is remaining text
             if (preg_match('/^\s*\d{1,2}:\d{2}(?::\d{2})?\s*[-–—]+\s+/u', $t) && mb_strlen($t) > 20) {
                 $t = preg_replace('/^\s*\d{1,2}:\d{2}(?::\d{2})?\s*[-–—]+\s+/u', '', $t) ?? $t;
@@ -424,7 +397,6 @@ final class ReportEngine
                 if (!is_array($r)) {
                     continue;
                 }
-                // الاسم يبقى كما هو دائماً — لا ترجمة للأسماء.
                 $name = trim((string) ($r['name'] ?? ''));
                 if ($name === '' || $name === '—') {
                     continue;
@@ -460,11 +432,12 @@ final class ReportEngine
      *
      * @return array<int, array{observer: string, camera: string, floor: string, start: string, end: string, duration: string, has_attachments: bool, has_image: bool, has_video: bool, attachments_count: int}|null>
      */
-    private function observationDetails(\App\Models\Report $report, int $count): array
+    private function observationDetails(\App\Models\Report $report, int $count, string $locale = 'ar'): array
     {
         if ($count <= 0) {
             return [];
         }
+        $isEn = $locale === 'en';
         try {
             $notes = $report->notes->sortBy(fn ($n) => $n->pivot->order_index ?? 0)->values();
         } catch (\Throwable) {
@@ -482,12 +455,22 @@ final class ReportEngine
                 if ($n->observed_at && $n->observed_end_at) {
                     try {
                         $mins = abs($n->observed_at->diffInMinutes($n->observed_end_at));
-                        if ($mins < 60) {
-                            $duration = $mins.' د';
+                        if ($isEn) {
+                            if ($mins < 60) {
+                                $duration = $mins.' min';
+                            } else {
+                                $h = intdiv((int) $mins, 60);
+                                $m = ((int) $mins) % 60;
+                                $duration = $m > 0 ? $h.'h '.$m.'min' : $h.'h';
+                            }
                         } else {
-                            $h = intdiv((int) $mins, 60);
-                            $m = ((int) $mins) % 60;
-                            $duration = $m > 0 ? $h.' س '.$m.' د' : $h.' س';
+                            if ($mins < 60) {
+                                $duration = $mins.' د';
+                            } else {
+                                $h = intdiv((int) $mins, 60);
+                                $m = ((int) $mins) % 60;
+                                $duration = $m > 0 ? $h.' س '.$m.' د' : $h.' س';
+                            }
                         }
                     } catch (\Throwable) {
                         $duration = '';
@@ -540,13 +523,6 @@ final class ReportEngine
         return $out;
     }
 
-    /**
-     * Distinct monitor names behind the report's notes (pivot order).
-     * Real names only — used for «اسم المراقب الذي قام بمتابعة الكاميرات».
-     * Independent of counts matching (notes list itself is the source).
-     *
-     * @return string[]
-     */
     private function distinctObservers(\App\Models\Report $report, int $count): array
     {
         if ($count <= 0) {
@@ -580,8 +556,20 @@ final class ReportEngine
         return array_values($out);
     }
 
-    private function ordinal(int $n): string
+    private function ordinal(int $n, string $locale = 'ar'): string
     {
+        if ($locale === 'en') {
+            $suffix = match (true) {
+                $n % 100 >= 11 && $n % 100 <= 13 => 'th',
+                $n % 10 === 1 => 'st',
+                $n % 10 === 2 => 'nd',
+                $n % 10 === 3 => 'rd',
+                default => 'th',
+            };
+
+            return $n.$suffix;
+        }
+
         return match ($n) {
             1 => 'الأولى', 2 => 'الثانية', 3 => 'الثالثة', 4 => 'الرابعة',
             5 => 'الخامسة', 6 => 'السادسة', 7 => 'السابعة', 8 => 'الثامنة',

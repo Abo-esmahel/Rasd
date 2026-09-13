@@ -51,7 +51,7 @@
     .sheet-mini{ position:relative; width:100%; max-width:520px; margin:0 auto; aspect-ratio:896/1200; background-size:100% 100%; background-repeat:no-repeat; border-radius:6px; overflow:hidden; }
     .sheet-mini .sh-field,.sheet-mini .sh-note{ position:absolute; color:#1c1917; overflow:hidden; }
     .sheet-mini .sh-field{ text-align:center; white-space:nowrap; font-weight:700; }
-    .sheet-mini .sh-note{ text-align:right; }
+    .sheet-mini .sh-note{ text-align:right; font-family:'ReportNaskh','ReportBody','Traditional Arabic','Simplified Arabic',serif; }
     .rpt-btn{ transition:background-color .15s,border-color .15s,color .15s,box-shadow .15s,transform .08s; }
     .rpt-btn:active:not(:disabled){ transform:translateY(1px); }
     .rpt-page{ max-width:860px; margin:0 auto; }
@@ -216,7 +216,6 @@
     @endif
 
     <div class="rpt-stack mt-4">
-        {{-- Preview — engineered, capped height, not scaled thumbnail --}}
         <div class="rpt-card">
             <div class="rpt-preview-head">
                 <div class="flex items-center gap-2">
@@ -307,7 +306,7 @@
         </div>
         @endif
 
-        {{-- Notes — read-only list, no candidate picker --}}
+        
         @if($isDraft || empty($htmlPreview ?? null))
         <section>
             <div class="rpt-section-head">
@@ -332,11 +331,30 @@
                                     <span>·</span>
                                     <span class="inline-flex items-center gap-1 text-[#6b7a6e]"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg> {{ $n->attachments->count() }}</span>
                                 @endif
+                                @if($isOwner && $isDraft)
+                                <span class="ms-auto inline-flex items-center gap-0.5">
+                                    <button type="button" class="reorder-btn rpt-ic" data-dir="-1" aria-label="{{ __('ui.move_up') }}">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7"/></svg>
+                                    </button>
+                                    <button type="button" class="reorder-btn rpt-ic" data-dir="1" aria-label="{{ __('ui.move_down') }}">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                                    </button>
+                                    <form method="POST" action="{{ route('reports.detach', [$report, $n->id]) }}" onsubmit="return confirm('{{ __('ui.remove_note_confirm') }}')" class="inline">
+                                        @csrf @method('DELETE')
+                                        <button type="submit" class="rpt-ic rpt-ic-danger" aria-label="{{ __('ui.remove') }}">
+                                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                                        </button>
+                                    </form>
+                                </span>
+                                @endif
                             </div>
                         </div>
                     </li>
                     @endforeach
                 </ol>
+                @if($isOwner && $isDraft && $notesCount > 1)
+                <div id="reorder-error" class="hidden mx-3 mb-3 rounded-lg bg-[#fef2f2] border border-[#fecaca] text-[#b91c1c] px-3 py-2 text-[12px] font-bold"></div>
+                @endif
             </div>
             @else
             <div class="rpt-card px-4 py-6 text-center">
@@ -346,6 +364,38 @@
                 <p class="mt-2 text-[13px] font-bold text-[#1a2e1f]">{{ __('ui.no_notes_yet') }}</p>
                 @if($isOwner && $isDraft)<p class="mt-1 text-[12px] leading-5 text-[#9aa99a]">{{ __('ui.report_auto_attach') }}</p>@endif
             </div>
+            @endif
+            @if($isOwner && $isDraft)
+            <details class="mt-3 rpt-card">
+                <summary class="flex items-center gap-1.5 px-3 py-2.5 text-[13px] font-bold text-[#0e6a38] cursor-pointer list-none [&::-webkit-details-marker]:hidden select-none hover:bg-[#f6f7f5] rounded-t-[14px]">
+                    <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+                    {{ __('ui.add_notes') }} @if(isset($candidates) && $candidates->count())<span class="text-[11px] font-normal text-[#9aa99a]">({{ $candidates->count() }} {{ __('ui.available') }})</span>@endif
+                </summary>
+                <form method="POST" action="{{ route('reports.attach', $report) }}" id="attach-form" class="border-t border-[#eceee9] p-3">
+                    @csrf
+                    @if(isset($candidates) && $candidates->count())
+                    <div class="grid sm:grid-cols-2 gap-1.5 max-h-52 overflow-auto rounded-lg bg-[#f9faf8] p-2">
+                        @foreach($candidates as $c)
+                        <label class="flex items-center gap-2.5 text-[13px] px-2.5 py-2 min-h-[40px] rounded-lg bg-white hover:bg-[#f0f2ef] cursor-pointer transition border border-transparent hover:border-[#e6e9e1]">
+                            <input type="checkbox" name="note_ids[]" value="{{ $c->id }}" checked class="w-4 h-4 shrink-0 accent-[#0e6a38] attach-check">
+                            <span class="min-w-0 break-words text-[#1a2e1f] text-[12.5px] leading-5">{{ __('ui.camera') }} {{ $c->camera_number }} · {{ __('ui.floor') }} {{ $c->floor_number }} · <span class="tabular-nums">{{ $c->observed_at?->format('H:i') }}</span><br><span class="text-[#6b7a6e]">{{ \Illuminate\Support\Str::limit(l10n_text('note', $c->id, 'description', $c->description), 70) }}</span></span>
+                        </label>
+                        @endforeach
+                    </div>
+                    @else
+                    <div class="text-[12.5px] text-[#9aa99a] bg-[#f9faf8] rounded-lg p-3 text-center">
+                        {{ __('ui.no_candidates') }}
+                        <div class="text-[11.5px] mt-1">{{ __('ui.no_candidates_hint') }}</div>
+                    </div>
+                    @endif
+                    <div class="flex flex-wrap items-center gap-3 mt-3">
+                        <button id="attach-submit" @disabled(!isset($candidates) || $candidates->isEmpty()) class="rpt-btn px-5 h-9 rounded-lg bg-[#0e6a38] text-white text-[13px] font-bold hover:bg-[#0a4d28] disabled:opacity-40 disabled:cursor-not-allowed">{{ __('ui.add_selected') }}</button>
+                        <span id="attach-count" class="text-[12px] text-[#9aa99a]"></span>
+                        @if(isset($candidatesTruncated) && $candidatesTruncated)<span class="text-[11px] text-[#b45309]">{{ __('ui.candidates_truncated') }}</span>@endif
+                    </div>
+                    <p id="attach-error" class="hidden text-[12px] font-bold text-[#b91c1c] bg-[#fef2f2] border border-[#fecaca] rounded-lg px-3 py-2 mt-2">{{ __('ui.choose_note') }}</p>
+                </form>
+            </details>
             @endif
         </section>
         @endif
@@ -484,6 +534,28 @@ const RPT_T = {
 
 (function () {
     const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
+    // يدوي كخيار إضافي: عدّاد المحدد وتفعيل زر الإضافة
+    const attachForm = document.getElementById('attach-form');
+    const attachSubmit = document.getElementById('attach-submit');
+    function refreshAttachCount() {
+        if (!attachForm) return;
+        const n = attachForm.querySelectorAll('.attach-check:checked').length;
+        const total = attachForm.querySelectorAll('.attach-check').length;
+        const el = document.getElementById('attach-count');
+        if (el) el.textContent = total ? RPT_T.selected.replace(':n', n).replace(':total', total) : '';
+        if (attachSubmit) attachSubmit.disabled = total === 0 || n === 0;
+    }
+    attachForm?.addEventListener('submit', function (e) {
+        const n = attachForm.querySelectorAll('.attach-check:checked').length;
+        refreshAttachCount();
+        if (!n) { e.preventDefault(); document.getElementById('attach-error')?.classList.remove('hidden'); }
+    });
+    attachForm?.querySelectorAll('.attach-check').forEach(c => c.addEventListener('change', function () {
+        refreshAttachCount();
+        if (attachForm.querySelectorAll('.attach-check:checked').length) document.getElementById('attach-error')?.classList.add('hidden');
+    }));
+    refreshAttachCount();
+
     const list = document.getElementById('notes-order-list');
     const reorderUrl = @json(route('reports.reorder', $report));
     const reorderErr = document.getElementById('reorder-error');
@@ -829,6 +901,23 @@ const RPT_T = {
             while ((f.scrollWidth > f.clientWidth + 1 || f.scrollHeight > f.clientHeight + 1) && fs > H * 0.008 && g-- > 0) {
                 fs -= 0.5;
                 f.style.fontSize = fs + 'px';
+            }
+        });
+        mini.querySelectorAll('.sh-fit').forEach(function (box) {
+            let pitch = H * parseFloat(box.dataset.pitch || '3') / 100;
+            let fs = H * 0.0158;
+            box.style.lineHeight = pitch + 'px';
+            box.style.fontSize = fs + 'px';
+            let g = 60;
+            while (box.scrollHeight > box.clientHeight + 1 && fs > H * 0.0083 && g-- > 0) {
+                fs -= 0.5;
+                box.style.fontSize = fs + 'px';
+            }
+            g = 60;
+            let lh = pitch;
+            while (box.scrollHeight > box.clientHeight + 1 && lh > pitch * 0.6 && g-- > 0) {
+                lh -= 0.5;
+                box.style.lineHeight = lh + 'px';
             }
         });
     }

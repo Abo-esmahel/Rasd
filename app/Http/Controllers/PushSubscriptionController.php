@@ -16,7 +16,6 @@ class PushSubscriptionController extends Controller
             'keys.auth' => ['nullable', 'string', 'max:500'],
         ]);
         $user = $request->user();
-        // منع الاستيلاء: endpoint مملوك لمستخدم آخر لا يُعاد ربطه.
         $existing = PushSubscription::where('endpoint', $validated['endpoint'])->first();
         if ($existing && (int) $existing->user_id !== (int) $user->id) {
             return response()->json(['success' => false, 'message' => __('api.push_already_linked')], 403);

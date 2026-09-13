@@ -25,14 +25,12 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        // ضمان تحميل helpers العرض حتى مع vendor autoload قديم (files dump مفقود).
         $helpers = $this->app->basePath('app/Support/localization.php');
         if (is_file($helpers)) {
             require_once $helpers;
         }
         $this->app->bind(AiTextGeneratorInterface::class, GeminiAiTextGenerator::class);
         // TranslationService → TranslationProviderInterface → GeminiTranslationProvider.
-        // Domain/Models/Controllers لا تعتمد على Gemini مباشرة أبداً.
         $this->app->bind(TranslationProviderInterface::class, GeminiTranslationProvider::class);
     }
 
@@ -46,12 +44,10 @@ class AppServiceProvider extends ServiceProvider
         Attachment::observe(AiContextObserver::class);
         Report::observe(AiContextObserver::class);
 
-        // تدفئة Translation Projections بعد الحفظ — مشتقة، لا تفشل الحفظ أبداً.
         Note::observe(\App\Observers\TranslationWarmObserver::class);
         \App\Models\GeneralSubmission::observe(\App\Observers\TranslationWarmObserver::class);
         Report::observe(\App\Observers\TranslationWarmObserver::class);
 
-        // قائمة المراقبين مكاشة لساعة — إبطالها عند أي تغيير مستخدم يمنع قوائم قديمة.
         \App\Models\User::saved(function () {
             try {
                 \Illuminate\Support\Facades\Cache::forget('observers_list');
@@ -71,7 +67,6 @@ class AppServiceProvider extends ServiceProvider
 
         
         Carbon::macro('toTime12', function (): string {
-            // locale-aware: نفس المصدر الزمني، صيغة العرض حسب اللغة فقط.
             if (app()->getLocale() === 'en') {
                 return $this->format('h:i A');
             }

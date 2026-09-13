@@ -91,7 +91,6 @@ export class NotificationSoundManager {
 
   async loadFromServer(prefetched = null) {
     try {
-      // المدير يجلب التفضيلات مسبقاً بالتوازي — إعادة استخدامها توفر طلباً مكرراً لنفس المسار.
       let data = prefetched;
       if (!data || typeof data !== 'object') {
         const res = await fetch('/notifications/preferences', { headers: { Accept: 'application/json' } });

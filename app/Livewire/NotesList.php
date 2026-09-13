@@ -81,7 +81,6 @@ class NotesList extends Component
     {
         $user = auth()->user();
 
-        // العدّادات تُطلب في كل render + كل poll — كاش 30 ثانية لكل مستخدم/وضع.
         $cacheKey = 'notes-counts:'.$user->id.':'.$this->mode;
 
         return \Illuminate\Support\Facades\Cache::remember($cacheKey, 30, function () use ($user) {
@@ -99,7 +98,6 @@ class NotesList extends Component
             }
 
             $statuses = [Note::STATUS_DRAFT, Note::STATUS_PENDING, Note::STATUS_ACCEPTED, Note::STATUS_REJECTED];
-            // استعلام واحد يجلب العدّادات + المجموع عبر GROUP BY مع ROLLUP بديل: مجموع PHP.
             $counts = (clone $base)
                 ->selectRaw('status, COUNT(*) as count')
                 ->groupBy('status')

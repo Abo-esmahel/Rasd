@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('content')
-{{-- Preview رسمي Inline — بلا أي زر تنزيل/طباعة/مشاركة. نفس Official HTML/CSS. --}}
+
 <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
     <a href="{{ route('reports.index') }}" class="inline-flex items-center gap-1 min-h-[44px] text-sm text-[#6b7a6e] hover:text-[#0e6a38] transition">{{ back_arrow() }} {{ __('ui.back_to_reports') }}</a>
     <span class="text-[11px] font-bold px-2.5 py-1 rounded-full bg-[#e8f3ec] text-[#0e6a38]">{{ __('ui.preview_badge') }}</span>

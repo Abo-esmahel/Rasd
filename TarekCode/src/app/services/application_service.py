@@ -14,7 +14,9 @@ from __future__ import annotations
 import logging
 import threading
 import time
+from dataclasses import dataclass
 from datetime import datetime, timezone, timedelta
+from enum import Enum
 from typing import List, Optional, Tuple, Callable
 
 from app.domain.models import CredentialMeta, AuthStatus, CapacityInfo, VerificationResult
@@ -26,6 +28,128 @@ from app.utils.redaction import redact_text
 from app.utils.time import utcnow, parse_iso
 
 logger = logging.getLogger(__name__)
+
+
+class FailureCategory(Enum):
+    """Classification of failures for failover decisions."""
+    CREDENTIAL = "credential"        # invalid, unauthorized -> failover
+    QUOTA = "quota"                   # rate limited, exhausted -> cooldown + failover
+    NETWORK = "network"               # timeout, DNS, connection -> NO failover
+    OPENCODE_MISSING = "opencode_missing"  # executable not found -> NO failover
+    INTERNAL = "internal"             # app error -> NO failover
+    UNKNOWN = "unknown"               # ambiguous -> conservative: NO failover
+
+
+@dataclass
+class FailureAnalysis:
+    category: FailureCategory
+    is_eligible_for_failover: bool
+    should_cooldown: bool
+    cooldown_minutes: int
+    message: str
+
+
+def _analyze_failure(status: AuthStatus, err_msg: str = "", exception: Optional[Exception] = None) -> FailureAnalysis:
+    """
+    Classify failure for failover decision per spec §13.
+
+    Eligible for failover:
+      - CREDENTIAL: INVALID, UNAUTHORIZED
+      - QUOTA: RATE_LIMITED, confirmed quota/exhausted
+
+    NOT eligible:
+      - NETWORK: timeout, DNS, connection refused
+      - OPENCODE_MISSING: executable not found
+      - INTERNAL: app bugs, unexpected exceptions
+      - UNKNOWN: ambiguous verification status
+    """
+    err_lower = (err_msg or "").lower()
+    exc_str = str(exception).lower() if exception else ""
+
+    combined = f"{err_lower} {exc_str}"
+
+    # Credential failures
+    if status in (AuthStatus.INVALID, AuthStatus.UNAUTHORIZED):
+        return FailureAnalysis(
+            category=FailureCategory.CREDENTIAL,
+            is_eligible_for_failover=True,
+            should_cooldown=False,
+            cooldown_minutes=0,
+            message=f"Credential failure: {err_msg}",
+        )
+
+    # Rate limit / quota
+    if status == AuthStatus.RATE_LIMITED:
+        return FailureAnalysis(
+            category=FailureCategory.QUOTA,
+            is_eligible_for_failover=True,
+            should_cooldown=True,
+            cooldown_minutes=30,
+            message=f"Rate limited: {err_msg}",
+        )
+
+    # Check textual hints for quota
+    quota_hints = ["quota", "exhausted", "rate limit", "rate_limit", "capacity", "limit exceeded"]
+    if status == AuthStatus.FAILED and any(h in combined for h in quota_hints):
+        return FailureAnalysis(
+            category=FailureCategory.QUOTA,
+            is_eligible_for_failover=True,
+            should_cooldown=True,
+            cooldown_minutes=30,
+            message=f"Quota failure: {err_msg}",
+        )
+
+    # Network failures
+    network_hints = ["timeout", "dns", "connection refused", "connection reset", "network unreachable", "unreachable"]
+    if any(h in combined for h in network_hints):
+        return FailureAnalysis(
+            category=FailureCategory.NETWORK,
+            is_eligible_for_failover=False,
+            should_cooldown=False,
+            cooldown_minutes=0,
+            message=f"Network error: {err_msg}",
+        )
+
+    # OpenCode missing
+    opencode_hints = ["executable not found", "not found", "file not found", "no such file"]
+    if any(h in combined for h in opencode_hints):
+        return FailureAnalysis(
+            category=FailureCategory.OPENCODE_MISSING,
+            is_eligible_for_failover=False,
+            should_cooldown=False,
+            cooldown_minutes=0,
+            message=f"OpenCode missing: {err_msg}",
+        )
+
+    # Internal / app errors
+    internal_hints = ["traceback", "exception", "internal error", "assertion", "keyerror", "attributeerror", "typeerror", "valueerror"]
+    if any(h in combined for h in internal_hints):
+        return FailureAnalysis(
+            category=FailureCategory.INTERNAL,
+            is_eligible_for_failover=False,
+            should_cooldown=False,
+            cooldown_minutes=0,
+            message=f"Internal error: {err_msg}",
+        )
+
+    # UNKNOWN verification status - conservative
+    if status == AuthStatus.UNKNOWN:
+        return FailureAnalysis(
+            category=FailureCategory.UNKNOWN,
+            is_eligible_for_failover=False,
+            should_cooldown=False,
+            cooldown_minutes=0,
+            message=f"Unknown verification status: {err_msg}",
+        )
+
+    # Default: conservative
+    return FailureAnalysis(
+        category=FailureCategory.UNKNOWN,
+        is_eligible_for_failover=False,
+        should_cooldown=False,
+        cooldown_minutes=0,
+        message=f"Unclassified failure: {err_msg}",
+    )
 
 
 class SwitchResult:
@@ -54,27 +178,6 @@ class SwitchResult:
             "message": self.message,
             "verification": self.verification.status.value if self.verification else None,
         }
-
-
-def _is_failover_eligible(status: AuthStatus, err_msg: str = "") -> bool:
-    """
-    Per §13: only eligible failures trigger failover:
-    - unauthorized, invalid credential, confirmed rate limited, confirmed exhausted/quota
-
-    Non-eligible: network timeout, opencode missing, internal app error (unless retry policy allows)
-
-    We classify:
-      eligible = INVALID, UNAUTHORIZED, RATE_LIMITED, COOLDOWN (but cooldown already filtered)
-      not eligible = UNKNOWN (network/timeout), FAILED due to missing exe
-    """
-    eligible = {AuthStatus.INVALID, AuthStatus.UNAUTHORIZED, AuthStatus.RATE_LIMITED, AuthStatus.FAILED}
-    # Also textual hints for quota/exhausted
-    quota_hints = ["quota", "exhausted", "rate limit", "rate_limit", "capacity", "limit exceeded"]
-    if status in (AuthStatus.INVALID, AuthStatus.UNAUTHORIZED, AuthStatus.RATE_LIMITED):
-        return True
-    if status == AuthStatus.FAILED and any(h in err_msg.lower() for h in quota_hints):
-        return True
-    return False
 
 
 class ApplicationService:
@@ -263,7 +366,8 @@ class ApplicationService:
                     self.metadata_store.upsert(meta)
                     last_error = "Secret not found in secure store"
                     self._emit(f"Failed {meta.name}: {last_error}")
-                    if _is_failover_eligible(AuthStatus.INVALID, last_error):
+                    analysis = _analyze_failure(AuthStatus.INVALID, last_error)
+                    if analysis.is_eligible_for_failover:
                         continue
                     else:
                         break
@@ -276,23 +380,17 @@ class ApplicationService:
                         meta.failure_count += 1
                         meta.last_failure = redact_text(msg)[:500]
                         meta.auth_status = AuthStatus.FAILED
-                        # Apply cooldown for quota/rate hints?
-                        if any(h in msg.lower() for h in ["quota", "rate", "limit"]):
-                            meta.cooldown_until = (utcnow() + timedelta(minutes=self.cooldown_minutes)).isoformat()
+                        analysis = _analyze_failure(AuthStatus.FAILED, msg)
+                        if analysis.should_cooldown:
+                            meta.cooldown_until = (utcnow() + timedelta(minutes=analysis.cooldown_minutes)).isoformat()
                             meta.auth_status = AuthStatus.RATE_LIMITED
                         self.metadata_store.upsert(meta)
                         last_error = msg
                         self._emit(f"Activation failed {meta.name}: {redact_text(msg[:200])}")
-                        if _is_failover_eligible(meta.auth_status, msg):
+                        if analysis.is_eligible_for_failover:
                             continue
                         else:
-                            # Check if it's deterministic failure requiring failover vs transient
-                            # per spec, network timeout should NOT failover unless retry policy says so -> stop
-                            # Heuristic: if msg contains network/timeout, don't failover
-                            if any(h in msg.lower() for h in ["timeout", "network", "connection", "executable", "not found"]):
-                                break
-                            # otherwise continue to next if attempts remaining but not infinite
-                            continue
+                            break
                     # Verify (MANDATORY per §12)
                     verification = self.adapter.verify(provider=meta.provider)
                     logger.info(f"Verification for {meta.name}: {verification.status} {redact_text(verification.message[:200])}")
@@ -329,31 +427,29 @@ class ApplicationService:
                         meta.failure_count += 1
                         meta.last_failure = utcnow().isoformat()
                         meta.last_checked_at = utcnow().isoformat()
-                        # Map verification status
+                        analysis = _analyze_failure(failed_status, verification.message)
+                        # Map verification status to auth_status
                         if failed_status in (AuthStatus.INVALID, AuthStatus.UNAUTHORIZED):
                             meta.auth_status = failed_status
                         elif failed_status == AuthStatus.RATE_LIMITED:
                             meta.auth_status = AuthStatus.RATE_LIMITED
-                            meta.cooldown_until = (utcnow() + timedelta(minutes=self.cooldown_minutes)).isoformat()
+                            meta.cooldown_until = (utcnow() + timedelta(minutes=analysis.cooldown_minutes)).isoformat()
                         else:
                             meta.auth_status = AuthStatus.FAILED if failed_status == AuthStatus.UNKNOWN else failed_status
+
+                        if analysis.should_cooldown and meta.auth_status != AuthStatus.RATE_LIMITED:
+                            meta.cooldown_until = (utcnow() + timedelta(minutes=analysis.cooldown_minutes)).isoformat()
 
                         self.metadata_store.upsert(meta)
                         last_error = verification.message
                         self._emit(f"Verification failed for {meta.name}: {failed_status} - {redact_text(last_error[:200])}")
 
-                        if _is_failover_eligible(failed_status, last_error):
+                        if analysis.is_eligible_for_failover:
                             self._emit(f"Eligible for failover, trying next candidate")
                             continue
                         else:
                             # Non-eligible failure: do not try next (network, exe missing, etc.)
-                            if "executable not found" in last_error.lower() or "timeout" in last_error.lower():
-                                break
-                            # For UNKNOWN verification, spec says not to treat as quota failure -> stop unless policy says retry
-                            # We will attempt next only if attempts < max and failure is auth-related
-                            if failed_status == AuthStatus.UNKNOWN:
-                                break
-                            continue
+                            break
 
                 except Exception as e:
                     msg = str(e)

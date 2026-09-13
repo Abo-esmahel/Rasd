@@ -54,7 +54,6 @@ class ReportService
         if (Carbon::parse($allowed['report_date'])->toDateString() > now()->toDateString()) {
             throw new InvalidArgumentException(__('api.report_date_future'));
         }
-        // السماح بمسودات متعددة لنفس اليوم — التقييد يكون عند النشر فقط (واحد منشور/يوم).
         $allowed['author_id'] = $author->id;
         $allowed['status'] = Report::STATUS_DRAFT;
         $allowed['generation_mode'] = Report::MODE_MANUAL;
@@ -64,7 +63,6 @@ class ReportService
 
         return DB::transaction(function () use ($author, $allowed) {
             $report = Report::create($allowed);
-            // إرفاق تلقائي: كل الملاحظات المقبولة من نفس اليوم التي لم تُستخدم في تقرير آخر
             $day = Carbon::parse($allowed['report_date'])->toDateString();
             $ids = Note::where('status', Note::STATUS_ACCEPTED)
                 ->whereNull('general_submission_id')
@@ -80,10 +78,6 @@ class ReportService
         });
     }
 
-    /**
-     * يركّب المحتوى النهائي من القالب الثابت: بيانات + ملخص + جدول الملاحظات + توصيات + توقيع.
-     * دالة خالصة (لا تحفظ) — تُستخدم للمعاينة ولإعادة التركيب قبل الحفظ/النشر.
-     */
     public function composeContent(Report $report): string
     {
         $report->loadMissing(['author', 'notes']);
@@ -131,8 +125,6 @@ class ReportService
             if ($newDate > now()->toDateString()) {
                 throw new InvalidArgumentException(__('api.report_date_future'));
             }
-            // تغيير تاريخ المسودة مسموح حتى لو وُجدت مسودات أخرى بنفس اليوم — المنع عند النشر فقط.
-            // نمنع فقط التغيير إلى يوم يوجد فيه تقرير منشور بالفعل (لأن النشر سيُرفض لاحقاً).
             if (Report::whereDate('report_date', $newDate)->where('status', Report::STATUS_PUBLISHED)->where('id', '!=', $report->id)->exists()) {
                 throw new InvalidArgumentException(__('api.report_publish_duplicate_day'));
             }
@@ -157,7 +149,6 @@ class ReportService
         $report->update($allowed);
         $fresh = $report->fresh();
 
-        // أي تعبئة للحقول المنظمة تعيد تركيب المحتوى من القالب الثابت فوراً.
         if (array_key_exists('summary', $allowed) || array_key_exists('recommendations', $allowed)) {
             $fresh->update(['content' => $this->composeContent($fresh)]);
             $fresh = $fresh->fresh();
@@ -224,7 +215,6 @@ class ReportService
 
             foreach ($noteIds as $nid) {
                 $maxOrder++;
-                // فحص مسبق بدل التقاط رسالة UNIQUE الهشة (تختلف بين SQLite/MySQL/PgSQL).
                 if ($locked->notes()->where('notes.id', $nid)->exists()) {
                     $maxOrder--;
                     continue;
@@ -233,11 +223,7 @@ class ReportService
             }
 
             $fresh = $locked->fresh(['notes', 'author']);
-            // إعادة التركيب: أي تغيير في الملاحظات يعيد بناء المحتوى فوراً
-            // (فقط عندما توجد حقول منظمة، حتى لا يُفتح النشر قبل تعبئة الملخص).
             $this->recomposeIfStructured($fresh);
-            // pivot لا يُطلق Report::saved دائماً — جدولة تدفئة observations
-            // صراحة هنا (خلفية فقط، بلا Gemini متزامن، بلا مساس بالمصدر).
             $this->warmReportObservations($fresh->fresh(['notes', 'author']));
 
             return $fresh->fresh(['notes', 'author']);
@@ -253,8 +239,6 @@ class ReportService
             $report->notes()->detach($noteId);
             $fresh = $report->fresh(['notes', 'author']);
             $this->recomposeIfStructured($fresh);
-            // إزالة الملاحظة تغيّر observations المشتقة — دفّئ projections
-            // خلفياً (بلا Gemini في القراءة/Language Switch).
             $this->warmReportObservations($fresh->fresh(['notes', 'author']));
 
             return $fresh->fresh(['notes', 'author']);
@@ -281,10 +265,7 @@ class ReportService
             }
 
             $fresh = $report->fresh(['notes', 'author']);
-            // الترتيب يغيّر جدول الملاحظات في القالب — أعد التركيب فوراً.
             $this->recomposeIfStructured($fresh);
-            // الترتيب يغيّر فهارس observation:{i} — دفّئ projections خلفياً
-            // (المصدر لا يُمس، والقراءة تبقى محفوظة فقط).
             $this->warmReportObservations($fresh->fresh(['notes', 'author']));
 
             return $fresh->fresh(['notes', 'author']);
@@ -304,7 +285,6 @@ class ReportService
                 throw new InvalidArgumentException(__('api.report_publish_needs_note'));
             }
             $day = $locked->report_date->toDateString();
-            // تقييد النشر: تقرير منشور واحد فقط لكل يوم — المسودات متعددة مسموحة.
             if (Report::whereDate('report_date', $day)->where('status', Report::STATUS_PUBLISHED)->where('id', '!=', $locked->id)->exists()) {
                 throw new InvalidArgumentException(__('api.report_publish_duplicate_day'));
             }
@@ -313,19 +293,15 @@ class ReportService
                     throw new InvalidArgumentException(__('api.report_publish_invalid_note'));
                 }
             }
-            // القالب الثابت يُركّب من جديد لحظة النشر — لا يُنشر جدول قديم بعد فك ملاحظة.
             if (trim((string) $locked->summary) !== '' || trim((string) $locked->recommendations) !== '') {
                 $locked->update(['content' => $this->composeContent($locked)]);
                 $locked = $locked->fresh(['notes', 'author']);
             }
-            // تقارير 1-7: النشر يتطلب معاينة معتمدة حديثة (اعتماد → render → preview HTML).
-            // يمنع نشر نسخة قديمة بعد تعديل الملاحظات/الترتيب/التوصيات.
             $notesCount = $locked->notes()->count();
             if ($notesCount >= 1 && $notesCount <= (int) config('report_sheets.max_notes', 7)) {
                 try {
                     $htmlSvc = app(\App\Services\ReportPreview\ReportHtmlRenderingService::class);
                     $state = $htmlSvc->htmlState($locked);
-                    // API/اختبارات قد تنشر دون المرور بزر الاعتماد — ولّد معاينة النظام تلقائياً بدل الرفض.
                     if (($state['state'] ?? 'none') === 'none') {
                         try {
                             $htmlSvc->renderSystem($user, $locked);
@@ -343,13 +319,11 @@ class ReportService
                 if (($state['state'] ?? 'none') === 'stale') {
                     throw new InvalidArgumentException(__('api.report_preview_stale'));
                 }
-                // ضمان حد أدنى للمحتوى الاحتياطي (للطباعة العامة والإشعارات) ولو بلا ملخص.
                 if (trim((string) $locked->content) === '') {
                     $locked->update(['content' => $this->composeContent($locked)]);
                     $locked = $locked->fresh(['notes', 'author']);
                 }
             } elseif (trim((string) $locked->content) === '') {
-                // التقارير خارج 1–7 بلا محرر اعتماد: ركّب المحتوى تلقائياً بدل الرفض.
                 $locked->update(['content' => $this->composeContent($locked)]);
                 $locked = $locked->fresh(['notes', 'author']);
             }
@@ -359,7 +333,6 @@ class ReportService
             $fresh->revisions()->create(['editor_id' => $user->id, 'content_snapshot' => (string) $fresh->content]);
 
             $publishedId = $fresh->id;
-            // خارج المعاملة: إشعارات + سياق AI في الخلفية حتى لا يُحجز قفل الصف.
             try {
                 if ($fresh->visible_to_monitors) {
                     \App\Jobs\FanoutReportPublished::dispatch($publishedId)->afterResponse();
@@ -398,7 +371,6 @@ class ReportService
 
     public function getVisibleQuery(User $user)
     {
-        // withCount بدل تحميل كل الملاحظات — القائمة كانت تجلب N×M صف فقط لعرض العدد.
         $q = Report::with(['author:id,name'])->withCount('notes');
         if ($user->isReportWriter()) {
             return $q;
@@ -421,9 +393,6 @@ class ReportService
         }
     }
 
-    /**
-     * قفل الـ12 ساعة: المنشور بعد انتهاء المهلة لا يُعدَّل ولا يُسحب ولا يُحذف.
-     */
     private function assertMutable(Report $report): void
     {
         if ($report->fresh()->isLocked()) {
@@ -431,10 +400,6 @@ class ReportService
         }
     }
 
-    /**
-     * يعيد تركيب المحتوى من القالب الثابت بعد تغيّر الملاحظات/ترتيبها،
-     * فقط عندما توجد حقول منظمة (حتى لا يُعتبر التقرير جاهزاً قبل تعبئة الملخص).
-     */
     private function recomposeIfStructured(Report $report): void
     {
         $fresh = $report->fresh(['notes', 'author']);
@@ -443,15 +408,6 @@ class ReportService
         }
     }
 
-    /**
-     * تدفئة projections الـ observations المشتقة بعد تغيّر pivot الملاحظات.
-     *
-     * STRICT — خلفية فقط (CREATE/UPDATE):
-     *   Source → dispatchAfterResponse(Job) → Gemini مرة واحدة → Stored.
-     * - لا Gemini متزامن هنا، لا مساس بالمصدر، لا فشل يُكسر الحفظ.
-     * - dedup عبر resolveStoredMany (قراءة محفوظة فقط) — الجاهز لا يُعاد.
-     * - القراءة/Language Switch لا تستدعي هذه الدالة إطلاقاً.
-     */
     private function warmReportObservations(Report $report): void
     {
         try {
@@ -475,11 +431,10 @@ class ReportService
             if ($fields === []) {
                 return;
             }
-            // الهدف = عكس لغة المصدر (نفس منطق الـ Observer).
             $uiLocale = \App\Services\Localization\SourceLanguage::normalizeLocale(app()->getLocale());
             $target = null;
             foreach ($fields as $text) {
-                $lang = \App\Services\Localization\SourceLanguage::detect($text);
+                $lang = \App\Services\Localization\TranslationService::detectCached($text);
                 if ($lang === \App\Services\Localization\SourceLanguage::ARABIC) {
                     $target = 'en';
                     break;

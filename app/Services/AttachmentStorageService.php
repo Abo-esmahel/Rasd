@@ -199,7 +199,6 @@ class AttachmentStorageService
                     originalName: $originalName,
                 );
             }
-            // فحص الحجم كافٍ للملفات الكبيرة — hash مزدوج لملف 100MB يعلق الريكويست ثوانٍ.
             $originalReal = $file->getRealPath();
             $storedAbsolute = $this->absolutePath($relativePath);
             $skipHash = ($storedSize ?? 0) > 20 * 1024 * 1024;
@@ -316,7 +315,6 @@ class AttachmentStorageService
 
     public function fileResponseForPath(string $relativePath, string $mime, ?string $originalName, bool $asDownload = false)
     {
-        // حماية Path Traversal: المسار يجب أن يكون نسبياً داخل قرص المرفقات فقط.
         if ($relativePath === '' || str_contains($relativePath, '..') || str_starts_with($relativePath, '/') || str_starts_with($relativePath, '\\') || preg_match('#^[a-zA-Z]:#', $relativePath)) {
             abort(404, __('api.file_not_found'));
         }
@@ -363,9 +361,6 @@ class AttachmentStorageService
             return response('', 304, $headers);
         }
 
-        // ملفات SVG قد تحمل JavaScript — عرضها inline يشغّل السكربت في سياق الموقع (XSS).
-        // الجودة محفوظة (المعاينة تعمل عبر التنزيل) لكن العرض المباشر ممنوع لها.
-        // دفاع بالعمق: أي نوع HTML/JS يُجبر على التنزيل حتى لو تسرب عبر polyglot.
         $dangerousInline = ['image/svg+xml', 'image/svg', 'text/html', 'application/xhtml+xml', 'text/javascript', 'application/javascript', 'application/x-javascript'];
         if (!$asDownload && in_array(strtolower($mime), $dangerousInline, true)) {
             $asDownload = true;

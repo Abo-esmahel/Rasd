@@ -25,9 +25,6 @@ class AiContextObserver
         }
 
         try {
-            // دمج الطلبات المتتالية: إنشاء ملاحظة + 3 مرفقات = Job واحد فقط كل 60 ثانية.
-            // add() ذرية: تُرجع false إذا وُجد المفتاح — أي هناك جدولة حديثة فنتخطى.
-            // يعمل بعد انتهاء الـ Response حتى لا يحجز الـ Worker.
             $scheduled = \Illuminate\Support\Facades\Cache::add('ai-context-rebuild-scheduled', true, 60);
             if (! $scheduled) {
                 return;

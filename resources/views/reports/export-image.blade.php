@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('content')
-{{-- تصدير كصورة — نفس التقرير الرسمي. متاح فقط لمن يملك Export (Backend يمنع المراقب). --}}
+
 <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
     <a href="{{ route('reports.index') }}" class="inline-flex items-center gap-1 min-h-[44px] text-sm text-[#6b7a6e] hover:text-[#0e6a38] transition">{{ back_arrow() }} {{ __('ui.back_to_reports') }}</a>
     <button type="button" id="dl-image-btn" class="w-full sm:w-auto inline-flex items-center justify-center px-4 py-2 min-h-[48px] sm:min-h-[44px] rounded-xl bg-[#0e6a38] hover:bg-[#0a4d28] text-white text-base sm:text-sm font-bold transition">{{ __('ui.download_png') }}</button>
@@ -21,7 +21,7 @@
 </div>
 <p id="img-err" class="hidden text-xs text-red-600 mt-2"></p>
 
-{{-- محلية: كانت CDN تُحجب بواسطة CSP (script-src 'self') فلا تُحمّل المكتبة أبداً. --}}
+
 <script src="{{ asset('js/vendor/html2canvas.min.js') }}" defer></script>
 <script>
 (function () {

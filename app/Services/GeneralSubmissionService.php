@@ -32,7 +32,6 @@ class GeneralSubmissionService
             'observed_end_at',
             'description',
         ]));
-        // نفس الفالديشن الذكية للملاحظات: عبور منتصف الليل + سقف 12 ساعة + منع المستقبل.
         $allowed = NoteService::normalizeObservedRange($allowed);
 
         $allowed['user_id'] = $user->id;

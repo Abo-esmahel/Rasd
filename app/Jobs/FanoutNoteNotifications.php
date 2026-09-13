@@ -35,7 +35,6 @@ class FanoutNoteNotifications implements ShouldQueue
             return;
         }
 
-        // إرسال على دفعات لتفادي تحميل كل المستخدمين في الذاكرة دفعة واحدة.
         $query = User::where('id', '!=', $this->senderId);
         if ($this->writersOnly) {
             $query->where('role', 'report_writer');
@@ -44,7 +43,6 @@ class FanoutNoteNotifications implements ShouldQueue
             ->chunkById(100, function ($recipients) use ($note) {
                 foreach ($recipients as $recipient) {
                     try {
-                        // فحص سريع عبر exists() بدل get() + PHP loop.
                         $exists = $recipient->notifications()
                             ->where('type', NoteSentNotification::class)
                             ->where('data->note_id', $note->id)
@@ -53,7 +51,6 @@ class FanoutNoteNotifications implements ShouldQueue
                             $recipient->notify(new NoteSentNotification($note, $this->senderName));
                         }
 
-                        // Push بلغة المستلم المحفوظة (فوري — بلا Gemini، بلا انتظار ترجمة).
                         $loc = in_array($recipient->locale ?? null, ['ar', 'en'], true) ? $recipient->locale : 'ar';
                         SendPushToUser::dispatch($recipient->id, [
                             'title' => __('ui.kind_note', [], $loc).' #'.$note->id,

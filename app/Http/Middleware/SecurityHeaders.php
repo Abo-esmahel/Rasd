@@ -15,15 +15,13 @@ class SecurityHeaders
 
         $response->headers->set('X-Content-Type-Options', 'nosniff');
         $response->headers->set('X-Frame-Options', 'DENY');
-        $response->headers->set('Referrer-Policy', 'no-referrer');
+        $response->headers->set('Referrer-Policy', 'strict-origin-when-cross-origin');
         $response->headers->set('X-Robots-Tag', 'noindex, nofollow');
 
-        // HSTS فقط عبر HTTPS لتفادي كسر التطوير المحلي على HTTP.
         if ($request->isSecure()) {
             $response->headers->set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
         }
 
-        // CSP أساسية للصفحات — لا تُفرض على بث الملفات (لها سياستها الخاصة).
         $contentType = (string) $response->headers->get('Content-Type', '');
         if (str_contains($contentType, 'text/html') && !$response->headers->has('Content-Security-Policy')) {
             $response->headers->set(
@@ -32,7 +30,6 @@ class SecurityHeaders
             );
         }
 
-        // إخفاء بصمة الخادم.
         $response->headers->remove('X-Powered-By');
         $response->headers->remove('Server');
 

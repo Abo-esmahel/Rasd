@@ -373,13 +373,14 @@ class MainWindow(QMainWindow):
         self.capacity_bar.setTextVisible(False)
         self.capacity_bar.setRange(0, 100)
         self.capacity_bar.setValue(0)
+        self.capacity_bar.setVisible(False)  # Hidden by default (UNKNOWN)
         self.capacity_bar.setStyleSheet("""
             QProgressBar { background: #EAEEF2; border: none; border-radius: 4px; }
             QProgressBar::chunk { background: #1F2328; border-radius: 4px; }
         """)
         cap_row.addWidget(self.capacity_bar, 1)
         self.capacity_pct = QLabel("UNKNOWN")
-        self.capacity_pct.setStyleSheet("color: #656D76; font-family: 'Segoe UI'; font-size: 12px; font-weight: 600; border: none;")
+        self.capacity_pct.setStyleSheet("color: #8B949E; font-family: 'Segoe UI'; font-size: 12px; font-weight: 600; border: none;")
         self.capacity_pct.setFixedWidth(70)
         self.capacity_pct.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         cap_row.addWidget(self.capacity_pct)
@@ -478,10 +479,9 @@ class MainWindow(QMainWindow):
 
     def _apply_active_empty(self):
         self.capacity_bar.setValue(0)
-        self.capacity_bar.setStyleSheet("""
-            QProgressBar { background: #EAEEF2; border: none; border-radius: 4px; }
-            QProgressBar::chunk { background: #C0C8D0; border-radius: 4px; }
-        """)
+        self.capacity_bar.setVisible(False)
+        self.capacity_pct.setText("UNKNOWN")
+        self.capacity_pct.setStyleSheet("color: #8B949E; font-family: 'Segoe UI'; font-size: 12px; font-weight: 600; border: none;")
 
     def refresh_ui(self):
         try:
@@ -499,15 +499,12 @@ class MainWindow(QMainWindow):
                 if cap.is_unknown():
                     self.capacity_pct.setText("UNKNOWN")
                     self.capacity_pct.setStyleSheet("color: #8B949E; font-family: 'Segoe UI'; font-size: 12px; font-weight: 600; border: none;")
-                    self.capacity_bar.setValue(0)
-                    self.capacity_bar.setStyleSheet("""
-                        QProgressBar { background: #EAEEF2; border: none; border-radius: 4px; }
-                        QProgressBar::chunk { background: #E6E6E6; border-radius: 4px; }
-                    """)
+                    self.capacity_bar.setVisible(False)
                 else:
                     self.capacity_pct.setText(f"{cap.percent}%")
                     self.capacity_pct.setStyleSheet("color: #1F2328; font-family: 'Segoe UI'; font-size: 12px; font-weight: 700; border: none;")
                     self.capacity_bar.setValue(cap.percent)
+                    self.capacity_bar.setVisible(True)
                     # Color gradient by capacity: high = dark, low = red
                     if cap.percent >= 50:
                         col = "#1F2328"
@@ -526,11 +523,8 @@ class MainWindow(QMainWindow):
                 self.active_provider.setText("Add an API and press SWITCH")
                 self.active_dot.setStyleSheet("color: #8B949E; font-size: 8px; border: none;")
                 self.capacity_pct.setText("UNKNOWN")
-                self.capacity_bar.setValue(0)
-                self.capacity_bar.setStyleSheet("""
-                    QProgressBar { background: #EAEEF2; border: none; border-radius: 4px; }
-                    QProgressBar::chunk { background: #E6E6E6; border-radius: 4px; }
-                """)
+                self.capacity_pct.setStyleSheet("color: #8B949E; font-family: 'Segoe UI'; font-size: 12px; font-weight: 600; border: none;")
+                self.capacity_bar.setVisible(False)
                 if metas:
                     # hint best candidate
                     best = self.app_service.selection.select_best(metas)

@@ -9,10 +9,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('reports', function (Blueprint $table) {
-            // الحقول المنظمة التي يعبئها الإنسان (يدوياً أو باعتماد ناتج الآلة)
             $table->longText('summary')->nullable()->after('content');
             $table->longText('recommendations')->nullable()->after('summary');
-            // مخرجات الآلة الخام (لا تُنشر ولا تُرى إلا للكاتب)
             $table->longText('ai_summary')->nullable()->after('ai_draft_content');
             $table->longText('ai_recommendations')->nullable()->after('ai_summary');
         });

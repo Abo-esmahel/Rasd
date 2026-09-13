@@ -7,10 +7,12 @@ Location: %APPDATA%\\OpenCodeAPIManager\\accounts.json etc.
 - state.json     : transient state (active credential id)
 
 All writes are atomic (write to temp + rename).
+Handles corrupted files gracefully with backup.
 """
 from __future__ import annotations
 
 import json
+import logging
 import os
 import tempfile
 from pathlib import Path
@@ -18,7 +20,10 @@ from typing import Dict, List, Optional
 
 from app.domain.models import CredentialMeta
 
+logger = logging.getLogger(__name__)
+
 DEFAULT_APPDATA = Path(os.environ.get("APPDATA", str(Path.home()))) / "OpenCodeAPIManager"
+
 
 class MetadataStore:
     def __init__(self, base_dir: Optional[Path] = None):
@@ -30,6 +35,7 @@ class MetadataStore:
 
     # --- atomic write helper ---
     def _atomic_write(self, path: Path, data: dict) -> None:
+        """Write JSON atomically via temp file + rename."""
         path.parent.mkdir(parents=True, exist_ok=True)
         fd, tmp = tempfile.mkstemp(dir=str(path.parent), suffix=".tmp")
         try:
@@ -38,6 +44,14 @@ class MetadataStore:
                 f.write("\n")
             # replace atomically
             Path(tmp).replace(path)
+        except Exception:
+            # Cleanup temp on error
+            try:
+                if Path(tmp).exists():
+                    Path(tmp).unlink()
+            except Exception:
+                pass
+            raise
         finally:
             if Path(tmp).exists():
                 try:
@@ -45,17 +59,24 @@ class MetadataStore:
                 except Exception:
                     pass
 
+    def _backup_corrupted(self, path: Path) -> None:
+        """Backup a corrupted file with timestamp."""
+        try:
+            if path.exists():
+                import time
+                backup = path.with_suffix(f".bak.{int(time.time())}")
+                path.replace(backup)
+        except Exception:
+            pass
+
     # --- accounts ---
     def load_all(self) -> Dict[str, CredentialMeta]:
         if not self.accounts_path.exists():
             return {}
         try:
             raw = json.loads(self.accounts_path.read_text(encoding="utf-8"))
-            # raw may be {id: meta_dict} or list
             out: Dict[str, CredentialMeta] = {}
             if isinstance(raw, dict):
-                # check if dict is mapping id->dict or single meta?
-                # heuristic: if values are dicts with "id", treat as map
                 for k, v in raw.items():
                     if isinstance(v, dict) and "id" in v:
                         try:
@@ -63,7 +84,7 @@ class MetadataStore:
                             out[m.id] = m
                         except Exception:
                             continue
-                    # else maybe wrapper with "accounts" key
+                # Handle legacy wrapper with "accounts" key
                 if "accounts" in raw and isinstance(raw["accounts"], dict):
                     out = {}
                     for k, v in raw["accounts"].items():
@@ -73,14 +94,12 @@ class MetadataStore:
                 for item in raw:
                     m = CredentialMeta.from_dict(item)
                     out[m.id] = m
+            else:
+                raise ValueError("Unexpected root type in accounts.json")
             return out
         except Exception as e:
-            # corrupted file: backup and return empty
-            try:
-                backup = self.accounts_path.with_suffix(".bak")
-                self.accounts_path.replace(backup)
-            except Exception:
-                pass
+            logger.warning(f"Corrupted accounts.json, backing up: {e}")
+            self._backup_corrupted(self.accounts_path)
             return {}
 
     def save_all(self, metas: Dict[str, CredentialMeta]) -> None:
@@ -111,7 +130,9 @@ class MetadataStore:
             return {"capacity_ttl_seconds": 600, "provider_filter": None}
         try:
             return json.loads(self.settings_path.read_text(encoding="utf-8"))
-        except Exception:
+        except Exception as e:
+            logger.warning(f"Corrupted settings.json, backing up: {e}")
+            self._backup_corrupted(self.settings_path)
             return {}
 
     def save_settings(self, settings: dict) -> None:
@@ -123,7 +144,9 @@ class MetadataStore:
             return {}
         try:
             return json.loads(self.state_path.read_text(encoding="utf-8"))
-        except Exception:
+        except Exception as e:
+            logger.warning(f"Corrupted state.json, backing up: {e}")
+            self._backup_corrupted(self.state_path)
             return {}
 
     def save_state(self, state: dict) -> None:

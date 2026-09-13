@@ -30,7 +30,6 @@ class ReportContextService
         $version = (string) config('ai.context_version', '1.0');
         $generatedAt = now()->toIso8601String();
 
-        // حد أقصى يحمي الذاكرة والقرص: آخر 500 ملاحظة مقبولة تكفي كسياق AI.
         $notes = Note::with(['attachments:id,note_id,mime_type,file_size'])
             ->select(['id', 'observed_at', 'floor_number', 'camera_number', 'description'])
             ->where('status', Note::STATUS_ACCEPTED)
@@ -75,7 +74,6 @@ class ReportContextService
             $at = $n->observed_at ? $n->observed_at->format('Y-m-d H:i') : '?';
             $desc = mb_substr(trim(preg_replace('/\s+/', ' ', (string) $n->description)), 0, 300);
             $lines[] = sprintf('#%d | %s | طابق %s | كاميرا %s | %s', $n->id, $at, $n->floor_number, $n->camera_number, $desc);
-            // استعمال العلاقة المحمّلة مسبقاً — بلا أي استعلام إضافي (إصلاح N+1).
             foreach ($n->attachments as $a) {
                 $mime = (string) $a->mime_type;
                 $kind = str_starts_with($mime, 'image/') ? 'image' : (str_starts_with($mime, 'video/') ? 'video' : (str_starts_with($mime, 'audio/') ? 'audio' : 'file'));

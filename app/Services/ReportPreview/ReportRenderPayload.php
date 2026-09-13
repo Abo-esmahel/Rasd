@@ -4,10 +4,6 @@ namespace App\Services\ReportPreview;
 
 use InvalidArgumentException;
 
-/**
- * DTO للبيانات المرسلة إلى Gemini — فقط الحقول المطلوبة للـrendering،
- * بدون IDs داخلية أو أسرار أو بيانات مستخدم غير متعلقة بالتقرير.
- */
 final class ReportRenderPayload
 {
     public const MAX_OBSERVATIONS = 100;
@@ -75,7 +71,6 @@ final class ReportRenderPayload
         );
     }
 
-    /** المصفوفة المرسلة فعلاً إلى Gemini (بدون أي حقل داخلي). */
     public function toAiArray(): array
     {
         return [
@@ -88,7 +83,6 @@ final class ReportRenderPayload
         ];
     }
 
-    /** بصمة الـpayload — لإعادة استخدام صورة سابقة عند تطابق البيانات. */
     public function hash(): string
     {
         return hash('sha256', json_encode($this->toAiArray(), JSON_UNESCAPED_UNICODE));

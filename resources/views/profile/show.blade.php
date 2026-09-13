@@ -13,11 +13,7 @@
         </a>
     </div>
 
-    {{-- Profile Header: Cover + Avatar متداخل مع الحافة السفلية (نصفه فوق Cover ونصفه خارجه).
-        سبب الإصلاح: كان الـAvatar عنصراً في الـflow بعد الـCover مع -mt فقط، فكانت نسبة
-        الـoverlap هشة ومربوطة بقيمتين ثابتتين. الآن الـAvatar مُثبّت بـ absolute داخل
-        anchor نسبي، ومركزه العمودي منطبق تماماً على حافة الـCover السفلية، وموضعه الأفقي
-        بـ inset-inline-start فينعكس تلقائياً (يمين في RTL / يسار في LTR). --}}
+    
     <style>
         .profile-hero{
             --cover-h: clamp(216px, 48vw, 288px);
@@ -87,8 +83,7 @@
         </div>
     </header>
 
-    {{-- معلومات الحساب: Section واحدة متماسكة — عنوان + صفوف بفواصل خفيفة.
-        أيقونات thin (stroke 1.5، ‏18px) كعنصر مساعد فقط، labels صغيرة وvalues أوضح. --}}
+    
     <section class="mt-6" aria-labelledby="account-info-title">
         <div class="rounded-2xl border border-surface-300 bg-white px-5 dark:bg-[#252b26]">
             <h2 id="account-info-title" class="pt-4 pb-1 text-[13px] font-extrabold text-ink-500">{{ __('ui.account_info') }}</h2>
@@ -122,7 +117,7 @@
         </div>
     </section>
 
-    {{-- إجمالي الملاحظات: جزء من التصميم — رقم كبير وتحته label صغير، بدون Cards إضافية --}}
+    
     <section class="mt-6 text-center" aria-label="{{ __('ui.total_notes') }}">
         <div class="border-y border-surface-300 py-6 px-6">
         @if($total > 0)
@@ -140,7 +135,6 @@
         </div>
     </section>
 
-    {{-- لغة الواجهة --}}
     @if($isOwn ?? true)
     <section class="mt-6">
         <h2 class="px-1 mb-2 text-[13px] font-extrabold text-ink-500">{{ __('ui.language_title') }}</h2>
@@ -160,7 +154,6 @@
     @endif
 </div>
 
-{{-- نافذة الصورة المكبرة --}}
 @if($user->avatar_url)
     <div id="avatar-view-modal" data-modal class="hidden fixed inset-0 z-[70] items-center justify-center p-4">
         <div class="absolute inset-0 bg-ink-900/70 backdrop-blur-sm" onclick="closeModal('avatar-view-modal')"></div>

@@ -9,8 +9,6 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('report_sheet_renders', function (Blueprint $table) {
-            // FinalReportData كما اعتمدها المستخدم (observations + recommendations)
-            // لإعادة تحميل المحرر بآخر بيانات مخصصة بدل فقدانها بعد التحديث.
             $table->json('payload')->nullable()->after('system_hash');
         });
     }

@@ -389,14 +389,26 @@
             if(isNaN(d)) return null;
             try{ return d.toLocaleDateString(EDIT_T.dateLocale,{weekday:'long',year:'numeric',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit'});}catch(e){return date+' '+time;}
         }
+        function tzSuffixEdit(localDateStr){
+            try{
+                const d=new Date(localDateStr);
+                if(isNaN(d)) return '';
+                const off=-d.getTimezoneOffset();
+                const sign=off>=0?'+':'-';
+                const abs=Math.abs(off);
+                const hh=String(Math.floor(abs/60)).padStart(2,'0');
+                const mm=String(abs%60).padStart(2,'0');
+                return sign+hh+':'+mm;
+            }catch(_){ return ''; }
+        }
         function sync(){
             const d=dateEl?.value, t=timeEl?.value, et=endTimeEl?.value;
-            if(d && t){ hidden.value=d+'T'+t; const txt=toPreview(d,t); const endTxt=et?' — '+et:''; if(preview) preview.textContent=(txt||(d+' — '+t))+endTxt; hidden.setCustomValidity(''); }
+            if(d && t){ const base=d+'T'+t; hidden.value=base+tzSuffixEdit(base); const txt=toPreview(d,t); const endTxt=et?' — '+et:''; if(preview) preview.textContent=(txt||(d+' — '+t))+endTxt; hidden.setCustomValidity(''); }
             else { hidden.value=''; if(preview) preview.textContent=EDIT_T.chooseTime; }
             if(d && et){
                 let endVal=d+'T'+et;
                 try{ if(t && et < t){ const nd=new Date(d+'T'+et); nd.setDate(nd.getDate()+1); const pad=n=>String(n).padStart(2,'0'); endVal=nd.getFullYear()+'-'+pad(nd.getMonth()+1)+'-'+pad(nd.getDate())+'T'+et; } }catch(_){}
-                hiddenEnd.value=endVal;
+                hiddenEnd.value=endVal+tzSuffixEdit(endVal);
             } else { hiddenEnd.value=''; }
         }
         dateEl?.addEventListener('change',sync); timeEl?.addEventListener('change',sync); endTimeEl?.addEventListener('change',sync);
@@ -415,7 +427,29 @@
         sync();
     })();
 
-    async function compressImageClientEdit(file){ return file; }
+    // ضغط صور JPEG/WEBP قبل الرفع — نفس الامتداد ونفس الـmime (لا PNG/HEIC/GIF حتى لا ينكسر فالديشن mimes).
+    async function compressImageClientEdit(file){
+        try{
+            const t=file.type||'';
+            const ext=(file.name.split('.').pop()||'').toLowerCase();
+            const ok=(t==='image/jpeg'&&(ext==='jpg'||ext==='jpeg'))||(t==='image/webp'&&ext==='webp');
+            if(!ok) return file;
+            if(file.size<900*1024) return file;
+            if(typeof createImageBitmap!=='function') return file;
+            const bmp=await createImageBitmap(file).catch(()=>null);
+            if(!bmp) return file;
+            const MAXD=1920, w=bmp.width, h=bmp.height;
+            const scale=Math.min(1,MAXD/Math.max(w,h));
+            if(scale>=1&&file.size<2.5*1024*1024){ if(bmp.close) bmp.close(); return file; }
+            const c=document.createElement('canvas');
+            c.width=Math.max(1,Math.round(w*scale)); c.height=Math.max(1,Math.round(h*scale));
+            c.getContext('2d').drawImage(bmp,0,0,c.width,c.height);
+            if(bmp.close) bmp.close();
+            const blob=await new Promise(r=>{ try{ c.toBlob(r,t,0.82); }catch(_){ r(null); } });
+            if(!blob||blob.size>=file.size) return file;
+            return new File([blob],file.name,{type:t,lastModified:Date.now()});
+        }catch(_){ return file; }
+    }
     function setUploadProgressEdit(pct, detail){
         const wrap=document.getElementById('upload-progress-edit'), bar=document.getElementById('upload-progress-bar-edit'), txt=document.getElementById('upload-progress-text-edit');
         if(!wrap) return;
@@ -448,7 +482,7 @@
 
     let pendingFilesEdit = [];
 
-    const MAX_FILES_EDIT = {{ max(1, (int) ini_get('max_file_uploads') ?: 20) }};
+    const MAX_FILES_EDIT = {{ min(max(1, (int) ini_get('max_file_uploads') ?: 20), (int) config('attachments.max_per_note', 10)) }};
     function syncInputEdit(){ try{ input.files = fileTransferEdit.files; }catch(e){ } }
     function renderEdit(){
         const files=Array.from(fileTransferEdit.files);
@@ -488,9 +522,9 @@
     async function addFilesEdit(newFiles){
         for(let orig of newFiles){
             if(fileTransferEdit.files.length>=MAX_FILES_EDIT){ window.toast(editFill(EDIT_T.limitToast,{':max':MAX_FILES_EDIT})); break; }
-            let file=orig;
+            let file=await compressImageClientEdit(orig);
             const ext=file.name.split('.').pop().toLowerCase();
-            const audioExts=['mp3','wav','ogg','oga','m4a','aac','wma','flac','opus','aiff','aif','amr','3ga','awb','mid','midi','au','weba'];
+            const audioExts=['mp3','wav','ogg','oga','m4a','aac','wma','flac','opus','aiff','aif','amr','3ga','awb','mid','midi','au','weba','ac3','dts','alac'];
             const isAudio=audioExts.includes(ext)||file.type.startsWith('audio/');
             if(!['jpg','jpeg','png','webp','mp4','webm','mov','avi','3gp','mkv','m4v','mpg','3gpp'].includes(ext) && !file.type.startsWith('image/') && !file.type.startsWith('video/') && !isAudio){
                 window.toast(EDIT_T.unsupported); continue;

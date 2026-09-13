@@ -10,14 +10,10 @@ return [
 
     'gemini' => [
         'api_key' => env('GEMINI_API_KEY', ''),
-        // Verified live 2026-09-11: gemini-2.5-flash is retired for new users.
-        // Use a currently served flash model (see /v1beta/models).
-        'model' => env('GEMINI_MODEL', 'gemini-3.6-flash'),
+        'model' => env('GEMINI_MODEL', 'gemini-3.5-flash'),
         'timeout' => (int) env('GEMINI_TIMEOUT', 60),
         // 3.x flash models spend thinking tokens from the same budget: keep generous.
         'max_output_tokens' => (int) env('GEMINI_MAX_OUTPUT_TOKENS', 4096),
-        // ملاحظة: توليد/تعبئة الصور بالذكاء الاصطناعي مُزال — الرسم محلي (GD) حصراً.
-        // Gemini مسؤول عن توليد النصوص فقط (generate-data / المسودات).
     ],
 
 

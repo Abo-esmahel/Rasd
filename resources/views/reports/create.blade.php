@@ -2,7 +2,6 @@
 
 @section('content')
 <div class="max-w-[560px] mx-auto w-full">
-    {{-- header — quiet, no decorative card --}}
     <div class="flex items-center gap-2.5">
         <a href="{{ route('reports.index') }}" aria-label="{{ __('ui.back_to_reports_aria') }}" class="shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-lg border border-[#e6e9e1] bg-white text-[#6b7a6e] hover:text-[#0e6a38] hover:border-[#0e6a38] transition">
             <svg class="w-4 h-4 rtl:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
@@ -35,7 +34,6 @@
             @error('report_date')<span class="text-[11.5px] font-bold text-[#b91c1c]">{{ $message }}</span>@enderror
         </div>
 
-        {{-- visibility — inline row, not a card --}}
         <div class="flex items-center justify-between gap-4 py-3 border-y border-[#eceee9]">
             <div class="min-w-0">
                 <div class="text-[13px] font-bold text-[#1a2e1f] leading-5">{{ __('ui.visible_to_monitors') }}</div>

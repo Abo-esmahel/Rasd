@@ -6,10 +6,6 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * مفتاح الـCache يشمل بصمة المصدر: report:9:{hash}:en.
-     * نفس الحقل قد يظهر بصيغ عرض مختلفة (مقتطف/كامل) — كل بصمة تحتفظ بترجمتها.
-     */
     public function up(): void
     {
         Schema::table('content_translations', function (Blueprint $table) {

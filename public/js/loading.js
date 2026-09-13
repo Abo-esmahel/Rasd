@@ -1,22 +1,14 @@
-/* RASD Global Loading Manager — ذكي وخفيف (بلا build وبلا polling)
- * يظهر دائرة التحميل فقط عند وجود انتظار حقيقي:
- *  - تنقّل (رابط/نموذج عادي)      -> يظهر بسرعة
- *  - شبكة (fetch/XHR) بطيئة فقط   -> يظهر بعد مهلة قصيرة حتى لا يومض للطلبات السريعة
- * يتجاهل تلقائياً: نبض الإشعارات، live=1، الـ push/broadcast، روابط نفس الصفحة، data-no-loader
- * التكلفة: مستمعان خاملان + عدّاد + مؤقّتان كحد أقصى. لا intervals ولا فحص دوري.
- */
 (function () {
     'use strict';
 
-    var SHOW_DELAY_NAV = 70;    // مهلة قبل الإظهار للتنقل (ms)
-    var SHOW_DELAY_NET = 180;   // مهلة قبل الإظهار للشبكة — الطلبات الأسرع لا تُظهر شيئاً
-    var MIN_VISIBLE = 220;      // أقصر مدة ظهور لمنع الوميض
-    var MAX_VISIBLE = 12000;    // صمّام أمان
+    var SHOW_DELAY_NAV = 70;
+    var SHOW_DELAY_NET = 180;
+    var MIN_VISIBLE = 220;
+    var MAX_VISIBLE = 12000;
     var REDUCED = false;
 
     try { REDUCED = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) {}
 
-    // طلبات خلفية صامتة — لا تستحق مؤشر انتظار أبداً
     var EXCLUDE = [
         /\/notifications(\?|\/|$)/,
         /[?&]live=1\b/,
@@ -28,9 +20,9 @@
         /^blob:/
     ];
 
-    var pending = 0;        // عدد المهام المنتظرة
-    var showTimer = null;   // مؤقت الإظهار المؤجل
-    var shownAt = 0;        // متى ظهر
+    var pending = 0;
+    var showTimer = null;
+    var shownAt = 0;
     var visible = false;
     var maxTimer = null;
 
@@ -48,15 +40,12 @@
     function paint() {
         var loader = el();
         if (!loader) return;
-        // إلغاء أي بقايا من النظام القديم (inline styles + animation fill)
         try { loader.style.animation = 'none'; } catch (e) {}
         loader.classList.remove('hidden');
-        // إزالة الـ inline القديمة حتى تتحكم الكلاسات وحدها
         loader.style.display = '';
         loader.style.opacity = '';
         loader.style.visibility = '';
         loader.style.pointerEvents = 'none';
-        // تفعيل الانتقال في الإطار التالي (دفعة رسم واحدة)
         requestAnimationFrame(function () {
             requestAnimationFrame(function () {
                 loader.classList.add('is-visible');
@@ -128,7 +117,6 @@
         }
     }
 
-    // — تتبّع fetch (طلبات المستخدم البطيئة فقط) —
     try {
         if (window.fetch && !window.fetch.__rasdPatched) {
             var nativeFetch = window.fetch;
@@ -146,7 +134,6 @@
         }
     } catch (e) {}
 
-    // — تتبّع XHR (رفع الملفات وغيرها) —
     try {
         var proto = window.XMLHttpRequest && window.XMLHttpRequest.prototype;
         if (proto && !proto.__rasdPatched) {
@@ -175,7 +162,6 @@
         }
     } catch (e) {}
 
-    // — تنقّل الروابط: فقط تنقّل حقيقي لصفحة أخرى —
     document.addEventListener('click', function (e) {
         try {
             if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
@@ -187,13 +173,10 @@
             if (a.closest('[data-no-loader]')) return;
             var low = href.toLowerCase();
             if (low.indexOf('mailto:') === 0 || low.indexOf('tel:') === 0) return;
-            // رابط ajax يمنع التنقل الافتراضي -> الشبكة هي من تُظهر المؤشر إن طال الانتظار
-            // (مستمع العنصر يعمل قبل مستمع document، و defaultPrevented تكشفه)
             setTimeout(function () { if (!e.defaultPrevented) begin('nav'); }, 0);
         } catch (err) {}
     }, { passive: true });
 
-    // — إرسال النماذج: العادية فقط (ajax تُغطيها الشبكة) —
     document.addEventListener('submit', function (e) {
         try {
             var form = e.target;
@@ -203,7 +186,6 @@
         } catch (err) {}
     }, { passive: true });
 
-    // — إعادة الضبط عند اكتمال التحميل أو العودة من الكاش —
     window.addEventListener('load', reset);
     window.addEventListener('pageshow', reset);
     window.addEventListener('error', function () { if (pending <= 0) reset(); }, true);

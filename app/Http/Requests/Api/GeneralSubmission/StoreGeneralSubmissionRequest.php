@@ -24,7 +24,6 @@ class StoreGeneralSubmissionRequest extends FormRequest
             'floor_number' => ['required', 'integer', 'min:0'],
             'camera_number' => ['required', 'integer', 'min:1'],
             'observed_at' => ['required', 'date'],
-            // عبور منتصف الليل والمدى يعالجهما NoteService::normalizeObservedRange في الخدمة.
             'observed_end_at' => ['nullable', 'date'],
             'description' => ['required', 'string', 'min:10', 'max:5000'],
             'files' => ['nullable', 'array', 'max:'.$maxFiles],

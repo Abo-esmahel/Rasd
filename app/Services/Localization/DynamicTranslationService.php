@@ -2,30 +2,10 @@
 
 namespace App\Services\Localization;
 
-/**
- * غلاف توافق خلفي (BC) — يُبقي توقيع translatePage القديم يعمل.
- *
- * الجديد: TranslationService + LocalizedPresenter + TranslationProviderInterface.
- * هذا الغلاف يفوّض للخدمة المركزية، بلا منطق مكرر.
- * meta صادقة ومشتقة: localized (اختلف عن المصدر) مقابل source (كما هو).
- *
- * @deprecated استخدم TranslationService / LocalizedPresenter مباشرة.
- */
 class DynamicTranslationService extends TranslationService
 {
     public const TARGET_LOCALE = 'en';
 
-    /**
-     * READ صِرف — محفوظ فقط (STRICT: ZERO Gemini في القراءة/Language Switch).
-     *
-     *   Locale → Cache/DB → Stored Translation / Source → Render
-     *
-     * لا يستدعي localizeMany() ولا translateBatch() إطلاقاً — أي ترجمة
-     * جديدة تحدث فقط في مسار CREATE/UPDATE (Observer + WarmTranslationProjection).
-     *
-     * @param  array<int, array{type: string, id: int|string, fields: array<string,string>}>  $items
-     * @return array{translations: array<string,string>, meta: array{localized: int, source: int, ai_used: bool}}
-     */
     public function translatePage(array $items, string $locale = self::TARGET_LOCALE): array
     {
         $locale = SourceLanguage::normalizeLocale($locale);
@@ -52,9 +32,6 @@ class DynamicTranslationService extends TranslationService
             }
         }
 
-        // stored-only: النسخ المحفوظة مسبقاً فقط — المفقود يُعرض بمصدره
-        // (الـ placeholder بلغة الواجهة يُحل سيرفرياً عند الـ Presenter).
-        // لا Provider هنا — Gemini محصور في WarmTranslationProjection (خلفية).
         $map = $this->resolveStoredMany($refs, $locale);
 
         $localized = 0;
@@ -72,7 +49,6 @@ class DynamicTranslationService extends TranslationService
             'meta' => [
                 'localized' => $localized,
                 'source' => count($translations) - $localized,
-                // قراءة محفوظة فقط — لا AI متزامن هنا أبداً (التدفئة خلفية فقط).
                 'ai_used' => false,
             ],
         ];

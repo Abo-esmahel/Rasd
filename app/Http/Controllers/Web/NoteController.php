@@ -64,14 +64,11 @@ class NoteController extends Controller
 
         $notes = $query->paginate(15)->withQueryString();
 
-        // Preload عرضي واحد (محفوظ فقط — ZERO Gemini على Language Switch).
         try {
             $presenter->preloadNotes($notes->items());
         } catch (\Throwable) {
         }
 
-        // كاش ساعة — كانت تُجلب في كل فتح لصفحة الملاحظات.
-        // arrays فقط: مخزن الكاش (database) يعيد الأجسام ناقصة (serializable_classes=false).
         $observers = \Illuminate\Support\Facades\Cache::remember('observers_list', 3600, fn () => User::where('role', 'monitor')->orderBy('name')->get(['id', 'name'])->map(fn ($u) => ['id' => $u->id, 'name' => $u->name])->all());
 
         $observerUser = null;
@@ -124,23 +121,21 @@ class NoteController extends Controller
     public function store(Request $request)
     {
         $reqId = (string) Str::uuid();
-        if ($overflow = $this->postOverflowResponse($request)) {
+        if ($overflow = $this->postOverflowResponse($request, 'notes.create')) {
             return $overflow;
         }
         $this->authorize('create', Note::class);
 
         $maxFiles = max(1, (int) ini_get('max_file_uploads') ?: 20);
-        // مصدر واحد للحد — كان محسوباً يدوياً هنا ومختلفاً في مسار الإرساليات (500MB).
         $fileMaxKb = \App\Services\NoteService::uploadFileMaxKb();
         $validated = $request->validate([
             'floor_number' => ['required','integer','min:0'],
             'camera_number' => ['required','integer','min:1'],
             'observed_at' => ['required','date'],
-            // عبور منتصف الليل والمدى الزمني يعالجهما NoteService::normalizeObservedRange بذكاء.
             'observed_end_at' => ['nullable','date'],
             'description' => ['required','string','min:10','max:5000'],
             'files' => ['nullable','array','max:'.$maxFiles],
-            'files.*' => ['file','max:'.$fileMaxKb,'mimes:jpg,jpeg,png,webp,heic,heif,tiff,tif,bmp,avif,gif,svg,mp4,webm,mov,avi,3gp,3gpp,mkv,m4v,mpg,mpeg,wmv,flv,ogv,ts,mts,m2ts,vob,asf,m2v,3g2,f4v,m4p,mp3,wav,ogg,oga,m4a,aac,wma,flac,opus,aiff,aif,amr,3ga,awb,mid,midi,au,ra,weba'],
+            'files.*' => ['file','max:'.$fileMaxKb,'mimes:jpg,jpeg,png,webp,heic,heif,tiff,tif,bmp,avif,gif,svg,mp4,webm,mov,avi,3gp,3gpp,mkv,m4v,mpg,mpeg,wmv,flv,ogv,ts,mts,m2ts,vob,asf,m2v,3g2,f4v,m4p,mp3,wav,ogg,oga,m4a,aac,wma,flac,opus,aiff,aif,amr,3ga,awb,mid,midi,au,ra,weba,ac3,dts,alac'],
             'client_files_count' => ['nullable','integer','min:0','max:100'],
         ], [
             'files.max' => __('api.files_max'),
@@ -172,7 +167,7 @@ class NoteController extends Controller
                     ], 422);
                 }
 
-                return redirect()->back()->withInput()->withErrors(['files' => $msg]);
+                return redirect()->route('notes.create')->withInput()->withErrors(['files' => $msg]);
             }
         }
 
@@ -197,7 +192,7 @@ class NoteController extends Controller
                 ), 422);
             }
 
-            return redirect()->back()->withInput()->withErrors([
+            return redirect()->route('notes.create')->withInput()->withErrors([
                 'files' => __('api.note_attach_batch_failed').': '.implode(' | ', $this->flattenErrors($e->attachmentErrors)),
             ]);
         } catch (\Throwable $e) {
@@ -206,7 +201,7 @@ class NoteController extends Controller
                 return response()->json(['success' => false, 'note_id' => null, 'files_received' => count($receivedFiles), 'attachments_saved' => 0, 'attachment_errors' => [__('api.note_create_failed', ['error' => $e->getMessage()])]], 500);
             }
 
-            return redirect()->back()->withInput()->withErrors(['general' => __('api.note_create_failed', ['error' => $e->getMessage()])]);
+            return redirect()->route('notes.create')->withInput()->withErrors(['general' => __('api.note_create_failed', ['error' => $e->getMessage()])]);
         }
 
         $note = $result['note'];
@@ -258,7 +253,7 @@ class NoteController extends Controller
     {
         $this->authorize('update', $note);
 
-        if ($overflow = $this->postOverflowResponse($request)) {
+        if ($overflow = $this->postOverflowResponse($request, 'notes.edit', $note)) {
             return $overflow;
         }
 
@@ -268,11 +263,10 @@ class NoteController extends Controller
             'floor_number' => ['required','integer','min:0'],
             'camera_number' => ['required','integer','min:1'],
             'observed_at' => ['required','date'],
-            // عبور منتصف الليل والمدى الزمني يعالجهما NoteService::normalizeObservedRange بذكاء.
             'observed_end_at' => ['nullable','date'],
             'description' => ['required','string','min:10','max:5000'],
             'files' => ['nullable','array','max:'.$maxFiles],
-            'files.*' => ['file','max:'.$fileMaxKb,'mimes:jpg,jpeg,png,webp,heic,heif,tiff,tif,bmp,avif,gif,svg,mp4,webm,mov,avi,3gp,3gpp,mkv,m4v,mpg,mpeg,wmv,flv,ogv,ts,mts,m2ts,vob,asf,m2v,3g2,f4v,m4p,mp3,wav,ogg,oga,m4a,aac,wma,flac,opus,aiff,aif,amr,3ga,awb,mid,midi,au,ra,weba'],
+            'files.*' => ['file','max:'.$fileMaxKb,'mimes:jpg,jpeg,png,webp,heic,heif,tiff,tif,bmp,avif,gif,svg,mp4,webm,mov,avi,3gp,3gpp,mkv,m4v,mpg,mpeg,wmv,flv,ogv,ts,mts,m2ts,vob,asf,m2v,3g2,f4v,m4p,mp3,wav,ogg,oga,m4a,aac,wma,flac,opus,aiff,aif,amr,3ga,awb,mid,midi,au,ra,weba,ac3,dts,alac'],
             'client_files_count' => ['nullable','integer','min:0','max:100'],
         ], [
             'files.max' => __('api.files_max'),
@@ -296,7 +290,7 @@ class NoteController extends Controller
                     ], 422);
                 }
 
-                return redirect()->back()->withInput()->withErrors(['files' => $msg]);
+                return redirect()->route('notes.edit', $note)->withInput()->withErrors(['files' => $msg]);
             }
         }
 
@@ -321,7 +315,7 @@ class NoteController extends Controller
                 ), 422);
             }
 
-            return redirect()->back()->withInput()->withErrors([
+            return redirect()->route('notes.edit', $note)->withInput()->withErrors([
                 'files' => __('api.note_attach_batch_failed_edit').': '.implode(' | ', $this->flattenErrors($e->attachmentErrors)),
             ]);
         } catch (\Throwable $e) {
@@ -330,7 +324,7 @@ class NoteController extends Controller
                 return response()->json(['success' => false, 'note_id' => $note->id, 'files_received' => count($receivedFiles), 'attachments_saved' => $note->attachments()->count(), 'attachment_errors' => [__('api.note_update_failed', ['error' => $e->getMessage()])]], 500);
             }
 
-            return redirect()->back()->withInput()->withErrors(['general' => __('api.note_update_failed', ['error' => $e->getMessage()])]);
+            return redirect()->route('notes.edit', $note)->withInput()->withErrors(['general' => __('api.note_update_failed', ['error' => $e->getMessage()])]);
         }
 
         if ($this->wantsJsonResponse($request)) {
@@ -406,7 +400,7 @@ class NoteController extends Controller
         $fileMaxKb = $phpMaxKb > 0 ? min($phpMaxKb, $appMaxKb, 512000) : min($appMaxKb, 512000);
 
         $request->validate([
-            'file' => ['required','file','max:'.$fileMaxKb,'mimes:jpg,jpeg,png,webp,heic,heif,tiff,tif,bmp,avif,gif,svg,mp4,webm,mov,avi,3gp,3gpp,mkv,m4v,mpg,mpeg,wmv,flv,ogv,ts,mts,m2ts,vob,asf,m2v,3g2,f4v,m4p,mp3,wav,ogg,oga,m4a,aac,wma,flac,opus,aiff,aif,amr,3ga,awb,mid,midi,au,ra,weba'],
+            'file' => ['required','file','max:'.$fileMaxKb,'mimes:jpg,jpeg,png,webp,heic,heif,tiff,tif,bmp,avif,gif,svg,mp4,webm,mov,avi,3gp,3gpp,mkv,m4v,mpg,mpeg,wmv,flv,ogv,ts,mts,m2ts,vob,asf,m2v,3g2,f4v,m4p,mp3,wav,ogg,oga,m4a,aac,wma,flac,opus,aiff,aif,amr,3ga,awb,mid,midi,au,ra,weba,ac3,dts,alac'],
         ]);
 
         $file = $request->file('file');
@@ -435,7 +429,7 @@ class NoteController extends Controller
         $this->authorize('removeAttachment', $note);
         $this->noteService->removeAttachment(auth()->user(), $attachment);
         if (request()->expectsJson()) return response()->json(['success' => true], 204);
-        return back()->with('success', __('api.note_attach_deleted'));
+        return redirect()->route('notes.show', $note)->with('success', __('api.note_attach_deleted'));
     }
 
     
@@ -560,7 +554,7 @@ class NoteController extends Controller
     }
 
     
-    private function postOverflowResponse(Request $request)
+    private function postOverflowResponse(Request $request, string $redirectTo = 'notes.index', $routeParam = null)
     {
         $postMax = $this->parseBytes((string) ini_get('post_max_size'));
         $length = (int) $request->server('CONTENT_LENGTH', 0);
@@ -575,7 +569,7 @@ class NoteController extends Controller
                 return response()->json(['success' => false, 'note_id' => null, 'files_received' => 0, 'attachments_saved' => 0, 'attachment_errors' => [$msg]], 413);
             }
 
-            return redirect()->back()->withInput()->withErrors(['files' => $msg]);
+            return redirect()->route($redirectTo, $routeParam)->withInput()->withErrors(['files' => $msg]);
         }
 
         return null;

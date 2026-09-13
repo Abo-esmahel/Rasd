@@ -59,20 +59,20 @@
                         <div class="text-xs font-bold text-ink-500 mb-1.5">{{ __('ui.date_label') }}</div>
                         <input type="date" id="observed_date" value="{{ $oldDate }}" required
                             class="block w-full rounded-xl border border-[#e6e9e1] bg-white py-2.5 px-4 text-sm font-bold text-ink-800 focus:border-[#0e6a38] focus:ring-2 focus:ring-[#0e6a38]/10 outline-none transition cursor-pointer"
-                            style="color-scheme: light;">
+                            style="color-scheme: light dark;">
                     </div>
                     <div class="grid grid-cols-2 gap-3">
                         <div>
                             <div class="text-xs font-bold text-ink-500 mb-1.5">{{ __('ui.start_label') }}</div>
                             <input type="time" id="observed_time" value="{{ $oldTime }}" required step="60"
                                 class="block w-full rounded-xl border border-[#e6e9e1] bg-white py-2.5 px-4 text-sm font-bold text-ink-800 focus:border-[#0e6a38] focus:ring-2 focus:ring-[#0e6a38]/10 outline-none transition cursor-pointer"
-                                style="color-scheme: light;">
+                                style="color-scheme: light dark;">
                         </div>
                         <div>
                             <div class="text-xs font-bold text-ink-500 mb-1.5">{{ __('ui.end_label') }}</div>
                             <input type="time" id="observed_end_time" value="{{ $oldEndTime }}" step="60"
                                 class="block w-full rounded-xl border border-[#e6e9e1] bg-white py-2.5 px-4 text-sm font-bold text-ink-800 focus:border-[#0e6a38] focus:ring-2 focus:ring-[#0e6a38]/10 outline-none transition cursor-pointer"
-                                style="color-scheme: light;">
+                                style="color-scheme: light dark;">
                         </div>
                     </div>
                 </div>
@@ -241,6 +241,72 @@
 
 @push('scripts')
 <script>
+    const FORM_T = {
+        floor: @json(__('ui.floor_required')),
+        camera: @json(__('ui.camera_required')),
+        datetime: @json(__('ui.datetime_required')),
+        description: @json(__('ui.description_required')),
+        fixFields: @json(__('ui.fix_fields'))
+    };
+    // Shared create-page UI dictionary (server-rendered per locale — no Gemini).
+    const CRT_T = {
+        chooseTime: @json(__('ui.choose_time')),
+        dateLocale: @json(app()->getLocale() === 'en' ? 'en-US' : 'ar-EG'),
+        netErr: @json(__('ui.network_error')),
+        timeoutErr: @json(__('ui.timeout_error')),
+        fAudio: @json(__('ui.file_audio')),
+        fVideo: @json(__('ui.file_video')),
+        fImage: @json(__('ui.file_image')),
+        fOther: @json(__('ui.file_other')),
+        camBadge: @json(__('ui.file_camera_badge')),
+        recBadge: @json(__('ui.file_rec')),
+        delTitle: @json(__('ui.file_remove')),
+        limitMax: @json(__('ui.max_files_exceeded')),
+        limitToast: @json(__('ui.upload_limit_files')),
+        unsupported: @json(__('ui.unsupported_file_type')),
+        imgBig: @json(__('ui.image_too_large')),
+        vidBig: @json(__('ui.video_too_large')),
+        audBig: @json(__('ui.audio_too_large')),
+        camHttps: @json(__('ui.camera_not_available_https')),
+        camUnsupported: @json(__('ui.camera_not_supported')),
+        camStarting: @json(__('ui.camera_starting')),
+        camReady: @json(__('ui.camera_ready')),
+        camPhoto: @json(__('ui.camera_photo_mode')),
+        camRec: @json(__('ui.camera_recording_mode')),
+        camFallbackErr: @json(__('ui.camera_error_fallback')),
+        camUnavailable: @json(__('ui.camera_unavailable')),
+        fileAdded: @json(__('ui.file_added_from_camera')),
+        camNotReady: @json(__('ui.camera_not_ready')),
+        captureFail: @json(__('ui.capture_failed')),
+        photoDone: @json(__('ui.photo_captured')),
+        recUnsupported: @json(__('ui.recording_not_supported')),
+        recStartFail: @json(__('ui.recording_start_failed')),
+        recStarted: @json(__('ui.recording_started')),
+        vidRecorded: @json(__('ui.video_recorded')),
+        browserFail: @json(__('ui.browser_files_failed')),
+        browserDetail: @json(__('ui.browser_files_detail')),
+        totalBig: @json(__('ui.total_attachments_too_large')),
+        serverLimit: @json(__('ui.server_limit_exceeded')),
+        uploadingN: @json(__('ui.uploading_files_count')),
+        dontClose: @json(__('ui.upload_pct_dont_close')),
+        verify: @json(__('ui.upload_verify')),
+        attachFail: @json(__('ui.attach_fail')),
+        filesKept: @json(__('ui.files_kept')),
+        mediaKept: @json(__('ui.media_kept')),
+        mismatchShort: @json(__('ui.files_mismatch_short')),
+        partial: @json(__('ui.server_received_partial')),
+        sendFail: @json(__('ui.send_failed_code')),
+        notSaved: @json(__('ui.not_saved_retry')),
+        timeoutTitle: @json(__('ui.timeout_title')),
+        timeoutHint: @json(__('ui.upload_timeout_hint')),
+        audioDone: @json(__('ui.audio_recorded')),
+        audioBtn: @json(__('ui.audio_recording')),
+        micReq: @json(__('ui.requesting_mic')),
+        delRec: @json(__('ui.delete_recording')),
+        stopLbl: @json(__('ui.audio_stop')),
+        recNow: @json(__('ui.audio_recording_now'))
+    };
+    function crtFill(tpl, map){ var s = String(tpl == null ? '' : tpl); Object.keys(map || {}).forEach(function(k){ s = s.split(k).join(map[k]); }); return s; }
     (function(){
         const dateEl=document.getElementById('observed_date');
         const timeEl=document.getElementById('observed_time');
@@ -256,10 +322,23 @@
             const opts={weekday:'long', year:'numeric', month:'long', day:'numeric', hour:'2-digit', minute:'2-digit'};
             try{ return d.toLocaleDateString(CRT_T.dateLocale,opts);}catch(e){ return date+' '+time; }
         }
+        function tzSuffix(localDateStr){
+            try{
+                const d=new Date(localDateStr);
+                if(isNaN(d)) return '';
+                const off=-d.getTimezoneOffset();
+                const sign=off>=0?'+':'-';
+                const abs=Math.abs(off);
+                const hh=String(Math.floor(abs/60)).padStart(2,'0');
+                const mm=String(abs%60).padStart(2,'0');
+                return sign+hh+':'+mm;
+            }catch(_){ return ''; }
+        }
         function sync(){
             const d=dateEl?.value, t=timeEl?.value, et=endTimeEl?.value;
             if(d && t){
-                hidden.value = d+'T'+t;
+                const base=d+'T'+t;
+                hidden.value = base + tzSuffix(base);
                 const txt=toPreview(d,t);
                 const endTxt=et ? ' — '+et : '';
                 if(preview) preview.textContent = (txt || (d+' — '+t)) + endTxt;
@@ -272,7 +351,7 @@
                 let endVal=d+'T'+et;
 
                 try{ if(t && et < t){ const nd=new Date(d+'T'+et); nd.setDate(nd.getDate()+1); const pad=n=>String(n).padStart(2,'0'); endVal=nd.getFullYear()+'-'+pad(nd.getMonth()+1)+'-'+pad(nd.getDate())+'T'+et; } }catch(_){}
-                hiddenEnd.value = endVal;
+                hiddenEnd.value = endVal + tzSuffix(endVal);
             }
             else { hiddenEnd.value=''; }
         }
@@ -299,7 +378,30 @@
     if(desc&&cnt){const u=()=>cnt.textContent=desc.value.length;desc.addEventListener('input',u);u();}
 
 
-    async function compressImageClient(file){ return file; }
+    // ضغط صور JPEG/WEBP قبل الرفع — صور الهاتف (5-12MB) تنزل لأقل من 1.5MB غالباً.
+    // نفس الامتداد ونفس الـmime تماماً (لا PNG/HEIC/GIF/SVG حتى لا ينكسر فالديشن mimes).
+    async function compressImageClient(file){
+        try{
+            const t=file.type||'';
+            const ext=(file.name.split('.').pop()||'').toLowerCase();
+            const ok=(t==='image/jpeg'&&(ext==='jpg'||ext==='jpeg'))||(t==='image/webp'&&ext==='webp');
+            if(!ok) return file;
+            if(file.size<900*1024) return file;
+            if(typeof createImageBitmap!=='function') return file;
+            const bmp=await createImageBitmap(file).catch(()=>null);
+            if(!bmp) return file;
+            const MAXD=1920, w=bmp.width, h=bmp.height;
+            const scale=Math.min(1,MAXD/Math.max(w,h));
+            if(scale>=1&&file.size<2.5*1024*1024){ if(bmp.close) bmp.close(); return file; }
+            const c=document.createElement('canvas');
+            c.width=Math.max(1,Math.round(w*scale)); c.height=Math.max(1,Math.round(h*scale));
+            c.getContext('2d').drawImage(bmp,0,0,c.width,c.height);
+            if(bmp.close) bmp.close();
+            const blob=await new Promise(r=>{ try{ c.toBlob(r,t,0.82); }catch(_){ r(null); } });
+            if(!blob||blob.size>=file.size) return file;
+            return new File([blob],file.name,{type:t,lastModified:Date.now()});
+        }catch(_){ return file; }
+    }
     function setUploadProgress(pct, detail){
         const wrap=document.getElementById('upload-progress'), bar=document.getElementById('upload-progress-bar'), txt=document.getElementById('upload-progress-text'), det=document.getElementById('upload-progress-detail');
         if(!wrap) return;
@@ -337,7 +439,7 @@
 
     let pendingFiles = [];
 
-    const MAX_FILES = {{ max(1, (int) ini_get('max_file_uploads') ?: 20) }};
+    const MAX_FILES = {{ min(max(1, (int) ini_get('max_file_uploads') ?: 20), (int) config('attachments.max_per_note', 10)) }};
 
 
 function syncInput(){ try{ input.files = fileTransfer.files; }catch(e){ } }
@@ -390,9 +492,9 @@ function syncInput(){ try{ input.files = fileTransfer.files; }catch(e){ } }
         for(let orig of newFiles){
             if(fileTransfer.files.length>=MAX_FILES){ window.toast(crtFill(CRT_T.limitToast,{':max':MAX_FILES})); break; }
 
-            let file=orig;
+            let file=await compressImageClient(orig);
             const ext=file.name.split('.').pop().toLowerCase();
-            const audioExts=['mp3','wav','ogg','oga','m4a','aac','wma','flac','opus','aiff','aif','amr','3ga','awb','mid','midi','au','weba'];
+            const audioExts=['mp3','wav','ogg','oga','m4a','aac','wma','flac','opus','aiff','aif','amr','3ga','awb','mid','midi','au','weba','ac3','dts','alac'];
             const isAudio=audioExts.includes(ext)||file.type.startsWith('audio/');
             if(!['jpg','jpeg','png','webp','mp4','webm','mov','avi','3gp','mkv','m4v','mpg','3gpp'].includes(ext) && !file.type.startsWith('image/') && !file.type.startsWith('video/') && !isAudio){
                 window.toast(CRT_T.unsupported); continue;
@@ -623,72 +725,6 @@ function syncInput(){ try{ input.files = fileTransfer.files; }catch(e){ } }
         const descEl=document.getElementById('description');
         const hiddenEl=document.getElementById('observed_at');
         let clientErrors=[];
-        const FORM_T = {
-            floor: @json(__('ui.floor_required')),
-            camera: @json(__('ui.camera_required')),
-            datetime: @json(__('ui.datetime_required')),
-            description: @json(__('ui.description_required')),
-            fixFields: @json(__('ui.fix_fields'))
-        };
-        // Shared create-page UI dictionary (server-rendered per locale — no Gemini).
-        const CRT_T = {
-            chooseTime: @json(__('ui.choose_time')),
-            dateLocale: @json(app()->getLocale() === 'en' ? 'en-US' : 'ar-EG'),
-            netErr: @json(__('ui.network_error')),
-            timeoutErr: @json(__('ui.timeout_error')),
-            fAudio: @json(__('ui.file_audio')),
-            fVideo: @json(__('ui.file_video')),
-            fImage: @json(__('ui.file_image')),
-            fOther: @json(__('ui.file_other')),
-            camBadge: @json(__('ui.file_camera_badge')),
-            recBadge: @json(__('ui.file_rec')),
-            delTitle: @json(__('ui.file_remove')),
-            limitMax: @json(__('ui.max_files_exceeded')),
-            limitToast: @json(__('ui.upload_limit_files')),
-            unsupported: @json(__('ui.unsupported_file_type')),
-            imgBig: @json(__('ui.image_too_large')),
-            vidBig: @json(__('ui.video_too_large')),
-            audBig: @json(__('ui.audio_too_large')),
-            camHttps: @json(__('ui.camera_not_available_https')),
-            camUnsupported: @json(__('ui.camera_not_supported')),
-            camStarting: @json(__('ui.camera_starting')),
-            camReady: @json(__('ui.camera_ready')),
-            camPhoto: @json(__('ui.camera_photo_mode')),
-            camRec: @json(__('ui.camera_recording_mode')),
-            camFallbackErr: @json(__('ui.camera_error_fallback')),
-            camUnavailable: @json(__('ui.camera_unavailable')),
-            fileAdded: @json(__('ui.file_added_from_camera')),
-            camNotReady: @json(__('ui.camera_not_ready')),
-            captureFail: @json(__('ui.capture_failed')),
-            photoDone: @json(__('ui.photo_captured')),
-            recUnsupported: @json(__('ui.recording_not_supported')),
-            recStartFail: @json(__('ui.recording_start_failed')),
-            recStarted: @json(__('ui.recording_started')),
-            vidRecorded: @json(__('ui.video_recorded')),
-            browserFail: @json(__('ui.browser_files_failed')),
-            browserDetail: @json(__('ui.browser_files_detail')),
-            totalBig: @json(__('ui.total_attachments_too_large')),
-            serverLimit: @json(__('ui.server_limit_exceeded')),
-            uploadingN: @json(__('ui.uploading_files_count')),
-            dontClose: @json(__('ui.upload_pct_dont_close')),
-            verify: @json(__('ui.upload_verify')),
-            attachFail: @json(__('ui.attach_fail')),
-            filesKept: @json(__('ui.files_kept')),
-            mediaKept: @json(__('ui.media_kept')),
-            mismatchShort: @json(__('ui.files_mismatch_short')),
-            partial: @json(__('ui.server_received_partial')),
-            sendFail: @json(__('ui.send_failed_code')),
-            notSaved: @json(__('ui.not_saved_retry')),
-            timeoutTitle: @json(__('ui.timeout_title')),
-            timeoutHint: @json(__('ui.upload_timeout_hint')),
-            audioDone: @json(__('ui.audio_recorded')),
-            audioBtn: @json(__('ui.audio_recording')),
-            micReq: @json(__('ui.requesting_mic')),
-            delRec: @json(__('ui.delete_recording')),
-            stopLbl: @json(__('ui.audio_stop')),
-            recNow: @json(__('ui.audio_recording_now'))
-        };
-        function crtFill(tpl, map){ var s = String(tpl == null ? '' : tpl); Object.keys(map || {}).forEach(function(k){ s = s.split(k).join(map[k]); }); return s; }
         if(!floorEl.value) clientErrors.push(FORM_T.floor);
         if(!camEl.value) clientErrors.push(FORM_T.camera);
         if(!hiddenEl.value) clientErrors.push(FORM_T.datetime);

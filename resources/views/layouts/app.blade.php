@@ -479,8 +479,10 @@
                     <span class="block px-3 py-2.5 rounded-xl text-[11px] font-medium text-white text-center leading-5
                                  bg-[#1a2e1f]/95 dark:bg-[#0e1a10]/95 backdrop-blur-sm shadow-lg border border-white/10">
                         <span class="block">طارق عبد الرحمن</span>
-                        <span class="block w-6 h-px bg-white/20 mx-auto my-1"></span>
+                        <span class="block text-[10px] font-normal text-white/50 tracking-wider" dir="ltr">0993832567</span>
+                        <span class="block w-8 h-px bg-white/20 mx-auto my-1.5"></span>
                         <span class="block">هادي سهلي</span>
+                        <span class="block text-[10px] font-normal text-white/50 tracking-wider" dir="ltr">0962532331</span>
                     </span>
                     <span class="block w-2.5 h-2.5 bg-[#1a2e1f]/95 dark:bg-[#0e1a10]/95 rotate-45 mx-auto -mt-1.5 border-r border-b border-white/10"></span>
                 </span>

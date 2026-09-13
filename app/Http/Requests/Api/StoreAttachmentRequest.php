@@ -13,7 +13,6 @@ class StoreAttachmentRequest extends FormRequest
 
     public function rules(): array
     {
-        // موحد مع باقي المسارات ومع حد PHP — كان يتجاهل حد الصوت وحد الخادم.
         $maxSize = \App\Services\NoteService::uploadFileMaxKb();
 
         return [

@@ -34,7 +34,6 @@ class WebPushService
                 ],
             ];
 
-            // مهلة صارمة حتى لا يعلق الـ Job/الريكويست على شبكة Google/Mozilla.
             $webPush = new WebPush($auth, ['timeout' => 5, 'TTL' => 86400]);
             $jsonPayload = json_encode($payload, JSON_UNESCAPED_UNICODE);
 
@@ -68,7 +67,6 @@ class WebPushService
                     $sub = $subs->firstWhere('endpoint', $endpoint);
 
                     if ($report->isSuccess()) {
-                        // debug فقط — info لكل Push كان يضخم laravel.log لعشرات MB.
                         Log::debug('[PUSH] sent', [
                             'user_id' => $userId,
                             'endpoint' => substr($endpoint, 0, 60),

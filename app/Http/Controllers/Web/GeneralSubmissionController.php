@@ -46,7 +46,6 @@ class GeneralSubmissionController extends Controller
 
         $submissions = $query->orderByDesc('created_at')->paginate(15)->withQueryString();
 
-        // Preload عرضي واحد (محفوظ فقط — ZERO Gemini على Language Switch).
         try {
             $presenter->preloadSubmissions($submissions->items());
         } catch (\Throwable) {
@@ -70,7 +69,6 @@ class GeneralSubmissionController extends Controller
             return $overflow;
         }
 
-        // سقف عدد الملفات = أصغر حد بين السيرفر وسياسة التطبيق — كان 20 هنا و5 في الخدمة.
         $maxFiles = min(max(1, (int) ini_get('max_file_uploads') ?: 20), (int) config('attachments.max_per_submission', 5));
         $fileMaxKb = \App\Services\NoteService::uploadFileMaxKb();
 
@@ -81,13 +79,12 @@ class GeneralSubmissionController extends Controller
             'floor_number' => ['required','integer','min:0'],
             'camera_number' => ['required','integer','min:1'],
             'observed_at' => ['required','date'],
-            // عبور منتصف الليل يعالجه NoteService::normalizeObservedRange (موحد مع الملاحظات).
             'observed_end_at' => ['nullable','date'],
             'description' => ['required','string','min:10','max:5000'],
             'report_writer_ids' => ['required','array','min:1'],
             'report_writer_ids.*' => ['integer','distinct','exists:users,id'],
             'files' => ['nullable','array','max:'.$maxFiles],
-            'files.*' => ['file','max:'.$fileMaxKb,'mimes:jpg,jpeg,png,webp,heic,heif,tiff,tif,bmp,avif,gif,svg,mp4,webm,mov,avi,3gp,3gpp,mkv,m4v,mpg,mpeg,wmv,flv,ogv,ts,mts,m2ts,vob,asf,m2v,3g2,f4v,m4p,mp3,wav,ogg,oga,m4a,aac,wma,flac,opus,aiff,aif,amr,3ga,awb,mid,midi,au,ra,weba'],
+            'files.*' => ['file','max:'.$fileMaxKb,'mimes:jpg,jpeg,png,webp,heic,heif,tiff,tif,bmp,avif,gif,svg,mp4,webm,mov,avi,3gp,3gpp,mkv,m4v,mpg,mpeg,wmv,flv,ogv,ts,mts,m2ts,vob,asf,m2v,3g2,f4v,m4p,mp3,wav,ogg,oga,m4a,aac,wma,flac,opus,aiff,aif,amr,3ga,awb,mid,midi,au,ra,weba,ac3,dts,alac'],
             'client_files_count' => ['nullable','integer','min:0','max:100'],
         ], [
             'files.max' => __('api.files_max'),

@@ -17,9 +17,7 @@ return [
 
     'share_url' => env('SHARE_URL'),
 
-    // المنطقة الزمنية المعتمدة لحساب "يوم التقرير" (observed_at → report_date).
-    // كانت ثابتة UTC فتكسر توافق منتصف الليل عند تغيير البيئة — الآن عبر APP_TIMEZONE.
-    'timezone' => env('APP_TIMEZONE', 'UTC'),
+    'timezone' => env('APP_TIMEZONE', 'Asia/Damascus'),
 
     
     'locale' => env('APP_LOCALE', 'en'),

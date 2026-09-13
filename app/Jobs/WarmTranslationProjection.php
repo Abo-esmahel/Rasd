@@ -7,14 +7,6 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Log;
 
-/**
- * WarmTranslationProjection — تدفئة Translation Projections في الخلفية.
- *
- * عملية مشتقة (derived) وليست جزءاً من Source of Truth:
- * - حفظ/تعديل المصدر لا ينتظرها ولا يفشل بفشلها أبداً.
- * - retries + backoff + سجلات observability داخلية (لا تُعرض للمستخدم).
- * - القراءة الطبيعية تعمل بدونها (fallback المصدر + preload الدفعات).
- */
 class WarmTranslationProjection implements ShouldQueue
 {
     use Queueable;

@@ -1,22 +1,4 @@
-{{-- ======================================================================
-  ONE HTML REPORT DOCUMENT — rendered only by ReportEngine (backend).
-  Variables: $doc (engine document array).
-  Same partial for Preview, Print and PDF (browser print → Save as PDF).
-  No server PDF lib in this project (see composer.json) — CSS targets
-  browser print (@page A4 + @media print), no fixed heights, natural flow.
 
-  Paper-form model: «نموذج تقرير مراقبة الكاميرات اليومي»
-  - Header identity once (ministry / emblem / day + date).
-  - Form title once.
-  - Info strip once (report number + notes count).
-  - Dynamic observations 0..100 (text wraps, flows to next pages).
-  - Per-observation facts ONLY when truthfully mapped (camera/floor/
-    start/end/duration + attachment checkboxes from real Notes).
-  - Immediate actions (recommendations data only, never copied).
-  - Signatures (real author name; supervisor line stays ink-empty).
-  INTERNAL engine data ($doc['internal']) is NEVER rendered here.
-  Semantic HTML: header / section / article / ol / li / footer.
-====================================================================== --}}
 @php
   $doc = $doc ?? [];
   $density = $doc['density'] ?? 'balanced';

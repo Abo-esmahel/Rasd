@@ -5,13 +5,6 @@ namespace App\Services\Localization;
 use App\Services\Ai\AiTextGeneratorInterface;
 use Illuminate\Support\Facades\Log;
 
-/**
- * GeminiTranslationProvider — المزود الحالي الوحيد (Gemini فقط).
- *
- * - يستقبل نصوصاً خاماً (Structured Data) — لا HTML أبداً.
- * - اتجاه واحد مباشر من المصدر: ar→en أو en→ar (ممنوع التسلسل).
- * - الأسماء والقيم التقنية تُحفظ كما هي داخل الجملة (لا ترجمة حرفية للأسماء).
- */
 class GeminiTranslationProvider implements TranslationProviderInterface
 {
     public function __construct(private AiTextGeneratorInterface $generator)
@@ -53,8 +46,6 @@ class GeminiTranslationProvider implements TranslationProviderInterface
             return [];
         }
 
-        // سياق النظام: ملاحظات مراقبة ميدانية (طابق/كاميرا/وقت رصد) تُعتمد في تقارير
-        // رسمية. الترجمة طبيعية مهنية (ليست حرفية غبية) مع حفظ كل القيم التقنية.
         $system = $sourceLang === 'ar'
             ? 'You are a professional Arabic→English translator for an official Syrian government field-surveillance monitoring system. '
             . 'Context: field monitoring notes (floor number, camera number, observation time window) reviewed by report writers and compiled into official daily reports. '

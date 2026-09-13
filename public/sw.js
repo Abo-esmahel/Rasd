@@ -1,4 +1,4 @@
-﻿const CACHE_STATIC = 'rasd-root-v17-i18n-fix';
+﻿const CACHE_STATIC = 'rasd-root-v18-notif-click-fix';
 const CACHE_API = 'rasd-api-v1';
 const STATIC_ASSETS = [
   '/',
@@ -155,7 +155,7 @@ self.addEventListener('push', e => {
   try { data = e.data ? e.data.json() : {}; } catch { try{ data = JSON.parse(e.data.text()); }catch{ data={}; } }
   const title = data.title || data.data?.title || 'إشعار جديد';
   const body = data.body || data.message || data.data?.message || 'لديك إشعار جديد';
-  const url = data.url || data.data?.url || '/notifications';
+  const url = data.url || data.data?.url || '/';
   const tag = data.tag || 'rasd-' + Date.now();
   e.waitUntil(self.registration.showNotification(title, {
     body: body.substring(0,180),

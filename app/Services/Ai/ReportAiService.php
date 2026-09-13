@@ -42,9 +42,6 @@ class ReportAiService
         $locale = $locale ? strtolower(trim($locale)) : strtolower((string) app()->getLocale());
         if (!in_array($locale, ['ar', 'en'], true)) $locale = 'ar';
 
-        // نداء Gemini قد يستغرق حتى GEMINI_TIMEOUT (افتراضياً 60 ثانية) بينما حد PHP
-        // الافتراضي 30 ثانية — بدون رفع الحد يموت السكربت بـ "Maximum execution time"
-        // قبل أن يرد Gemini. نرفع الحد لهذا الطلب فقط (لا يمس باقي التطبيق).
         $geminiTimeout = max(10, (int) config('ai.gemini.timeout', 60));
         $wantedPhpLimit = max(120, $geminiTimeout + 60);
         if (function_exists('set_time_limit')) {
@@ -59,8 +56,6 @@ class ReportAiService
         }
 
         try {
-            // المرحلة 1 — معاملة قصيرة للتحقق فقط (بدون أي نداء شبكة حتى لا نحجز
-            // lockForUpdate لدقيقة كاملة أثناء انتظار Gemini).
             DB::transaction(function () use ($report) {
                 $locked = Report::with(['notes.attachments'])->lockForUpdate()->findOrFail($report->id);
 
@@ -82,7 +77,6 @@ class ReportAiService
                 }
             });
 
-            // المرحلة 2 — تجهيز السياق + نداء Gemini خارج أي معاملة.
             $fresh = Report::with(['notes.attachments'])->findOrFail($report->id);
             $notes = $fresh->notes()->with('attachments')->orderByPivot('order_index')->get();
 
@@ -121,8 +115,6 @@ class ReportAiService
                 'images_skipped' => count($resolved['skipped']),
             ]);
 
-            // المرحلة 3 — معاملة قصيرة للحفظ مع إعادة التحقق من حالة المسودة
-            // (قد يكون المستخدم نشر/عدّل أثناء انتظار Gemini).
             return DB::transaction(function () use ($report, $result) {
                 $locked = Report::lockForUpdate()->findOrFail($report->id);
                 if (!$locked->isDraft()) {
