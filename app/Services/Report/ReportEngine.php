@@ -40,7 +40,7 @@ final class ReportEngine
     /** @return array{official document + internal} */
     public function build(\App\Models\Report $report, array $payload, array $context = []): array
     {
-        $report->loadMissing(['author', 'notes.attachments', 'notes.owner:id,name']);
+        $report->loadMissing(['author', 'notes.attachments', 'notes.owner:id,name,name_en,name_ar']);
 
         $locale = strtolower(trim((string) ($context['locale'] ?? app()->getLocale() ?? 'ar')));
         if (!in_array($locale, ['ar', 'en'], true)) {
@@ -416,7 +416,7 @@ final class ReportEngine
             }
         }
 
-        $author = trim((string) ($report->author->name ?? ''));
+        $author = trim((string) ($report->author->localized_name ?? ''));
         if ($author === '' || $author === '—') {
             return [];
         }
@@ -496,7 +496,7 @@ final class ReportEngine
                 } catch (\Throwable) {
                 }
                 try {
-                    $observer = trim((string) ($n->owner->name ?? ''));
+                    $observer = trim((string) ($n->owner->localized_name ?? ''));
                 } catch (\Throwable) {
                     $observer = '';
                 }
@@ -537,7 +537,7 @@ final class ReportEngine
         try {
             foreach ($notes as $n) {
                 try {
-                    $name = trim((string) ($n->owner->name ?? ''));
+                    $name = trim((string) ($n->owner->localized_name ?? ''));
                 } catch (\Throwable) {
                     $name = '';
                 }

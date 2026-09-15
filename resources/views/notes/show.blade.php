@@ -14,7 +14,7 @@
         'description' => l10n_text('note', $note->id, 'description', $note->description),
         'status' => $note->status,
         'status_label' => $statusLabel,
-        'owner_name' => $note->owner->name,
+        'owner_name' => $note->owner->localized_name,
         'attachments' => $note->attachments->map(fn($a) => [
             'id' => $a->id,
             'name' => $a->original_name,
@@ -28,15 +28,15 @@
 @section('content')
 <div class="max-w-4xl mx-auto space-y-6" data-i18n-entity="note" data-i18n-id="{{ $note->id }}">
     
-    <div class="flex items-center gap-3">
-        <a href="{{ route('notes.index') }}" class="w-9 h-9 rounded-lg bg-white border border-[#e6e9e1] flex items-center justify-center text-ink-400 hover:text-ink-700 hover:bg-[#f5f7f5] transition" aria-label="{{ __('ui.back') }}">
+    <div class="flex items-center gap-2.5 sm:gap-3">
+        <a href="{{ route('notes.index') }}" class="w-9 h-9 sm:w-9 sm:h-9 min-w-[36px] min-h-[36px] rounded-lg bg-white border border-[#e6e9e1] flex items-center justify-center text-ink-400 hover:text-ink-700 hover:bg-[#f5f7f5] transition shrink-0" aria-label="{{ __('ui.back') }}">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
         </a>
         <div class="flex-1 min-w-0">
-            <h1 class="text-lg font-extrabold text-ink-800">{{ __('ui.camera') }} {{ $note->camera_number }} · {{ __('ui.floor') }} {{ $note->floor_number }}</h1>
-            <p class="text-xs text-[#737373]" data-no-translate>{{ $note->owner->name }}</p>
+            <h1 class="text-[16px] sm:text-lg font-extrabold text-ink-800 leading-tight inline-flex items-center gap-1.5 flex-wrap"><span>{{ __('ui.camera') }} <span dir="ltr" class="tabular-nums">{{ $note->camera_number }}</span></span> <span class="opacity-60">·</span> <span>{{ __('ui.floor') }} <span dir="ltr" class="tabular-nums">{{ $note->floor_number }}</span></span></h1>
+            <p class="text-[11px] sm:text-xs text-[#737373] truncate" data-no-translate>{{ $note->owner->localized_name }}</p>
         </div>
-        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold
+        <span class="shrink-0 inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-full text-[11px] sm:text-xs font-bold
             @if($note->isDraft()) bg-ink-100 text-ink-600
             @elseif($note->isPending()) bg-amber-50 text-amber-700 border border-amber-200
             @elseif($note->isAccepted()) bg-[#eef4f0] text-[#0e6a38] border border-[#cde7d6]
@@ -50,24 +50,24 @@
         @include('notes.partials.translation_status', ['note' => $note])
     </div>
 
-    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div class="rounded-xl bg-[#f5f7f5] border border-[#e6e9e1] p-3 text-center">
-            <div class="text-[11px] font-bold text-ink-300 mb-1">{{ __('ui.camera') }}</div>
-            <div class="text-lg font-extrabold text-ink-800">{{ $note->camera_number }}</div>
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
+        <div class="rounded-xl bg-[#f5f7f5] border border-[#e6e9e1] p-2.5 sm:p-3 text-center">
+            <div class="text-[10px] sm:text-[11px] font-bold text-ink-300 mb-1">{{ __('ui.camera') }}</div>
+            <div class="text-[17px] sm:text-lg font-extrabold text-ink-800 tabular-nums" dir="ltr">{{ $note->camera_number }}</div>
         </div>
-        <div class="rounded-xl bg-[#f5f7f5] border border-[#e6e9e1] p-3 text-center">
-            <div class="text-[11px] font-bold text-ink-300 mb-1">{{ __('ui.floor') }}</div>
-            <div class="text-lg font-extrabold text-ink-800">{{ $note->floor_number }}</div>
+        <div class="rounded-xl bg-[#f5f7f5] border border-[#e6e9e1] p-2.5 sm:p-3 text-center">
+            <div class="text-[10px] sm:text-[11px] font-bold text-ink-300 mb-1">{{ __('ui.floor') }}</div>
+            <div class="text-[17px] sm:text-lg font-extrabold text-ink-800 tabular-nums" dir="ltr">{{ $note->floor_number }}</div>
         </div>
-        <div class="rounded-xl bg-[#f5f7f5] border border-[#e6e9e1] p-3 text-center">
-            <div class="text-[11px] font-bold text-ink-300 mb-1">{{ __('ui.time_label') }}</div>
-            <div class="text-sm font-bold text-ink-800">{{ $note->observed_at->toTime12() }}{{ $note->observed_end_at ? ' — '.$note->observed_end_at->toTime12() : '' }}</div>
-            <div class="text-[11px] text-[#737373]">{{ $note->observed_at->format('Y-m-d') }}</div>
+        <div class="rounded-xl bg-[#f5f7f5] border border-[#e6e9e1] p-2.5 sm:p-3 text-center">
+            <div class="text-[10px] sm:text-[11px] font-bold text-ink-300 mb-1">{{ __('ui.time_label') }}</div>
+            <div class="text-[13px] sm:text-sm font-bold text-ink-800 tabular-nums" dir="ltr">{{ $note->observed_at->toTime12() }}{{ $note->observed_end_at ? ' — '.$note->observed_end_at->toTime12() : '' }}</div>
+            <div class="text-[10px] sm:text-[11px] text-[#737373] tabular-nums" dir="ltr">{{ $note->observed_at->format('Y-m-d') }}</div>
         </div>
-        <div class="rounded-xl bg-[#f5f7f5] border border-[#e6e9e1] p-3 text-center">
-            <div class="text-[11px] font-bold text-ink-300 mb-1">{{ __('ui.attachments') }}</div>
-            <div class="text-lg font-extrabold text-ink-800">{{ $note->attachments->count() }}</div>
-            <div class="text-[11px] text-[#737373]">{{ __('ui.file_label') }}</div>
+        <div class="rounded-xl bg-[#f5f7f5] border border-[#e6e9e1] p-2.5 sm:p-3 text-center">
+            <div class="text-[10px] sm:text-[11px] font-bold text-ink-300 mb-1">{{ __('ui.attachments') }}</div>
+            <div class="text-[17px] sm:text-lg font-extrabold text-ink-800 tabular-nums" dir="ltr">{{ $note->attachments->count() }}</div>
+            <div class="text-[10px] sm:text-[11px] text-[#737373]">{{ __('ui.file_label') }}</div>
         </div>
     </div>
 
@@ -75,14 +75,14 @@
     <div class="flex items-center gap-3 p-3 rounded-xl bg-[#f5f7f5] border border-[#e6e9e1]">
         <a href="{{ route('profile.showUser', $note->owner->id) }}" class="shrink-0 hover:opacity-80 transition" aria-label="{{ __('ui.profile_aria') }}">
         @if($note->owner->avatar_url)
-            <img src="{{ $note->owner->avatar_url }}" alt="{{ $note->owner->name }}" class="w-9 h-9 rounded-lg object-cover border border-[#e6e9e1] shadow-sm">
+            <img src="{{ $note->owner->avatar_url }}" alt="{{ $note->owner->localized_name }}" class="w-9 h-9 rounded-lg object-cover border border-[#e6e9e1] shadow-sm">
         @else
             <div class="w-9 h-9 rounded-lg bg-[#eef4f0] text-[#0e6a38] flex items-center justify-center font-bold text-sm">{{ $note->owner->initial }}</div>
         @endif
         </a>
         <div>
             <div class="text-[11px] font-bold text-ink-300">{{ __('ui.observer') }}</div>
-            <div class="text-sm font-bold text-ink-800"><a href="{{ route('profile.showUser', $note->owner->id) }}" class="hover:text-[#0e6a38] hover:underline transition">{{ $note->owner->name }}</a></div>
+            <div class="text-sm font-bold text-ink-800"><a href="{{ route('profile.showUser', $note->owner->id) }}" class="hover:text-[#0e6a38] hover:underline transition">{{ $note->owner->localized_name }}</a></div>
         </div>
         <div class="mr-auto text-left">
             <div class="text-[11px] font-bold text-ink-300">{{ __('ui.created_at') }}</div>
@@ -91,13 +91,13 @@
     </div>
 
     
-    <div class="bg-white rounded-2xl border border-[#e6e9e1] p-6">
-        <h3 class="text-sm font-bold text-ink-700 mb-3 flex items-center gap-2">
+    <div class="bg-white rounded-2xl border border-[#e6e9e1] p-4 sm:p-6">
+        <h3 class="text-[13px] sm:text-sm font-bold text-ink-700 mb-2.5 sm:mb-3 flex items-center gap-2">
             <svg class="w-4 h-4 text-[#0e6a38]" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
             {{ __('ui.description') }}
         </h3>
         @if(!empty($note->description))
-            <div class="p-4 rounded-xl bg-[#f5f7f5] border border-[#e6e9e1] text-sm leading-[1.9] text-ink-700 whitespace-pre-wrap break-words min-h-[60px]" data-i18n-field="description">{{ l10n_text('note', $note->id, 'description', $note->description) }}</div>
+            <div class="p-3 sm:p-4 rounded-xl bg-[#f5f7f5] border border-[#e6e9e1] text-[14px] sm:text-sm leading-[1.8] sm:leading-[1.9] text-ink-700 whitespace-pre-wrap break-words min-h-[60px]" data-i18n-field="description">{{ l10n_text('note', $note->id, 'description', $note->description) }}</div>
         @else
             <div class="p-4 rounded-xl bg-[#f5f7f5] border border-[#e6e9e1] text-sm leading-[1.9] text-ink-400 italic">{{ __('ui.no_description') }}</div>
         @endif
@@ -106,7 +106,7 @@
                 <h4 class="text-sm font-bold text-red-700 mb-2">{{ __('ui.reject_reason') }}</h4>
                 <p class="text-sm leading-7 text-red-600" data-i18n-field="rejection_reason">{{ l10n_text('note', $note->id, 'rejection_reason', $note->rejection_reason) }}</p>
                 @if($note->processor)
-                    <div class="mt-2 text-xs font-bold text-red-500">{{ __('ui.by_user') }} {{ $note->processor->name }} — {{ $note->processed_at?->toDatetime12() }}</div>
+                    <div class="mt-2 text-xs font-bold text-red-500">{{ __('ui.by_user') }} {{ $note->processor->localized_name }} — {{ $note->processed_at?->toDatetime12() }}</div>
                 @endif
             </div>
         @endif
@@ -114,8 +114,8 @@
 
     
     @if($note->attachments->count() > 0)
-    <div class="bg-white rounded-2xl border border-[#e6e9e1] p-6">
-        <h3 class="text-sm font-bold text-ink-700 mb-3 flex items-center gap-2">
+    <div class="bg-white rounded-2xl border border-[#e6e9e1] p-4 sm:p-6">
+        <h3 class="text-[13px] sm:text-sm font-bold text-ink-700 mb-2.5 sm:mb-3 flex items-center gap-2">
             <svg class="w-4 h-4 text-[#0e6a38]" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
             {{ __('ui.attachments_section', ['count' => $note->attachments->count()]) }}
         </h3>
@@ -154,19 +154,25 @@
     @endif
 
     
-    <div class="flex flex-wrap items-center gap-2 p-4 bg-white rounded-xl border border-[#e6e9e1]">
+    <div class="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-2 sm:gap-2 p-3 sm:p-4 bg-white rounded-xl border border-[#e6e9e1]">
         @if($isOwner && $note->isDraft())
-            <a href="{{ route('notes.edit', $note) }}" class="px-4 py-2 rounded-lg bg-surface-50 border border-[#e6e9e1] text-ink-600 text-sm font-bold hover:bg-surface-100 transition">{{ __('ui.edit_btn') }}</a>
-            <form method="POST" action="{{ route('notes.send', $note) }}" class="inline">@csrf<button type="submit" class="px-4 py-2 rounded-lg bg-[#0e6a38] text-white text-sm font-bold hover:bg-[#0a4d28] transition">{{ __('ui.send_review') }}</button></form>
-            <form method="POST" action="{{ route('notes.destroy', $note) }}" class="inline mr-auto" onsubmit="return confirm('{{ __('ui.confirm_delete') }}')">@csrf @method('DELETE')<button type="submit" class="px-4 py-2 rounded-lg border border-red-200 text-red-600 text-sm font-bold hover:bg-red-50 transition">{{ __('ui.delete_report') }}</button></form>
+            <div class="flex gap-2 w-full sm:w-auto">
+                <a href="{{ route('notes.edit', $note) }}" class="flex-1 sm:flex-none inline-flex items-center justify-center px-4 py-2.5 sm:py-2 min-h-[44px] sm:min-h-0 rounded-lg bg-surface-50 border border-[#e6e9e1] text-ink-600 text-sm font-bold hover:bg-surface-100 transition">{{ __('ui.edit_btn') }}</a>
+                <form method="POST" action="{{ route('notes.send', $note) }}" class="flex-1 sm:flex-none inline">@csrf<button type="submit" class="w-full px-4 py-2.5 sm:py-2 min-h-[44px] sm:min-h-0 rounded-lg bg-[#0e6a38] text-white text-sm font-bold hover:bg-[#0a4d28] transition">{{ __('ui.send_review') }}</button></form>
+            </div>
+            <form method="POST" action="{{ route('notes.destroy', $note) }}" class="w-full sm:w-auto sm:mr-auto" onsubmit="return confirm('{{ __('ui.confirm_delete') }}')">@csrf @method('DELETE')<button type="submit" class="w-full sm:w-auto px-4 py-2.5 sm:py-2 min-h-[44px] sm:min-h-0 rounded-lg border border-red-200 text-red-600 text-sm font-bold hover:bg-red-50 transition">{{ __('ui.delete_report') }}</button></form>
         @elseif($isOwner && $note->isRejected())
-            <a href="{{ route('notes.edit', $note) }}" class="px-4 py-2 rounded-lg bg-ink-800 text-white text-sm font-bold hover:bg-ink-900 transition">{{ __('ui.fix_resend') }}</a>
-            <form method="POST" action="{{ route('notes.resend', $note) }}" class="inline">@csrf<button type="submit" class="px-4 py-2 rounded-lg bg-amber-500 text-white text-sm font-bold hover:bg-amber-600 transition">{{ __('ui.resend_btn') }}</button></form>
+            <div class="flex gap-2 w-full sm:w-auto">
+                <a href="{{ route('notes.edit', $note) }}" class="flex-1 sm:flex-none inline-flex items-center justify-center px-4 py-2.5 sm:py-2 min-h-[44px] sm:min-h-0 rounded-lg bg-ink-800 text-white text-sm font-bold hover:bg-ink-900 transition">{{ __('ui.fix_resend') }}</a>
+                <form method="POST" action="{{ route('notes.resend', $note) }}" class="flex-1 sm:flex-none inline">@csrf<button type="submit" class="w-full px-4 py-2.5 sm:py-2 min-h-[44px] sm:min-h-0 rounded-lg bg-amber-500 text-white text-sm font-bold hover:bg-amber-600 transition">{{ __('ui.resend_btn') }}</button></form>
+            </div>
         @elseif(auth()->user()->isReportWriter() && $note->isPending())
-            <form method="POST" action="{{ route('notes.accept', $note) }}" class="inline">@csrf<button type="submit" class="px-4 py-2 rounded-lg bg-[#0e6a38] text-white text-sm font-bold hover:bg-[#0a4d28] transition">{{ __('ui.accept_approve') }}</button></form>
-            <button type="button" onclick="openModal('reject-modal')" class="px-4 py-2 rounded-lg bg-red-500 text-white text-sm font-bold hover:bg-red-600 transition">{{ __('ui.reject_reason_btn') }}</button>
+            <div class="flex gap-2 w-full sm:w-auto">
+                <form method="POST" action="{{ route('notes.accept', $note) }}" class="flex-1 sm:flex-none inline">@csrf<button type="submit" class="w-full px-4 py-2.5 sm:py-2 min-h-[44px] sm:min-h-0 rounded-lg bg-[#0e6a38] text-white text-sm font-bold hover:bg-[#0a4d28] transition">{{ __('ui.accept_approve') }}</button></form>
+                <button type="button" onclick="openModal('reject-modal')" class="flex-1 sm:flex-none px-4 py-2.5 sm:py-2 min-h-[44px] sm:min-h-0 rounded-lg bg-red-500 text-white text-sm font-bold hover:bg-red-600 transition">{{ __('ui.reject_reason_btn') }}</button>
+            </div>
         @endif
-        <button type="button" onclick='openPrintModal(@json($printNoteData))' class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#0e6a38] hover:bg-[#0a4d28] text-white font-bold text-sm shadow-sm transition mr-auto">
+        <button type="button" onclick='openPrintModal(@json($printNoteData))' class="w-full sm:w-auto sm:mr-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 sm:py-2 min-h-[44px] sm:min-h-0 rounded-xl bg-[#0e6a38] hover:bg-[#0a4d28] text-white font-bold text-sm shadow-sm transition">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
             {{ __('ui.print_btn') }}
         </button>

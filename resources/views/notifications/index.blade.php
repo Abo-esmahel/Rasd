@@ -17,8 +17,8 @@
 
 
     @php $filter = request('filter', 'all'); @endphp
-    <div class="mb-5 border-b border-border -mx-4 sm:mx-0 px-4 sm:px-0 overflow-x-auto">
-        <nav class="flex gap-6 min-w-max" aria-label="{{ __('ui.filter_notif') }}">
+    <div class="w-full max-w-full overflow-x-auto scrollbar-hide mb-5 border-b border-border mx-0 px-0 tabs-scroll-shadow">
+        <nav class="flex gap-6 min-w-max w-max" aria-label="{{ __('ui.filter_notif') }}">
             @foreach(['all'=>__('ui.all'),'unread'=>__('ui.unread_label'),'read'=>__('ui.read_label')] as $key=>$label)
                 @php $isActive = $filter === $key; $url = route('notifications.index', array_filter(['filter'=>$key !== 'all' ? $key : null])); @endphp
                 <a href="{{ $url }}" class="relative py-3 text-[13px] whitespace-nowrap border-b-2 transition {{ $isActive ? 'border-primary text-text-primary dark:text-text-primary font-bold' : 'border-transparent text-text-muted dark:text-text-muted hover:text-text-secondary dark:hover:text-text-secondary font-medium' }}">{{ $label }}</a>

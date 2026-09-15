@@ -78,7 +78,7 @@ class TranslationService
     {
         $locale = SourceLanguage::normalizeLocale($locale ?? app()->getLocale());
         $out = [];
-        $pending = []; // key => ['type','id','field','text','hash','cache_key']
+        $candidates = []; // key => ['type','id','field','text','hash','cache_key']
 
         foreach ($refs as $ref) {
             if (!is_array($ref)) {
@@ -101,6 +101,9 @@ class TranslationService
             }
 
             $key = self::itemKey($type, $id, $field);
+            if (isset($candidates[$key]) || isset($out[$key])) {
+                continue;
+            }
 
             if ($isName || !$this->shouldTranslateCached($text)) {
                 continue;
@@ -113,20 +116,38 @@ class TranslationService
             $hash = self::sourceHash($text);
             $ck = self::cacheKey($type, $id, $field, $locale, $hash);
 
-            try {
-                $hit = Cache::get($ck);
-            } catch (\Throwable) {
-                $hit = null;
-            }
-            if (is_string($hit) && $hit !== '') {
-                $out[$key] = $hit;
-                continue;
-            }
-
-            $pending[$key] = [
+            $candidates[$key] = [
                 'type' => $type, 'id' => $id, 'field' => $field,
                 'text' => $text, 'hash' => $hash, 'cache_key' => $ck,
             ];
+        }
+
+        if ($candidates === []) {
+            return $out;
+        }
+
+        // Single batched cache lookup (1 query on database cache driver instead of N).
+        $pending = [];
+        try {
+            $ckList = array_values(array_unique(array_map(fn ($c) => $c['cache_key'], $candidates)));
+            $ckToKey = [];
+            foreach ($candidates as $key => $c) {
+                $ckToKey[$c['cache_key']] = $key;
+            }
+            $hits = Cache::many($ckList);
+            foreach ($hits as $ck => $hit) {
+                $key = $ckToKey[$ck] ?? null;
+                if ($key !== null && is_string($hit) && $hit !== '') {
+                    $out[$key] = $hit;
+                }
+            }
+            foreach ($candidates as $key => $c) {
+                if (!isset($out[$key])) {
+                    $pending[$key] = $c;
+                }
+            }
+        } catch (\Throwable) {
+            $pending = $candidates;
         }
 
         if ($pending === []) {
@@ -138,6 +159,7 @@ class TranslationService
             foreach ($pending as $key => $p) {
                 $byType[$p['type']][] = $p;
             }
+            $toPut = [];
             foreach ($byType as $type => $items) {
                 $ids = array_values(array_unique(array_map(fn ($p) => $p['id'], $items)));
                 $fields = array_values(array_unique(array_map(fn ($p) => $p['field'], $items)));
@@ -153,10 +175,16 @@ class TranslationService
                     if (isset($pending[$rk]) && $pending[$rk]['hash'] === (string) $row->source_hash
                         && is_string($row->translated_text) && $row->translated_text !== '') {
                         $out[$rk] = $row->translated_text;
-                        try {
-                            Cache::put($pending[$rk]['cache_key'], $row->translated_text, now()->addDays(self::CACHE_TTL_DAYS));
-                        } catch (\Throwable) {
-                        }
+                        $toPut[$pending[$rk]['cache_key']] = $row->translated_text;
+                    }
+                }
+            }
+            if ($toPut !== []) {
+                try {
+                    Cache::putMany($toPut, now()->addDays(self::CACHE_TTL_DAYS));
+                } catch (\Throwable) {
+                    foreach ($toPut as $ck => $val) {
+                        try { Cache::put($ck, $val, now()->addDays(self::CACHE_TTL_DAYS)); } catch (\Throwable) {}
                     }
                 }
             }
@@ -251,20 +279,31 @@ class TranslationService
             $hash = self::sourceHash($text);
             $ck = self::cacheKey($type, $id, $field, $locale, $hash);
 
-            try {
-                $hit = Cache::get($ck);
-            } catch (\Throwable) {
-                $hit = null;
-            }
-            if (is_string($hit) && $hit !== '') {
-                $out[$key] = $hit;
-                continue;
-            }
-
             $dbPending[$key] = [
                 'type' => $type, 'id' => $id, 'field' => $field,
                 'text' => $text, 'hash' => $hash, 'cache_key' => $ck, 'orig' => $ref['text'] ?? '',
             ];
+        }
+
+        // Batched cache read (1 query instead of N) before hitting the DB.
+        if ($dbPending !== []) {
+            try {
+                $ckList = array_values(array_unique(array_map(fn ($p) => $p['cache_key'], $dbPending)));
+                $ckToKeys = [];
+                foreach ($dbPending as $key => $p) {
+                    $ckToKeys[$p['cache_key']][] = $key;
+                }
+                $hits = Cache::many($ckList);
+                foreach ($hits as $ck => $hit) {
+                    if (is_string($hit) && $hit !== '' && isset($ckToKeys[$ck])) {
+                        foreach ($ckToKeys[$ck] as $key) {
+                            $out[$key] = $hit;
+                            unset($dbPending[$key]);
+                        }
+                    }
+                }
+            } catch (\Throwable) {
+            }
         }
 
         if ($dbPending !== []) {
@@ -336,18 +375,27 @@ class TranslationService
             }
         }
 
+        // Batch cache puts (1 query instead of N on database driver).
+        $cacheBatch = [];
         foreach ($jobs as $dk => $job) {
             $t = isset($translated[$dk]) ? trim((string) $translated[$dk]) : '';
-            foreach ($job['targets'] as $target) {
-                if ($t === '') {
+            if ($t === '') {
+                // Provider failed or returned empty: keep pending (do NOT persist source as translation)
+                // so retry stays possible and English locale falls back to source display, not fake DB row.
+                $out[$dk] = $job['text'];
+                foreach ($job['targets'] as $target) {
                     $out[$target['key']] = $job['text'];
+                }
+                continue;
+            }
+            // Do not persist identical copy (would mark pending as ready with no real translation)
+            $isReal = $t !== trim($job['text']);
+            foreach ($job['targets'] as $target) {
+                $out[$target['key']] = $t;
+                if (!$isReal) {
                     continue;
                 }
-                $out[$target['key']] = $t;
-                try {
-                    Cache::put($target['cache_key'], $t, now()->addDays(self::CACHE_TTL_DAYS));
-                } catch (\Throwable) {
-                }
+                $cacheBatch[$target['cache_key']] = $t;
                 try {
                     ContentTranslation::updateOrCreate(
                         [
@@ -364,6 +412,15 @@ class TranslationService
                     );
                 } catch (\Throwable $e) {
                     Log::warning('[L10N] projection persist failed', ['key' => $target['key']]);
+                }
+            }
+        }
+        if ($cacheBatch !== []) {
+            try {
+                Cache::putMany($cacheBatch, now()->addDays(self::CACHE_TTL_DAYS));
+            } catch (\Throwable) {
+                foreach ($cacheBatch as $ck => $val) {
+                    try { Cache::put($ck, $val, now()->addDays(self::CACHE_TTL_DAYS)); } catch (\Throwable) {}
                 }
             }
         }

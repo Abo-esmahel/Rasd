@@ -8,8 +8,9 @@
     $currentStatus = request('status');
 
     $counts = \App\Models\Note::where('user_id', $userId)->whereNull('general_submission_id')
-        ->selectRaw("COUNT(*) as total, SUM(CASE WHEN status='draft' THEN 1 ELSE 0 END) as draft, SUM(CASE WHEN status='pending' THEN 1 ELSE 0 END) as pending, SUM(CASE WHEN status='accepted' THEN 1 ELSE 0 END) as accepted, SUM(CASE WHEN status='rejected' THEN 1 ELSE 0 END) as rejected")
+        ->selectRaw("SUM(CASE WHEN status != 'draft' THEN 1 ELSE 0 END) as total, SUM(CASE WHEN status='draft' THEN 1 ELSE 0 END) as draft, SUM(CASE WHEN status='pending' THEN 1 ELSE 0 END) as pending, SUM(CASE WHEN status='accepted' THEN 1 ELSE 0 END) as accepted, SUM(CASE WHEN status='rejected' THEN 1 ELSE 0 END) as rejected")
         ->first();
+    // "الكل" يستبعد المسودات — المسودات لها تبويب مستقل
     $totalCount = $counts->total ?? 0;
     $draftCount = $counts->draft ?? 0;
     $pendingCount = $counts->pending ?? 0;
@@ -18,12 +19,12 @@
 @endphp
 
 
-<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 mb-4 sm:mb-5">
     <div>
-        <h1 class="text-xl font-extrabold text-ink-800 leading-tight">{{ __('ui.my_notes_title') }}</h1>
+        <h1 class="text-[18px] sm:text-xl font-bold text-ink-800 leading-tight">{{ __('ui.my_notes_title') }}</h1>
     </div>
     @if($isMonitor || $isWriter)
-        <a href="{{ route('notes.create') }}" class="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-[#0e6a38] hover:bg-[#0a4d28] text-white font-bold text-sm shadow-sm transition shrink-0">
+        <a href="{{ route('notes.create') }}" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 sm:py-2.5 min-h-[44px] sm:min-h-0 rounded-xl bg-[#0e6a38] hover:bg-[#0a4d28] text-white font-bold text-[14px] sm:text-sm shadow-sm transition shrink-0">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
             {{ __('ui.new_note') }}
         </a>
@@ -31,8 +32,8 @@
     </div>
 
 
-<div class="border-b border-[#e6e9e1] mb-6 -mx-4 sm:mx-0 px-4 sm:px-0 overflow-x-auto scrollbar-hide">
-    <nav class="flex gap-6 min-w-max" aria-label="{{ __('ui.note_statuses') }}">
+<div class="w-full max-w-full overflow-x-auto scrollbar-hide border-b border-[#e6e9e1] dark:border-[#2e352e] mb-4 sm:mb-6 mx-0 px-0 tabs-scroll-shadow" style="scrollbar-width:none;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;scroll-snap-type:x proximity;">
+    <nav class="flex gap-1 sm:gap-6 min-w-max w-max" aria-label="{{ __('ui.note_statuses') }}">
         @php
             $tabs = [
                 ['key'=>null, 'label'=>__('ui.all'), 'count'=>$totalCount],
@@ -49,9 +50,9 @@
                     ? route('notes.my')
                     : route('notes.my', array_merge(request()->except('status','page'), ['status' => $tab['key']]));
             @endphp
-            <a href="{{ $url }}" data-ajax-tab class="relative flex items-center gap-1.5 py-3 text-[13px] whitespace-nowrap border-b-2 transition {{ $isActive ? 'border-[#0e6a38] text-ink-800 font-bold' : 'border-transparent text-[#737373] hover:text-ink-600 font-medium' }}">
-                <span>{{ $tab['label'] }}</span>
-                <span class="text-[11px] font-mono tabular-nums {{ $isActive ? 'text-[#0e6a38]' : 'text-ink-300' }}">{{ $tab['count'] }}</span>
+            <a href="{{ $url }}" data-ajax-tab class="relative flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 py-2.5 sm:py-3 px-2.5 sm:px-0 min-h-[48px] sm:min-h-0 text-[12px] sm:text-[13px] whitespace-nowrap border-b-2 transition scroll-snap-align:start {{ $isActive ? 'border-[#0e6a38] text-ink-800 font-bold dark:text-[#e7ece5] dark:border-[#4ade80]' : 'border-transparent text-[#737373] hover:text-ink-600 font-medium dark:text-[#9bb0a0] dark:hover:text-[#e7ece5]' }}">
+                <span class="shrink-0 leading-none">{{ $tab['label'] }}</span>
+                <span class="shrink-0 inline-flex items-center justify-center min-w-[20px] sm:min-w-[22px] h-[18px] sm:h-[20px] px-1.5 rounded-full text-[10px] sm:text-[11px] font-bold tabular-nums leading-none {{ $isActive ? 'bg-[#eef4f0] text-[#0e6a38] border border-[#cde7d6] dark:bg-[#1e3328] dark:text-[#4ade80] dark:border-[#1e3d25]' : 'bg-surface-100 text-ink-400 border border-[#2e352e]/0 sm:border-transparent dark:bg-[#2a302b] dark:text-[#9bb0a0] dark:border-[#2e352e]' }}">{{ $tab['count'] }}</span>
             </a>
         @endforeach
     </nav>
@@ -75,23 +76,23 @@
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                     <div>
                         <label class="block text-xs font-bold text-[#525252] mb-1.5">{{ __('ui.filter_date') }}</label>
-                        <input type="date" name="date" value="{{ request('date') }}" class="w-full rounded-lg border border-[#e6e9e1] bg-white py-2 px-3 text-sm text-ink-800 focus:border-[#0e6a38] focus:ring-2 focus:ring-[#0e6a38]/10 outline-none transition">
+                        <input type="date" name="date" value="{{ request('date') }}" class="w-full rounded-lg border border-[#e6e9e1] bg-white py-2.5 sm:py-2 px-3 min-h-[44px] sm:min-h-0 text-[16px] sm:text-sm text-ink-800 focus:border-[#0e6a38] focus:ring-2 focus:ring-[#0e6a38]/10 outline-none transition">
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-[#525252] mb-1.5">{{ __('ui.floor') }}</label>
-                        <input type="number" name="floor_number" value="{{ request('floor_number') }}" min="1" placeholder="3" class="w-full rounded-lg border border-[#e6e9e1] bg-white py-2 px-3 text-sm text-ink-800 placeholder:text-ink-300 focus:border-[#0e6a38] focus:ring-2 focus:ring-[#0e6a38]/10 outline-none transition">
+                        <input type="number" name="floor_number" value="{{ request('floor_number') }}" min="1" placeholder="3" inputmode="numeric" class="w-full rounded-lg border border-[#e6e9e1] bg-white py-2.5 sm:py-2 px-3 min-h-[44px] sm:min-h-0 text-[16px] sm:text-sm text-ink-800 placeholder:text-ink-300 focus:border-[#0e6a38] focus:ring-2 focus:ring-[#0e6a38]/10 outline-none transition">
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-[#525252] mb-1.5">{{ __('ui.camera') }}</label>
-                        <input type="number" name="camera_number" value="{{ request('camera_number') }}" min="1" placeholder="12" class="w-full rounded-lg border border-[#e6e9e1] bg-white py-2 px-3 text-sm text-ink-800 placeholder:text-ink-300 focus:border-[#0e6a38] focus:ring-2 focus:ring-[#0e6a38]/10 outline-none transition">
+                        <input type="number" name="camera_number" value="{{ request('camera_number') }}" min="1" placeholder="12" inputmode="numeric" class="w-full rounded-lg border border-[#e6e9e1] bg-white py-2.5 sm:py-2 px-3 min-h-[44px] sm:min-h-0 text-[16px] sm:text-sm text-ink-800 placeholder:text-ink-300 focus:border-[#0e6a38] focus:ring-2 focus:ring-[#0e6a38]/10 outline-none transition">
                     </div>
                 </div>
                 <div class="flex gap-2 items-end mt-3">
-                        <button type="submit" class="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg bg-[#0e6a38] hover:bg-[#0a4d28] text-white font-bold text-sm py-2 transition">
+                        <button type="submit" class="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg bg-[#0e6a38] hover:bg-[#0a4d28] text-white font-bold text-sm py-2.5 sm:py-2 min-h-[44px] sm:min-h-0 transition">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
                             {{ __('ui.apply') }}
                         </button>
-                        <a href="{{ route('notes.my', request()->has('status') ? ['status' => request('status')] : []) }}" class="inline-flex items-center justify-center px-3 py-2 rounded-lg border border-[#e6e9e1] text-[#737373] font-medium text-sm hover:bg-[#f5f7f5] transition">{{ __('ui.clear') }}</a>
+                        <a href="{{ route('notes.my', request()->has('status') ? ['status' => request('status')] : []) }}" class="inline-flex items-center justify-center px-3 py-2.5 sm:py-2 min-h-[44px] sm:min-h-0 rounded-lg border border-[#e6e9e1] text-[#737373] font-medium text-sm hover:bg-[#f5f7f5] transition">{{ __('ui.clear') }}</a>
                     </div>
                 </div>
             </form>
@@ -131,7 +132,7 @@
 
         <div class="grid grid-cols-[1fr_auto_auto] gap-4 items-center px-5 py-2.5 bg-[#f5f7f5] border-b border-[#e6e9e1] text-xs font-bold text-ink-400">
             <div>{{ __('ui.note_column') }}</div>
-            <div class="w-28 text-center">{{ __('ui.status_column') }}</div>
+            <div class="w-28 text-center lg:invisible" aria-hidden="true">{{ __('ui.status_column') }}</div>
             <div class="w-36 text-center">{{ __('ui.actions_column') }}</div>
         </div>
 
@@ -142,11 +143,12 @@
                 <div class="min-w-0">
                     <div class="flex items-center gap-2 flex-wrap">
                         <span class="inline-flex items-center gap-1 text-sm font-bold text-ink-800">
-                            <svg class="w-3.5 h-3.5 text-[#0e6a38]" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
-                            {{ __('ui.camera_floor_format', ['camera' => $note->camera_number, 'floor' => $note->floor_number]) }}
+                            <svg class="w-3.5 h-3.5 text-[#0e6a38] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                            <span class="whitespace-nowrap">{{ __('ui.camera') }} <span dir="ltr" class="tabular-nums font-mono">{{ $note->camera_number }}</span></span>
+                            <span class="opacity-60">·</span>
+                            <span class="whitespace-nowrap">{{ __('ui.floor') }} <span dir="ltr" class="tabular-nums font-mono">{{ $note->floor_number }}</span></span>
                         </span>
-                        <span class="text-ink-200">·</span>
-                        <span class="text-sm text-[#737373]">{{ $note->observed_at->toTime12() }}{{ $note->observed_end_at ? ' — '.$note->observed_end_at->toTime12() : '' }}</span>
+                        <span class="whitespace-nowrap text-xs px-1.5 py-0.5 rounded bg-surface-100 border border-surface-300 text-ink-500 font-mono tabular-nums" dir="ltr">{{ $note->observed_at->toTime12() }}{{ $note->observed_end_at ? '→'.$note->observed_end_at->toTime12() : '' }}</span>
                         <span class="text-ink-200">·</span>
                         <span class="text-sm text-[#737373]">{{ $note->created_at->diffForHumans() }}</span>
                         <span class="hidden md:inline text-ink-200">·</span>
@@ -156,15 +158,15 @@
                     <div class="mt-1.5 flex items-center gap-2 text-xs text-ink-300">
                         <a href="{{ route('profile.showUser', $note->owner->id) }}" onclick="event.stopPropagation()" class="inline-flex items-center gap-1.5 hover:opacity-80 hover:text-ink-700 transition">
                             @if($note->owner->avatar_url)
-                                <img src="{{ $note->owner->avatar_url }}" alt="{{ $note->owner->name }}" class="w-4 h-4 rounded-full object-cover border border-[#e6e9e1]">
+                                <img src="{{ $note->owner->avatar_url }}" alt="{{ $note->owner->localized_name }}" class="w-4 h-4 rounded-full object-cover border border-[#e6e9e1]">
                             @else
                                 <span class="w-4 h-4 rounded-full bg-sage-50 text-sage-700 flex items-center justify-center text-[9px] font-bold">{{ $note->owner->initial }}</span>
                             @endif
-                            {{ $note->owner->name }}
+                            {{ $note->owner->localized_name }}
                         </a>
                         @if($note->attachments->count() > 0)
                             <span class="text-ink-200">·</span>
-                            <span class="inline-flex items-center gap-1"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>{{ __('ui.attachment_count', ['count' => $note->attachments->count()]) }}</span>
+                            <span class="inline-flex items-center gap-1 whitespace-nowrap"><svg class="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg><span dir="ltr" class="tabular-nums font-mono">{{ $note->attachments->count() }}</span> <span>{{ __('ui.file_label') }}</span></span>
                         @endif
                     </div>
                 </div>
@@ -245,9 +247,9 @@
     </div>
 
 
-    <div class="sm:hidden space-y-3">
+    <div class="sm:hidden space-y-3 px-0.5">
         @foreach($notes as $note)
-            <div class="bg-white rounded-xl border border-[#e6e9e1] shadow-sm p-4 hover:shadow-md hover:border-[#d4ddd3] transition" onclick="openModal('detail-{{ $note->id }}')" role="button" data-note-card data-i18n-entity="note" data-i18n-id="{{ $note->id }}">
+            <div class="bg-white rounded-xl shadow-sm @if($note->isDraft()) border-[2.5px] border-[#c8cfc6] @elseif($note->isPending()) border-[2.5px] border-[#e0b84a] @elseif($note->isAccepted()) border-[2.5px] border-[#0e6a38] @elseif($note->isRejected()) border-[2.5px] border-[#c44040] @else border border-[#e6e9e1] @endif p-3.5 active:scale-[0.98] hover:shadow-md transition" onclick="openModal('detail-{{ $note->id }}')" role="button" data-note-card data-i18n-entity="note" data-i18n-id="{{ $note->id }}">
                 <div class="flex items-start justify-between gap-2 mb-2">
                     <div class="flex items-center gap-2">
                         @if($note->isDraft())
@@ -262,25 +264,25 @@
                     </div>
                     <span class="text-xs text-ink-300">{{ $note->observed_at->toTime12() }}{{ $note->observed_end_at ? ' — '.$note->observed_end_at->toTime12() : '' }}</span>
                 </div>
-                <div class="flex items-center gap-2 text-sm text-ink-600 mb-1.5">
-                    <span class="font-semibold">{{ __('ui.camera_floor_format', ['camera' => $note->camera_number, 'floor' => $note->floor_number]) }}</span>
-                    <span class="text-ink-200">·</span>
-                    <span class="text-[11px] text-ink-400/80 font-mono" dir="ltr" title="{{ __('ui.created_at_label') }}: {{ $note->created_at->format('Y-m-d H:i') }}">{{ $note->created_at->format('Y-m-d') }}</span>
+                <div class="flex items-center gap-2 text-sm text-ink-600 mb-1.5 flex-wrap">
+                    <span class="font-semibold inline-flex items-center gap-1 whitespace-nowrap"><span>{{ __('ui.camera') }}</span> <span dir="ltr" class="tabular-nums font-mono">{{ $note->camera_number }}</span> <span class="opacity-60">·</span> <span>{{ __('ui.floor') }}</span> <span dir="ltr" class="tabular-nums font-mono">{{ $note->floor_number }}</span></span>
+                    <span class="text-ink-200 hidden sm:inline">·</span>
+                    <span class="text-[11px] text-ink-400/80 font-mono whitespace-nowrap" dir="ltr" title="{{ __('ui.created_at_label') }}: {{ $note->created_at->format('Y-m-d H:i') }}">{{ $note->created_at->format('Y-m-d') }}</span>
                 </div>
                 <p class="text-sm text-[#737373] line-clamp-2 leading-relaxed" data-i18n-field="description">{{ \Illuminate\Support\Str::limit(l10n_text('note', $note->id, 'description', $note->description), 100) }}</p>
                 <div class="mt-2.5 flex items-center justify-between">
                     <div class="flex items-center gap-2 text-xs text-ink-300">
                         <a href="{{ route('profile.showUser', $note->owner->id) }}" onclick="event.stopPropagation()" class="inline-flex items-center gap-1 hover:opacity-80 hover:text-ink-700 transition">
                             @if($note->owner->avatar_url)
-                                <img src="{{ $note->owner->avatar_url }}" alt="{{ $note->owner->name }}" class="w-4 h-4 rounded-full object-cover border border-surface-300">
+                                <img src="{{ $note->owner->avatar_url }}" alt="{{ $note->owner->localized_name }}" class="w-4 h-4 rounded-full object-cover border border-surface-300">
                             @else
                                 <span class="w-4 h-4 rounded-full bg-sage-100 text-sage-700 flex items-center justify-center text-[9px] font-bold">{{ $note->owner->initial }}</span>
                             @endif
-                            {{ $note->owner->name }}
+                            {{ $note->owner->localized_name }}
                         </a>
                         @if($note->attachments->count() > 0)
                             <span class="text-ink-200">·</span>
-                            <span class="inline-flex items-center gap-1"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>{{ __('ui.attachment_count', ['count' => $note->attachments->count()]) }}</span>
+                            <span class="inline-flex items-center gap-1 whitespace-nowrap"><svg class="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg><span dir="ltr" class="tabular-nums font-mono">{{ $note->attachments->count() }}</span> <span>{{ __('ui.file_label') }}</span></span>
                         @endif
                     </div>
                     <div onclick="event.stopPropagation()">
@@ -295,30 +297,30 @@
                         $shareText .= "\n".__('ui.status').": ".$statusLabel;
                         $shareAttachments = $note->attachments->map(fn($a) => ['id'=>$a->id, 'name'=>$a->original_name, 'mime'=>$a->mime_type, 'url'=>'/s/attachments/'.$a->id])->toArray();
                     @endphp
-                            <button type="button" onclick='openShareModal(@json($shareText), @json($shareAttachments), "{{ $note->owner->whatsapp_number }}")' class="px-2.5 py-1 rounded-lg bg-[#25D366] text-white text-xs font-bold inline-flex items-center gap-1">
+                            <button type="button" onclick='openShareModal(@json($shareText), @json($shareAttachments), "{{ $note->owner->whatsapp_number }}")' class="px-3 py-1.5 min-h-[36px] rounded-lg bg-[#25D366] text-white text-xs font-bold inline-flex items-center gap-1">
                                 <svg class="w-3 h-3" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
                             </button>
                         @endif
                         @if($isMonitor && $note->user_id === $userId && $note->isDraft())
                             <div class="flex items-center gap-1.5">
-                                <a href="{{ route('notes.edit', $note) }}" class="px-2.5 py-1 rounded-lg bg-[#fdfcfa] border border-[#e6e9e1] text-[#525252] text-xs font-bold">{{ __('ui.edit_btn') }}</a>
+                                <a href="{{ route('notes.edit', $note) }}" class="px-3 py-1.5 min-h-[36px] rounded-lg bg-[#fdfcfa] border border-[#e6e9e1] text-[#525252] text-xs font-bold inline-flex items-center">{{ __('ui.edit_btn') }}</a>
                                 <form method="POST" action="{{ route('notes.send', $note) }}" class="inline" data-ajax data-note-id="{{ $note->id }}">@csrf
-                                    <button type="submit" class="px-2.5 py-1 rounded-lg bg-[#0e6a38] text-white text-xs font-bold">{{ __('ui.send_btn') }}</button>
+                                    <button type="submit" class="px-3 py-1.5 min-h-[36px] rounded-lg bg-[#0e6a38] text-white text-xs font-bold">{{ __('ui.send_btn') }}</button>
                                 </form>
                             </div>
                         @elseif($isMonitor && $note->user_id === $userId && $note->isRejected())
                             <div class="flex items-center gap-1.5">
-                                <a href="{{ route('notes.edit', $note) }}" class="px-2.5 py-1 rounded-lg bg-ink-800 text-white text-xs font-bold">{{ __('ui.fix_btn') }}</a>
+                                <a href="{{ route('notes.edit', $note) }}" class="px-3 py-1.5 min-h-[36px] rounded-lg bg-ink-800 text-white text-xs font-bold inline-flex items-center">{{ __('ui.fix_btn') }}</a>
                                 <form method="POST" action="{{ route('notes.resend', $note) }}" class="inline" data-ajax data-note-id="{{ $note->id }}">@csrf
-                                    <button type="submit" class="px-2.5 py-1 rounded-lg bg-amber-500 text-white text-xs font-bold">{{ __('ui.resend_btn') }}</button>
+                                    <button type="submit" class="px-3 py-1.5 min-h-[36px] rounded-lg bg-amber-500 text-white text-xs font-bold">{{ __('ui.resend_btn') }}</button>
                                 </form>
                             </div>
                         @elseif($isWriter && $note->isPending())
                             <div class="flex items-center gap-1.5">
                                 <form method="POST" action="{{ route('notes.accept', $note) }}" class="inline" data-ajax data-note-id="{{ $note->id }}">@csrf
-                                    <button type="submit" class="px-2.5 py-1 rounded-lg bg-[#0e6a38] text-white text-xs font-bold">{{ __('ui.accept_btn') }}</button>
+                                    <button type="submit" class="px-3 py-1.5 min-h-[36px] rounded-lg bg-[#0e6a38] text-white text-xs font-bold">{{ __('ui.accept_btn') }}</button>
                                 </form>
-                                <button type="button" onclick="openModal('reject-{{ $note->id }}')" class="px-2.5 py-1 rounded-lg bg-red-500 text-white text-xs font-bold">{{ __('ui.reject_btn') }}</button>
+                                <button type="button" onclick="openModal('reject-{{ $note->id }}')" class="px-3 py-1.5 min-h-[36px] rounded-lg bg-red-500 text-white text-xs font-bold">{{ __('ui.reject_btn') }}</button>
                             </div>
                         @endif
                     </div>
@@ -330,8 +332,8 @@
 
     @if($notes->hasPages())
         <div class="mt-5 flex flex-col sm:flex-row items-center justify-between gap-3">
-            <div class="text-sm text-[#737373]">
-                {{ __('ui.showing') }} <span class="font-bold text-ink-700">{{ $notes->firstItem() ?? 0 }}–{{ $notes->lastItem() ?? 0 }}</span> {{ __('ui.of') }} <span class="font-bold text-ink-700">{{ $notes->total() }}</span>
+            <div class="text-sm text-[#737373] inline-flex items-center gap-1.5 flex-wrap">
+                <span>{{ __('ui.showing') }}</span> <span dir="ltr" class="font-bold text-ink-700 tabular-nums">{{ $notes->firstItem() ?? 0 }}–{{ $notes->lastItem() ?? 0 }}</span> <span>{{ __('ui.of') }}</span> <span dir="ltr" class="font-bold text-ink-700 tabular-nums">{{ $notes->total() }}</span>
             </div>
             <div>{{ $notes->withQueryString()->links() }}</div>
         </div>
@@ -352,7 +354,7 @@
             'description' => l10n_text('note', $note->id, 'description', $note->description),
             'status' => $note->status,
             'status_label' => status_label($note->status),
-            'owner_name' => $note->owner->name,
+            'owner_name' => $note->owner->localized_name,
             'attachments' => $note->attachments->map(fn($a) => [
                 'id' => $a->id,
                 'name' => $a->original_name,
@@ -370,7 +372,7 @@
                 <div class="flex items-center gap-3 min-w-0">
                     <a href="{{ route('profile.showUser', $note->owner->id) }}" onclick="event.stopPropagation()" class="shrink-0 hover:opacity-80 transition">
                         @if($note->owner->avatar_url)
-                            <img src="{{ $note->owner->avatar_url }}" alt="{{ $note->owner->name }}" class="w-10 h-10 rounded-xl object-cover border border-[#e6e9e1] shadow-sm shrink-0">
+                            <img src="{{ $note->owner->avatar_url }}" alt="{{ $note->owner->localized_name }}" class="w-10 h-10 rounded-xl object-cover border border-[#e6e9e1] shadow-sm shrink-0">
                         @else
                             <div class="w-10 h-10 rounded-xl bg-[#eef4f0] text-[#0e6a38] flex items-center justify-center font-bold text-sm shrink-0">
                                 {{ $note->owner->initial }}
@@ -379,7 +381,7 @@
                     </a>
                     <div class="min-w-0">
                         <div class="flex items-center gap-2 flex-wrap">
-                            <h2 class="text-base font-extrabold text-ink-800">{{ __('ui.camera_floor_format', ['camera' => $note->camera_number, 'floor' => $note->floor_number]) }}</h2>
+                            <h2 class="text-base font-bold text-ink-800">{{ __('ui.camera_floor_format', ['camera' => $note->camera_number, 'floor' => $note->floor_number]) }}</h2>
                             <div class="mt-1">@include('notes.partials.translation_status', ['note' => $note])</div>
                             @if($note->isDraft())
                             <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-ink-100 text-ink-600"><span data-status="draft">{{ __('ui.draft') }}</span></span>
@@ -391,7 +393,7 @@
                                 <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-red-50 text-red-700 border border-red-200"><span data-status="rejected">{{ __('ui.rejected') }}</span></span>
                             @endif
                         </div>
-                        <div class="text-xs text-[#737373] mt-0.5"><a href="{{ route('profile.showUser', $note->owner->id) }}" onclick="event.stopPropagation()" class="hover:text-[#0e6a38] hover:underline transition">{{ $note->owner->name }}</a> — {{ __('ui.created_label') }} {{ $note->created_at->toDatetime12() }}</div>
+                        <div class="text-xs text-[#737373] mt-0.5"><a href="{{ route('profile.showUser', $note->owner->id) }}" onclick="event.stopPropagation()" class="hover:text-[#0e6a38] hover:underline transition">{{ $note->owner->localized_name }}</a> — {{ __('ui.created_label') }} {{ $note->created_at->toDatetime12() }}</div>
                     </div>
                 </div>
                 <div class="flex items-center gap-2">
@@ -418,11 +420,11 @@
                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     <div class="rounded-xl bg-[#f5f7f5] border border-[#e6e9e1] p-3 text-center">
                         <div class="text-[11px] font-bold text-ink-300 mb-1">{{ __('ui.camera') }}</div>
-                        <div class="text-lg font-extrabold text-ink-800">{{ $note->camera_number }}</div>
+                        <div class="text-lg font-bold text-ink-800">{{ $note->camera_number }}</div>
                     </div>
                     <div class="rounded-xl bg-[#f5f7f5] border border-[#e6e9e1] p-3 text-center">
                         <div class="text-[11px] font-bold text-ink-300 mb-1">{{ __('ui.floor') }}</div>
-                        <div class="text-lg font-extrabold text-ink-800">{{ $note->floor_number }}</div>
+                        <div class="text-lg font-bold text-ink-800">{{ $note->floor_number }}</div>
                     </div>
                     <div class="rounded-xl bg-[#f5f7f5] border border-[#e6e9e1] p-3 text-center">
                         <div class="text-[11px] font-bold text-ink-300 mb-1">{{ __('ui.note_time') }}</div>
@@ -431,7 +433,7 @@
                     </div>
                     <div class="rounded-xl bg-[#f5f7f5] border border-[#e6e9e1] p-3 text-center">
                         <div class="text-[11px] font-bold text-ink-300 mb-1">{{ __('ui.attachments') }}</div>
-                        <div class="text-lg font-extrabold text-ink-800">{{ $note->attachments->count() }}</div>
+                        <div class="text-lg font-bold text-ink-800">{{ $note->attachments->count() }}</div>
                         <div class="text-[11px] text-[#737373]">{{ __('ui.file_label') }}</div>
                     </div>
                 </div>
@@ -440,14 +442,14 @@
                 <div class="flex items-center gap-3 p-3 rounded-xl bg-[#f5f7f5] border border-[#e6e9e1]">
                     <a href="{{ route('profile.showUser', $note->owner->id) }}" onclick="event.stopPropagation()" class="shrink-0 hover:opacity-80 transition">
                         @if($note->owner->avatar_url)
-                            <img src="{{ $note->owner->avatar_url }}" alt="{{ $note->owner->name }}" class="w-9 h-9 rounded-lg object-cover border border-[#e6e9e1] shadow-sm shrink-0">
+                            <img src="{{ $note->owner->avatar_url }}" alt="{{ $note->owner->localized_name }}" class="w-9 h-9 rounded-lg object-cover border border-[#e6e9e1] shadow-sm shrink-0">
                         @else
                             <div class="w-9 h-9 rounded-lg bg-[#eef4f0] text-[#0e6a38] flex items-center justify-center font-bold text-sm shrink-0">{{ $note->owner->initial }}</div>
                         @endif
                     </a>
                     <div>
                         <div class="text-[11px] font-bold text-ink-300">{{ __('ui.observer') }}</div>
-                        <a href="{{ route('profile.showUser', $note->owner->id) }}" onclick="event.stopPropagation()" class="text-sm font-bold text-ink-800 hover:text-[#0e6a38] transition">{{ $note->owner->name }}</a>
+                        <a href="{{ route('profile.showUser', $note->owner->id) }}" onclick="event.stopPropagation()" class="text-sm font-bold text-ink-800 hover:text-[#0e6a38] transition">{{ $note->owner->localized_name }}</a>
                     </div>
                     <div class="mr-auto text-left">
                         <div class="text-[11px] font-bold text-ink-300">{{ __('ui.created_at') }}</div>
@@ -473,7 +475,7 @@
                         </h3>
                         <p class="text-sm leading-7 text-red-600" data-i18n-field="rejection_reason">{{ l10n_text('note', $note->id, 'rejection_reason', $note->rejection_reason) }}</p>
                         @if($note->processor)
-                            <div class="mt-2 text-xs font-bold text-red-500">{{ __('ui.by_user') }} {{ $note->processor->name }} — {{ $note->processed_at?->toDatetime12() }}</div>
+                            <div class="mt-2 text-xs font-bold text-red-500">{{ __('ui.by_user') }} {{ $note->processor->localized_name }} — {{ $note->processed_at?->toDatetime12() }}</div>
                         @endif
                     </div>
                 @endif
@@ -521,10 +523,10 @@
 
                 @if($note->processor)
                     <div class="p-3 rounded-xl bg-[#f5f7f5] border border-[#e6e9e1] flex items-center gap-3">
-                        <div class="w-8 h-8 rounded-lg bg-[#eceee9] flex items-center justify-center text-xs font-bold text-[#525252]">{{ mb_substr($note->processor->name, 0, 1) }}</div>
+                        <div class="w-8 h-8 rounded-lg bg-[#eceee9] flex items-center justify-center text-xs font-bold text-[#525252]">{{ mb_substr($note->processor->localized_name, 0, 1) }}</div>
                         <div>
                             <div class="text-[11px] font-bold text-ink-300">{{ $note->isAccepted() ? __('ui.approved_by') : __('ui.rejected_by') }}</div>
-                            <div class="text-sm font-bold text-ink-700">{{ $note->processor->name }} — {{ $note->processed_at?->toDatetime12() }}</div>
+                            <div class="text-sm font-bold text-ink-700">{{ $note->processor->localized_name }} — {{ $note->processed_at?->toDatetime12() }}</div>
                         </div>
                     </div>
                 @endif
@@ -597,7 +599,7 @@
             <div class="absolute inset-0 bg-ink-900/40 backdrop-blur-sm" onclick="closeModal('reject-{{ $note->id }}')"></div>
             <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
                 <div class="px-6 py-4 border-b border-[#e6e9e1]">
-                    <h3 class="text-base font-extrabold text-ink-800">{{ __('ui.reject_note_title') }}</h3>
+                    <h3 class="text-base font-bold text-ink-800">{{ __('ui.reject_note_title') }}</h3>
                 </div>
                 <form method="POST" action="{{ route('notes.reject', $note) }}" class="p-6 space-y-4">
                     @csrf
@@ -892,7 +894,7 @@ function copyShareText() {
     <div class="absolute inset-0 bg-ink-900/40 backdrop-blur-sm" onclick="closeShareModal()"></div>
     <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[85vh] flex flex-col overflow-hidden">
         <div class="px-5 py-4 border-b border-[#e6e9e1] flex items-center justify-between shrink-0">
-            <h3 class="text-base font-extrabold text-ink-800">{{ __('ui.share') }}</h3>
+            <h3 class="text-base font-bold text-ink-800">{{ __('ui.share') }}</h3>
             <button onclick="closeShareModal()" class="w-8 h-8 rounded-lg hover:bg-[#f5f7f5] flex items-center justify-center text-ink-300 hover:text-ink-700 transition" aria-label="{{ __('ui.close') }}">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
@@ -948,10 +950,54 @@ document.querySelectorAll('form[data-ajax]').forEach(form => {
                 const newStatus = data.status || (data.data && data.data.status);
                 const noteId = this.dataset.noteId;
 
+                const actionUrl = this.action || '';
+                const actionKind = /\/resend\/?$/.test(actionUrl) ? 'resend' : (/\/accept\/?$/.test(actionUrl) ? 'accept' : 'send');
+                const successMsg = actionKind === 'resend' ? @json(__('ui.note_resent_success')) : (actionKind === 'accept' ? @json(__('ui.note_accepted_success')) : @json(__('ui.note_sent_success')));
+                const movedTpl = @json(__('ui.note_moved_to_tab', ['tab' => ':tab']));
+                const tabLabel = { draft:@json(__('ui.drafts')), pending:@json(__('ui.pending')), accepted:@json(__('ui.accepted')), rejected:@json(__('ui.rejected')) };
+                const bumpTabCount = function(key, delta){
+                    document.querySelectorAll('a[data-ajax-tab]').forEach(function(a){
+                        var href = a.getAttribute('href') || '';
+                        var m = href.match(/[?&]status=([a-z]+)/);
+                        var k = m ? m[1] : null;
+                        if (k === key) {
+                            var spans = a.querySelectorAll('span');
+                            var el = spans[spans.length - 1];
+                            if (!el) return;
+                            var n = parseInt(String(el.textContent || '').replace(/[^0-9]/g, ''), 10);
+                            if (!isNaN(n)) el.textContent = String(Math.max(0, n + delta));
+                        }
+                    });
+                };
+                const applyCounts = function(){
+                    if (actionKind === 'send') { bumpTabCount('draft', -1); bumpTabCount('pending', 1); bumpTabCount(null, 1); }
+                    else if (actionKind === 'resend') { bumpTabCount('rejected', -1); bumpTabCount('pending', 1); }
+                    else if (actionKind === 'accept') { bumpTabCount('pending', -1); bumpTabCount('accepted', 1); }
+                };
+
                 let card = this.closest('[data-note-card]');
                 if (!card && noteId) {
                     const candidates = Array.from(document.querySelectorAll('[data-note-id="'+noteId+'"]'));
                     card = candidates.find(el => el !== this && (el.querySelector('.note-badge') || el.querySelector('.note-actions'))) || null;
+                }
+                // البطاقة لم تعد تنتمي للتبويب الحالي (مثال: إرسال مسودة من تبويب المسودات
+                // يجعلها قيد المراجعة) — نزيلها من القائمة ونوجّه المستخدم لمكانها الجديد
+                // بدل إبقائها بشارة مخالفة للفلتر ثم اختفائها عند التحديث.
+                var currentFilter = null;
+                try { currentFilter = new URLSearchParams(window.location.search).get('status'); } catch(_) {}
+                var stillBelongs = !currentFilter || !newStatus || currentFilter === newStatus;
+                if (card && newStatus && !stillBelongs) {
+                    applyCounts();
+                    var movedLabel = tabLabel[newStatus] || newStatus;
+                    window.toast(successMsg + ' — ' + movedTpl.split(':tab').join(movedLabel));
+                    card.style.transition = 'opacity .25s, transform .25s';
+                    card.style.opacity = '0';
+                    card.style.transform = 'translateX(20px)';
+                    setTimeout(function(){
+                        card.remove();
+                        if (!document.querySelector('#notes-list [data-note-card]')) location.reload();
+                    }, 260);
+                    return;
                 }
                 let updated = false;
                 if (card && newStatus) {
@@ -991,6 +1037,8 @@ document.querySelectorAll('form[data-ajax]').forEach(form => {
                 }
 
                 if (!updated) { location.reload(); return; }
+                applyCounts();
+                window.toast(successMsg);
             } else {
                     window.toast(data.message || @json(__('ui.error_occurred')));
                 if (btn) { btn.disabled = false; btn.innerHTML = origHtml; }

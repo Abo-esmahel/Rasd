@@ -60,79 +60,96 @@ class GeminiAiTextGenerator implements AiTextGeneratorInterface
             ],
         ];
 
-        $started = microtime(true);
-        try {
-            // asJson forces UTF-8 JSON encoding (critical for Arabic prompts).
-            // Gemini requires the key as a query parameter.
-            $response = Http::asJson()->connectTimeout(10)->timeout($timeout)->retry(0)
-                ->post("https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key=" . urlencode($apiKey), $payload);
-        } catch (ConnectionException $e) {
-            Log::warning('[AI] gemini timeout', ['model' => $model, 'timeout' => $timeout]);
-            throw new AiUnavailableException(__('api.ai_timeout'), previous: $e);
-        } catch (\Throwable $e) {
-            Log::warning('[AI] gemini connection failed', ['model' => $model, 'error' => get_class($e)]);
-            throw new AiUnavailableException(__('api.ai_network'), previous: $e);
-        }
-        $latency = (int) ((microtime(true) - $started) * 1000);
-
-        $status = $response->status();
-        if ($status === 400) {
-            $msg = (string) ($response->json('error.message') ?? '');
-            Log::warning('[AI] gemini bad request', ['model' => $model, 'latency_ms' => $latency, 'error' => mb_substr($msg, 0, 200)]);
-            if (str_contains(strtolower($msg), 'api key')) {
-                throw new AiAuthenticationException(__('api.ai_key_rejected'));
+        $maxRetries = 3;
+        $attempt = 0;
+        while (true) {
+            $attempt++;
+            $started = microtime(true);
+            try {
+                // asJson forces UTF-8 JSON encoding (critical for Arabic prompts).
+                // Gemini requires the key as a query parameter.
+                $response = Http::asJson()->connectTimeout(10)->timeout($timeout)->retry(0)
+                    ->post("https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key=" . urlencode($apiKey), $payload);
+            } catch (ConnectionException $e) {
+                Log::warning('[AI] gemini timeout', ['model' => $model, 'timeout' => $timeout, 'attempt' => $attempt]);
+                throw new AiUnavailableException(__('api.ai_timeout'), previous: $e);
+            } catch (\Throwable $e) {
+                Log::warning('[AI] gemini connection failed', ['model' => $model, 'error' => get_class($e), 'attempt' => $attempt]);
+                throw new AiUnavailableException(__('api.ai_network'), previous: $e);
             }
-            if (str_contains($msg, 'not found') || str_contains($msg, 'is not found') || str_contains($msg, 'no longer available')) {
-                throw new AiUnavailableException(__('api.ai_model_unavailable', ['model' => $model]));
-            }
-            throw new AiInvalidResponseException(__('api.ai_request_rejected'));
-        }
-        if ($status === 401 || $status === 403) {
-            Log::warning('[AI] gemini auth failed', ['model' => $model, 'status' => $status, 'latency_ms' => $latency]);
-            throw new AiAuthenticationException(__('api.ai_auth_failed'));
-        }
-        if ($status === 429) {
-            $retryAfter = $this->parseRetryAfterFromResponse($response);
-            $errMsg = (string) ($response->json('error.message') ?? '');
-            $daily = $this->isDailyQuota($errMsg);
-            Log::warning('[AI] gemini rate limited', [
-                'model' => $model,
-                'latency_ms' => $latency,
-                'retry_after' => $retryAfter,
-                'is_daily' => $daily,
-                'error' => mb_substr($errMsg, 0, 300),
-            ]);
-            if ($retryAfter !== null) {
-                throw new AiRateLimitException(__('api.ai_rate_wait', ['seconds' => $retryAfter]), retryAfter: $retryAfter, previous: null);
-            }
-            if ($daily) {
-                throw new AiRateLimitException(__('api.ai_quota_daily'), retryAfter: null, previous: null);
-            }
-            throw new AiRateLimitException(__('api.ai_rate_generic'), retryAfter: null, previous: null);
-        }
-        if ($status >= 500 || $status === 0) {
-            Log::warning('[AI] gemini unavailable', ['model' => $model, 'status' => $status, 'latency_ms' => $latency]);
-            throw new AiUnavailableException(__('api.ai_busy_service'));
-        }
-        if (!$response->successful()) {
-            Log::warning('[AI] gemini error', ['model' => $model, 'status' => $status, 'latency_ms' => $latency]);
-            throw new AiUnavailableException(__('api.ai_generate_failed'));
-        }
+            $latency = (int) ((microtime(true) - $started) * 1000);
 
-        $json = $response->json();
-        $candidate = $json['candidates'][0] ?? null;
-        $blockReason = (string) ($json['promptFeedback']['blockReason'] ?? $candidate['finishReason'] ?? '');
-        if (in_array($blockReason, ['SAFETY', 'PROHIBITED_CONTENT', 'BLOCKLIST', 'OTHER'], true)) {
-            Log::warning('[AI] gemini safety block', ['model' => $model, 'reason' => $blockReason]);
-            throw new AiInvalidResponseException(__('api.ai_safety'));
-        }
+            $status = $response->status();
+            if ($status === 400) {
+                $msg = (string) ($response->json('error.message') ?? '');
+                Log::warning('[AI] gemini bad request', ['model' => $model, 'latency_ms' => $latency, 'error' => mb_substr($msg, 0, 200)]);
+                if (str_contains(strtolower($msg), 'api key')) {
+                    throw new AiAuthenticationException(__('api.ai_key_rejected'));
+                }
+                if (str_contains($msg, 'not found') || str_contains($msg, 'is not found') || str_contains($msg, 'no longer available')) {
+                    throw new AiUnavailableException(__('api.ai_model_unavailable', ['model' => $model]));
+                }
+                throw new AiInvalidResponseException(__('api.ai_request_rejected'));
+            }
+            if ($status === 401 || $status === 403) {
+                Log::warning('[AI] gemini auth failed', ['model' => $model, 'status' => $status, 'latency_ms' => $latency]);
+                throw new AiAuthenticationException(__('api.ai_auth_failed'));
+            }
+            if ($status === 429) {
+                $retryAfter = $this->parseRetryAfterFromResponse($response);
+                $errMsg = (string) ($response->json('error.message') ?? '');
+                $daily = $this->isDailyQuota($errMsg);
+                Log::warning('[AI] gemini rate limited', [
+                    'model' => $model,
+                    'latency_ms' => $latency,
+                    'retry_after' => $retryAfter,
+                    'is_daily' => $daily,
+                    'attempt' => $attempt,
+                    'error' => mb_substr($errMsg, 0, 300),
+                ]);
+                if ($daily) {
+                    throw new AiRateLimitException(__('api.ai_quota_daily'), retryAfter: null, previous: null);
+                }
+                if ($attempt < $maxRetries && $retryAfter !== null && $retryAfter <= 60) {
+                    $wait = min($retryAfter + 2, 65);
+                    Log::info('[AI] gemini rate limited, retrying after wait', ['model' => $model, 'attempt' => $attempt, 'wait_seconds' => $wait]);
+                    sleep($wait);
+                    continue;
+                }
+                if ($retryAfter !== null) {
+                    throw new AiRateLimitException(__('api.ai_rate_wait', ['seconds' => $retryAfter]), retryAfter: $retryAfter, previous: null);
+                }
+                throw new AiRateLimitException(__('api.ai_rate_generic'), retryAfter: null, previous: null);
+            }
+            if ($status >= 500 || $status === 0) {
+                if ($attempt < $maxRetries) {
+                    Log::warning('[AI] gemini server error, retrying', ['model' => $model, 'status' => $status, 'attempt' => $attempt]);
+                    sleep(3);
+                    continue;
+                }
+                Log::warning('[AI] gemini unavailable', ['model' => $model, 'status' => $status, 'latency_ms' => $latency]);
+                throw new AiUnavailableException(__('api.ai_busy_service'));
+            }
+            if (!$response->successful()) {
+                Log::warning('[AI] gemini error', ['model' => $model, 'status' => $status, 'latency_ms' => $latency]);
+                throw new AiUnavailableException(__('api.ai_generate_failed'));
+            }
 
-        $text = $candidate['content']['parts'][0]['text'] ?? '';
-        if (!is_string($text) || trim($text) === '') {
-            throw new AiInvalidResponseException(__('api.ai_empty'));
-        }
+            $json = $response->json();
+            $candidate = $json['candidates'][0] ?? null;
+            $blockReason = (string) ($json['promptFeedback']['blockReason'] ?? $candidate['finishReason'] ?? '');
+            if (in_array($blockReason, ['SAFETY', 'PROHIBITED_CONTENT', 'BLOCKLIST', 'OTHER'], true)) {
+                Log::warning('[AI] gemini safety block', ['model' => $model, 'reason' => $blockReason]);
+                throw new AiInvalidResponseException(__('api.ai_safety'));
+            }
 
-        return $this->parse($text, (string) ($candidate['finishReason'] ?? ''));
+            $text = $candidate['content']['parts'][0]['text'] ?? '';
+            if (!is_string($text) || trim($text) === '') {
+                throw new AiInvalidResponseException(__('api.ai_empty'));
+            }
+
+            return $this->parse($text, (string) ($candidate['finishReason'] ?? ''));
+        }
     }
 
     private function parse(string $text, string $finishReason = ''): AiResult
@@ -279,8 +296,8 @@ class GeminiAiTextGenerator implements AiTextGeneratorInterface
         return str_contains($lower, 'per day')
             || str_contains($lower, 'perday')
             || str_contains($lower, 'per_day')
-            || str_contains($lower, 'daily')
-            || str_contains($lower, 'generatecontent')
-                && str_contains($lower, 'day');
+            || str_contains($lower, 'daily quota')
+            || str_contains($lower, 'quota exceeded')
+            || (str_contains($lower, 'exceeded') && str_contains($lower, 'day'));
     }
 }

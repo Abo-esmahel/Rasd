@@ -82,7 +82,7 @@ class ReportService
     {
         $report->loadMissing(['author', 'notes']);
         $notes = $report->notes->sortBy(fn ($n) => $n->pivot->order_index ?? 0)->values();
-        $author = $report->author?->name ?? '—';
+        $author = $report->author?->localized_name ?? '—';
         $dateStr = $report->report_date instanceof \DateTimeInterface
             ? $report->report_date->format('Y-m-d')
             : (string) ($report->report_date ?? '—');
@@ -371,7 +371,7 @@ class ReportService
 
     public function getVisibleQuery(User $user)
     {
-        $q = Report::with(['author:id,name'])->withCount('notes');
+        $q = Report::with(['author:id,name,name_en,name_ar'])->withCount('notes');
         if ($user->isReportWriter()) {
             return $q;
         }

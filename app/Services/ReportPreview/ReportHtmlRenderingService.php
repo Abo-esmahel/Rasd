@@ -12,6 +12,8 @@ use InvalidArgumentException;
 
 class ReportHtmlRenderingService
 {
+    private array $systemHashCache = [];
+
     public function __construct(
         private ReportTemplateSelector $selector,
         private ReportDataBuilder $dataBuilder,
@@ -39,6 +41,10 @@ class ReportHtmlRenderingService
 
         $data['observations'] = \App\Services\Report\ReportEngine::normalizeObservations($data['observations'] ?? []);
         $data['recommendations'] = \App\Services\Report\ReportEngine::normalizeText($data['recommendations'] ?? '');
+
+        if (empty($data['observations'])) {
+            throw new InvalidArgumentException(__('api.report_payload_range'));
+        }
 
         $payload = ReportRenderPayload::fromArray([
             'report_number' => (string) $fresh->id,
@@ -81,7 +87,10 @@ class ReportHtmlRenderingService
             $systemHash = $this->systemHash($fresh);
             $payloadJson = $payload->toAiArray();
 
-            return DB::transaction(function () use ($fresh, $selected, $hash, $systemHash, $payloadJson, $payload, $dataVersion, $requestUid) {
+            $renderRow = null;
+            $isCached = false;
+
+            DB::transaction(function () use ($fresh, $selected, $hash, $systemHash, $payloadJson, $payload, $dataVersion, &$renderRow, &$isCached) {
                 $dup = ReportSheetRender::where('report_id', $fresh->id)->where('payload_hash', $hash)->lockForUpdate()->first();
                 if ($dup) {
                     if (empty($dup->payload)) {
@@ -93,8 +102,9 @@ class ReportHtmlRenderingService
                     $this->pointCurrentAt($fresh, $dup);
                     $this->syncRecommendations($fresh, $payload);
                     $this->refreshSystemHash($fresh, $dup);
-
-                    return $this->meta($fresh, $dup->fresh(), $payload, $selected, $dataVersion, true, $requestUid);
+                    $renderRow = $dup->fresh();
+                    $isCached = true;
+                    return;
                 }
 
                 $nextNo = (int) (ReportSheetRender::where('report_id', $fresh->id)->max('generation_no') ?? 0) + 1;
@@ -124,18 +134,32 @@ class ReportHtmlRenderingService
                     $this->pointCurrentAt($fresh, $dup);
                     $this->syncRecommendations($fresh, $payload);
                     $this->refreshSystemHash($fresh, $dup);
-
-                    return $this->meta($fresh, $dup->fresh(), $payload, $selected, $dataVersion, true, $requestUid);
+                    $renderRow = $dup->fresh();
+                    $isCached = true;
+                    return;
                 }
 
                 $this->pointCurrentAt($fresh, $row);
                 $this->syncRecommendations($fresh, $payload);
                 $this->refreshSystemHash($fresh, $row);
-                $row = $row->fresh() ?? $row;
-                Log::info('[HTML-RENDER] generated', ['report_id' => $fresh->id, 'generation_id' => $row->generationId(), 'template' => $selected['key']]);
-
-                return $this->meta($fresh, $row, $payload, $selected, $dataVersion, false, $requestUid);
+                $renderRow = $row->fresh() ?? $row;
+                $isCached = false;
             });
+
+            if ($renderRow === null) {
+                throw new InvalidArgumentException(__('api.render_failed'));
+            }
+
+            if (!$isCached) {
+                Log::info('[HTML-RENDER] generated', ['report_id' => $fresh->id, 'generation_id' => $renderRow->generationId(), 'template' => $selected['key']]);
+                foreach (['ar', 'en'] as $loc) {
+                    Cache::forget("report-html-preview:{$fresh->id}:{$hash}:{$loc}");
+                }
+            } else {
+                Log::info('[HTML-RENDER] cache hit (post-tx)', ['report_id' => $fresh->id, 'generation_id' => $renderRow->generationId()]);
+            }
+
+            return $this->meta($fresh, $renderRow, $payload, $selected, $dataVersion, $isCached, $requestUid);
         } finally {
             try {
                 $lock->release();
@@ -153,18 +177,26 @@ class ReportHtmlRenderingService
 
     public function systemHash(Report $report): string
     {
+        $cacheId = $report->id . ':' . ($report->updated_at?->timestamp ?? '0');
+        if (isset($this->systemHashCache[$cacheId])) {
+            return $this->systemHashCache[$cacheId];
+        }
+
         try {
             $system = $this->dataBuilder->systemData($report->loadMissing(['author', 'notes']));
             $system['observations'] = \App\Services\Report\ReportEngine::normalizeObservations($system['observations']);
             $key = $this->selector->keyForCount(count($system['observations']));
             if ($key === null) {
-                return hash('sha256', json_encode(array_merge($system, ['template' => 'template:none']), JSON_UNESCAPED_UNICODE));
+                $hash = hash('sha256', json_encode(array_merge($system, ['template' => 'template:none']), JSON_UNESCAPED_UNICODE));
+            } else {
+                $hash = ReportRenderPayload::fromArray(array_merge($system, ['template' => $key]))->hash();
             }
-
-            return ReportRenderPayload::fromArray(array_merge($system, ['template' => $key]))->hash();
         } catch (\Throwable $e) {
-            return 'invalid:' . $report->id . ':' . $report->updated_at?->timestamp;
+            $hash = 'invalid:' . $report->id . ':' . $report->updated_at?->timestamp;
         }
+
+        $this->systemHashCache[$cacheId] = $hash;
+        return $hash;
     }
 
     public function htmlState(Report $report): array
@@ -234,42 +266,46 @@ class ReportHtmlRenderingService
         }
         $report->loadMissing(['author']);
 
-        try {
-            $locale = \App\Services\Localization\SourceLanguage::normalizeLocale(app()->getLocale());
-            $observations = array_values($row->payload['observations']);
-            $recommendations = (string) ($row->payload['recommendations'] ?? '');
+        $locale = \App\Services\Localization\SourceLanguage::normalizeLocale(app()->getLocale());
+        $cacheKey = "report-html-preview:{$report->id}:{$row->payload_hash}:{$locale}";
 
-            if ($locale === 'en') {
-                try {
-                    $presenter = app(\App\Services\Localization\LocalizedPresenter::class);
-                    $localized = $presenter->reportPayload($report->id, [
-                        'observations' => $observations,
-                        'recommendations' => $recommendations,
-                    ], 'en');
-                    $observations = $localized['observations'];
-                    $recommendations = $localized['recommendations'];
-                } catch (\Throwable) {
+        return Cache::remember($cacheKey, 3600, function () use ($report, $row, $locale) {
+            try {
+                $observations = array_values($row->payload['observations']);
+                $recommendations = (string) ($row->payload['recommendations'] ?? '');
+
+                if ($locale === 'en') {
+                    try {
+                        $presenter = app(\App\Services\Localization\LocalizedPresenter::class);
+                        $localized = $presenter->reportPayload($report->id, [
+                            'observations' => $observations,
+                            'recommendations' => $recommendations,
+                        ], 'en');
+                        $observations = $localized['observations'];
+                        $recommendations = $localized['recommendations'];
+                    } catch (\Throwable) {
+                    }
                 }
+
+                $doc = app(\App\Services\Report\ReportEngine::class)->build($report, [
+                    'report_number' => (string) ($row->payload['report_number'] ?? $report->id),
+                    'date' => (string) ($row->payload['date'] ?? ($report->report_date ? $report->report_date->toDateString() : '')),
+                    'location' => (string) ($row->payload['location'] ?? ''),
+                    'observations' => $observations,
+                    'recommendations' => $recommendations,
+                ], [
+                    'locale' => $locale,
+                    'generated_at' => $row->updated_at?->format('Y-m-d H:i') ?? '',
+                    'generation_id' => $row->generationId(),
+                ]);
+
+                return view('reports.engine.document', ['doc' => $doc])->render();
+            } catch (\Throwable $e) {
+                Log::warning('[HTML-RENDER] htmlFor failed', ['report_id' => $report->id, 'error' => $e->getMessage()]);
+
+                return null;
             }
-
-            $doc = app(\App\Services\Report\ReportEngine::class)->build($report, [
-                'report_number' => (string) ($row->payload['report_number'] ?? $report->id),
-                'date' => (string) ($row->payload['date'] ?? ($report->report_date ? $report->report_date->toDateString() : '')),
-                'location' => (string) ($row->payload['location'] ?? ''),
-                'observations' => $observations,
-                'recommendations' => $recommendations,
-            ], [
-                'locale' => $locale,
-                'generated_at' => $row->updated_at?->format('Y-m-d H:i') ?? '',
-                'generation_id' => $row->generationId(),
-            ]);
-
-            return view('reports.engine.document', ['doc' => $doc])->render();
-        } catch (\Throwable $e) {
-            Log::warning('[HTML-RENDER] htmlFor failed', ['report_id' => $report->id, 'error' => $e->getMessage()]);
-
-            return null;
-        }
+        });
     }
 
     private function syncRecommendations(Report $report, ReportRenderPayload $payload): void
@@ -318,7 +354,10 @@ class ReportHtmlRenderingService
     /** @return array{generation_id: string, data_version: int, template: string, screen: ?string, preview_url: string, html: string, cached: bool, generated_at: string, request_uid: ?string} */
     private function meta(Report $fresh, ReportSheetRender $row, ReportRenderPayload $payload, array $selected, int $dataVersion, bool $cached, ?string $requestUid): array
     {
-        $this->warmPayloadProjections((int) $fresh->id, $payload);
+        try {
+            $this->warmPayloadProjectionsAsync((int) $fresh->id, $payload);
+        } catch (\Throwable) {
+        }
         $fresh->loadMissing(['author']);
         $generatedAt = $row->updated_at?->format('Y-m-d H:i') ?? '';
         $doc = app(\App\Services\Report\ReportEngine::class)->build($fresh, $payload->toAiArray(), [
@@ -400,5 +439,30 @@ class ReportHtmlRenderingService
             \App\Jobs\WarmTranslationProjection::dispatchAfterResponse('report', $reportId, $fields, $target);
         } catch (\Throwable) {
         }
+    }
+
+    private function warmPayloadProjectionsAsync(int $reportId, ReportRenderPayload $payload): void
+    {
+        $observations = array_values((array) ($payload->observations ?? []));
+        $recommendations = trim((string) ($payload->recommendations ?? ''));
+        if ($observations === [] && $recommendations === '') {
+            return;
+        }
+        $fields = [];
+        foreach (array_slice($observations, 0, 25) as $i => $obs) {
+            $text = trim((string) $obs);
+            if ($text !== '' && mb_strlen($text) <= 5000) {
+                $fields["observation:{$i}"] = $text;
+            }
+        }
+        if ($recommendations !== '' && mb_strlen($recommendations) <= 5000) {
+            $fields['recommendations'] = $recommendations;
+        }
+        if ($fields === []) {
+            return;
+        }
+        $uiLocale = \App\Services\Localization\SourceLanguage::normalizeLocale(app()->getLocale());
+        $target = $uiLocale === 'ar' ? 'en' : 'ar';
+        \App\Jobs\WarmTranslationProjection::dispatchAfterResponse('report', $reportId, $fields, $target);
     }
 }

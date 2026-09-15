@@ -41,7 +41,6 @@
             border-radius: 9999px;
         }
         .profile-identity{
-            /* حجز مساحة الجزء الخارج فقط + فجوة تنفس — فلا يصطدم بالنص ولا يترك فراغاً ضخماً */
             padding-top: calc((var(--avatar-size) * var(--avatar-below)) + var(--hero-gap));
         }
         .profile-total-num{
@@ -59,7 +58,7 @@
             <div class="profile-avatar">
                 @if($user->avatar_url)
                     <button type="button" onclick="openModal('avatar-view-modal')" class="block h-full w-full overflow-hidden rounded-full ring-4 ring-white dark:ring-[#1e2320] shadow-lg hover:opacity-95 transition bg-white p-0 cursor-pointer" aria-label="{{ __('ui.view_full_image') }}">
-                        <img src="{{ $user->avatar_url }}" alt="{{ $user->name }}" class="h-full w-full object-cover">
+                        <img src="{{ $user->avatar_url }}" alt="{{ $user->localized_name }}" class="h-full w-full object-cover">
                     </button>
                 @else
                     <div class="flex h-full w-full items-center justify-center rounded-full ring-4 ring-white dark:ring-[#1e2320] bg-[#dfe9df] text-[#14532d] dark:bg-[#1f6f4a] dark:text-white font-extrabold shadow-lg" style="font-size: calc(var(--avatar-size) * 0.38)" aria-hidden="true">
@@ -71,7 +70,7 @@
         <div class="profile-identity text-start">
             <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                 <div class="min-w-0">
-                    <h1 class="text-[22px] sm:text-2xl font-extrabold text-ink-800 leading-snug truncate">{{ $user->name }}</h1>
+                    <h1 class="text-[22px] sm:text-2xl font-extrabold text-ink-800 leading-snug truncate">{{ $user->localized_name }}</h1>
                     <p class="mt-1 text-[13px] font-bold text-ink-400">{{ $isMonitor ? __('ui.role_monitor') : __('ui.role_writer') }}</p>
                 </div>
                 @if($isOwn ?? true)
@@ -158,7 +157,7 @@
     <div id="avatar-view-modal" data-modal class="hidden fixed inset-0 z-[70] items-center justify-center p-4">
         <div class="absolute inset-0 bg-ink-900/70 backdrop-blur-sm" onclick="closeModal('avatar-view-modal')"></div>
         <div class="relative w-full max-w-lg">
-            <img src="{{ $user->avatar_url }}" alt="{{ $user->name }}" class="w-full max-h-[80vh] object-contain rounded-2xl shadow-2xl border border-white/20 bg-ink-900">
+            <img src="{{ $user->avatar_url }}" alt="{{ $user->localized_name }}" class="w-full max-h-[80vh] object-contain rounded-2xl shadow-2xl border border-white/20 bg-ink-900">
             <button type="button" onclick="closeModal('avatar-view-modal')" aria-label="{{ __('ui.close') }}" class="absolute -top-3 -end-3 w-9 h-9 rounded-full bg-white text-ink-600 shadow-lg flex items-center justify-center hover:text-ink-900 transition">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>

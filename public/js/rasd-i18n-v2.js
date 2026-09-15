@@ -64,6 +64,14 @@
     persistLocal(to);
     updateLabel(to);
 
+    // Instant explicit feedback — spinner appears immediately (no 180ms gap),
+    // and persists across reload so the next page shows it during SSR render.
+    var loadingMsg = to === 'en' ? 'Switching to English…' : 'جاري التبديل إلى العربية…';
+    try {
+      if (window.RASDLoading && window.RASDLoading.showNow) window.RASDLoading.showNow(loadingMsg);
+      else if (window.showLoader) window.showLoader();
+    } catch (e) {}
+
     var origOpacity = '';
     var wasDisabled = false;
     try {
@@ -81,6 +89,14 @@
           btn.disabled = wasDisabled;
           btn.style.opacity = origOpacity;
         }
+      } catch (e) {}
+      try { if (window.RASDLoading && window.RASDLoading.reset) { /* keep persistent loader for reload path */ } } catch (e3) {}
+    }
+
+    function hideLoaderOnError() {
+      try {
+        if (window.RASDLoading && window.RASDLoading.reset) window.RASDLoading.reset();
+        else if (window.hideLoader) window.hideLoader();
       } catch (e) {}
     }
 
@@ -118,12 +134,13 @@
           // But first restore button and allow user to retry
           restoreBtn();
           // If validation error, don't reload automatically; let toast show
-          if (res.status >= 400 && res.status < 500) return;
+          if (res.status >= 400 && res.status < 500) { hideLoaderOnError(); return; }
           // For other errors, fallback to form submit to ensure server sync
           fallbackFormSubmit(to);
         });
       }).catch(function (err) {
         restoreBtn();
+        hideLoaderOnError();
         try {
           if (window.toast) window.toast(err && err.message ? err.message : '');
         } catch (_) {}
@@ -132,6 +149,7 @@
       });
     } catch (e) {
       restoreBtn();
+      hideLoaderOnError();
       fallbackFormSubmit(to);
     }
   }

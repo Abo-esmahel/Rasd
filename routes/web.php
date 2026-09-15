@@ -173,6 +173,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/reports/create', [\App\Http\Controllers\Web\ReportController::class, 'create'])->name('reports.create');
     Route::post('/reports', [\App\Http\Controllers\Web\ReportController::class, 'store'])->name('reports.store');
     Route::get('/report-sheets/{n}', [\App\Http\Controllers\Web\ReportController::class, 'sheet'])->whereNumber('n')->name('report-sheets.image');
+    Route::get('/report-assets/logo', [\App\Http\Controllers\Web\ReportController::class, 'logo'])->name('report.logo');
     Route::get('/reports/{report}', [\App\Http\Controllers\Web\ReportController::class, 'show'])->name('reports.show');
     Route::get('/reports/{report}/edit', [\App\Http\Controllers\Web\ReportController::class, 'edit'])->name('reports.edit');
     Route::put('/reports/{report}', [\App\Http\Controllers\Web\ReportController::class, 'update'])->name('reports.update');
@@ -184,7 +185,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/reports/{report}/reorder', [\App\Http\Controllers\Web\ReportController::class, 'reorder'])->name('reports.reorder');
     Route::post('/reports/{report}/generate', [\App\Http\Controllers\Web\ReportController::class, 'generate'])->name('reports.generate')->middleware('throttle:5,1');
     Route::post('/reports/{report}/generate-data', [\App\Http\Controllers\Web\ReportController::class, 'generateData'])->name('reports.generate-data')->middleware('throttle:5,1');
-    Route::post('/reports/{report}/render', [\App\Http\Controllers\Web\ReportController::class, 'render'])->name('reports.render')->middleware('throttle:3,10');
+    Route::post('/reports/{report}/render', [\App\Http\Controllers\Web\ReportController::class, 'render'])->name('reports.render')->middleware('throttle:10,1');
     Route::post('/reports/{report}/fill-sheet', [\App\Http\Controllers\Web\ReportController::class, 'fillSheet'])->name('reports.fill-sheet')->middleware('throttle:3,10');
     Route::delete('/reports/{report}/fill-sheet', [\App\Http\Controllers\Web\ReportController::class, 'destroyFilledSheet'])->name('reports.fill-sheet.destroy');
     Route::get('/reports/{report}/filled-sheet', [\App\Http\Controllers\Web\ReportController::class, 'filledSheetImage'])->name('reports.filled-sheet.image');

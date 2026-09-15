@@ -9,7 +9,7 @@
         </div>
     </div>
 
-    <div class="bg-white rounded-2xl border border-[#e6e9e1] p-6">
+    <div class="bg-white rounded-2xl border border-[#e6e9e1] p-4 sm:p-6">
         <form method="POST" action="{{ route('general-submissions.store', [], false) }}" enctype="multipart/form-data" class="space-y-5" id="gs-create-form" data-no-loader novalidate>
             @csrf
             <div id="gs-form-errors" class="hidden p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700"></div>
@@ -40,7 +40,7 @@
                             @foreach($writers as $writer)
                                 <label class="flex items-center gap-3 p-3 rounded-xl bg-white border border-[#e6e9e1] hover:border-[#0e6a38] cursor-pointer transition has-[:checked]:border-[#0e6a38] has-[:checked]:bg-[#eef4f0]">
                                     <input type="checkbox" name="report_writer_ids[]" value="{{ $writer->id }}" {{ in_array($writer->id, old('report_writer_ids', [])) ? 'checked' : '' }} class="w-4 h-4 rounded border-[#e6e9e1] text-[#0e6a38] focus:ring-[#0e6a38]">
-                                    <span class="text-sm font-bold text-ink-700">{{ $writer->name }}</span>
+                                    <span class="text-sm font-bold text-ink-700">{{ $writer->localized_name }}</span>
                                     <span class="text-xs text-ink-400 mr-auto">{{ '@' . $writer->username }}</span>
                                 </label>
                             @endforeach
@@ -53,7 +53,7 @@
 
             <div>
                 <label class="block text-sm font-bold text-ink-700 mb-1.5">{{ __('ui.attachments_label') }} <span class="text-ink-300 font-medium text-xs">{{ __('ui.attach_optional_media') }}</span></label>
-                <div class="rounded-xl border-2 border-dashed border-[#e6e9e1] bg-[#f5f7f5] hover:border-[#0e6a38] transition p-5 text-center" id="gs-drop-zone">
+                <div class="rounded-xl border-2 border-dashed border-[#e6e9e1] bg-[#f5f7f5] hover:border-[#0e6a38] transition p-4 sm:p-5 text-center" id="gs-drop-zone">
                     <label for="gs-files" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#0e6a38] text-white font-bold text-sm cursor-pointer hover:bg-[#0a4d28] transition">{{ __('ui.choose_files') }}</label>
                     <button type="button" id="gs-cam-photo-btn" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-white border border-[#e6e9e1] text-ink-700 font-bold text-sm hover:border-[#0e6a38] hover:text-[#0e6a38] transition">📷 {{ __('ui.shoot') }}</button>
                     <button type="button" id="gs-cam-video-btn" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-white border border-[#e6e9e1] text-ink-700 font-bold text-sm hover:border-[#0e6a38] hover:text-[#0e6a38] transition">🎥 {{ __('ui.file_video') }}</button>
@@ -65,9 +65,9 @@
                 @error('files') <p class="text-xs text-red-500 mt-1">{{ $message }}</p> @enderror
             </div>
 
-            <div class="flex gap-3 pt-2">
-                <button type="submit" class="flex-1 py-3 rounded-xl bg-[#0e6a38] hover:bg-[#0a4d28] text-white font-bold text-sm transition">{{ __('ui.send_selected') }}</button>
-                <a href="{{ route('general-submissions.index') }}" class="px-6 py-3 rounded-xl bg-white border border-[#e6e9e1] text-ink-600 font-bold text-sm hover:bg-[#f5f7f5] transition">{{ __('ui.cancel_btn') }}</a>
+            <div class="flex flex-col-reverse sm:flex-row gap-3 pt-2">
+                <a href="{{ route('general-submissions.index') }}" class="w-full sm:w-auto px-6 py-3 rounded-xl bg-white border border-[#e6e9e1] text-ink-600 font-bold text-sm hover:bg-[#f5f7f5] transition text-center">{{ __('ui.cancel_btn') }}</a>
+                <button type="submit" class="w-full sm:flex-1 py-3 rounded-xl bg-[#0e6a38] hover:bg-[#0a4d28] text-white font-bold text-sm transition min-h-[44px]">{{ __('ui.send_selected') }}</button>
             </div>
         </form>
     </div>

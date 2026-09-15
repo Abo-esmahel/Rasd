@@ -16,11 +16,12 @@
 
 <link rel="stylesheet" href="{{ asset('report/css/report-engine.css') }}?v=17">
 <p id="report-l10n-badge" class="hidden text-[12px] font-bold text-[#0e6a38] bg-[#e8f3ec] border border-[#cde7d6] rounded-xl px-3 py-1.5 mb-2 w-fit no-print" role="status"></p>
-<div class="bg-white border border-[#e6e9e1] rounded-2xl p-3 sm:p-5 shadow-sm overflow-x-auto" data-report-id="{{ $report->id }}">
-    <div class="report-preview" id="report-export-doc">
+<div class="bg-white border border-[#e6e9e1] rounded-2xl p-3 sm:p-5 shadow-sm overflow-x-auto" data-report-id="{{ $report->id }}" data-paper-fit>
+    <div class="report-preview" id="report-export-doc" data-paper-fit-inner>
         {!! $html !!}
     </div>
 </div>
+@include('reports.partials.paper_fit')
 
 <style>
 .report, .report * { font-family: 'ReportNaskh', 'ReportBody', 'Traditional Arabic', 'Simplified Arabic', serif !important; }
@@ -37,7 +38,7 @@
        media that floor + flex fragmentation ejects blank sheets. */
     body { background: #fff !important; margin: 0 !important; padding: 0 !important; max-width: none !important; width: auto !important; display: block !important; min-height: auto !important; }
     html.dark body { background: #fff !important; color: #1c1a15 !important; }
-    #main-content, main { background: none !important; padding: 0 !important; margin: 0 !important; min-height: auto !important; max-width: none !important; width: auto !important; }
+    #main-content, main { background: none !important; padding: 0 !important; margin: 0 !important; min-height: auto !important; max-width: none !important; width: auto !important; overflow: visible !important; }
     /* Screen card chrome around the sheet (border/padding/overflow-x)
        must not enter paged media: it offsets the sheet and its
        non-visible overflow breaks fragmentation into extra sheets. */

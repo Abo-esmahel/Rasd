@@ -49,7 +49,7 @@
         <a href="{{ route('profile.showUser', $top->id) }}" class="block bg-white rounded-2xl border border-sage-200 overflow-hidden mb-5 hover:border-sage-300 transition group">
             <div class="px-5 py-4 flex items-center gap-4">
                 @if($top->avatar_url)
-                    <img src="{{ $top->avatar_url }}" alt="{{ $top->name }}" class="w-12 h-12 rounded-full object-cover border-2 border-sage-200 shrink-0">
+                    <img src="{{ $top->avatar_url }}" alt="{{ $top->localized_name }}" class="w-12 h-12 rounded-full object-cover border-2 border-sage-200 shrink-0">
                 @else
                     <div class="w-12 h-12 rounded-full bg-sage-600 text-white flex items-center justify-center text-lg font-extrabold shrink-0">{{ $top->initial }}</div>
                 @endif
@@ -59,7 +59,7 @@
                             <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path d="M10 1l2.4 4.9 5.4.8-3.9 3.8.9 5.4L10 13.4 5.2 15.9l.9-5.4L2.2 6.7l5.4-.8L10 1z"/></svg>
                             {{ __('ui.rank_first') }}
                         </span>
-                        <span class="text-[15px] font-extrabold text-ink-800 truncate group-hover:text-sage-700 transition">{{ $top->name }}</span>
+                        <span class="text-[15px] font-extrabold text-ink-800 truncate group-hover:text-sage-700 transition">{{ $top->localized_name }}</span>
                     </div>
                     <div class="mt-1 text-xs text-ink-400 truncate" dir="ltr">{{ '@' . $top->username }}</div>
                 </div>
@@ -96,13 +96,13 @@
                         <span class="w-7 h-7 rounded-lg flex items-center justify-center text-[13px] font-extrabold tabular-nums shrink-0 border {{ $isTopThree ? 'bg-sage-50 text-sage-700 border-sage-200' : 'bg-white text-ink-400 border-surface-300' }}">{{ $index + 1 }}</span>
 
                         @if($monitor->avatar_url)
-                            <img src="{{ $monitor->avatar_url }}" alt="{{ $monitor->name }}" class="w-10 h-10 rounded-full object-cover border border-surface-300 shrink-0">
+                            <img src="{{ $monitor->avatar_url }}" alt="{{ $monitor->localized_name }}" class="w-10 h-10 rounded-full object-cover border border-surface-300 shrink-0">
                         @else
                             <div class="w-10 h-10 rounded-full bg-surface-100 border border-surface-300 text-ink-600 flex items-center justify-center font-extrabold shrink-0">{{ $monitor->initial }}</div>
                         @endif
 
                         <div class="flex-1 min-w-0">
-                            <div class="text-sm font-bold text-ink-800 truncate group-hover:text-sage-700 transition">{{ $monitor->name }}</div>
+                            <div class="text-sm font-bold text-ink-800 truncate group-hover:text-sage-700 transition">{{ $monitor->localized_name }}</div>
                             <div class="mt-1 flex items-center gap-2 min-w-0">
                                 <div class="flex-1 h-1 rounded-full bg-surface-100 overflow-hidden min-w-[40px] max-w-[160px]">
                                     <div class="h-full rounded-full bg-sage-500" style="width: {{ $rate }}%"></div>

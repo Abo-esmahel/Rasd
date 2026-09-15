@@ -53,7 +53,12 @@ class TranslationWarmObserver
                         if ($targetFields === []) continue;
                     } catch (\Throwable) {}
                 }
-                WarmTranslationProjection::dispatchAfterResponse($type, $id, $targetFields, $target);
+                // Use sync afterResponse so it runs immediately after HTTP response (no queue worker needed) but doesn't block the request
+                try {
+                    WarmTranslationProjection::dispatchAfterResponse($type, $id, $targetFields, $target)->onConnection('sync');
+                } catch (\Throwable) {
+                    WarmTranslationProjection::dispatch($type, $id, $targetFields, $target)->onConnection('sync');
+                }
             }
         } catch (\Throwable $e) {
             Log::warning('[L10N] warm dispatch skipped', [

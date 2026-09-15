@@ -27,6 +27,17 @@ class GeminiTranslationProvider implements TranslationProviderInterface
         if (trim((string) config('ai.gemini.api_key', '')) === '') {
             throw new \RuntimeException('AI translation is not configured.');
         }
+
+        // If quota was exhausted recently, skip the API call entirely (avoids wasted 1-2s latency per request)
+        $quotaKey = 'gemini:quota:exhausted';
+        try {
+            if (\Illuminate\Support\Facades\Cache::get($quotaKey)) {
+                Log::info('[L10N] quota exhausted, skipping API call', ['dir' => "{$sourceLang}->{$targetLang}"]);
+                return [];
+            }
+        } catch (\Throwable) {
+        }
+
         if (!in_array($sourceLang, ['ar', 'en'], true) || !in_array($targetLang, ['ar', 'en'], true)) {
             throw new \InvalidArgumentException('Unsupported translation direction.');
         }
@@ -72,12 +83,33 @@ class GeminiTranslationProvider implements TranslationProviderInterface
 
         try {
             $result = $this->generator->generate($system, $user);
+        } catch (\App\Exceptions\Ai\AiRateLimitException $e) {
+            $msg = strtolower($e->getMessage());
+            $isDaily = str_contains($msg, 'exceeded') || str_contains($msg, 'daily') || str_contains($msg, 'quota');
+            Log::warning('[L10N] provider rate limited', [
+                'provider' => $this->name(),
+                'model' => (string) config('ai.gemini.model', 'gemini-3.5-flash'),
+                'dir' => "{$sourceLang}->{$targetLang}",
+                'count' => count($payloadItems),
+                'is_daily' => $isDaily,
+                'error' => mb_substr($e->getMessage(), 0, 200),
+            ]);
+            if ($isDaily) {
+                // Cache the quota exhaustion for 6 hours — don't retry until quota resets
+                try {
+                    \Illuminate\Support\Facades\Cache::put('gemini:quota:exhausted', true, now()->addHours(6));
+                } catch (\Throwable) {
+                }
+                return [];
+            }
+            throw $e;
         } catch (\Throwable $e) {
             Log::warning('[L10N] provider batch failed', [
                 'provider' => $this->name(),
+                'model' => (string) config('ai.gemini.model', 'gemini-3.5-flash'),
                 'dir' => "{$sourceLang}->{$targetLang}",
                 'count' => count($payloadItems),
-                'error' => get_class($e).': '.mb_substr($e->getMessage(), 0, 200),
+                'error' => get_class($e).': '.mb_substr($e->getMessage(), 0, 300),
             ]);
             throw $e;
         }
@@ -85,6 +117,7 @@ class GeminiTranslationProvider implements TranslationProviderInterface
         $raw = $result->raw !== '' ? $result->raw : $result->body;
         $decoded = $this->extractJson($raw);
         if (!is_array($decoded) || !isset($decoded['translations']) || !is_array($decoded['translations'])) {
+            Log::warning('[L10N] provider invalid response', ['dir' => "{$sourceLang}->{$targetLang}", 'raw' => mb_substr($raw, 0, 300)]);
             throw new \RuntimeException('Invalid translation provider response.');
         }
 

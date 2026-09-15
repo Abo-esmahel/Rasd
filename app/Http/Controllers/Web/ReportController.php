@@ -104,8 +104,7 @@ class ReportController extends Controller
     public function show(Request $request, Report $report, \App\Services\Localization\LocalizedPresenter $presenter)
     {
         $this->authorize('view', $report);
-        $report->loadMissing(['author:id,name', 'notes.attachments:id,note_id,mime_type,file_size', 'notes.owner:id,name', 'revisions.editor:id,name']);
-        // Batch preload in ONE go (report + notes) — single resolveStoredMany instead of two
+        $report->loadMissing(['author:id,name,name_en,name_ar', 'notes.attachments:id,note_id,mime_type,file_size', 'notes.owner:id,name,name_en,name_ar', 'revisions.editor:id,name,name_en,name_ar']);
         try {
             $allNotes = $report->notes;
             $refs = [];
@@ -173,22 +172,11 @@ class ReportController extends Controller
         }
 
         $renderError = null;
-        if ($viewerIsOwner && $report->isDraft() && $expectedTemplate !== null && $sheetImageState === 'none') {
-            try {
-                $rendering->renderSystem($request->user(), $report);
-                $report->refresh();
-                $report->loadMissing(['author:id,name', 'notes.attachments:id,note_id,mime_type,file_size', 'notes.owner:id,name', 'revisions.editor:id,name']);
-                $systemData = $dataBuilder->systemData($report);
-                $imageState = $rendering->htmlState($report);
-                $sheetImageState = $imageState['state'];
-                $latestRender = $imageState['render'];
-                $hasFilled = $fill->hasFilled($report);
-                $fillStale = $hasFilled ? $fill->isStale($report) : false;
-            } catch (\Throwable $e) {
-                \Illuminate\Support\Facades\Log::error('[HTML-RENDER] auto render failed', ['report_id' => $report->id, 'error' => $e->getMessage()]);
-                $renderError = 'تعذّر إنشاء المعاينة تلقائياً — استخدم زر «اعتماد التقرير» أدناه، وإن تكرر أبلغ الإدارة التقنية.';
-            }
-        }
+        $autoRenderHtml = null;
+        // Fast open: NEVER render synchronously here (was blocking TTFB 500-2000ms with
+        // DB transaction + view build). The page returns instantly with the sheet
+        // placeholder; frontend auto-renders async via POST render (see show.blade.php).
+        $needsAutoRender = $viewerIsOwner && $report->isDraft() && $expectedTemplate !== null && $sheetImageState === 'none';
 
         try {
             $latestPayload = $rendering->latestPayloadForEditor($report);
@@ -205,32 +193,27 @@ class ReportController extends Controller
             }
         }
 
-        // HTML preview — single htmlFor, localized via same payload (no double latestPayload)
-        try {
-            $htmlPreview = $rendering->htmlFor($report, $latestRender);
-            if ($currentLocale === 'en' && $htmlPreview) {
-                try {
-                    $srcForPreview = $latestPayload ?? $systemData;
-                    $loc = $presenter->reportPayload($report->id, $srcForPreview, 'en');
-                    $docLoc = app(\App\Services\Report\ReportEngine::class)->build($report, [
-                        'report_number' => (string) $report->id,
-                        'date' => $report->report_date ? $report->report_date->toDateString() : '',
-                        'location' => (string) ($srcForPreview['location'] ?? ''),
-                        'observations' => $loc['observations'],
-                        'recommendations' => $loc['recommendations'],
-                    ], ['locale' => 'en', 'generated_at' => '', 'generation_id' => 'show-preview']);
-                    $htmlPreview = view('reports.engine.document', ['doc' => $docLoc])->render();
-                } catch (\Throwable $inner) {
-                    \Illuminate\Support\Facades\Log::warning('[L10N] show preview localization fallback', ['report_id' => $report->id]);
-                }
+        // HTML preview — build from render row (cached 3600s). Skipped when an
+        // auto-render is still pending (no row exists yet — async JS will fill it).
+        $htmlPreview = null;
+        if (!$needsAutoRender) {
+            try {
+                $htmlPreview = $rendering->htmlFor($report, $latestRender);
+            } catch (\Throwable) {
+                $htmlPreview = null;
             }
-        } catch (\Throwable) {
-            $htmlPreview = null;
         }
 
-        $canPrint = $this->isApprovedPublishedFromState($report, $imageState);
+        // canPrint from already-computed state — no second htmlState query.
+        $canPrint = in_array($sheetImageState, ['system', 'custom'], true);
+        if (!$canPrint && $report->isPublished()) {
+            $n = $report->notes->count();
+            if ($n > (int) config('report_sheets.max_notes', 7) && trim((string) $report->content) !== '') {
+                $canPrint = true;
+            }
+        }
 
-        return view('reports.show', compact('report', 'candidates', 'candidatesTruncated', 'preview', 'sheet', 'shCfg', 'shImg', 'shNotes', 'hasFilled', 'fillStale', 'canFill', 'fillBlockReason', 'systemData', 'editorData', 'expectedTemplate', 'sheetImageState', 'latestRender', 'renderError', 'aiDataEnabled', 'htmlPreview', 'canPrint'));
+        return view('reports.show', compact('report', 'candidates', 'candidatesTruncated', 'preview', 'sheet', 'shCfg', 'shImg', 'shNotes', 'hasFilled', 'fillStale', 'canFill', 'fillBlockReason', 'systemData', 'editorData', 'expectedTemplate', 'sheetImageState', 'latestRender', 'renderError', 'aiDataEnabled', 'htmlPreview', 'canPrint', 'needsAutoRender'));
     }
 
     private function isApprovedPublishedFromState(Report $report, array $imageState): bool
@@ -754,6 +737,19 @@ class ReportController extends Controller
         }
 
         return view('reports.sheet_page', compact('report', 'html'));
+    }
+
+    public function logo()
+    {
+        $path = public_path('report/assets/logo-report.png');
+        if (!is_file($path)) {
+            abort(404);
+        }
+
+        return response()->file($path, [
+            'Content-Type' => 'image/png',
+            'Cache-Control' => 'public, max-age=604800, immutable',
+        ]);
     }
 
     public function sheet(Request $request, int $n)

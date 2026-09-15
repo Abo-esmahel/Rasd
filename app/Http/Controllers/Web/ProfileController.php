@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\Localization\NameTransliterationService;
 use App\Support\SyrianPhone;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -112,6 +113,15 @@ class ProfileController extends Controller
         $user->name = $validated['name'];
         $user->username = $validated['username'];
         $user->personal_number = $normalized;
+
+        $translit = app(NameTransliterationService::class);
+        if ($translit->isArabic($validated['name'])) {
+            $user->name_ar = $validated['name'];
+            $user->name_en = $translit->generateLatinName($validated['name']);
+        } else {
+            $user->name_en = $validated['name'];
+            $user->name_ar = $translit->generateArabicName($validated['name']);
+        }
         if ($request->boolean('remove_avatar') && $user->avatar_path) {
             try {
                 if (\Illuminate\Support\Facades\Storage::disk('public')->exists($user->avatar_path)) {

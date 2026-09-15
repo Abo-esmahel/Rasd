@@ -109,9 +109,12 @@
         {{-- The official engine document — byte-identical HTML and identical
              shell/CSS as the show-page preview. No banners here: approval
              state is gated on the report page itself. --}}
-        <div class="report-preview" id="sheet-page">
+        <div class="report-preview" id="sheet-page" data-paper-fit>
+            <div data-paper-fit-inner>
             {!! $htmlPreview !!}
+            </div>
         </div>
+        @include('reports.partials.paper_fit')
 @elseif($report->notes->count() > (int) config('report_sheets.max_notes', 7))
 <div style="display:flex;justify-content:center;padding:0 12px;"><div class="sheet-note">{{ __('ui.rpt_overflow_note', ['n' => $report->notes->count()]) }}</div></div>
 @elseif($report->notes->count() === 0)
@@ -141,7 +144,7 @@
     data-tpl="0"
     data-printed="{{ now()->format('Y-m-d H:i') }}"
     data-emblem="{{ asset('images/eagle-emblem.svg') }}"></div>
-<pre id="src-meta" style="display:none;">تاريخ التقرير|{{ $report->report_date->toDateString() }}|رقم التقرير|{{ $report->id }}|الكاتب|{{ $report->author->name ?? '—' }}|تاريخ النشر|{{ $report->published_at?->format('Y-m-d H:i') ?? '—' }}</pre>
+<pre id="src-meta" style="display:none;">تاريخ التقرير|{{ $report->report_date->toDateString() }}|رقم التقرير|{{ $report->id }}|الكاتب|{{ $report->author->localized_name ?? '—' }}|تاريخ النشر|{{ $report->published_at?->format('Y-m-d H:i') ?? '—' }}</pre>
 <pre id="src-content" style="display:none;">{{ $report->content }}</pre>
 
 <script>

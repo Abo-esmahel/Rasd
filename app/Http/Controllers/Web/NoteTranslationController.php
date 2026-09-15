@@ -99,9 +99,11 @@ class NoteTranslationController extends Controller
         }
 
         try {
-            WarmTranslationProjection::dispatch('note', $note->id, $missing, $locale);
+            // Async warm (after response) — never block the request on Gemini (2-15s).
+            WarmTranslationProjection::dispatchAfterResponse('note', $note->id, $missing, $locale);
         } catch (\Throwable $e) {
             Log::warning('[L10N] note retry dispatch failed', ['note_id' => $note->id]);
+            try { WarmTranslationProjection::dispatch('note', $note->id, $missing, $locale); } catch (\Throwable) {}
         }
 
         $wantsJson = $request->expectsJson() || $request->ajax() || $request->wantsJson();

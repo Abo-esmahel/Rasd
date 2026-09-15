@@ -37,7 +37,10 @@ class NoteController extends Controller
         $query = $this->noteService->getVisibleNotesQuery($user);
 
         if ($request->filled('status') && in_array($request->status, ['draft','pending','accepted','rejected'], true)) {
-            $query->where('status', $request->status);
+            $query->where('notes.status', $request->status);
+        } else {
+            // قسم "الكل" يجب ألا يعرض المسودات — المسودات لها تبويب مستقل
+            $query->where('notes.status', '!=', Note::STATUS_DRAFT);
         }
         if ($request->filled('date') && strtotime($request->date) !== false) {
             $query->whereDate('observed_at', $request->date);
@@ -69,7 +72,7 @@ class NoteController extends Controller
         } catch (\Throwable) {
         }
 
-        $observers = \Illuminate\Support\Facades\Cache::remember('observers_list', 3600, fn () => User::where('role', 'monitor')->orderBy('name')->get(['id', 'name'])->map(fn ($u) => ['id' => $u->id, 'name' => $u->name])->all());
+        $observers = \Illuminate\Support\Facades\Cache::remember('observers_list', 3600, fn () => User::where('role', 'monitor')->orderBy('name')->get(['id', 'name', 'name_en', 'name_ar'])->map(fn ($u) => ['id' => $u->id, 'name' => $u->localized_name])->all());
 
         $observerUser = null;
         if ($request->filled('observer')) {
@@ -82,10 +85,13 @@ class NoteController extends Controller
     public function myNotes(Request $request, LocalizedPresenter $presenter)
     {
         $user = $request->user();
-        $query = Note::with(['owner:id,name,avatar_path', 'processor:id,name'])->withCount('attachments')->where('user_id', $user->id)->whereNull('notes.general_submission_id');
+        $query = Note::with(['owner:id,name,name_en,name_ar,avatar_path', 'processor:id,name,name_en,name_ar'])->withCount('attachments')->where('user_id', $user->id)->whereNull('notes.general_submission_id');
 
         if ($request->filled('status') && in_array($request->status, ['draft','pending','accepted','rejected'], true)) {
             $query->where('status', $request->status);
+        } else {
+            // قسم "الكل" يجب ألا يعرض المسودات — المسودات لها تبويب مستقل (حتى في ملاحظاتي)
+            $query->where('status', '!=', Note::STATUS_DRAFT);
         }
         if ($request->filled('date') && strtotime($request->date) !== false) {
             $query->whereDate('observed_at', $request->date);
@@ -195,6 +201,14 @@ class NoteController extends Controller
             return redirect()->route('notes.create')->withInput()->withErrors([
                 'files' => __('api.note_attach_batch_failed').': '.implode(' | ', $this->flattenErrors($e->attachmentErrors)),
             ]);
+        } catch (\InvalidArgumentException $e) {
+            $msg = $e->getMessage();
+            $field = str_contains($msg, 'انتهاء') ? 'observed_end_at' : 'observed_at';
+            Log::warning('[NOTE] time validation failed', ['request_id'=>$reqId,'field'=>$field,'message'=>$msg,'observed_at'=>$request->input('observed_at'),'observed_end_at'=>$request->input('observed_end_at')]);
+            if ($this->wantsJsonResponse($request)) {
+                return response()->json(['message'=>$msg,'errors'=>[$field=>[$msg]],'success'=>false,'attachment_errors'=>[$msg]], 422);
+            }
+            return redirect()->route('notes.create')->withInput()->withErrors([$field => $msg]);
         } catch (\Throwable $e) {
             Log::error('Note creation failed', ['request_id' => $reqId, 'error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
             if ($this->wantsJsonResponse($request)) {
@@ -218,14 +232,29 @@ class NoteController extends Controller
         }
 
         if ($this->wantsJsonResponse($request)) {
+            $note = $note->fresh(['owner', 'attachments']);
+            // المسودة مخفية من قسم "الكل" — وجّه صاحبها لمكان يراها فيه فوراً
+            $redirect = $note->isDraft()
+                ? route('notes.my', ['status' => 'draft'])
+                : route('notes.index');
+
             return response()->json([
                 'success' => true,
                 'note_id' => $note->id,
+                'status' => $note->status,
+                'message' => __('api.note_web_created'),
+                'redirect' => $redirect,
                 'files_received' => $filesReceived,
                 'attachments_saved' => $attachmentsSaved,
                 'data' => $note->load(['owner', 'attachments']),
                 'attachment_errors' => [],
             ], 201);
+        }
+
+        $note = $note->fresh(['owner', 'attachments']);
+        // المسودة لا تظهر في notes.index (يستبعد المسودات افتراضياً) — لذا نوجّه لتبويب المسودات
+        if ($note->isDraft()) {
+            return redirect()->route('notes.my', ['status' => 'draft'])->with('success', __('api.note_web_created'));
         }
 
         return redirect()->route('notes.index')->with('success', __('api.note_web_created'));
@@ -318,6 +347,14 @@ class NoteController extends Controller
             return redirect()->route('notes.edit', $note)->withInput()->withErrors([
                 'files' => __('api.note_attach_batch_failed_edit').': '.implode(' | ', $this->flattenErrors($e->attachmentErrors)),
             ]);
+        } catch (\InvalidArgumentException $e) {
+            $msg = $e->getMessage();
+            $field = str_contains($msg, 'انتهاء') ? 'observed_end_at' : 'observed_at';
+            Log::warning('[NOTE] time validation failed (update)', ['note_id'=>$note->id,'field'=>$field,'message'=>$msg,'observed_at'=>$request->input('observed_at'),'observed_end_at'=>$request->input('observed_end_at')]);
+            if ($this->wantsJsonResponse($request)) {
+                return response()->json(['message'=>$msg,'errors'=>[$field=>[$msg]],'success'=>false,'attachment_errors'=>[$msg]], 422);
+            }
+            return redirect()->route('notes.edit', $note)->withInput()->withErrors([$field => $msg]);
         } catch (\Throwable $e) {
             Log::error('Note update failed', ['note_id' => $note->id, 'error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
             if ($this->wantsJsonResponse($request)) {
@@ -328,14 +365,27 @@ class NoteController extends Controller
         }
 
         if ($this->wantsJsonResponse($request)) {
+            $freshNote = $result['note']->fresh(['owner', 'attachments']);
+            $redirect = $freshNote && $freshNote->isDraft()
+                ? route('notes.my', ['status' => 'draft'])
+                : route('notes.index');
+
             return response()->json([
                 'success' => true,
                 'note_id' => $result['note']->id,
+                'status' => $freshNote->status ?? $result['note']->status,
+                'message' => __('api.note_updated'),
+                'redirect' => $redirect,
                 'files_received' => $result['files_received'],
                 'attachments_saved' => $result['new_saved'],
                 'data' => $result['note']->load(['owner', 'attachments']),
                 'attachment_errors' => [],
             ]);
+        }
+
+        $freshAfterUpdate = $result['note']->fresh();
+        if ($freshAfterUpdate && $freshAfterUpdate->isDraft()) {
+            return redirect()->route('notes.my', ['status' => 'draft'])->with('success', __('api.note_updated'));
         }
 
         return redirect()->route('notes.index')->with('success', __('api.note_updated'));

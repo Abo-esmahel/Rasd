@@ -1,10 +1,11 @@
 (function () {
     'use strict';
 
-    var SHOW_DELAY_NAV = 70;
-    var SHOW_DELAY_NET = 180;
+    // Fast + explicit loader: nav shows almost instantly, net shows quickly.
+    var SHOW_DELAY_NAV = 15;
+    var SHOW_DELAY_NET = 60;
     var MIN_VISIBLE = 220;
-    var MAX_VISIBLE = 12000;
+    var MAX_VISIBLE = 15000;
     var REDUCED = false;
 
     try { REDUCED = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) {}
@@ -25,8 +26,11 @@
     var shownAt = 0;
     var visible = false;
     var maxTimer = null;
+    var currentMessage = null;
 
     function el() { return document.getElementById('page-loader'); }
+
+    function labelEl() { return document.getElementById('rasd-loader-text'); }
 
     function isExcluded(url) {
         if (!url) return true;
@@ -37,50 +41,127 @@
         return false;
     }
 
-    function paint() {
+    function setMessage(msg) {
+        currentMessage = msg || null;
+        var lab = labelEl();
+        if (lab && msg) {
+            // Keep dots animation span if present
+            var dots = lab.querySelector ? lab.querySelector('.rasd-loader-dots') : null;
+            try {
+                lab.childNodes[0].nodeValue = String(msg);
+            } catch (e) {
+                lab.textContent = String(msg);
+                if (dots) lab.appendChild(dots);
+                return;
+            }
+            if (!dots) {
+                // label structure: text node + dots span (server-rendered). If missing, append.
+                var s = document.createElement('span');
+                s.className = 'rasd-loader-dots';
+                s.setAttribute('aria-hidden', 'true');
+                lab.appendChild(s);
+            }
+        }
+        try {
+            if (msg) sessionStorage.setItem('rasd_loader_msg', String(msg).slice(0, 80));
+        } catch (e) {}
+    }
+
+    function clearPersistedMessage() {
+        try { sessionStorage.removeItem('rasd_loader_msg'); } catch (e) {}
+        try { sessionStorage.removeItem('rasd_loader_on'); } catch (e) {}
+    }
+
+    function paint(blocking) {
         var loader = el();
         if (!loader) return;
         try { loader.style.animation = 'none'; } catch (e) {}
         loader.classList.remove('hidden');
+        // Force reflow so transition runs even on fast nav
+        try { void loader.offsetWidth; } catch (e) {}
         loader.style.display = '';
         loader.style.opacity = '';
         loader.style.visibility = '';
-        loader.style.pointerEvents = 'none';
-        requestAnimationFrame(function () {
-            requestAnimationFrame(function () {
-                loader.classList.add('is-visible');
-                loader.setAttribute('aria-hidden', 'false');
-            });
-        });
+        if (blocking) {
+            loader.classList.add('is-blocking');
+            loader.style.pointerEvents = 'auto';
+        } else {
+            loader.style.pointerEvents = 'none';
+        }
+        // Show synchronously for instant feedback (no double-rAF delay on showNow path)
+        loader.classList.add('is-visible');
+        loader.setAttribute('aria-hidden', 'false');
+        try { document.body.setAttribute('aria-busy', 'true'); } catch (e) {}
     }
 
     function unpaint() {
         var loader = el();
         if (!loader) return;
         loader.classList.remove('is-visible');
+        loader.classList.remove('is-blocking');
         loader.setAttribute('aria-hidden', 'true');
+        try { document.body.removeAttribute('aria-busy'); } catch (e) {}
+        clearPersistedMessage();
+        currentMessage = null;
         setTimeout(function () {
-            if (!visible && pending <= 0) loader.classList.add('hidden');
+            if (!visible && pending <= 0) {
+                loader.classList.add('hidden');
+                loader.style.pointerEvents = 'none';
+            }
         }, 240);
     }
 
-    function scheduleShow(delay) {
+    function scheduleShow(delay, blocking) {
         if (visible || showTimer) return;
+        if (delay <= 0) {
+            visible = true;
+            shownAt = Date.now();
+            paint(blocking);
+            try { document.dispatchEvent(new CustomEvent('rasd:loading-show')); } catch (e) {}
+            clearTimeout(maxTimer);
+            maxTimer = setTimeout(reset, MAX_VISIBLE);
+            return;
+        }
         showTimer = setTimeout(function () {
             showTimer = null;
             if (pending <= 0 || document.hidden) return;
             visible = true;
             shownAt = Date.now();
-            paint();
+            paint(blocking);
             try { document.dispatchEvent(new CustomEvent('rasd:loading-show')); } catch (e) {}
             clearTimeout(maxTimer);
             maxTimer = setTimeout(reset, MAX_VISIBLE);
         }, REDUCED ? Math.min(delay, 60) : delay);
     }
 
-    function begin(kind) {
+    function begin(kind, opts) {
         pending++;
-        scheduleShow(kind === 'nav' ? SHOW_DELAY_NAV : SHOW_DELAY_NET);
+        var blocking = !!(opts && opts.blocking);
+        var msg = opts && opts.message ? opts.message : null;
+        if (msg) setMessage(msg);
+        scheduleShow(kind === 'nav' ? SHOW_DELAY_NAV : SHOW_DELAY_NET, blocking || kind === 'nav');
+        return pending;
+    }
+
+    // Immediate, explicit show — used for language switch & report open.
+    // Persists across reload so the NEXT page shows the spinner instantly (no white gap).
+    function showNow(msg) {
+        if (msg) setMessage(msg);
+        try { sessionStorage.setItem('rasd_loader_on', '1'); } catch (e) {}
+        pending++;
+        clearTimeout(showTimer);
+        showTimer = null;
+        if (!visible) {
+            visible = true;
+            shownAt = Date.now();
+            paint(true);
+            try { document.dispatchEvent(new CustomEvent('rasd:loading-show')); } catch (e) {}
+            clearTimeout(maxTimer);
+            maxTimer = setTimeout(reset, MAX_VISIBLE);
+        } else {
+            paint(true);
+            if (msg) setMessage(msg);
+        }
         return pending;
     }
 
@@ -99,6 +180,8 @@
                     unpaint();
                 }
                 try { document.dispatchEvent(new CustomEvent('rasd:loading-hide')); } catch (e) {}
+            } else {
+                clearPersistedMessage();
             }
         }
     }
@@ -113,8 +196,22 @@
             unpaint();
         } else {
             var loader = el();
-            if (loader) loader.classList.add('hidden');
+            if (loader) {
+                loader.classList.add('hidden');
+                loader.classList.remove('is-blocking');
+            }
+            clearPersistedMessage();
         }
+    }
+
+    function defaultNavMessage(href) {
+        try {
+            var h = String(href || '');
+            if (h.indexOf('/reports/') !== -1 && h.match(/\/reports\/\d+/)) return document.documentElement.getAttribute('lang') === 'en' ? 'Opening report…' : 'جاري فتح التقرير…';
+            if (h.indexOf('/reports') !== -1) return document.documentElement.getAttribute('lang') === 'en' ? 'Loading reports…' : 'جاري تحميل التقارير…';
+            if (h.indexOf('/notes') !== -1) return document.documentElement.getAttribute('lang') === 'en' ? 'Loading…' : 'جاري التحميل…';
+        } catch (e) {}
+        return null;
     }
 
     try {
@@ -173,6 +270,12 @@
             if (a.closest('[data-no-loader]')) return;
             var low = href.toLowerCase();
             if (low.indexOf('mailto:') === 0 || low.indexOf('tel:') === 0) return;
+            // Instant explicit feedback for report links (the slowest pages)
+            var msg = defaultNavMessage(href);
+            if (msg) {
+                showNow(msg);
+                return;
+            }
             setTimeout(function () { if (!e.defaultPrevented) begin('nav'); }, 0);
         } catch (err) {}
     }, { passive: true });
@@ -186,16 +289,61 @@
         } catch (err) {}
     }, { passive: true });
 
-    window.addEventListener('load', reset);
-    window.addEventListener('pageshow', reset);
+    // If previous page requested a persistent loader (locale switch / report nav),
+    // show it the moment this page's loader element exists.
+    function restorePersisted() {
+        try {
+            var on = sessionStorage.getItem('rasd_loader_on') === '1';
+            if (!on) return;
+            var msg = sessionStorage.getItem('rasd_loader_msg') || null;
+            var loader = el();
+            if (!loader) return;
+            if (msg) {
+                var lab = labelEl();
+                if (lab) {
+                    try {
+                        lab.childNodes[0].nodeValue = String(msg);
+                    } catch (e2) {
+                        lab.textContent = String(msg);
+                    }
+                }
+            }
+            pending = Math.max(pending, 1);
+            visible = true;
+            shownAt = Date.now();
+            paint(true);
+        } catch (e) {}
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function () {
+            restorePersisted();
+            // Safety: never trap the user behind the spinner
+            setTimeout(function () { if (pending <= 0 && visible) { visible = false; unpaint(); } }, 4000);
+        });
+    } else {
+        restorePersisted();
+    }
+
+    window.addEventListener('load', function () {
+        // New page finished: hide persisted loader shortly after paint
+        setTimeout(reset, 120);
+    });
+    window.addEventListener('pageshow', function (ev) {
+        if (ev && ev.persisted) { reset(); return; }
+        // bfcache or normal: ensure no stale spinner
+        setTimeout(function () { if (pending <= 0) reset(); }, 150);
+    });
     window.addEventListener('error', function () { if (pending <= 0) reset(); }, true);
 
     window.RASDLoading = {
-        show: function () { begin('net'); },
+        show: function (msg) { if (msg) return showNow(msg); begin('net'); },
+        showNow: showNow,
         hide: end,
         begin: begin,
         end: end,
         reset: reset,
+        setMessage: setMessage,
         track: function (promise) {
             begin('net');
             if (promise && typeof promise.finally === 'function') promise.finally(end);

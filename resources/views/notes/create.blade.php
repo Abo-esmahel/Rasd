@@ -1,21 +1,21 @@
 ﻿@extends('layouts.app')
 
 @section('content')
-<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
-    <div class="flex items-center gap-3">
-        <a href="{{ route('notes.index') }}" class="w-9 h-9 rounded-lg bg-white border border-[#e6e9e1] flex items-center justify-center text-ink-400 hover:text-ink-700 hover:bg-[#f5f7f5] transition" aria-label="{{ __('ui.back_aria') }}">
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 mb-4 sm:mb-5 px-0.5 sm:px-0">
+    <div class="flex items-center gap-2.5 sm:gap-3">
+        <a href="{{ route('notes.index') }}" class="w-9 h-9 min-w-[40px] min-h-[40px] rounded-lg bg-white border border-[#e6e9e1] flex items-center justify-center text-ink-400 hover:text-ink-700 hover:bg-[#f5f7f5] transition shrink-0" aria-label="{{ __('ui.back_aria') }}">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
         </a>
         <div>
-            <h1 class="text-xl font-extrabold text-ink-800 leading-none">{{ __('ui.new_note_title') }}</h1>
+            <h1 class="text-[18px] sm:text-xl font-extrabold text-ink-800 leading-none">{{ __('ui.new_note_title') }}</h1>
         </div>
     </div>
 
-</div>
+ </div>
 
 <div class="max-w-4xl mx-auto">
     <div class="bg-[#fdfcfa] rounded-2xl border border-[#e6e9e1] overflow-hidden">
-        <form method="POST" action="{{ route('notes.store', [], false) }}" enctype="multipart/form-data" class="p-6 space-y-5" id="create-form" novalidate>
+        <form method="POST" action="{{ route('notes.store', [], false) }}" enctype="multipart/form-data" class="p-4 sm:p-6 space-y-4 sm:space-y-5" id="create-form" novalidate>
             @csrf
             <div id="form-errors" class="hidden p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700"></div>
             <div id="upload-progress" class="hidden p-4 bg-[#eef4f0] border border-[#cde7d6] rounded-xl">
@@ -28,25 +28,25 @@
                 </div>
                 <div id="upload-progress-detail" class="mt-1 text-[11px] text-ink-400">{{ __('ui.uploading_dont_close') }}</div>
             </div>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="grid grid-cols-2 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
-                    <label for="floor_number" class="block text-sm font-bold text-ink-700 mb-1.5">{{ __('ui.floor_label') }} <span class="text-red-500">*</span></label>
+                    <label for="floor_number" class="block text-[13px] sm:text-sm font-bold text-ink-700 mb-1.5">{{ __('ui.floor_label') }} <span class="text-red-500">*</span></label>
                     <input type="number" id="floor_number" name="floor_number" value="{{ old('floor_number') }}" min="0" required inputmode="numeric"
-                        class="block w-full rounded-xl border border-[#e6e9e1] bg-white py-3 px-4 text-sm font-medium text-ink-800 placeholder:text-ink-300 focus:border-[#0e6a38] focus:ring-2 focus:ring-[#0e6a38]/10 outline-none transition @error('floor_number') border-red-400 @enderror"
+                        class="block w-full rounded-xl border border-[#e6e9e1] bg-white py-3 px-3 sm:px-4 min-h-[44px] text-[16px] sm:text-sm font-medium text-ink-800 placeholder:text-ink-300 focus:border-[#0e6a38] focus:ring-2 focus:ring-[#0e6a38]/10 outline-none transition @error('floor_number') border-red-400 @enderror"
                         placeholder="3">
                     @error('floor_number') <p class="mt-1 text-xs font-bold text-red-500">{{ $message }}</p> @enderror
                 </div>
                 <div>
-                    <label for="camera_number" class="block text-sm font-bold text-ink-700 mb-1.5">{{ __('ui.camera_label') }} <span class="text-red-500">*</span></label>
+                    <label for="camera_number" class="block text-[13px] sm:text-sm font-bold text-ink-700 mb-1.5">{{ __('ui.camera_label') }} <span class="text-red-500">*</span></label>
                     <input type="number" id="camera_number" name="camera_number" value="{{ old('camera_number') }}" min="1" required inputmode="numeric"
-                        class="block w-full rounded-xl border border-[#e6e9e1] bg-white py-3 px-4 text-sm font-medium text-ink-800 placeholder:text-ink-300 focus:border-[#0e6a38] focus:ring-2 focus:ring-[#0e6a38]/10 outline-none transition @error('camera_number') border-red-400 @enderror"
+                        class="block w-full rounded-xl border border-[#e6e9e1] bg-white py-3 px-3 sm:px-4 min-h-[44px] text-[16px] sm:text-sm font-medium text-ink-800 placeholder:text-ink-300 focus:border-[#0e6a38] focus:ring-2 focus:ring-[#0e6a38]/10 outline-none transition @error('camera_number') border-red-400 @enderror"
                         placeholder="12">
                     @error('camera_number') <p class="mt-1 text-xs font-bold text-red-500">{{ $message }}</p> @enderror
                 </div>
             </div>
 
-            <div class="rounded-xl border border-[#e6e9e1] bg-[#f5f7f5] p-4">
-                <label class="block text-sm font-bold text-ink-700 mb-1">{{ __('ui.time_label') }} <span class="text-red-500">*</span></label>
+            <div class="rounded-xl border border-[#e6e9e1] bg-[#f5f7f5] p-3 sm:p-4">
+                <label class="block text-[13px] sm:text-sm font-bold text-ink-700 mb-1">{{ __('ui.time_label') }} <span class="text-red-500">*</span></label>
                 @php
                     $oldObserved = old('observed_at');
                     $oldDate = $oldObserved ? date('Y-m-d', strtotime($oldObserved)) : '';
@@ -77,10 +77,10 @@
                     </div>
                 </div>
                 <div class="mt-3 flex flex-wrap gap-1.5">
-                    <button type="button" data-preset="now" class="preset-btn px-3 py-1.5 rounded-lg bg-[#0e6a38] text-white text-xs font-bold hover:bg-[#0a4d28] transition">{{ __('ui.now_btn') }}</button>
-                    <button type="button" data-preset="hour-ago" class="preset-btn px-3 py-1.5 rounded-lg bg-[#fdfcfa] border border-[#e6e9e1] text-[#1a2e1f] text-xs font-bold hover:bg-[#f5f7f5] transition">{{ __('ui.hour_ago_btn') }}</button>
-                    <button type="button" data-preset="today-08" class="preset-btn px-3 py-1.5 rounded-lg bg-[#fdfcfa] border border-[#e6e9e1] text-[#1a2e1f] text-xs font-bold hover:bg-[#f5f7f5] transition">{{ __('ui.today_08_btn') }}</button>
-                    <button type="button" id="clear-datetime" class="px-3 py-1.5 rounded-lg bg-transparent border border-[#e6e9e1] text-ink-400 text-xs font-bold hover:bg-white transition">{{ __('ui.clear_btn') }}</button>
+                    <button type="button" data-preset="now" class="preset-btn px-3 py-2 sm:py-1.5 min-h-[36px] sm:min-h-0 rounded-lg bg-[#0e6a38] text-white text-xs font-bold hover:bg-[#0a4d28] transition">{{ __('ui.now_btn') }}</button>
+                    <button type="button" data-preset="hour-ago" class="preset-btn px-3 py-2 sm:py-1.5 min-h-[36px] sm:min-h-0 rounded-lg bg-[#fdfcfa] border border-[#e6e9e1] text-[#1a2e1f] text-xs font-bold hover:bg-[#f5f7f5] transition">{{ __('ui.hour_ago_btn') }}</button>
+                    <button type="button" data-preset="today-08" class="preset-btn px-3 py-2 sm:py-1.5 min-h-[36px] sm:min-h-0 rounded-lg bg-[#fdfcfa] border border-[#e6e9e1] text-[#1a2e1f] text-xs font-bold hover:bg-[#f5f7f5] transition">{{ __('ui.today_08_btn') }}</button>
+                    <button type="button" id="clear-datetime" class="px-3 py-2 sm:py-1.5 min-h-[36px] sm:min-h-0 rounded-lg bg-transparent border border-[#e6e9e1] text-ink-400 text-xs font-bold hover:bg-white transition">{{ __('ui.clear_btn') }}</button>
                 </div>
                 <div class="mt-3 flex items-center gap-2 p-2.5 rounded-lg bg-white border border-[#e6e9e1]">
                     <svg class="w-4 h-4 text-[#0e6a38] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
@@ -96,7 +96,7 @@
                 <label for="description" class="block text-sm font-bold text-ink-700 mb-1.5">{{ __('ui.description_label') }} <span class="text-red-500">*</span></label>
                 <div class="relative">
                     <textarea id="description" name="description" rows="5" required maxlength="5000"
-                        class="block w-full rounded-xl border border-[#e6e9e1] bg-white p-4 text-sm leading-7 text-ink-800 placeholder:text-ink-300 focus:border-[#0e6a38] focus:ring-2 focus:ring-[#0e6a38]/10 outline-none transition resize-none @error('description') border-red-400 @enderror"
+                        class="block w-full rounded-xl border border-[#e6e9e1] bg-white p-3 sm:p-4 min-h-[110px] text-[16px] sm:text-sm leading-6 sm:leading-7 text-ink-800 placeholder:text-ink-300 focus:border-[#0e6a38] focus:ring-2 focus:ring-[#0e6a38]/10 outline-none transition resize-none @error('description') border-red-400 @enderror"
                         placeholder="{{ __('ui.desc_placeholder') }}">{{ old('description') }}</textarea>
                     <div class="absolute bottom-3 left-3 text-[11px] font-bold text-ink-400 bg-white border border-[#e6e9e1] rounded-full px-2 py-0.5">
                         <span id="desc-count">0</span> / 5000
@@ -110,21 +110,21 @@
 
             <div>
                 <label class="block text-sm font-bold text-ink-700 mb-1.5">{{ __('ui.attachments_label') }} <span class="text-ink-300 font-medium text-xs">{{ __('ui.attachments_optional') }}</span></label>
-                <div class="rounded-xl border-2 border-dashed border-[#e6e9e1] bg-[#f5f7f5] hover:border-[#0e6a38] hover:bg-[#f5f7f5] transition p-5 text-center group" id="drop-zone">
+                <div class="rounded-xl border-2 border-dashed border-[#e6e9e1] bg-[#f5f7f5] hover:border-[#0e6a38] hover:bg-[#f5f7f5] transition p-4 sm:p-5 text-center group" id="drop-zone">
                     <div class="mx-auto w-10 h-10 rounded-xl bg-white border border-[#e6e9e1] flex items-center justify-center group-hover:border-[#0e6a38] transition">
                         <svg class="w-5 h-5 text-[#0e6a38]" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.7"><path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
                     </div>
-                    <div class="mt-3 flex flex-col sm:flex-row items-center justify-center gap-2">
-                        <label for="files" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#0e6a38] text-white font-bold text-sm cursor-pointer hover:bg-[#0a4d28] transition">
+                    <div class="mt-3 flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-2">
+                        <label for="files" class="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2.5 sm:py-2 min-h-[44px] sm:min-h-0 rounded-lg bg-[#0e6a38] text-white font-bold text-sm cursor-pointer hover:bg-[#0a4d28] transition">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
                             {{ __('ui.choose_files') }}
                         </label>
-                        <span class="sm:hidden text-xs text-ink-400">{{ __('ui.or_word') }}</span>
-                        <button type="button" id="open-camera-btn" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#fdfcfa] border border-[#e6e9e1] text-[#1a2e1f] font-bold text-sm hover:bg-[#f5f7f5] transition">
+                        <span class="hidden sm:inline text-xs text-ink-400">{{ __('ui.or_word') }}</span>
+                        <button type="button" id="open-camera-btn" class="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2.5 sm:py-2 min-h-[44px] sm:min-h-0 rounded-lg bg-[#fdfcfa] border border-[#e6e9e1] text-[#1a2e1f] font-bold text-sm hover:bg-[#f5f7f5] transition">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 13a3 3 0 100-6 3 3 0 000 6z"/></svg>
                             {{ __('ui.live_camera') }}
                         </button>
-                        <button type="button" id="audio-record-btn" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#fdfcfa] border border-[#e6e9e1] text-[#1a2e1f] font-bold text-sm hover:bg-[#f5f7f5] transition">
+                        <button type="button" id="audio-record-btn" class="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2.5 sm:py-2 min-h-[44px] sm:min-h-0 rounded-lg bg-[#fdfcfa] border border-[#e6e9e1] text-[#1a2e1f] font-bold text-sm hover:bg-[#f5f7f5] transition">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/></svg>
                             {{ __('ui.audio_recording') }}
                         </button>
@@ -150,9 +150,9 @@
                 </div>
 
 
-                <div id="camera-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+                <div id="camera-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4">
                     <div class="absolute inset-0 bg-ink-900/70 backdrop-blur-sm" id="camera-backdrop"></div>
-                    <div class="relative bg-white rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden shadow-2xl">
+                    <div class="relative bg-white rounded-xl sm:rounded-2xl w-full max-w-lg max-h-[96vh] sm:max-h-[90vh] flex flex-col overflow-hidden shadow-2xl mx-1 sm:mx-auto">
                         <div class="px-4 py-3 border-b border-[#e6e9e1] flex items-center justify-between shrink-0">
                             <h3 class="text-sm font-extrabold text-ink-800 flex items-center gap-2">
                                 <span class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
@@ -224,14 +224,14 @@
                 </div>
             </div>
 
-            <div class="flex flex-col-reverse sm:flex-row gap-3 pt-5 border-t border-[#e6e9e1]">
-                <a href="{{ route('notes.index') }}" class="px-5 py-2.5 rounded-xl bg-transparent border border-[#e6e9e1] text-[#525252] font-bold text-sm hover:bg-[#f5f7f5] transition">{{ __('ui.cancel_btn') }}</a>
+            <div class="flex flex-col-reverse sm:flex-row gap-2.5 sm:gap-3 pt-4 sm:pt-5 border-t border-[#e6e9e1]">
+                <a href="{{ route('notes.index') }}" class="w-full sm:w-auto inline-flex items-center justify-center px-5 py-3 sm:py-2.5 min-h-[44px] sm:min-h-0 rounded-xl bg-transparent border border-[#e6e9e1] text-[#525252] font-bold text-sm hover:bg-[#f5f7f5] transition">{{ __('ui.cancel_btn') }}</a>
                 <div class="flex-1 flex flex-col sm:flex-row gap-2 sm:justify-end">
                     @if(auth()->user()->isReportWriter())
-                        <button type="submit" name="action" value="save" class="px-6 py-2.5 rounded-xl bg-[#0e6a38] hover:bg-[#0a4d28] text-white font-bold text-sm shadow-sm transition">{{ __('ui.save_note_btn') }}</button>
+                        <button type="submit" name="action" value="save" class="w-full sm:w-auto px-6 py-3 sm:py-2.5 min-h-[44px] sm:min-h-0 rounded-xl bg-[#0e6a38] hover:bg-[#0a4d28] text-white font-bold text-sm shadow-sm transition">{{ __('ui.save_note_btn') }}</button>
                     @else
-                        <button type="submit" name="action" value="save" class="px-5 py-2.5 rounded-xl bg-[#fdfcfa] border border-[#e6e9e1] text-[#1a2e1f] font-bold text-sm hover:bg-[#f5f7f5] transition">{{ __('ui.save_draft_btn') }}</button>
-                        <button type="submit" name="action" value="send" class="px-6 py-2.5 rounded-xl bg-[#0e6a38] hover:bg-[#0a4d28] text-white font-bold text-sm shadow-sm transition">{{ __('ui.save_and_send_btn') }}</button>
+                        <button type="submit" name="action" value="send" class="w-full sm:w-auto px-6 py-3 sm:py-2.5 min-h-[44px] sm:min-h-0 rounded-xl bg-[#0e6a38] hover:bg-[#0a4d28] text-white font-bold text-sm shadow-sm transition sm:order-last">{{ __('ui.save_and_send_btn') }}</button>
+                        <button type="submit" name="action" value="save" class="w-full sm:w-auto px-5 py-3 sm:py-2.5 min-h-[44px] sm:min-h-0 rounded-xl bg-[#fdfcfa] border border-[#e6e9e1] text-[#1a2e1f] font-bold text-sm hover:bg-[#f5f7f5] transition">{{ __('ui.save_draft_btn') }}</button>
                     @endif
                 </div>
             </div>
@@ -307,6 +307,8 @@
         recNow: @json(__('ui.audio_recording_now'))
     };
     function crtFill(tpl, map){ var s = String(tpl == null ? '' : tpl); Object.keys(map || {}).forEach(function(k){ s = s.split(k).join(map[k]); }); return s; }
+    // إصلاح فهم الوقت: نرسل الوقت الجداري كما اختاره المستخدم (YYYY-MM-DDTHH:MM) بدون offset
+    // حتى يُفسر على الخادم دائماً بمنطقة Asia/Damascus بغض النظر عن timezone جهاز المستخدم.
     (function(){
         const dateEl=document.getElementById('observed_date');
         const timeEl=document.getElementById('observed_time');
@@ -322,23 +324,11 @@
             const opts={weekday:'long', year:'numeric', month:'long', day:'numeric', hour:'2-digit', minute:'2-digit'};
             try{ return d.toLocaleDateString(CRT_T.dateLocale,opts);}catch(e){ return date+' '+time; }
         }
-        function tzSuffix(localDateStr){
-            try{
-                const d=new Date(localDateStr);
-                if(isNaN(d)) return '';
-                const off=-d.getTimezoneOffset();
-                const sign=off>=0?'+':'-';
-                const abs=Math.abs(off);
-                const hh=String(Math.floor(abs/60)).padStart(2,'0');
-                const mm=String(abs%60).padStart(2,'0');
-                return sign+hh+':'+mm;
-            }catch(_){ return ''; }
-        }
         function sync(){
             const d=dateEl?.value, t=timeEl?.value, et=endTimeEl?.value;
             if(d && t){
                 const base=d+'T'+t;
-                hidden.value = base + tzSuffix(base);
+                hidden.value = base;
                 const txt=toPreview(d,t);
                 const endTxt=et ? ' — '+et : '';
                 if(preview) preview.textContent = (txt || (d+' — '+t)) + endTxt;
@@ -349,12 +339,13 @@
             }
             if(d && et){
                 let endVal=d+'T'+et;
-
-                try{ if(t && et < t){ const nd=new Date(d+'T'+et); nd.setDate(nd.getDate()+1); const pad=n=>String(n).padStart(2,'0'); endVal=nd.getFullYear()+'-'+pad(nd.getMonth()+1)+'-'+pad(nd.getDate())+'T'+et; } }catch(_){}
-                hiddenEnd.value = endVal + tzSuffix(endVal);
+                try{ if(t && et < t){ const nd=new Date(d+'T'+et); nd.setDate(nd.getDate()+1); const pad2=n=>String(n).padStart(2,'0'); endVal=nd.getFullYear()+'-'+pad2(nd.getMonth()+1)+'-'+pad2(nd.getDate())+'T'+et; } }catch(_){}
+                hiddenEnd.value = endVal;
             }
             else { hiddenEnd.value=''; }
         }
+        // إتاحة sync عالمياً لمعالج الإرسال الخارجي (كان يفشل سابقاً لأن sync داخل IIFE)
+        window._syncObservedCreate = sync;
         dateEl?.addEventListener('change',sync); timeEl?.addEventListener('change',sync); endTimeEl?.addEventListener('change',sync);
         dateEl?.addEventListener('input',sync); timeEl?.addEventListener('input',sync); endTimeEl?.addEventListener('input',sync);
         document.querySelectorAll('.preset-btn').forEach(btn=>{
@@ -713,13 +704,13 @@ function syncInput(){ try{ input.files = fileTransfer.files; }catch(e){ } }
 
     const formEl = document.getElementById('create-form');
     const formErrorsEl = document.getElementById('form-errors');
-    let submitActionVal = 'save';
+    let submitActionVal = {{ auth()->user()->isReportWriter() ? "'save'" : "'send'" }};
     formEl?.querySelectorAll('button[type="submit"][name="action"]').forEach(btn=>{
         btn.addEventListener('click', ()=>{ submitActionVal = btn.value; });
     });
     formEl?.addEventListener('submit', async (e)=>{
 
-        try{ if(typeof sync==='function') sync(); }catch(_){}
+        try{ if(window._syncObservedCreate) window._syncObservedCreate(); else if(typeof sync==='function') sync(); }catch(_){}
         const floorEl=document.getElementById('floor_number');
         const camEl=document.getElementById('camera_number');
         const descEl=document.getElementById('description');

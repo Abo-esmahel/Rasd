@@ -8,7 +8,6 @@
         </a>
         <div>
             <h1 class="text-xl font-extrabold text-ink-800 leading-none">{{ __('ui.edit_profile') }}</h1>
-            <p class="text-sm text-ink-400 mt-1">{{ __('ui.edit_profile_hint') }}</p>
         </div>
     </div>
 
@@ -19,7 +18,6 @@
             </div>
             <div class="min-w-0 flex-1">
                 <h2 class="text-sm font-extrabold text-ink-800">{{ __('ui.language_title') }}</h2>
-                <p class="text-[11px] text-ink-400 font-bold">{{ __('ui.data_stays') }}</p>
             </div>
             <div class="flex gap-2 shrink-0">
                 <form method="POST" action="{{ route('locale.update') }}">
@@ -55,7 +53,7 @@
                     <div class="relative group shrink-0">
                         <div id="avatar-preview" class="shrink-0 rounded-full overflow-hidden bg-white border-2 border-surface-300 shadow-md flex items-center justify-center" style="width:min(320px,72vw);height:min(320px,72vw);border-radius:9999px;overflow:hidden;flex-shrink:0;">
                             @if($user->avatar_url)
-                                <img src="{{ $user->avatar_url }}" alt="{{ $user->name }}" class="object-cover" style="width:100%;height:100%;object-fit:cover;display:block;">
+                                <img src="{{ $user->avatar_url }}" alt="{{ $user->localized_name }}" class="object-cover" style="width:100%;height:100%;object-fit:cover;display:block;">
                             @else
                                 <span class="text-6xl font-extrabold text-sage-700">{{ $user->initial }}</span>
                             @endif
@@ -86,7 +84,7 @@
             <div class="grid sm:grid-cols-2 gap-4">
                 <div>
                     <label class="block text-sm font-bold text-ink-700 mb-1.5">{{ __('ui.full_name_label') }} <span class="text-red-500">*</span></label>
-                    <input type="text" name="name" value="{{ old('name', $user->name) }}" required
+                    <input type="text" name="name" value="{{ old('name', $user->localized_name) }}" required
                         class="block w-full rounded-xl border border-surface-300 bg-white py-3 px-4 text-sm font-bold text-ink-800 placeholder:text-ink-300 focus:border-sage-500 focus:ring-2 focus:ring-sage-500/10 outline-none transition @error('name') border-red-400 @enderror">
                     @error('name') <p class="mt-1 text-xs text-red-500 font-bold">{{ $message }}</p> @enderror
                 </div>

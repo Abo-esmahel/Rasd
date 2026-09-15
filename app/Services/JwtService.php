@@ -26,7 +26,7 @@ class JwtService
         $header = $this->base64UrlEncode(json_encode(['alg' => 'HS256', 'typ' => 'JWT']));
         $payload = $this->base64UrlEncode(json_encode([
             'sub' => $user->id,
-            'name' => $user->name,
+            'name' => $user->localized_name,
             'role' => $user->role,
             'iat' => now()->timestamp,
             'exp' => now()->addMinutes($this->expiry)->timestamp,

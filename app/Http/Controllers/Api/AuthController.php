@@ -40,7 +40,7 @@ class AuthController extends Controller
                 'token' => $token,
                 'user' => [
                     'id' => $user->id,
-                    'name' => $user->name,
+                    'name' => $user->localized_name,
                     'username' => $user->username,
                     'role' => $user->role,
                 ],
@@ -69,7 +69,7 @@ class AuthController extends Controller
             'success' => true,
             'data' => [
                 'id' => $user->id,
-                'name' => $user->name,
+                'name' => $user->localized_name,
                 'username' => $user->username,
                 'role' => $user->role,
             ],

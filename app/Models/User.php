@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\Localization\NameTransliterationService;
 use App\Support\SyrianPhone;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Casts\Attribute;
@@ -14,8 +15,42 @@ class User extends Authenticatable
 {
     use HasFactory, Notifiable;
 
+    protected static function boot(): void
+    {
+        parent::boot();
+
+        static::creating(function (User $user) {
+            if (!empty($user->name) && empty($user->name_en) && empty($user->name_ar)) {
+                $translit = app(NameTransliterationService::class);
+                if ($translit->isArabic($user->name)) {
+                    $user->name_ar = $user->name;
+                    $user->name_en = $translit->generateLatinName($user->name);
+                } else {
+                    $user->name_en = $user->name;
+                    $user->name_ar = $translit->generateArabicName($user->name);
+                }
+            }
+        });
+
+        static::updating(function (User $user) {
+            $originalName = $user->getOriginal('name');
+            if (!empty($user->name) && $user->name !== $originalName) {
+                $translit = app(NameTransliterationService::class);
+                if ($translit->isArabic($user->name)) {
+                    $user->name_ar = $user->name;
+                    $user->name_en = $translit->generateLatinName($user->name);
+                } else {
+                    $user->name_en = $user->name;
+                    $user->name_ar = $translit->generateArabicName($user->name);
+                }
+            }
+        });
+    }
+
     protected $fillable = [
         'name',
+        'name_en',
+        'name_ar',
         'username',
         'personal_number',
         'password',
@@ -69,7 +104,24 @@ class User extends Authenticatable
 
     public function getInitialAttribute(): string
     {
-        return mb_substr($this->name ?? $this->username ?? '?', 0, 1);
+        return mb_substr($this->localized_name ?? $this->username ?? '?', 0, 1);
+    }
+
+    public function getLocalizedNameAttribute(): string
+    {
+        $locale = app()->getLocale();
+
+        if ($locale === 'en') {
+            return $this->name_en ?? $this->name;
+        }
+
+        return $this->name_ar ?? $this->name;
+    }
+
+    public function getLocalizedNameUrlAttribute(): string
+    {
+        $name = $this->localized_name;
+        return preg_replace('/\s+/', '-', trim($name));
     }
 
     protected function personalNumber(): Attribute

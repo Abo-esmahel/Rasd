@@ -32,7 +32,10 @@ class NoteController extends Controller
 
         $allowedStatuses = ['draft', 'pending', 'accepted', 'rejected'];
         if ($request->filled('status') && in_array($request->status, $allowedStatuses, true)) {
-            $query->where('status', $request->status);
+            $query->where('notes.status', $request->status);
+        } else {
+            // قسم "الكل" يجب ألا يعرض المسودات — المسودات لها تبويب مستقل
+            $query->where('notes.status', '!=', Note::STATUS_DRAFT);
         }
         if ($request->filled('date') && strtotime($request->date) !== false) {
             $query->whereDate('observed_at', $request->date);
@@ -55,11 +58,14 @@ class NoteController extends Controller
     public function myNotes(Request $request): JsonResponse
     {
         $user = $request->user();
-        $query = Note::with(['owner', 'attachments'])->where('user_id', $user->id);
+        $query = Note::with(['owner', 'attachments'])->where('user_id', $user->id)->whereNull('general_submission_id');
 
         $allowedStatuses = ['draft', 'pending', 'accepted', 'rejected'];
         if ($request->filled('status') && in_array($request->status, $allowedStatuses, true)) {
             $query->where('status', $request->status);
+        } else {
+            // قسم "الكل" يجب ألا يعرض المسودات — المسودات لها تبويب مستقل (حتى في ملاحظاتي)
+            $query->where('status', '!=', Note::STATUS_DRAFT);
         }
         if ($request->filled('date') && strtotime($request->date) !== false) {
             $query->whereDate('observed_at', $request->date);
@@ -93,10 +99,13 @@ class NoteController extends Controller
         try {
             $note = $this->noteService->createDraft($user, $request->validated());
         } catch (\InvalidArgumentException $e) {
+            $msg = $e->getMessage();
+            $field = str_contains($msg, 'انتهاء') ? 'observed_end_at' : 'observed_at';
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage(),
-            ], 403);
+                'message' => $msg,
+                'errors' => [$field => [$msg]],
+            ], 422);
         }
 
         return response()->json([
@@ -142,10 +151,13 @@ class NoteController extends Controller
                 'data' => $note->load(['owner', 'attachments']),
             ]);
         } catch (\InvalidArgumentException $e) {
+            $msg = $e->getMessage();
+            $field = str_contains($msg, 'انتهاء') ? 'observed_end_at' : 'observed_at';
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage(),
-            ], 400);
+                'message' => $msg,
+                'errors' => [$field => [$msg]],
+            ], 422);
         }
     }
 

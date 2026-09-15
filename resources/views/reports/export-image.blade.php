@@ -14,12 +14,13 @@
 
 <link rel="stylesheet" href="{{ asset('report/css/report-engine.css') }}?v=17">
 <p id="report-l10n-badge" class="hidden text-[12px] font-bold text-[#0e6a38] bg-[#e8f3ec] border border-[#cde7d6] rounded-xl px-3 py-1.5 mb-2 w-fit" role="status"></p>
-<div class="bg-white border border-[#e6e9e1] rounded-2xl p-3 sm:p-5 shadow-sm overflow-x-auto" data-report-id="{{ $report->id }}">
-    <div class="report-preview" id="report-export-doc">
+<div class="bg-white border border-[#e6e9e1] rounded-2xl p-3 sm:p-5 shadow-sm overflow-x-auto" data-report-id="{{ $report->id }}" data-paper-fit>
+    <div class="report-preview" id="report-export-doc" data-paper-fit-inner>
         {!! $html !!}
     </div>
 </div>
 <p id="img-err" class="hidden text-xs text-red-600 mt-2"></p>
+@include('reports.partials.paper_fit')
 
 
 <script src="{{ asset('js/vendor/html2canvas.min.js') }}" defer></script>
@@ -53,30 +54,106 @@
         });
     }
 
+    // التقاط رسمي بمقاس A4 دائمًا: يُبنى المستند داخل iframe معزول بعرض
+    // ثابت (900px) فيملك viewport خاصًا به فتُطبق قواعد A4 المكتبية ولا
+    // تتسرب إليه استعلامات الجوال (max-width:640px) ولا تمرير الحاوية ولا
+    // تحويلات الملاءمة — نفس الناتج على الجوال والويندوز.
+    function captureOfficialA4() {
+        return new Promise(function (resolve, reject) {
+            let node;
+            try {
+                node = document.getElementById('report-export-doc');
+                if (!node) throw new Error(EXP_T.notFound);
+            } catch (e) { reject(e); return; }
+            const article = node.querySelector('.report');
+            const docDir = (article && article.getAttribute('dir')) || document.documentElement.getAttribute('dir') || 'rtl';
+            const docLang = (article && article.getAttribute('lang')) || document.documentElement.getAttribute('lang') || 'ar';
+            const cssUrl = @json(asset('report/css/report-engine.css') . '?v=17');
+            const libUrl = @json(asset('js/vendor/html2canvas.min.js'));
+            const page = '<!DOCTYPE html><html><head><meta charset="utf-8">'
+                + '<link rel="stylesheet" href="' + cssUrl + '">'
+                + '<style>html,body{margin:0;padding:0;background:#ffffff;}'
+                + 'body{padding:24px;display:flex;justify-content:center;}'
+                + '#h2c-target{width:100%;max-width:210mm;}'
+                + '#h2c-target .report{margin:0 auto;}'
+                + 'img{max-width:100%;}</style>'
+                + '</head><body dir="' + docDir + '" lang="' + docLang + '">'
+                + '<div id="h2c-target">' + node.innerHTML + '</div>'
+                + '<script src="' + libUrl + '"><\/script>'
+                + '</body></html>';
+
+            const iframe = document.createElement('iframe');
+            iframe.setAttribute('aria-hidden', 'true');
+            iframe.tabIndex = -1;
+            iframe.style.cssText = 'position:fixed;top:0;left:-12000px;width:900px;height:600px;border:0;visibility:hidden;pointer-events:none;';
+            let finished = false;
+            let timer = null;
+            const dispose = function () { try { iframe.remove(); } catch (e) {} };
+            const fail = function (e) { if (!finished) { finished = true; if (timer) clearTimeout(timer); dispose(); reject(e); } };
+            const win = function (v) { if (!finished) { finished = true; if (timer) clearTimeout(timer); resolve(v); } };
+            timer = setTimeout(function () { fail(new Error(EXP_T.createFail)); }, 45000);
+            iframe.addEventListener('load', async function () {
+                try {
+                    const w = iframe.contentWindow;
+                    const d = iframe.contentDocument;
+                    if (!w || !d) throw new Error(EXP_T.createFail);
+                    try {
+                        if (w.document.fonts && w.document.fonts.ready) {
+                            await Promise.race([w.document.fonts.ready, new Promise(function (r) { setTimeout(r, 4000); })]);
+                        }
+                    } catch (e) {}
+                    await new Promise(function (r) { setTimeout(r, 300); });
+                    if (typeof w.html2canvas !== 'function') throw new Error(EXP_T.libFail);
+                    const target = d.getElementById('h2c-target');
+                    if (!target) throw new Error(EXP_T.notFound);
+                    try {
+                        const sh = d.body ? d.body.scrollHeight : 0;
+                        if (sh > 100) iframe.style.height = Math.min(16000, sh + 60) + 'px';
+                    } catch (e) {}
+                    const h = Math.max(1, target.scrollHeight || target.offsetHeight || 1000);
+                    const scale = Math.max(1, Math.min(2, 12000 / h));
+                    const canvas = await w.html2canvas(target, { backgroundColor: '#ffffff', scale: scale, useCORS: true, logging: false });
+                    win({ canvas: canvas, dispose: dispose });
+                } catch (e) { fail(e); }
+            });
+            iframe.addEventListener('error', function () { fail(new Error(EXP_T.createFail)); });
+            document.body.appendChild(iframe);
+            try { iframe.srcdoc = page; }
+            catch (e) { fail(e); }
+        });
+    }
+
+    // مسار احتياطي: التقاط العقدة الحية مباشرة (سلوك ما قبل الإصلاح).
+    async function captureLiveNode() {
+        if (!window.html2canvas) throw new Error(EXP_T.libFail);
+        try { if (document.fonts && document.fonts.ready) await document.fonts.ready; } catch (e) {}
+        const node = document.getElementById('report-export-doc');
+        if (!node) throw new Error(EXP_T.notFound);
+        const scale = window.innerWidth < 640 ? 1.5 : 2;
+        const canvas = await window.html2canvas(node, { backgroundColor: '#ffffff', scale: scale, useCORS: true });
+        return { canvas: canvas, dispose: function () {} };
+    }
+
     btn?.addEventListener('click', async function () {
         err?.classList.add('hidden');
         btn.disabled = true;
         const old = btn.textContent;
         btn.textContent = EXP_T.preparing;
+        let shot = null;
         try {
-            if (!window.html2canvas) throw new Error(EXP_T.libFail);
-            // الخطوط العربية يجب أن تكتمل قبل الالتقاط وإلا خرج النص بخط بديل/مكسور.
-            try { if (document.fonts && document.fonts.ready) await document.fonts.ready; } catch (e) {}
-            const node = document.getElementById('report-export-doc');
-            if (!node) throw new Error(EXP_T.notFound);
-            // دقة أقل على الجوال: canvas بمقياس 2 لصفحة طويلة قد يتجاوز ذاكرة المتصفح ويقتله.
-            const scale = window.innerWidth < 640 ? 1.5 : 2;
-            const canvas = await window.html2canvas(node, { backgroundColor: '#ffffff', scale: scale, useCORS: true });
-            const blob = await canvasToBlob(canvas);
+            try {
+                shot = await captureOfficialA4();
+            } catch (e) {
+                shot = await captureLiveNode();
+            }
+            const blob = await canvasToBlob(shot.canvas);
             if (!blob) throw new Error(EXP_T.createFail);
 
             const file = new File([blob], fileName, { type: 'image/png' });
-            // الجوال: ورقة المشاركة (واتساب/حفظ) — خاصية download لا تعمل على iOS Safari.
             if (isCoarsePointer() && navigator.canShare && navigator.canShare({ files: [file] })) {
                 await navigator.share({ files: [file], title: fileName });
                 return;
             }
-            // سطح المكتب: تنزيل مباشر.
             const url = URL.createObjectURL(blob);
             try {
                 const a = document.createElement('a');
@@ -100,6 +177,8 @@
             if (e && (e.name === 'AbortError' || /abort|cancel/i.test(e.message || ''))) return;
             fail((e && e.message) || EXP_T.createFail);
         } finally {
+            try { if (shot && typeof shot.dispose === 'function') shot.dispose(); } catch (e) {}
+            shot = null;
             btn.disabled = false;
             btn.textContent = old;
         }

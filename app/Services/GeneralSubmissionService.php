@@ -122,7 +122,7 @@ class GeneralSubmissionService
             $fresh = $submission->fresh(['reportWriters', 'owner', 'attachments']);
 
             try {
-                \App\Jobs\FanoutDispatchNotifications::dispatch($fresh->id, $user->name, $writers->pluck('id')->all())->afterResponse();
+                \App\Jobs\FanoutDispatchNotifications::dispatch($fresh->id, $user->localized_name, $writers->pluck('id')->all())->afterResponse();
             } catch (\Throwable $e) {
                 Log::warning('فشل جدولة إشعارات الإرسال: '.$e->getMessage());
             }
@@ -305,7 +305,7 @@ class GeneralSubmissionService
         $fresh = $submission->fresh(['reportWriters', 'owner']);
 
         try {
-            \App\Jobs\FanoutDispatchNotifications::dispatch($fresh->id, $submitter->name, $writers->pluck('id')->all())->afterResponse();
+            \App\Jobs\FanoutDispatchNotifications::dispatch($fresh->id, $submitter->localized_name, $writers->pluck('id')->all())->afterResponse();
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::warning('فشل جدولة إشعارات الإرسال: '.$e->getMessage());
         }
@@ -339,7 +339,7 @@ class GeneralSubmissionService
         try {
             $owner = $fresh->owner;
             if ($owner && $owner->id !== $writer->id && !$this->hasNotification($owner, DispatchAcceptedNotification::class, $fresh->id)) {
-                $owner->notify(new DispatchAcceptedNotification($fresh, $writer->name));
+                $owner->notify(new DispatchAcceptedNotification($fresh, $writer->localized_name));
             }
         } catch (\Throwable $e) {
             Log::warning('فشل إرسال إشعار قبول الإرسالية: '.$e->getMessage());
@@ -378,7 +378,7 @@ class GeneralSubmissionService
         try {
             $owner = $fresh->owner;
             if ($owner && $owner->id !== $writer->id && !$this->hasNotification($owner, DispatchRejectedNotification::class, $fresh->id)) {
-                $owner->notify(new DispatchRejectedNotification($fresh, $reason, $writer->name));
+                $owner->notify(new DispatchRejectedNotification($fresh, $reason, $writer->localized_name));
             }
         } catch (\Throwable $e) {
             Log::warning('فشل إرسال إشعار رفض الإرسالية: '.$e->getMessage());

@@ -40,17 +40,21 @@ class NotesList extends Component
         $user = auth()->user();
 
         if ($this->mode === 'my') {
-            $query = Note::with(['owner:id,name,avatar_path', 'processor:id,name'])
+            $query = Note::with(['owner:id,name,name_en,name_ar,avatar_path', 'processor:id,name,name_en,name_ar'])
                 ->withCount('attachments')
-                ->where('user_id', $user->id);
+                ->where('user_id', $user->id)
+                ->whereNull('notes.general_submission_id');
         } else {
             $query = $this->noteService->getVisibleNotesQuery($user);
         }
 
         if ($this->status) {
             if (in_array($this->status, ['draft', 'pending', 'accepted', 'rejected'], true)) {
-                $query->where('status', $this->status);
+                $query->where('notes.status', $this->status);
             }
+        } else {
+            // قسم "الكل" يجب ألا يعرض المسودات — المسودات لها تبويب مستقل (كل الأوضاع)
+            $query->where('notes.status', '!=', Note::STATUS_DRAFT);
         }
         if ($this->date) {
             if (strtotime($this->date) !== false) {
@@ -85,15 +89,15 @@ class NotesList extends Component
 
         return \Illuminate\Support\Facades\Cache::remember($cacheKey, 30, function () use ($user) {
             if ($this->mode === 'my') {
-                $base = Note::where('user_id', $user->id);
+                $base = Note::where('user_id', $user->id)->whereNull('general_submission_id');
             } else {
                 if ($user->isReportWriter()) {
-                    $base = Note::where(function ($q) use ($user) {
+                    $base = Note::whereNull('general_submission_id')->where(function ($q) use ($user) {
                         $q->where('user_id', $user->id)
                             ->orWhere('status', '!=', Note::STATUS_DRAFT);
                     });
                 } else {
-                    $base = Note::where('user_id', $user->id);
+                    $base = Note::where('user_id', $user->id)->whereNull('general_submission_id');
                 }
             }
 
@@ -104,7 +108,10 @@ class NotesList extends Component
                 ->pluck('count', 'status')
                 ->toArray();
 
-            $result = ['total' => array_sum($counts)];
+            $total = array_sum($counts);
+            // عدّاد "الكل" يستبعد المسودات في كل الأوضاع (all و my)
+            $total -= ($counts[Note::STATUS_DRAFT] ?? 0);
+            $result = ['total' => $total];
             foreach ($statuses as $status) {
                 $result[strtolower($status)] = $counts[$status] ?? 0;
             }
@@ -124,12 +131,12 @@ class NotesList extends Component
                 return collect($cached)->map(fn($r) => (object)$r);
             }
             if ($cached !== null) cache()->forget('observers_list');
-            $fresh = User::where('role', 'monitor')->orderBy('name')->get(['id', 'name']);
+            $fresh = User::where('role', 'monitor')->orderBy('name')->get(['id', 'name', 'name_en', 'name_ar']);
             cache()->put('observers_list', $fresh->toArray(), 3600);
             return $fresh;
         } catch (\Throwable $e) {
             cache()->forget('observers_list');
-            return User::where('role', 'monitor')->orderBy('name')->get(['id', 'name']);
+            return User::where('role', 'monitor')->orderBy('name')->get(['id', 'name', 'name_en', 'name_ar']);
         }
     }
 

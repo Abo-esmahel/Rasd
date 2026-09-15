@@ -84,9 +84,17 @@ class LocalizedPresenter
             return self::$requestCache[$ck];
         }
 
-        $this->scheduleWarm($type, $id, $field, $source, $locale);
-        self::$requestCache[$ck] = trim($source);
+        // No stored translation found — schedule async warm job, return source text immediately.
+        // Never translate synchronously: each Gemini call takes 2-15s and would block the page.
+        try {
+            if ($this->translations->shouldTranslateCached($source)) {
+                $this->scheduleWarm($type, $id, $field, $source, $locale);
+            }
+        } catch (\Throwable $e) {
+            Log::warning('[L10N] schedule warm failed', ['key' => "{$type}:{$id}:{$field}", 'error' => mb_substr($e->getMessage(), 0, 150)]);
+        }
 
+        self::$requestCache[$ck] = trim($source);
         return self::$requestCache[$ck];
     }
 
@@ -392,10 +400,16 @@ class LocalizedPresenter
     private function notificationParams(array $data): array
     {
         $params = [];
-        foreach (['id', 'note_id', 'submission_id', 'report_id', 'camera_number', 'camera', 'floor_number', 'floor', 'name', 'processor_name', 'count', 'time', 'observed_at'] as $k) {
+        foreach (['id', 'note_id', 'submission_id', 'report_id', 'camera_number', 'camera', 'floor_number', 'floor', 'name', 'sender_name', 'processor_name', 'count', 'time', 'observed_at'] as $k) {
             if (isset($data[$k]) && (is_scalar($data[$k]) || $data[$k] instanceof \Stringable)) {
                 $params[$k] = (string) $data[$k];
             }
+        }
+
+        if (isset($params['sender_name']) && !isset($params['name'])) {
+            $params['name'] = $params['sender_name'];
+        } elseif (isset($params['processor_name']) && !isset($params['name'])) {
+            $params['name'] = $params['processor_name'];
         }
 
         return $params;

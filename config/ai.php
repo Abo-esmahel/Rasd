@@ -12,7 +12,7 @@ return [
         'api_key' => env('GEMINI_API_KEY', ''),
         'model' => env('GEMINI_MODEL', 'gemini-3.5-flash'),
         'timeout' => (int) env('GEMINI_TIMEOUT', 60),
-        // 3.x flash models spend thinking tokens from the same budget: keep generous.
+        // 3.5 flash as configured in .env
         'max_output_tokens' => (int) env('GEMINI_MAX_OUTPUT_TOKENS', 4096),
     ],
 

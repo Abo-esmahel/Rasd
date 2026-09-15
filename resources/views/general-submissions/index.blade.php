@@ -2,12 +2,12 @@
 
 @section('content')
 <div class="max-w-4xl mx-auto">
-    <div class="flex items-center justify-between mb-5">
-        <div>
-            <h1 class="text-xl font-extrabold text-ink-800">{{ __('ui.subs_title') }}</h1>
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
+        <div class="min-w-0">
+            <h1 class="text-xl font-extrabold text-ink-800 leading-tight">{{ __('ui.subs_title') }}</h1>
         </div>
         @can('create', App\Models\GeneralSubmission::class)
-        <a href="{{ route('general-submissions.create') }}" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#0e6a38] hover:bg-[#0a4d28] text-white font-bold text-sm transition">
+        <a href="{{ route('general-submissions.create') }}" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 sm:py-2.5 min-h-[44px] rounded-xl bg-[#0e6a38] hover:bg-[#0a4d28] text-white font-bold text-sm transition shrink-0">
             {{ __('ui.sub_new_plus') }}
         </a>
         @endcan
@@ -22,7 +22,7 @@
             ['key' => 'month', 'label' => __('ui.last30')],
         ];
     @endphp
-    <div class="flex gap-2 mb-4 overflow-x-auto pb-1" role="group" aria-label="{{ __('ui.filter_time') }}">
+    <div class="w-full max-w-full flex gap-2 mb-4 overflow-x-auto scrollbar-hide pb-1" style="-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;scrollbar-width:none;" role="group" aria-label="{{ __('ui.filter_time') }}">
         @foreach($periodTabs as $tab)
             @php
                 $isActive = ($period ?? null) === $tab['key'];
@@ -72,11 +72,11 @@
                             </div>
                             <div class="flex items-center gap-2 mt-3">
                                 <span class="text-xs text-ink-400">{{ __('ui.sender') }}</span>
-                                <span class="text-xs font-bold text-ink-700">{{ $submission->owner->name }}</span>
+                                <span class="text-xs font-bold text-ink-700">{{ $submission->owner->localized_name }}</span>
                                 <span class="text-xs text-ink-300">→</span>
                                 <div class="flex flex-wrap gap-1">
                                     @foreach($submission->reportWriters as $w)
-                                        <span class="px-2 py-0.5 rounded-full bg-[#f5f7f5] border border-[#e6e9e1] text-[11px] font-bold text-ink-600">{{ $w->name }}</span>
+                                        <span class="px-2 py-0.5 rounded-full bg-[#f5f7f5] border border-[#e6e9e1] text-[11px] font-bold text-ink-600">{{ $w->localized_name }}</span>
                                     @endforeach
                                 </div>
                             </div>

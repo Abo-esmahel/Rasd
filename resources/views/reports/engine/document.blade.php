@@ -40,7 +40,7 @@
       <div class="report__ministry-sub">{{ $header['ministry_sub'] ?? ($isEnDoc ? 'Ministry of Information' : 'وزارة الإعلام') }}</div>
     </div>
     <div class="report__logo">
-      <img src="{{ asset(ltrim($doc['logo'] ?? '/report/assets/logo-report.png', '/')) }}" alt="{{ $isEnDoc ? 'Official report emblem' : 'شعار التقرير الرسمي' }}" loading="eager" decoding="async">
+      <img src="{{ route('report.logo') }}" alt="{{ $isEnDoc ? 'Official report emblem' : 'شعار التقرير الرسمي' }}" loading="eager" decoding="async">
     </div>
     <div class="report__header-side report__header-side--doc">
       <div class="report__dayline"><span class="report__dayline-label">{{ $dayLabel }} :</span> <span class="report__dayline-value">{{ $dayName !== '' ? $dayName : '—' }}</span></div>

@@ -52,6 +52,33 @@ class NoteService
         };
     }
 
+    private static function sanitizeObservedInput(?string $value): ?string
+    {
+        if ($value === null) return null;
+        $v = trim((string) $value);
+        if ($v === '') return null;
+        // تحويل الأرقام العربية/الفارسية إلى غربية
+        $map = [
+            '٠'=>'0','١'=>'1','٢'=>'2','٣'=>'3','٤'=>'4','٥'=>'5','٦'=>'6','٧'=>'7','٨'=>'8','٩'=>'9',
+            '۰'=>'0','۱'=>'1','۲'=>'2','۳'=>'3','۴'=>'4','۵'=>'5','۶'=>'6','۷'=>'7','۸'=>'8','۹'=>'9',
+        ];
+        $v = strtr($v, $map);
+        // إزالة أحرف التحكم الخفية
+        $v = preg_replace('/[\x00-\x1F\x7F]/u', ' ', $v);
+        $v = trim(preg_replace('/\s+/', ' ', $v));
+        // توحيد الفاصل: إذا كان "YYYY/MM/DD" حوّله إلى "-"
+        $v = str_replace('/', '-', $v);
+        // إزالة الـ offset الزمني المرسل من المتصفح (+03:00 / Z) حتى يُفسر كوقت جداري بمنطقة التطبيق
+        // نحتفظ بالوقت الجداري فقط: "YYYY-MM-DDTHH:MM" أو "YYYY-MM-DD HH:MM:SS"
+        // إذا انتهى بـ Z أو +HH:MM / +HHMM / -HH:MM نحذفه
+        $v = preg_replace('/\s*[Zz]\s*$/', '', $v);
+        $v = preg_replace('/\s*[\+\-]\d{2}:?\d{2}\s*$/', '', $v);
+        $v = trim($v);
+        // استبدال T بـ مسافة لتوافق Carbon
+        // لكن Carbon يفهم T أيضاً، نتركها
+        return $v === '' ? null : $v;
+    }
+
     public static function normalizeObservedRange(array $data): array
     {
         if (empty($data['observed_at'])) {
@@ -61,10 +88,24 @@ class NoteService
         $configuredTz = (string) config('app.timezone', 'Asia/Damascus');
         $parseTz = $configuredTz === 'UTC' ? 'Asia/Damascus' : $configuredTz;
 
-        try {
-            $start = \Carbon\Carbon::parse($data['observed_at'], $parseTz);
-        } catch (\Throwable $e) {
+        $rawStart = self::sanitizeObservedInput($data['observed_at']);
+        if ($rawStart === null) {
             throw new InvalidArgumentException(__('api.time_invalid'));
+        }
+
+        try {
+            $start = \Carbon\Carbon::parse($rawStart, $parseTz);
+        } catch (\Throwable $e) {
+            // محاولة أخيرة عبر strtotime
+            $ts = strtotime($rawStart);
+            if ($ts === false) {
+                throw new InvalidArgumentException(__('api.time_invalid'));
+            }
+            try {
+                $start = \Carbon\Carbon::createFromTimestamp($ts, $parseTz);
+            } catch (\Throwable $e2) {
+                throw new InvalidArgumentException(__('api.time_invalid'));
+            }
         }
 
         $now = \Carbon\Carbon::now($parseTz);
@@ -72,11 +113,20 @@ class NoteService
             throw new InvalidArgumentException(__('api.time_future'));
         }
 
-        if (! empty($data['observed_end_at'])) {
+        $rawEnd = self::sanitizeObservedInput($data['observed_end_at'] ?? null);
+        if ($rawEnd !== null && $rawEnd !== '') {
             try {
-                $end = \Carbon\Carbon::parse($data['observed_end_at'], $parseTz);
+                $end = \Carbon\Carbon::parse($rawEnd, $parseTz);
             } catch (\Throwable $e) {
-                throw new InvalidArgumentException(__('api.time_end_invalid'));
+                $ts = strtotime($rawEnd);
+                if ($ts === false) {
+                    throw new InvalidArgumentException(__('api.time_end_invalid'));
+                }
+                try {
+                    $end = \Carbon\Carbon::createFromTimestamp($ts, $parseTz);
+                } catch (\Throwable $e2) {
+                    throw new InvalidArgumentException(__('api.time_end_invalid'));
+                }
             }
 
             if ($end->lt($start)) {
@@ -92,6 +142,9 @@ class NoteService
             }
 
             $data['observed_end_at'] = $end->setTimezone($parseTz)->toDateTimeString();
+        } else {
+            // تطبيع القيمة الفارغة إلى null حتى لا تُخزن كنص فارغ
+            $data['observed_end_at'] = null;
         }
 
         $data['observed_at'] = $start->setTimezone($parseTz)->toDateTimeString();
@@ -179,10 +232,11 @@ class NoteService
             DB::beginTransaction();
 
             $note = $this->createDraft($user, $data);
+            $knownCount = 0;
 
             foreach ($received as $file) {
                 try {
-                    $attachment = $this->storeSingleAttachment($user, $note, $file);
+                    $attachment = $this->storeSingleAttachment($user, $note, $file, $knownCount);
                     $attachments[] = $attachment;
                     $storedPaths[] = $attachment->file_path;
                 } catch (AttachmentUploadException $e) {
@@ -220,20 +274,6 @@ class NoteService
                     attachmentsSaved: $attachmentsSaved,
                     attachmentErrors: $attachmentErrors ?: [__('api.note_attach_count_mismatch')],
                 );
-            }
-
-            
-            foreach ($attachments as $attachment) {
-                $fresh = Attachment::where('id', $attachment->id)->where('note_id', $note->id)->first();
-                if (!$fresh || !$this->storage->exists($fresh->file_path)) {
-                    throw new AttachmentUploadException(
-                        __('api.note_attach_verify_before_save'),
-                        stage: 'verification',
-                        filesReceived: $filesReceived,
-                        attachmentsSaved: 0,
-                        attachmentErrors: [__('api.note_attach_files_missing_verify')],
-                    );
-                }
             }
 
             DB::commit();
@@ -488,7 +528,7 @@ class NoteService
             $fresh = $note->fresh();
 
             try {
-                \App\Jobs\FanoutNoteNotifications::dispatch($fresh->id, $user->id, $user->name)->afterResponse();
+                \App\Jobs\FanoutNoteNotifications::dispatch($fresh->id, $user->id, $user->localized_name)->afterResponse();
             } catch (\Throwable $e) {
                 Log::warning('فشل جدولة إشعار ملاحظة جديدة: '.$e->getMessage());
             }
@@ -515,7 +555,7 @@ class NoteService
         try {
             $owner = $fresh->owner;
             if ($owner && $owner->id !== $user->id && !$this->hasNotification($owner, NoteAcceptedNotification::class, $fresh->id, 'note_id', $fresh->sent_at)) {
-                $owner->notify(new NoteAcceptedNotification($fresh, $user->name));
+                $owner->notify(new NoteAcceptedNotification($fresh, $user->localized_name));
             }
         } catch (\Throwable $e) {
             Log::warning('فشل إرسال إشعار القبول: '.$e->getMessage());
@@ -547,7 +587,7 @@ class NoteService
         try {
             $owner = $fresh->owner;
             if ($owner && $owner->id !== $user->id && !$this->hasNotification($owner, NoteRejectedNotification::class, $fresh->id, 'note_id', $fresh->sent_at)) {
-                $owner->notify(new NoteRejectedNotification($fresh, $reason, $user->name));
+                $owner->notify(new NoteRejectedNotification($fresh, $reason, $user->localized_name));
             }
         } catch (\Throwable $e) {
             Log::warning('فشل إرسال إشعار الرفض: '.$e->getMessage());
@@ -576,7 +616,7 @@ class NoteService
         $fresh = $note->fresh();
 
         try {
-            \App\Jobs\FanoutNoteNotifications::dispatch($fresh->id, $user->id, $user->name, true)->afterResponse();
+            \App\Jobs\FanoutNoteNotifications::dispatch($fresh->id, $user->id, $user->localized_name, true)->afterResponse();
         } catch (\Throwable $e) {
             Log::warning('فشل جدولة إشعار إعادة الإرسال: '.$e->getMessage());
         }
@@ -592,7 +632,7 @@ class NoteService
     }
 
     
-    private function storeSingleAttachment(User $user, Note $note, UploadedFile $file): Attachment
+    private function storeSingleAttachment(User $user, Note $note, UploadedFile $file, ?int &$knownCount = null): Attachment
     {
         if ($note->user_id !== $user->id) {
             throw new InvalidArgumentException(__('api.note_unauthorized_attach'));
@@ -604,7 +644,10 @@ class NoteService
             throw new InvalidArgumentException(__('api.note_attach_accepted_locked'));
         }
         $maxAttachments = (int) config('attachments.max_per_note', 5);
-        if ($note->attachments()->count() >= $maxAttachments) {
+        if ($knownCount === null) {
+            $knownCount = $note->attachments()->count();
+        }
+        if ($knownCount >= $maxAttachments) {
             throw new InvalidArgumentException(__('api.note_attach_max', ['max' => $maxAttachments]));
         }
 
@@ -639,7 +682,6 @@ class NoteService
                 'file_size' => $file->getSize() ?? 0,
             ]);
         } catch (\Throwable $e) {
-            
             $this->storage->delete($relativePath);
             Log::error('[ATTACHMENT] DB create failed, local file cleaned', [
                 'note_id' => $note->id,
@@ -649,30 +691,7 @@ class NoteService
             throw $e;
         }
 
-        
-        $existsDb = Attachment::where('id', $attachment->id)->where('note_id', $note->id)->exists();
-        $existsFile = $this->storage->exists($relativePath);
-        if (!$existsDb || !$existsFile) {
-            $this->storage->delete($relativePath);
-            try {
-                $attachment->delete();
-            } catch (\Throwable $e) {
-            }
-            Log::error('[ATTACHMENT] verification failed after create', [
-                'note_id' => $note->id,
-                'attachment_id' => $attachment->id,
-                'db_exists' => $existsDb,
-                'file_exists' => $existsFile,
-            ]);
-            throw new AttachmentUploadException(
-                __('api.note_attach_verify_db'),
-                stage: 'verification',
-                originalName: $file->getClientOriginalName(),
-                filesReceived: 1,
-                attachmentsSaved: 0,
-            );
-        }
-
+        $knownCount++;
         return $attachment;
     }
 
@@ -705,7 +724,7 @@ class NoteService
     public function getVisibleNotesQuery(User $user)
     {
 
-        $query = Note::with(['owner:id,name,avatar_path', 'processor:id,name'])
+        $query = Note::with(['owner:id,name,name_en,name_ar,avatar_path', 'processor:id,name,name_en,name_ar'])
             ->withCount('attachments')
             ->whereNull('notes.general_submission_id');
         

@@ -91,6 +91,9 @@ return [
 
     
 
-    'serializable_classes' => false,
+    // null = السماح بكل الكلاسات (سلوك لارافيل الافتراضي).
+    // القيمة false كانت تمنع unserialize لأي object (مثل Eloquent Collection)
+    // فيُرجع __PHP_Incomplete_Class ويكسر أي Cache::remember يخزّن موديلات (500 في التقارير).
+    'serializable_classes' => null,
 
 ];

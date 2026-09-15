@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="max-w-[560px] mx-auto w-full">
+<div class="max-w-[560px] mx-auto w-full px-1 sm:px-0">
     <div class="flex items-center gap-2.5">
         <a href="{{ route('reports.index') }}" aria-label="{{ __('ui.back_to_reports_aria') }}" class="shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-lg border border-[#e6e9e1] bg-white text-[#6b7a6e] hover:text-[#0e6a38] hover:border-[#0e6a38] transition">
             <svg class="w-4 h-4 rtl:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
@@ -12,44 +12,49 @@
         </div>
     </div>
 
-    <div class="mt-5 h-px bg-[#eceee9]"></div>
+    <div class="mt-4 sm:mt-5 h-px bg-[#eceee9]"></div>
 
-    <form method="POST" action="{{ route('reports.store') }}" id="report-create" class="mt-5 grid gap-6" novalidate data-translations='{"daily_report_prefix":@json(__("ui.daily_report")),"creating_draft":@json(__("ui.creating_draft")),"review_fields":@json(__("ui.review_fields_alert")),"title_min":@json(__("ui.title_min_error")),"date_invalid":@json(__("ui.date_invalid_error"))}'>
+    <form method="POST" action="{{ route('reports.store') }}" id="report-create" class="mt-4 sm:mt-5" novalidate data-translations='{"daily_report_prefix":@json(__("ui.daily_report")),"creating_draft":@json(__("ui.creating_draft")),"review_fields":@json(__("ui.review_fields_alert")),"title_min":@json(__("ui.title_min_error")),"date_invalid":@json(__("ui.date_invalid_error"))}'>
         @csrf
-        @if($errors->has('general'))<div class="text-[13px] font-bold text-[#b91c1c] bg-[#fef2f2] border border-[#fecaca] rounded-xl px-3.5 py-2.5">{{ $errors->first('general') }}</div>@endif
-        <div id="form-alert" class="hidden text-[13px] font-bold text-[#b91c1c] bg-[#fef2f2] border border-[#fecaca] rounded-xl px-3.5 py-2.5"></div>
+        @if($errors->has('general'))<div class="text-[13px] font-bold text-[#b91c1c] bg-[#fef2f2] border border-[#fecaca] rounded-xl px-3.5 py-2.5 mb-4">{{ $errors->first('general') }}</div>@endif
+        <div id="form-alert" class="hidden text-[13px] font-bold text-[#b91c1c] bg-[#fef2f2] border border-[#fecaca] rounded-xl px-3.5 py-2.5 mb-4"></div>
 
-        <div class="grid gap-2">
-            <label for="report-title" class="text-[12.5px] font-bold text-[#1a2e1f]">{{ __('ui.report_title_label') }}</label>
-            <input id="report-title" name="title" maxlength="255" value="{{ old('title') }}" placeholder="{{ __('ui.auto_title_placeholder') }}" class="w-full min-h-[42px] text-[13.5px] bg-white border border-[#e6e9e1] rounded-xl px-3.5 py-2.5 text-[#1a2e1f] placeholder:text-[#b0bab2] focus:outline-none focus:border-[#0e6a38] focus:ring-2 focus:ring-[#0e6a38]/10 transition">
-            <p class="text-[11.5px] leading-5 text-[#9aa99a]">{{ __('ui.report_title_hint') }}</p>
-            <span class="field-error hidden text-[11.5px] font-bold text-[#b91c1c]">{{ __('ui.title_min_error') }}</span>
-            @error('title')<span class="text-[11.5px] font-bold text-[#b91c1c]">{{ $message }}</span>@enderror
-        </div>
+        <div class="bg-white border border-[#e6e9e1] rounded-2xl shadow-sm overflow-hidden">
+            <div class="p-4 sm:p-5 grid gap-5 sm:gap-6">
+                <div class="grid gap-2">
+                    <label for="report-title" class="text-[12.5px] font-bold text-[#1a2e1f] tracking-tight">{{ __('ui.report_title_label') }}</label>
+                    <input id="report-title" name="title" maxlength="255" value="{{ old('title') }}" placeholder="{{ __('ui.auto_title_placeholder') }}" class="w-full min-h-[44px] text-[16px] sm:text-[13.5px] bg-[#fdfcfa] border border-[#e6e9e1] rounded-xl px-3.5 py-2.5 text-[#1a2e1f] placeholder:text-[#b0bab2] focus:bg-white focus:outline-none focus:border-[#0e6a38] focus:ring-2 focus:ring-[#0e6a38]/10 transition">
+                    <p class="text-[11.5px] leading-5 text-[#9aa99a]">{{ __('ui.report_title_hint') }}</p>
+                    <span class="field-error hidden text-[11.5px] font-bold text-[#b91c1c]">{{ __('ui.title_min_error') }}</span>
+                    @error('title')<span class="text-[11.5px] font-bold text-[#b91c1c]">{{ $message }}</span>@enderror
+                </div>
 
-        <div class="grid gap-2">
-            <label for="report-date" class="text-[12.5px] font-bold text-[#1a2e1f]">{{ __('ui.report_date_label') }}</label>
-            <input id="report-date" type="date" name="report_date" required max="{{ date('Y-m-d') }}" value="{{ old('report_date', date('Y-m-d')) }}" class="w-full min-h-[42px] text-[13.5px] bg-white border border-[#e6e9e1] rounded-xl px-3.5 py-2.5 text-[#1a2e1f] focus:outline-none focus:border-[#0e6a38] focus:ring-2 focus:ring-[#0e6a38]/10 transition">
-            <span class="field-error hidden text-[11.5px] font-bold text-[#b91c1c]">{{ __('ui.date_invalid_error') }}</span>
-            @error('report_date')<span class="text-[11.5px] font-bold text-[#b91c1c]">{{ $message }}</span>@enderror
-        </div>
+                <div class="grid gap-2">
+                    <label for="report-date" class="text-[12.5px] font-bold text-[#1a2e1f] tracking-tight">{{ __('ui.report_date_label') }}</label>
+                    <input id="report-date" type="date" name="report_date" required max="{{ date('Y-m-d') }}" value="{{ old('report_date', date('Y-m-d')) }}" class="w-full min-h-[44px] text-[16px] sm:text-[13.5px] bg-[#fdfcfa] border border-[#e6e9e1] rounded-xl px-3.5 py-2.5 text-[#1a2e1f] focus:bg-white focus:outline-none focus:border-[#0e6a38] focus:ring-2 focus:ring-[#0e6a38]/10 transition">
+                    <span class="field-error hidden text-[11.5px] font-bold text-[#b91c1c]">{{ __('ui.date_invalid_error') }}</span>
+                    @error('report_date')<span class="text-[11.5px] font-bold text-[#b91c1c]">{{ $message }}</span>@enderror
+                </div>
 
-        <div class="flex items-center justify-between gap-4 py-3 border-y border-[#eceee9]">
-            <div class="min-w-0">
-                <div class="text-[13px] font-bold text-[#1a2e1f] leading-5">{{ __('ui.visible_to_monitors') }}</div>
-                <p class="text-[11.5px] leading-4 text-[#9aa99a] mt-0.5">{{ __('ui.visible_to_monitors_hint') }}</p>
+                <div class="flex items-center justify-between gap-4 py-3.5 px-3.5 -mx-1 sm:mx-0 bg-[#f9faf8] border border-[#eceee9] rounded-xl">
+                    <div class="min-w-0">
+                        <div class="text-[13px] font-bold text-[#1a2e1f] leading-5">{{ __('ui.visible_to_monitors') }}</div>
+                        <p class="text-[11.5px] leading-4 text-[#9aa99a] mt-0.5">{{ __('ui.visible_to_monitors_hint') }}</p>
+                    </div>
+                    <span class="r-switch"><input type="checkbox" name="visible_to_monitors" value="1" @checked(old('visible_to_monitors', true)) aria-label="{{ __('ui.visible_to_monitors') }}"><span class="track"></span></span>
+                </div>
+
+                <div class="flex items-start gap-3 px-3.5 py-3 bg-[#f6f7f5] border border-[#eceee9] rounded-xl">
+                    <span class="w-7 h-7 rounded-lg bg-white border border-[#e6e9e1] flex items-center justify-center shrink-0 mt-0.5">
+                        <svg class="w-4 h-4 text-[#0e6a38]" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    </span>
+                    <p class="text-[12.5px] leading-[1.7] sm:leading-6 text-[#4a5a4f]">{{ __('ui.auto_attach_hint') }}</p>
+                </div>
             </div>
-            <span class="r-switch"><input type="checkbox" name="visible_to_monitors" value="1" @checked(old('visible_to_monitors', true)) aria-label="{{ __('ui.visible_to_monitors') }}"><span class="track"></span></span>
-        </div>
-
-        <div class="flex items-start gap-2.5 px-3 py-3 bg-[#f6f7f5] border border-[#eceee9] border-r-2 border-r-[#0e6a38] rounded-xl">
-            <svg class="w-4 h-4 mt-0.5 shrink-0 text-[#6b7a6e]" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-            <p class="text-[12.5px] leading-6 text-[#4a5a4f]">{{ __('ui.auto_attach_hint') }}</p>
-        </div>
-
-        <div class="flex flex-col-reverse sm:flex-row sm:items-center gap-2.5 pt-1">
-            <a href="{{ route('reports.index') }}" class="inline-flex items-center justify-center px-5 min-h-[42px] rounded-xl border border-[#e6e9e1] bg-white text-[13px] font-bold text-[#6b7a6e] hover:border-[#0e6a38] hover:text-[#0e6a38] transition">{{ __('ui.cancel') }}</a>
-            <button id="create-btn" class="w-full sm:w-auto sm:ms-auto inline-flex items-center justify-center px-7 min-h-[42px] rounded-xl bg-[#0e6a38] hover:bg-[#0a4d28] text-white font-bold text-[13px] transition disabled:opacity-60 shadow-sm">{{ __('ui.create_draft_btn') }}</button>
+            <div class="flex flex-col-reverse sm:flex-row sm:items-center gap-2.5 p-3 sm:p-4 bg-[#f9faf8] border-t border-[#eceee9]">
+                <a href="{{ route('reports.index') }}" class="w-full sm:w-auto inline-flex items-center justify-center px-5 min-h-[44px] rounded-xl border border-[#e6e9e1] bg-white text-[13px] font-bold text-[#6b7a6e] hover:border-[#0e6a38] hover:text-[#0e6a38] hover:bg-white transition">{{ __('ui.cancel') }}</a>
+                <button id="create-btn" class="w-full sm:w-auto sm:ms-auto inline-flex items-center justify-center gap-2 px-7 min-h-[44px] rounded-xl bg-[#0e6a38] hover:bg-[#0a4d28] text-white font-bold text-[13px] transition disabled:opacity-60 shadow-sm hover:shadow-md">{{ __('ui.create_draft_btn') }} <svg class="w-3.5 h-3.5 hidden sm:block" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14M12 5l7 7-7 7"/></svg></button>
+            </div>
         </div>
     </form>
 </div>
@@ -62,6 +67,31 @@
     .r-switch input:checked + .track::before{ transform:translateX(-18px); }
     .r-switch input:focus-visible + .track{ outline:2px solid #0e6a38; outline-offset:2px; }
     .invalid{ border-color:#ef4444 !important; box-shadow:0 0 0 2px rgba(239,68,68,.1) !important; }
+
+    html.dark .bg-white{ background:#232926 !important; }
+    html.dark .bg-\[\#fdfcfa\]{ background:#2a302b !important; border-color:#333b34 !important; }
+    html.dark .bg-\[\#f9faf8\]{ background:#1e2320 !important; border-color:#333b34 !important; }
+    html.dark .bg-\[\#f6f7f5\]{ background:#2a302b !important; border-color:#333b34 !important; }
+    html.dark .border-\[\#e6e9e1\]{ border-color:#333b34 !important; }
+    html.dark .border-\[\#eceee9\]{ border-color:#333b34 !important; }
+    html.dark .text-\[\#1a2e1f\]{ color:#e7ece5 !important; }
+    html.dark .text-\[\#9aa99a\]{ color:#8a9a8a !important; }
+    html.dark .text-\[\#6b7a6e\]{ color:#9bb0a0 !important; }
+    html.dark .text-\[\#4a5a4f\]{ color:#b9c6bb !important; }
+    html.dark .placeholder\:\[text-\[\#b0bab2\]\]::placeholder{ color:#6a7a6a !important; }
+    html.dark .r-switch .track{ background:#3a443b !important; }
+    html.dark .r-switch .track::before{ background:#1e2320 !important; }
+    html.dark .hover\:bg-white:hover{ background:#2a302b !important; }
+    html.dark .text-\[\#0e6a38\]{ color:#4ade80 !important; }
+    html.dark .border-\[\#cde7d6\]{ border-color:#1e3d25 !important; }
+    html.dark .bg-\[\#e8f3ec\]{ background:#1e3328 !important; border-color:#1e3d25 !important; color:#4ade80 !important; }
+    html.dark .bg-\[\#fef2f2\]{ background:#2d1f1f !important; border-color:#3d2626 !important; color:#f08080 !important; }
+    html.dark .border-\[\#fecaca\]{ border-color:#3d2626 !important; }
+    html.dark .text-\[\#b91c1c\]{ color:#f08080 !important; }
+    html.dark .hover\:border-\[\#0e6a38\]:hover{ border-color:#4ade80 !important; }
+    html.dark .hover\:text-\[\#0e6a38\]:hover{ color:#4ade80 !important; }
+    html.dark .focus\:border-\[\#0e6a38\]:focus{ border-color:#4ade80 !important; }
+    html.dark .focus\:ring-\[\#0e6a38\]\/10:focus{ --tw-ring-color:rgba(74,222,128,.1) !important; }
 </style>
 <script>
 (function () {

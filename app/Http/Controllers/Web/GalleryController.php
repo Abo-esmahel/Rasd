@@ -87,7 +87,7 @@ class GalleryController extends Controller
                     'parentUrl' => route('notes.show', $p), 'parentKind' => __('ui.parent_note'),
                     'parentRef' => '#' . str_pad($p->id, 4, '0', STR_PAD_LEFT),
                     'camera' => $p->camera_number, 'floor' => $p->floor_number,
-                    'ownerName' => $p->owner->name ?? '—',
+                    'ownerName' => $p->owner->localized_name ?? '—',
                 ];
             }
             $p = $subs->get($r['parent_id']);
@@ -100,7 +100,7 @@ class GalleryController extends Controller
                 'parentUrl' => route('general-submissions.show', $p), 'parentKind' => __('ui.parent_submission'),
                 'parentRef' => '#' . str_pad($p->id, 4, '0', STR_PAD_LEFT),
                 'camera' => $p->camera_number, 'floor' => $p->floor_number,
-                'ownerName' => $p->owner->name ?? '—',
+                'ownerName' => $p->owner->localized_name ?? '—',
             ];
         })->filter()->values();
         $page->setCollection($items);

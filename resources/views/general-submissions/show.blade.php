@@ -5,7 +5,7 @@
     <a href="{{ route('general-submissions.index') }}" class="inline-flex items-center gap-2 text-sm text-ink-400 hover:text-ink-700 mb-4">{{ back_arrow() }} {{ __('ui.back_aria') }}</a>
 
     <div class="bg-white rounded-2xl border border-[#e6e9e1] overflow-hidden">
-        <div class="p-6 border-b border-[#e6e9e1]">
+        <div class="p-4 sm:p-6 border-b border-[#e6e9e1]">
             <div class="flex items-center gap-2 mb-3">
                 @if($generalSubmission->status === 'pending')
                     <span class="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200"><span data-status="pending">{{ __('ui.pending') }}</span></span>
@@ -15,28 +15,28 @@
                     <span class="px-2 py-0.5 rounded-full text-xs font-bold bg-red-50 text-red-700"><span data-status="rejected">{{ __('ui.rejected') }}</span></span>
                 @endif
             </div>
-            <h1 class="text-lg font-extrabold text-ink-800" data-i18n-field="description">{{ l10n_text('submission', $generalSubmission->id, 'description', $generalSubmission->description) }}</h1>
-            <div class="flex items-center gap-4 mt-3 text-sm text-ink-500">
-                <span>{{ __('ui.floor') }} {{ $generalSubmission->floor_number }}</span>
-                <span>{{ __('ui.camera') }} {{ $generalSubmission->camera_number }}</span>
-                <span>{{ $generalSubmission->observed_at->format('Y-m-d H:i') }}</span>
-                <span class="text-xs text-ink-400 font-mono" dir="ltr" title="{{ __('ui.created_at') }}">{{ __('ui.created_label') }} {{ $generalSubmission->created_at->format('Y-m-d H:i') }}</span>
+            <h1 class="text-lg font-extrabold text-ink-800 break-words" data-i18n-field="description">{{ l10n_text('submission', $generalSubmission->id, 'description', $generalSubmission->description) }}</h1>
+            <div class="flex flex-wrap items-center gap-2 sm:gap-4 mt-3 text-sm text-ink-500">
+                <span class="whitespace-nowrap">{{ __('ui.floor') }} {{ $generalSubmission->floor_number }}</span>
+                <span class="whitespace-nowrap">{{ __('ui.camera') }} {{ $generalSubmission->camera_number }}</span>
+                <span class="whitespace-nowrap tabular-nums" dir="ltr">{{ $generalSubmission->observed_at->format('Y-m-d H:i') }}</span>
+                <span class="text-xs text-ink-400 font-mono whitespace-nowrap" dir="ltr" title="{{ __('ui.created_at') }}">{{ __('ui.created_label') }} {{ $generalSubmission->created_at->format('Y-m-d H:i') }}</span>
             </div>
             <div class="mt-3 text-sm">
                 <span class="text-ink-400">{{ __('ui.sender') }}</span>
-                <span class="font-bold text-ink-700" data-no-translate>{{ $generalSubmission->owner->name }}</span>
+                <span class="font-bold text-ink-700" data-no-translate>{{ $generalSubmission->owner->localized_name }}</span>
             </div>
             @if(auth()->user()->isMonitor())
             <div class="mt-2 flex flex-wrap gap-1">
                 <span class="text-xs text-ink-400">{{ __('ui.to') }}</span>
                 @foreach($generalSubmission->reportWriters as $w)
-                    <span class="px-2 py-0.5 rounded-full bg-[#f5f7f5] border text-xs font-bold">{{ $w->name }}</span>
+                    <span class="px-2 py-0.5 rounded-full bg-[#f5f7f5] border text-xs font-bold">{{ $w->localized_name }}</span>
                 @endforeach
             </div>
             @endif
         </div>
         @if($generalSubmission->attachments->count() > 0)
-        <div class="px-6 pt-4">
+        <div class="px-4 sm:px-6 pt-4">
             <h3 class="text-sm font-bold text-ink-700 mb-3">{{ __('ui.attachments_section', ['count' => $generalSubmission->attachments->count()]) }}</h3>
             <div class="space-y-2">
                 @foreach($generalSubmission->attachments as $attachment)
@@ -61,7 +61,7 @@
             </div>
         </div>
         @endif
-        <div class="p-6">
+        <div class="p-4 sm:p-6">
             <div class="mb-2">@include('notes.partials.translation_status', ['note' => $generalSubmission, 'type' => 'submission'])</div>
             <h3 class="font-bold text-ink-700 mb-2">{{ __('ui.description') }}</h3>
             <p class="text-sm leading-7 text-ink-600 whitespace-pre-wrap" data-i18n-field="description">{{ l10n_text('submission', $generalSubmission->id, 'description', $generalSubmission->description) }}</p>
@@ -72,7 +72,7 @@
                     @if($generalSubmission->processed_by)
                         @php $processor = \App\Models\User::find($generalSubmission->processed_by); @endphp
                         @if($processor)
-                            <div class="mt-2 text-xs font-bold text-red-500">{{ __('ui.by_user') }} {{ $processor->name }} — {{ $generalSubmission->processed_at?->format('Y-m-d H:i') }}</div>
+                            <div class="mt-2 text-xs font-bold text-red-500">{{ __('ui.by_user') }} {{ $processor->localized_name }} — {{ $generalSubmission->processed_at?->format('Y-m-d H:i') }}</div>
                         @endif
                     @endif
                 </div>
@@ -81,7 +81,7 @@
                 @php $processor = \App\Models\User::find($generalSubmission->processed_by); @endphp
                 @if($processor)
                     <div class="mt-4 p-3 rounded-xl bg-[#eef4f0] border border-[#cde7d6] text-sm">
-                        <span class="font-bold text-[#0e6a38]">{{ __('ui.approved_by') }} {{ $processor->name }}</span>
+                        <span class="font-bold text-[#0e6a38]">{{ __('ui.approved_by') }} {{ $processor->localized_name }}</span>
                         <span class="text-ink-400"> — {{ $generalSubmission->processed_at?->format('Y-m-d H:i') }}</span>
                     </div>
                 @endif

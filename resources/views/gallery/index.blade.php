@@ -36,10 +36,10 @@
             </button>
             <span class="w-px h-5 bg-[#e6e9e1] dark:bg-[#343a34] mx-1.5 shrink-0" aria-hidden="true"></span>
             <button type="button" id="gal-filter-btn"
-                class="shrink-0 inline-flex items-center gap-1.5 px-3 h-8 rounded-full text-xs font-bold transition text-ink-500 dark:text-[#9bb0a0] hover:bg-[#f5f7f5] dark:hover:bg-[#2e352e] hover:text-ink-700 dark:hover:text-[#e7ece5]"
+                class="shrink-0 inline-flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 h-7 sm:h-8 rounded-full text-[11px] sm:text-xs font-bold transition text-ink-500 dark:text-[#9bb0a0] hover:bg-[#f5f7f5] dark:hover:bg-[#2e352e] hover:text-ink-700 dark:hover:text-[#e7ece5]"
                 aria-expanded="false" aria-controls="gal-filters" aria-label="{{ __('ui.filter_aria') }}">
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M3 5h18l-7 8v5l-4 2v-7L3 5z"/></svg>
-                <span id="gal-filter-dot" class="{{ $activeFilters ? '' : 'hidden' }} min-w-[18px] h-[18px] px-1 rounded-full bg-[#0e6a38]/10 dark:bg-[#4ade80]/15 text-[#0e6a38] dark:text-[#4ade80] text-[10px] font-extrabold inline-flex items-center justify-center tabular-nums">{{ $activeFilters }}</span>
+                <svg class="w-3 h-3 sm:w-3.5 sm:h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M3 5h18l-7 8v5l-4 2v-7L3 5z"/></svg>
+                <span id="gal-filter-dot" class="{{ $activeFilters ? '' : 'hidden' }} min-w-[16px] sm:min-w-[18px] h-[16px] sm:h-[18px] px-1 rounded-full bg-[#0e6a38]/10 dark:bg-[#4ade80]/15 text-[#0e6a38] dark:text-[#4ade80] text-[9px] sm:text-[10px] font-extrabold inline-flex items-center justify-center tabular-nums">{{ $activeFilters }}</span>
             </button>
         </div>
     </div>

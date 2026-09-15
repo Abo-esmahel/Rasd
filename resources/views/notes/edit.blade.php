@@ -39,7 +39,7 @@
                 <div class="text-sm font-bold text-red-700">{{ __('ui.reject_reason') }}</div>
                 <p class="mt-1 text-sm leading-6 text-red-600 break-words" data-i18n-field="rejection_reason">{{ l10n_text('note', $note->id, 'rejection_reason', $note->rejection_reason) }}</p>
                 @if($note->processor)
-                    <div class="mt-1.5 text-xs font-bold text-red-500">{{ __('ui.by_user') }} {{ $note->processor->name }} — {{ $note->processed_at?->toDatetime12() }}</div>
+                    <div class="mt-1.5 text-xs font-bold text-red-500">{{ __('ui.by_user') }} {{ $note->processor->localized_name }} — {{ $note->processed_at?->toDatetime12() }}</div>
                 @endif
             </div>
         </div>
@@ -53,7 +53,7 @@
     @endif
 
     <div class="bg-[#fdfcfa] rounded-2xl border border-[#e6e9e1] overflow-hidden">
-        <form method="POST" action="{{ route('notes.update', $note, false) }}" enctype="multipart/form-data" class="p-6 space-y-5" id="edit-form" novalidate>
+        <form method="POST" action="{{ route('notes.update', $note, false) }}" enctype="multipart/form-data" class="p-4 sm:p-6 space-y-4 sm:space-y-5" id="edit-form" novalidate>
             @csrf @method('PUT')
             <div id="form-errors-edit" class="hidden p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700"></div>
             <div id="upload-progress-edit" class="hidden p-4 bg-[#eef4f0] border border-[#cde7d6] rounded-xl">
@@ -66,21 +66,21 @@
                 </div>
                 <div class="mt-1 text-[11px] text-ink-400">{{ __('ui.uploading_dont_close') }}</div>
             </div>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="grid grid-cols-2 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
-                    <label class="block text-sm font-bold text-ink-700 mb-1.5">{{ __('ui.floor_no') }} <span class="text-red-500">*</span></label>
-                    <input type="number" name="floor_number" value="{{ old('floor_number', $note->floor_number) }}" min="0" required
-                        class="block w-full rounded-xl border border-[#e6e9e1] bg-white py-3 px-4 text-sm font-medium text-ink-800 focus:border-[#0e6a38] focus:ring-2 focus:ring-[#0e6a38]/10 outline-none transition">
+                    <label class="block text-[13px] sm:text-sm font-bold text-ink-700 mb-1.5">{{ __('ui.floor_no') }} <span class="text-red-500">*</span></label>
+                    <input type="number" name="floor_number" value="{{ old('floor_number', $note->floor_number) }}" min="0" required inputmode="numeric"
+                        class="block w-full rounded-xl border border-[#e6e9e1] bg-white py-3 px-3 sm:px-4 min-h-[44px] text-[16px] sm:text-sm font-medium text-ink-800 focus:border-[#0e6a38] focus:ring-2 focus:ring-[#0e6a38]/10 outline-none transition">
                 </div>
                 <div>
-                    <label class="block text-sm font-bold text-ink-700 mb-1.5">{{ __('ui.cam_no') }} <span class="text-red-500">*</span></label>
-                    <input type="number" name="camera_number" value="{{ old('camera_number', $note->camera_number) }}" min="1" required
-                        class="block w-full rounded-xl border border-[#e6e9e1] bg-white py-3 px-4 text-sm font-medium text-ink-800 focus:border-[#0e6a38] focus:ring-2 focus:ring-[#0e6a38]/10 outline-none transition">
+                    <label class="block text-[13px] sm:text-sm font-bold text-ink-700 mb-1.5">{{ __('ui.cam_no') }} <span class="text-red-500">*</span></label>
+                    <input type="number" name="camera_number" value="{{ old('camera_number', $note->camera_number) }}" min="1" required inputmode="numeric"
+                        class="block w-full rounded-xl border border-[#e6e9e1] bg-white py-3 px-3 sm:px-4 min-h-[44px] text-[16px] sm:text-sm font-medium text-ink-800 focus:border-[#0e6a38] focus:ring-2 focus:ring-[#0e6a38]/10 outline-none transition">
                 </div>
             </div>
 
-            <div class="rounded-xl border border-[#e6e9e1] bg-[#f5f7f5] p-4" id="edit-datetime-wrap">
-                <label class="block text-sm font-bold text-ink-700 mb-1">{{ __('ui.time_label') }} <span class="text-red-500">*</span></label>
+            <div class="rounded-xl border border-[#e6e9e1] bg-[#f5f7f5] p-3 sm:p-4" id="edit-datetime-wrap">
+                <label class="block text-[13px] sm:text-sm font-bold text-ink-700 mb-1">{{ __('ui.time_label') }} <span class="text-red-500">*</span></label>
                 @php
                     $editObserved = old('observed_at', $note->observed_at->format('Y-m-d\TH:i'));
                     $editDate = $editObserved ? date('Y-m-d', strtotime($editObserved)) : '';
@@ -93,28 +93,28 @@
                         <div class="text-xs font-bold text-ink-500 mb-1.5">{{ __('ui.date_label') }}</div>
                         <input type="date" id="observed_date_edit" value="{{ $editDate }}" required
                             class="block w-full rounded-xl border border-[#e6e9e1] bg-white py-2.5 px-4 text-sm font-bold text-ink-800 focus:border-[#0e6a38] focus:ring-2 focus:ring-[#0e6a38]/10 outline-none transition cursor-pointer"
-                            style="color-scheme: light;">
+                            style="color-scheme: light dark;">
                     </div>
                     <div class="grid grid-cols-2 gap-3">
                         <div>
                             <div class="text-xs font-bold text-ink-500 mb-1.5">{{ __('ui.note_start') }}</div>
                             <input type="time" id="observed_time_edit" value="{{ $editTime }}" required step="60"
                                 class="block w-full rounded-xl border border-[#e6e9e1] bg-white py-2.5 px-4 text-sm font-bold text-ink-800 focus:border-[#0e6a38] focus:ring-2 focus:ring-[#0e6a38]/10 outline-none transition cursor-pointer"
-                                style="color-scheme: light;">
+                                style="color-scheme: light dark;">
                         </div>
                         <div>
                             <div class="text-xs font-bold text-ink-500 mb-1.5">{{ __('ui.note_end') }}</div>
                             <input type="time" id="observed_end_time_edit" value="{{ $editEndTime }}" step="60"
                                 class="block w-full rounded-xl border border-[#e6e9e1] bg-white py-2.5 px-4 text-sm font-bold text-ink-800 focus:border-[#0e6a38] focus:ring-2 focus:ring-[#0e6a38]/10 outline-none transition cursor-pointer"
-                                style="color-scheme: light;">
+                                style="color-scheme: light dark;">
                         </div>
                     </div>
                 </div>
                 <div class="mt-3 flex flex-wrap gap-1.5">
-                    <button type="button" data-preset="now" class="preset-btn-edit px-3 py-1.5 rounded-lg bg-[#0e6a38] text-white text-xs font-bold hover:bg-[#0a4d28] transition">{{ __('ui.now_btn') }}</button>
-                    <button type="button" data-preset="hour-ago" class="preset-btn-edit px-3 py-1.5 rounded-lg bg-[#fdfcfa] border border-[#e6e9e1] text-[#1a2e1f] text-xs font-bold hover:bg-[#f5f7f5] transition">{{ __('ui.hour_ago_btn') }}</button>
-                    <button type="button" data-preset="today-08" class="preset-btn-edit px-3 py-1.5 rounded-lg bg-[#fdfcfa] border border-[#e6e9e1] text-[#1a2e1f] text-xs font-bold hover:bg-[#f5f7f5] transition">{{ __('ui.today_08_btn') }}</button>
-                    <button type="button" id="clear-datetime-edit" class="px-3 py-1.5 rounded-lg bg-transparent border border-[#e6e9e1] text-ink-400 text-xs font-bold hover:bg-white transition">{{ __('ui.clear_btn') }}</button>
+                    <button type="button" data-preset="now" class="preset-btn-edit px-3 py-2 sm:py-1.5 min-h-[36px] sm:min-h-0 rounded-lg bg-[#0e6a38] text-white text-xs font-bold hover:bg-[#0a4d28] transition">{{ __('ui.now_btn') }}</button>
+                    <button type="button" data-preset="hour-ago" class="preset-btn-edit px-3 py-2 sm:py-1.5 min-h-[36px] sm:min-h-0 rounded-lg bg-[#fdfcfa] border border-[#e6e9e1] text-[#1a2e1f] text-xs font-bold hover:bg-[#f5f7f5] transition">{{ __('ui.hour_ago_btn') }}</button>
+                    <button type="button" data-preset="today-08" class="preset-btn-edit px-3 py-2 sm:py-1.5 min-h-[36px] sm:min-h-0 rounded-lg bg-[#fdfcfa] border border-[#e6e9e1] text-[#1a2e1f] text-xs font-bold hover:bg-[#f5f7f5] transition">{{ __('ui.today_08_btn') }}</button>
+                    <button type="button" id="clear-datetime-edit" class="px-3 py-2 sm:py-1.5 min-h-[36px] sm:min-h-0 rounded-lg bg-transparent border border-[#e6e9e1] text-ink-400 text-xs font-bold hover:bg-white transition">{{ __('ui.clear_btn') }}</button>
                 </div>
                 <div class="mt-3 flex items-center gap-2 p-2.5 rounded-lg bg-white border border-[#e6e9e1]">
                     <svg class="w-4 h-4 text-[#0e6a38] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
@@ -224,9 +224,9 @@
                     </div>
 
 
-                    <div id="camera-modal-edit" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <div id="camera-modal-edit" class="hidden fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4">
                         <div class="absolute inset-0 bg-ink-900/70 backdrop-blur-sm" id="camera-backdrop-edit"></div>
-                        <div class="relative bg-white rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden shadow-2xl">
+                        <div class="relative bg-white rounded-xl sm:rounded-2xl w-full max-w-lg max-h-[96vh] sm:max-h-[90vh] flex flex-col overflow-hidden shadow-2xl mx-1 sm:mx-auto">
                             <div class="px-4 py-3 border-b border-[#e6e9e1] flex items-center justify-between shrink-0">
                                 <h3 class="text-sm font-extrabold text-ink-800 flex items-center gap-2">
                                     <span class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
@@ -389,28 +389,17 @@
             if(isNaN(d)) return null;
             try{ return d.toLocaleDateString(EDIT_T.dateLocale,{weekday:'long',year:'numeric',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit'});}catch(e){return date+' '+time;}
         }
-        function tzSuffixEdit(localDateStr){
-            try{
-                const d=new Date(localDateStr);
-                if(isNaN(d)) return '';
-                const off=-d.getTimezoneOffset();
-                const sign=off>=0?'+':'-';
-                const abs=Math.abs(off);
-                const hh=String(Math.floor(abs/60)).padStart(2,'0');
-                const mm=String(abs%60).padStart(2,'0');
-                return sign+hh+':'+mm;
-            }catch(_){ return ''; }
-        }
         function sync(){
             const d=dateEl?.value, t=timeEl?.value, et=endTimeEl?.value;
-            if(d && t){ const base=d+'T'+t; hidden.value=base+tzSuffixEdit(base); const txt=toPreview(d,t); const endTxt=et?' — '+et:''; if(preview) preview.textContent=(txt||(d+' — '+t))+endTxt; hidden.setCustomValidity(''); }
+            if(d && t){ const base=d+'T'+t; hidden.value=base; const txt=toPreview(d,t); const endTxt=et?' — '+et:''; if(preview) preview.textContent=(txt||(d+' — '+t))+endTxt; hidden.setCustomValidity(''); }
             else { hidden.value=''; if(preview) preview.textContent=EDIT_T.chooseTime; }
             if(d && et){
                 let endVal=d+'T'+et;
-                try{ if(t && et < t){ const nd=new Date(d+'T'+et); nd.setDate(nd.getDate()+1); const pad=n=>String(n).padStart(2,'0'); endVal=nd.getFullYear()+'-'+pad(nd.getMonth()+1)+'-'+pad(nd.getDate())+'T'+et; } }catch(_){}
-                hiddenEnd.value=endVal+tzSuffixEdit(endVal);
+                try{ if(t && et < t){ const nd=new Date(d+'T'+et); nd.setDate(nd.getDate()+1); const pad2=n=>String(n).padStart(2,'0'); endVal=nd.getFullYear()+'-'+pad2(nd.getMonth()+1)+'-'+pad2(nd.getDate())+'T'+et; } }catch(_){}
+                hiddenEnd.value=endVal;
             } else { hiddenEnd.value=''; }
         }
+        window._syncObservedEdit = sync;
         dateEl?.addEventListener('change',sync); timeEl?.addEventListener('change',sync); endTimeEl?.addEventListener('change',sync);
         dateEl?.addEventListener('input',sync); timeEl?.addEventListener('input',sync); endTimeEl?.addEventListener('input',sync);
         document.querySelectorAll('.preset-btn-edit').forEach(btn=>{
@@ -708,7 +697,7 @@
     const formEdit=document.getElementById('edit-form');
     const formErrorsEdit=document.getElementById('form-errors-edit');
     formEdit?.addEventListener('submit', async (e)=>{
-        try{ if(typeof sync==='function') sync(); }catch(_){}
+        try{ if(window._syncObservedEdit) window._syncObservedEdit(); else if(typeof sync==='function') sync(); }catch(_){}
         const floorEl=formEdit.querySelector('input[name="floor_number"]');
         const camEl=formEdit.querySelector('input[name="camera_number"]');
         const descEl=formEdit.querySelector('textarea[name="description"]');
@@ -830,7 +819,8 @@
                 if(res.ok && data && data.success !== false){
                     if(recordedAudioUrlE) URL.revokeObjectURL(recordedAudioUrlE);
                     recordedAudioBlobE=null; recordedAudioUrlE=null;
-                    window.location.href="{{ route('notes.index', [], false) }}";
+                    if(data && data.redirect) window.location.href=data.redirect;
+                    else window.location.href="{{ route('notes.index', [], false) }}";
                     return;
                 }
                 if(res.status===422){
