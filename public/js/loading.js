@@ -17,6 +17,10 @@
         /\/broadcasting\//,
         /\/(reverb|pusher|sockjs)/i,
         /\/sw\.js(\?|$)/,
+        /\/translation-status(\?|$)/,
+        /\/translations?\//,
+        /\/translation-retry/,
+        /\/locale(\?|$)/,
         /^data:/,
         /^blob:/
     ];

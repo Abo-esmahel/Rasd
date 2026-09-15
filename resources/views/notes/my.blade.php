@@ -1109,7 +1109,8 @@ document.querySelectorAll('[data-ajax-tab]').forEach(tab => {
             .finally(function(){ busy = false; });
     }
     document.addEventListener('visibilitychange', function(){ if (!document.hidden) tick(); });
-    setInterval(tick, 1000);
+    // Reduced from 1s -> 15s: same reason as index (single-threaded server + sqlite lock).
+    setInterval(tick, 15000);
 })();
 </script>
 @endpush

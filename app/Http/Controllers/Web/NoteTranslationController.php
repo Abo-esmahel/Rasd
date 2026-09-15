@@ -100,7 +100,7 @@ class NoteTranslationController extends Controller
 
         try {
             // Async warm (after response) — never block the request on Gemini (2-15s).
-            WarmTranslationProjection::dispatchAfterResponse('note', $note->id, $missing, $locale);
+            WarmTranslationProjection::scheduleAfterResponse('note', $note->id, $missing, $locale);
         } catch (\Throwable $e) {
             Log::warning('[L10N] note retry dispatch failed', ['note_id' => $note->id]);
             try { WarmTranslationProjection::dispatch('note', $note->id, $missing, $locale); } catch (\Throwable) {}

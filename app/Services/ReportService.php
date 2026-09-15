@@ -147,21 +147,20 @@ class ReportService
 
         $wasPublished = $report->isPublished();
         $report->update($allowed);
-        $fresh = $report->fresh();
 
         if (array_key_exists('summary', $allowed) || array_key_exists('recommendations', $allowed)) {
-            $fresh->update(['content' => $this->composeContent($fresh)]);
-            $fresh = $fresh->fresh();
+            $report->load(['notes', 'author']);
+            $report->update(['content' => $this->composeContent($report)]);
         }
 
         if ($wasPublished) {
-            $fresh->revisions()->create([
+            $report->revisions()->create([
                 'editor_id' => $user->id,
-                'content_snapshot' => (string) $fresh->content,
+                'content_snapshot' => (string) $report->content,
             ]);
         }
 
-        return $fresh;
+        return $report;
     }
 
     public function delete(User $user, Report $report): void
@@ -207,7 +206,8 @@ class ReportService
                 }
             }
 
-            foreach ($locked->notes()->get() as $existing) {
+            $existingNotes = $locked->notes()->get();
+            foreach ($existingNotes as $existing) {
                 if ($this->reportDay($existing) !== $day) {
                     throw new InvalidArgumentException(__('api.report_has_wrong_day_note'));
                 }
@@ -215,18 +215,18 @@ class ReportService
 
             foreach ($noteIds as $nid) {
                 $maxOrder++;
-                if ($locked->notes()->where('notes.id', $nid)->exists()) {
+                if ($existingNotes->contains('id', $nid)) {
                     $maxOrder--;
                     continue;
                 }
                 $locked->notes()->attach($nid, ['order_index' => $maxOrder]);
             }
 
-            $fresh = $locked->fresh(['notes', 'author']);
-            $this->recomposeIfStructured($fresh);
-            $this->warmReportObservations($fresh->fresh(['notes', 'author']));
+            $locked->load(['notes', 'author']);
+            $this->recomposeIfStructured($locked);
+            $this->warmReportObservations($locked);
 
-            return $fresh->fresh(['notes', 'author']);
+            return $locked;
         });
     }
 
@@ -237,11 +237,11 @@ class ReportService
 
         return DB::transaction(function () use ($report, $noteId) {
             $report->notes()->detach($noteId);
-            $fresh = $report->fresh(['notes', 'author']);
-            $this->recomposeIfStructured($fresh);
-            $this->warmReportObservations($fresh->fresh(['notes', 'author']));
+            $report->load(['notes', 'author']);
+            $this->recomposeIfStructured($report);
+            $this->warmReportObservations($report);
 
-            return $fresh->fresh(['notes', 'author']);
+            return $report;
         });
     }
 
@@ -264,11 +264,11 @@ class ReportService
                 $report->notes()->updateExistingPivot($nid, ['order_index' => $i]);
             }
 
-            $fresh = $report->fresh(['notes', 'author']);
-            $this->recomposeIfStructured($fresh);
-            $this->warmReportObservations($fresh->fresh(['notes', 'author']));
+            $report->load(['notes', 'author']);
+            $this->recomposeIfStructured($report);
+            $this->warmReportObservations($report);
 
-            return $fresh->fresh(['notes', 'author']);
+            return $report;
         });
     }
 
@@ -295,7 +295,7 @@ class ReportService
             }
             if (trim((string) $locked->summary) !== '' || trim((string) $locked->recommendations) !== '') {
                 $locked->update(['content' => $this->composeContent($locked)]);
-                $locked = $locked->fresh(['notes', 'author']);
+                $locked->load(['notes', 'author']);
             }
             $notesCount = $locked->notes()->count();
             if ($notesCount >= 1 && $notesCount <= (int) config('report_sheets.max_notes', 7)) {
@@ -305,7 +305,7 @@ class ReportService
                     if (($state['state'] ?? 'none') === 'none') {
                         try {
                             $htmlSvc->renderSystem($user, $locked);
-                            $locked = $locked->fresh(['notes', 'author']);
+                            $locked->load(['notes', 'author']);
                             $state = $htmlSvc->htmlState($locked);
                         } catch (\Throwable) {
                         }
@@ -321,20 +321,20 @@ class ReportService
                 }
                 if (trim((string) $locked->content) === '') {
                     $locked->update(['content' => $this->composeContent($locked)]);
-                    $locked = $locked->fresh(['notes', 'author']);
+                    $locked->load(['notes', 'author']);
                 }
             } elseif (trim((string) $locked->content) === '') {
                 $locked->update(['content' => $this->composeContent($locked)]);
-                $locked = $locked->fresh(['notes', 'author']);
+                $locked->load(['notes', 'author']);
             }
 
             $locked->update(['status' => Report::STATUS_PUBLISHED, 'published_at' => now()]);
-            $fresh = $locked->fresh(['notes', 'author']);
-            $fresh->revisions()->create(['editor_id' => $user->id, 'content_snapshot' => (string) $fresh->content]);
+            $locked->load(['notes', 'author']);
+            $locked->revisions()->create(['editor_id' => $user->id, 'content_snapshot' => (string) $locked->content]);
 
-            $publishedId = $fresh->id;
+            $publishedId = $locked->id;
             try {
-                if ($fresh->visible_to_monitors) {
+                if ($locked->visible_to_monitors) {
                     \App\Jobs\FanoutReportPublished::dispatch($publishedId)->afterResponse();
                 }
                 \App\Jobs\RebuildAiContext::dispatch()->afterResponse();
@@ -342,7 +342,7 @@ class ReportService
                 Log::warning('[REPORT] post-publish hook failed: '.$e->getMessage());
             }
 
-            return $fresh;
+            return $locked;
         });
     }
 
@@ -356,8 +356,9 @@ class ReportService
 
         $result = DB::transaction(function () use ($report) {
             $report->update(['status' => Report::STATUS_DRAFT, 'published_at' => null]);
+            $report->load(['notes', 'author']);
 
-            return $report->fresh(['notes', 'author']);
+            return $report;
         });
 
         try {
@@ -402,9 +403,8 @@ class ReportService
 
     private function recomposeIfStructured(Report $report): void
     {
-        $fresh = $report->fresh(['notes', 'author']);
-        if (trim((string) $fresh->summary) !== '' || trim((string) $fresh->recommendations) !== '') {
-            $fresh->update(['content' => $this->composeContent($fresh)]);
+        if (trim((string) $report->summary) !== '' || trim((string) $report->recommendations) !== '') {
+            $report->update(['content' => $this->composeContent($report)]);
         }
     }
 
@@ -464,7 +464,7 @@ class ReportService
                 }
             } catch (\Throwable) {
             }
-            \App\Jobs\WarmTranslationProjection::dispatchAfterResponse('report', $report->id, $fields, $target);
+            \App\Jobs\WarmTranslationProjection::scheduleAfterResponse('report', $report->id, $fields, $target);
         } catch (\Throwable $e) {
             Log::warning('[L10N] report observations warm skipped', ['report_id' => $report->id ?? null]);
         }

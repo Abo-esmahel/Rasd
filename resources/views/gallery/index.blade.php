@@ -8,14 +8,67 @@
         $observerUser = $observers->firstWhere('id', (int) request('observer'));
     }
 @endphp
-<div class="max-w-6xl mx-auto">
+<style>
+    /* ── Gallery single-render layout switching ── */
+    #gal-items{display:grid;gap:0.75rem;grid-template-columns:repeat(2,1fr)}
+    @media(min-width:640px){#gal-items{gap:1rem}}
+    @media(min-width:1024px){#gal-items{grid-template-columns:repeat(3,1fr)}}
+    @media(min-width:1280px){#gal-items{grid-template-columns:repeat(4,1fr)}}
 
+    #gal-items .gal-item{position:relative}
+    #gal-items .gal-thumb-link{position:relative}
+    #gal-items .gal-info{display:flex}
+    #gal-items .gal-compact-only{display:none}
+    #gal-items .gal-list-only{display:none}
+    #gal-items .gal-thumb-link .gal-kind-badge{top:0.5rem;left:0.5rem;bottom:auto;right:auto}
+    #gal-items .gal-list-link{display:none}
+
+    #gal-items[data-view="compact"]{grid-template-columns:repeat(3,1fr);gap:0.5rem}
+    @media(min-width:640px){#gal-items[data-view="compact"]{grid-template-columns:repeat(4,1fr)}}
+    @media(min-width:1024px){#gal-items[data-view="compact"]{grid-template-columns:repeat(6,1fr)}}
+    #gal-items[data-view="compact"] .gal-info{display:none!important}
+    #gal-items[data-view="compact"] .gal-compact-only{display:flex!important}
+    #gal-items[data-view="compact"] .gal-thumb-link .gal-kind-badge{top:auto;left:auto;bottom:0.25rem;right:0.25rem;font-size:9px;padding:1px 6px}
+    #gal-items[data-view="compact"] .gal-thumb-link img{transform:scale(1);transition:transform .5s}
+    #gal-items[data-view="compact"] .gal-thumb-link:hover img{transform:scale(1.04)}
+
+    #gal-items[data-view="list"]{display:flex;flex-direction:column;gap:0;max-width:48rem;margin-left:auto;margin-right:auto;background:var(--c-surface);border:1px solid var(--c-border);border-radius:1rem;overflow:hidden}
+    #gal-items[data-view="list"] .gal-item{display:flex!important;align-items:center;gap:0.75rem;padding:0.75rem 1rem;background:transparent!important;border:none!important;border-bottom:1px solid var(--c-divider)!important;border-radius:0!important;overflow:visible!important;transition:background .15s}
+    #gal-items[data-view="list"] .gal-item:last-child{border-bottom:none}
+    #gal-items[data-view="list"] .gal-item:hover{background:var(--c-hover)}
+    #gal-items[data-view="list"] .gal-thumb-link{width:3rem;height:3rem;min-width:3rem;border-radius:0.75rem;overflow:hidden;position:relative;border:1px solid var(--c-border);aspect-ratio:auto}
+    #gal-items[data-view="list"] .gal-thumb-link img{border-radius:0}
+    #gal-items[data-view="list"] .gal-info{display:flex!important;flex:1;min-width:0;gap:0.75rem;align-items:center;padding:0;border-radius:0;background:none;border:none}
+    #gal-items[data-view="list"] .gal-info .gal-owner{font-size:13px}
+    #gal-items[data-view="list"] .gal-info .gal-meta{font-size:11px;margin-top:2px}
+    #gal-items[data-view="list"] .gal-download{display:flex!important;width:2.25rem;height:2.25rem;border-radius:0.5rem;font-size:1rem}
+    #gal-items[data-view="list"] .gal-list-only{display:flex!important}
+    #gal-items[data-view="list"] .gal-compact-only{display:none!important}
+    #gal-items[data-view="list"] .gal-thumb-link .gal-kind-badge{display:none}
+
+    #gal-items .gal-download{display:none}
+    @media(min-width:640px){#gal-items:not([data-view="list"]) .gal-download{display:flex}}
+
+    :root{
+        --c-surface:#fff;--c-surface-alt:#f5f7f5;--c-border:#e6e9e1;--c-border-hover:#d4ddd3;--c-divider:#eceee9;
+        --c-text:#1a2e1f;--c-text2:#6b7a6e;--c-text3:#737373;--c-text4:#9aa99a;
+        --c-primary:#0e6a38;--c-primary-text:#fff;--c-hover:#f8faf8;
+        --c-badge-note:rgba(14,106,56,.9);--c-badge-sub:rgba(180,83,9,.9);
+    }
+    html.dark{
+        --c-surface:#252b26;--c-surface-alt:#1e2320;--c-border:#343a34;--c-border-hover:#404840;--c-divider:#2e352e;
+        --c-text:#e7ece5;--c-text2:#9bb0a0;--c-text3:#9bb0a0;--c-text4:#8a9a8a;
+        --c-primary:#4ade80;--c-hover:#2e352e;
+        --c-badge-note:rgba(74,222,128,.9);--c-badge-sub:rgba(240,192,64,.9);
+    }
+</style>
+
+<div class="max-w-6xl mx-auto">
 
     <div class="text-center mb-4">
         <h1 class="text-[17px] sm:text-lg font-extrabold text-ink-800 dark:text-[#e7ece5] leading-tight">{{ __('ui.gallery_title') }}</h1>
         <p class="text-xs text-[#737373] dark:text-[#9bb0a0] mt-1">{{ __('ui.attachments_count', ['count' => $attachments->total()]) }}</p>
     </div>
-
 
     <div class="flex justify-center mb-5">
         <div class="inline-flex items-center gap-0.5 bg-white dark:bg-[#252b26] border border-[#e6e9e1] dark:border-[#343a34] rounded-full pl-1.5 pr-1 py-1 shadow-[0_1px_2px_rgba(26,46,31,0.05)] dark:shadow-none max-w-full overflow-x-auto" role="group" aria-label="{{ __('ui.view_options_aria') }}">
@@ -98,17 +151,26 @@
         </div>
     @else
 
-        <div id="gal-grid" class="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 auto-rows-fr items-stretch">
+        <div id="gal-items" data-view="grid">
             @foreach($attachments as $item)
                 @php
                     $isImg = str_starts_with($item['mime'], 'image/');
                     $isVid = str_starts_with($item['mime'], 'video/');
                     $isAud = str_starts_with($item['mime'], 'audio/');
+                    $isNote = $item['kind'] === 'note';
+                    $kindLabel = $isNote ? __('ui.attachment_kind_note') : __('ui.attachment_kind_submission');
+                    $thumbSrc = $item['thumbUrl'] ?? $item['viewUrl'];
+                    $camFloor = __('ui.camera_floor_format', ['camera' => $item['camera'], 'floor' => $item['floor']]);
+                    $dateStr = $item['created']->format('Y-m-d');
+                    $dateTimeStr = $item['created']->format('Y-m-d H:i');
+                    $canDownload = auth()->user()->isReportWriter();
                 @endphp
-                <article class="group flex flex-col h-full bg-white dark:bg-[#252b26] rounded-2xl border border-[#e6e9e1] dark:border-[#343a34] overflow-hidden hover:border-[#d4ddd3] dark:hover:border-[#404840] hover:shadow-[0_4px_14px_-6px_rgba(26,46,31,0.15)] dark:hover:shadow-[0_8px_16px_-8px_rgba(0,0,0,0.5)] transition-all duration-200">
-                    <a href="{{ $item['parentUrl'] }}" class="block relative aspect-[4/3] w-full shrink-0 bg-[#f5f7f5] dark:bg-[#1e2320] overflow-hidden" title="{{ __('ui.open_parent') }}">
+                <div class="gal-item group bg-white dark:bg-[#252b26] rounded-2xl border border-[#e6e9e1] dark:border-[#343a34] overflow-hidden hover:border-[#d4ddd3] dark:hover:border-[#404840] hover:shadow-[0_4px_14px_-6px_rgba(26,46,31,0.15)] dark:hover:shadow-[0_8px_16px_-8px_rgba(0,0,0,0.5)] transition-all duration-200">
+
+                    {{-- Thumbnail: shared by grid + compact --}}
+                    <a href="{{ $item['parentUrl'] }}" class="gal-thumb-link block relative aspect-[4/3] w-full shrink-0 bg-[#f5f7f5] dark:bg-[#1e2320] overflow-hidden" title="{{ __('ui.open_parent') }}">
                         @if($isImg)
-                            <img src="{{ $item['viewUrl'] }}" alt="{{ __('ui.attachment_alt') }}" class="h-full w-full object-cover group-hover:scale-[1.03] transition-transform duration-500" loading="lazy">
+                            <img src="{{ $thumbSrc }}" alt="{{ __('ui.attachment_alt') }}" class="h-full w-full object-cover group-hover:scale-[1.03] transition-transform duration-500" loading="lazy" decoding="async">
                         @elseif($isVid)
                             <span class="flex h-full w-full flex-col items-center justify-center bg-[#f5f7f5] dark:bg-[#1e2320] gap-2">
                                 <span class="w-14 h-14 rounded-full bg-white dark:bg-[#2a302b] border border-[#e6e9e1] dark:border-[#343a34] flex items-center justify-center text-[#0e6a38] dark:text-[#4ade80] shadow-sm">
@@ -127,74 +189,30 @@
                             <span class="flex h-full w-full items-center justify-center text-ink-300 dark:text-[#8a9a8a] text-[11px] font-bold">{{ __('ui.attachment_alt') }}</span>
                         @endif
 
-                        <span class="absolute top-2 left-2 px-2 py-0.5 rounded-full text-[10px] font-bold shadow-sm {{ $item['kind'] === 'note' ? 'bg-[#0e6a38]/90 text-white' : 'bg-[#b45309]/90 text-white' }}">{{ $item['parentKind'] }}</span>
+                        <span class="gal-kind-badge absolute px-2 py-0.5 rounded-full text-[10px] font-bold shadow-sm {{ $isNote ? 'bg-[#0e6a38]/90 text-white' : 'bg-[#b45309]/90 text-white' }}">{{ $kindLabel }}</span>
                     </a>
-                    <div class="px-3 pt-2.5 pb-3 flex-1 flex flex-col justify-center gap-1 min-h-[68px]">
-                        <a href="{{ $item['parentUrl'] }}" class="block h-5 leading-5 text-[13px] font-bold text-ink-700 dark:text-[#e7ece5] hover:text-[#0e6a38] dark:hover:text-[#4ade80] transition truncate">{{ $item['ownerName'] }}</a>
-                        <div class="h-7 flex items-center gap-2 text-[11px] text-ink-400 dark:text-[#9bb0a0] overflow-hidden">
-                            <span class="truncate">{{ __('ui.camera_floor_format', ['camera' => $item['camera'], 'floor' => $item['floor']]) }}</span>
-                            <span class="font-mono tabular-nums shrink-0" dir="ltr">{{ $item['created']->format('Y-m-d') }}</span>
-                            @if(auth()->user()->isReportWriter())
-                                <a href="{{ $item['downloadUrl'] }}" title="{{ __('ui.download_aria') }}" aria-label="{{ __('ui.download_aria') }}" class="mr-auto shrink-0 w-7 h-7 rounded-lg bg-[#f5f7f5] dark:bg-[#2a302b] border border-[#e6e9e1] dark:border-[#343a34] text-ink-400 dark:text-[#9bb0a0] hover:text-[#0e6a38] dark:hover:text-[#4ade80] hover:border-[#0e6a38] flex items-center justify-center transition">
+
+                    {{-- Grid/compact info panel --}}
+                    <div class="gal-info px-3 pt-2.5 pb-3 flex-1 flex flex-col justify-center gap-1 min-h-[68px]">
+                        <a href="{{ $item['parentUrl'] }}" class="gal-owner block h-5 leading-5 text-[13px] font-bold text-ink-700 dark:text-[#e7ece5] hover:text-[#0e6a38] dark:hover:text-[#4ade80] transition truncate">{{ $item['ownerName'] }}</a>
+                        <div class="gal-meta h-7 flex items-center gap-2 text-[11px] text-ink-400 dark:text-[#9bb0a0] overflow-hidden">
+                            <span class="truncate">{{ $camFloor }}</span>
+                            <span class="font-mono tabular-nums shrink-0" dir="ltr">{{ $dateStr }}</span>
+                            @if($canDownload)
+                                <a href="{{ $item['downloadUrl'] }}" title="{{ __('ui.download_aria') }}" aria-label="{{ __('ui.download_aria') }}" class="gal-download mr-auto shrink-0 w-7 h-7 rounded-lg bg-[#f5f7f5] dark:bg-[#2a302b] border border-[#e6e9e1] dark:border-[#343a34] text-ink-400 dark:text-[#9bb0a0] hover:text-[#0e6a38] dark:hover:text-[#4ade80] hover:border-[#0e6a38] flex items-center justify-center transition">
                                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
                                 </a>
                             @endif
                         </div>
                     </div>
-                </article>
-            @endforeach
-        </div>
 
+                    {{-- Compact-only badge (shown via CSS) --}}
+                    <span class="gal-compact-only absolute bottom-1 right-1 px-1.5 py-px rounded-full text-[9px] font-bold shadow-sm {{ $isNote ? 'bg-[#0e6a38]/90 text-white' : 'bg-[#b45309]/90 text-white' }}">{{ $kindLabel }}</span>
 
-        <div id="gal-compact" class="hidden grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-2 sm:gap-2.5 auto-rows-fr items-stretch">
-            @foreach($attachments as $item)
-                <a href="{{ $item['parentUrl'] }}" title="{{ __('ui.camera_floor_format', ['camera' => $item['camera'], 'floor' => '']) }}"
-                   class="group relative block aspect-square w-full shrink-0 rounded-xl overflow-hidden bg-[#f5f7f5] dark:bg-[#1e2320] border border-[#e6e9e1] dark:border-[#343a34] hover:border-[#d4ddd3] dark:hover:border-[#404840] hover:shadow-sm transition">
-                    @if(str_starts_with($item['mime'], 'image/'))
-                        <img src="{{ $item['viewUrl'] }}" alt="" class="h-full w-full object-cover group-hover:scale-[1.04] transition-transform duration-500" loading="lazy">
-                    @elseif(str_starts_with($item['mime'], 'video/'))
-                        <span class="flex h-full w-full items-center justify-center bg-[#f5f7f5] dark:bg-[#1e2320] text-[#0e6a38] dark:text-[#4ade80]">
-                            <span class="w-10 h-10 rounded-full bg-white dark:bg-[#2a302b] border border-[#e6e9e1] dark:border-[#343a34] flex items-center justify-center shadow-sm">
-                                <svg class="w-4 h-4 -mr-px" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-                            </span>
-                        </span>
-                    @elseif(str_starts_with($item['mime'], 'audio/'))
-                        <span class="flex h-full w-full items-center justify-center bg-[#f5f7f5] dark:bg-[#1e2320] text-[#0e6a38] dark:text-[#4ade80]">
-                            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19V6l12-2v13M9 19a3 3 0 11-6 0 3 3 0 016 0zm12-2a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                        </span>
-                    @else
-                        <span class="flex h-full w-full items-center justify-center text-ink-300 dark:text-[#8a9a8a] text-xs">{{ __('ui.attachment_alt') }}</span>
-                    @endif
-                    <span class="absolute bottom-1 right-1 px-1.5 py-px rounded-full text-[9px] font-bold shadow-sm {{ $item['kind'] === 'note' ? 'bg-[#0e6a38]/90 text-white' : 'bg-[#b45309]/90 text-white' }}">{{ $item['kind'] === 'note' ? __('ui.attachment_kind_note') : __('ui.attachment_kind_submission') }}</span>
-                </a>
-            @endforeach
-        </div>
-
-
-        <div id="gal-list" class="hidden max-w-3xl mx-auto bg-white dark:bg-[#252b26] rounded-2xl border border-[#e6e9e1] dark:border-[#343a34] divide-y divide-[#eceee9] dark:divide-[#2e352e] overflow-hidden">
-            @foreach($attachments as $item)
-                <div class="flex items-center gap-3 px-3 sm:px-4 py-3 hover:bg-[#f8faf8] dark:hover:bg-[#2e352e] transition group">
-                    <a href="{{ $item['parentUrl'] }}" class="flex items-center gap-3 flex-1 min-w-0">
-                    <span class="relative block shrink-0 w-12 h-12 rounded-xl overflow-hidden bg-[#f5f7f5] dark:bg-[#1e2320] border border-[#e6e9e1] dark:border-[#343a34]">
-                        @if(str_starts_with($item['mime'], 'image/'))
-                            <img src="{{ $item['viewUrl'] }}" alt="" class="h-full w-full object-cover" loading="lazy">
-                        @else
-                            <span class="flex h-full w-full items-center justify-center bg-[#f5f7f5] dark:bg-[#1e2320] text-[#0e6a38] dark:text-[#4ade80]">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19V6l12-2v13M9 19a3 3 0 11-6 0 3 3 0 016 0zm12-2a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                            </span>
-                        @endif
-                    </span>
-                    <span class="flex-1 min-w-0">
-                        <span class="block text-[13px] font-bold text-ink-700 dark:text-[#e7ece5] group-hover:text-[#0e6a38] dark:group-hover:text-[#4ade80] transition truncate">{{ $item['ownerName'] }}</span>
-                        <span class="mt-0.5 block text-[11px] text-ink-400 dark:text-[#9bb0a0] truncate">{{ __('ui.camera_floor_format', ['camera' => $item['camera'], 'floor' => $item['floor']]) }} · <span class="font-mono tabular-nums" dir="ltr">{{ $item['created']->format('Y-m-d H:i') }}</span></span>
-                    </span>
+                    {{-- List-only link --}}
+                    <a href="{{ $item['parentUrl'] }}" class="gal-list-only shrink-0 w-9 h-9 rounded-lg bg-[#f5f7f5] dark:bg-[#2a302b] border border-[#e6e9e1] dark:border-[#343a34] text-ink-400 dark:text-[#9bb0a0] hover:text-[#0e6a38] dark:hover:text-[#4ade80] hover:border-[#0e6a38] items-center justify-center transition" title="{{ __('ui.open_parent') }}">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
                     </a>
-                    @if(auth()->user()->isReportWriter())
-                        <a href="{{ $item['downloadUrl'] }}" title="{{ __('ui.download_aria') }}" aria-label="{{ __('ui.download_aria') }}" class="shrink-0 w-9 h-9 rounded-lg bg-[#f5f7f5] dark:bg-[#2a302b] border border-[#e6e9e1] dark:border-[#343a34] text-ink-400 dark:text-[#9bb0a0] hover:text-[#0e6a38] dark:hover:text-[#4ade80] hover:border-[#0e6a38] flex items-center justify-center transition">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-                        </a>
-                    @endif
-                    <svg class="w-4 h-4 text-ink-200 dark:text-[#4a5a4f] group-hover:text-ink-400 dark:group-hover:text-[#9bb0a0] group-hover:-translate-x-0.5 transition-all shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
                 </div>
             @endforeach
         </div>
@@ -204,11 +222,8 @@
 </div>
 <script>
 (function(){
-    var views = {
-        grid: document.getElementById('gal-grid'),
-        compact: document.getElementById('gal-compact'),
-        list: document.getElementById('gal-list')
-    };
+    var container = document.getElementById('gal-items');
+    if (!container) return;
     var btns = {
         grid: document.getElementById('gal-grid-btn'),
         compact: document.getElementById('gal-compact-btn'),
@@ -219,13 +234,7 @@
     var onCls = 'bg-[#0e6a38]/10 dark:bg-[#4ade80]/15 text-[#0e6a38] dark:text-[#4ade80]',
         offCls = 'text-ink-400 dark:text-[#8a9a8a] hover:bg-[#f5f7f5] dark:hover:bg-[#2e352e] hover:text-ink-700 dark:hover:text-[#e7ece5]';
     function paint(mode){
-        Object.keys(views).forEach(function(k){
-            if (!views[k]) return;
-            var active = k === mode;
-            views[k].classList.toggle('hidden', !active);
-
-            if (k === 'compact' || k === 'grid') views[k].classList.toggle('grid', active);
-        });
+        container.setAttribute('data-view', mode);
         Object.keys(btns).forEach(function(k){
             var b = btns[k]; if (!b) return;
             var active = k === mode;
@@ -235,7 +244,7 @@
     }
     var mode = 'grid';
     try { mode = localStorage.getItem('gallery_view') || 'grid'; } catch(e){}
-    if (!views[mode]) mode = 'grid';
+    if (!{grid:1,compact:1,list:1}[mode]) mode = 'grid';
     paint(mode);
     Object.keys(btns).forEach(function(k){
         if (btns[k]) btns[k].addEventListener('click', function(){ mode = k; try{ localStorage.setItem('gallery_view', mode); }catch(e){} paint(mode); });
@@ -243,11 +252,9 @@
     if (fb && fp) fb.addEventListener('click', function(){
         var willOpen = fp.classList.contains('hidden');
         fp.classList.toggle('hidden', !willOpen);
-
         if (willOpen) { fp.classList.add('grid'); }
         fb.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
     });
-
 
     var gf = document.getElementById('gal-filters');
     if (gf) gf.querySelectorAll('select, input[type="date"]').forEach(function(el){

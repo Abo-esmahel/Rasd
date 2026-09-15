@@ -14,6 +14,9 @@ class ReportHtmlRenderingService
 {
     private array $systemHashCache = [];
 
+    /** Per-request memo of the latest render row per report (dedups htmlState/payload/htmlFor reads). */
+    private array $latestCache = [];
+
     public function __construct(
         private ReportTemplateSelector $selector,
         private ReportDataBuilder $dataBuilder,
@@ -150,6 +153,8 @@ class ReportHtmlRenderingService
                 throw new InvalidArgumentException(__('api.render_failed'));
             }
 
+            $this->latestCache[(int) $fresh->id] = $renderRow;
+
             if (!$isCached) {
                 Log::info('[HTML-RENDER] generated', ['report_id' => $fresh->id, 'generation_id' => $renderRow->generationId(), 'template' => $selected['key']]);
                 foreach (['ar', 'en'] as $loc) {
@@ -223,11 +228,16 @@ class ReportHtmlRenderingService
 
     public function latestFor(Report $report): ?ReportSheetRender
     {
-        try {
-            return ReportSheetRender::where('report_id', $report->id)->orderByDesc('generation_no')->first();
-        } catch (\Illuminate\Database\QueryException $e) {
-            return null;
+        $id = (int) $report->id;
+        if (!array_key_exists($id, $this->latestCache)) {
+            try {
+                $this->latestCache[$id] = ReportSheetRender::where('report_id', $id)->orderByDesc('generation_no')->first();
+            } catch (\Illuminate\Database\QueryException $e) {
+                return null;
+            }
         }
+
+        return $this->latestCache[$id];
     }
 
     public function latestPayloadForEditor(Report $report): ?array
@@ -436,7 +446,7 @@ class ReportHtmlRenderingService
                 }
             } catch (\Throwable) {
             }
-            \App\Jobs\WarmTranslationProjection::dispatchAfterResponse('report', $reportId, $fields, $target);
+            \App\Jobs\WarmTranslationProjection::scheduleAfterResponse('report', $reportId, $fields, $target);
         } catch (\Throwable) {
         }
     }
@@ -463,6 +473,6 @@ class ReportHtmlRenderingService
         }
         $uiLocale = \App\Services\Localization\SourceLanguage::normalizeLocale(app()->getLocale());
         $target = $uiLocale === 'ar' ? 'en' : 'ar';
-        \App\Jobs\WarmTranslationProjection::dispatchAfterResponse('report', $reportId, $fields, $target);
+        \App\Jobs\WarmTranslationProjection::scheduleAfterResponse('report', $reportId, $fields, $target);
     }
 }

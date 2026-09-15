@@ -55,9 +55,25 @@ class GalleryController extends Controller
                 if ($floor !== null) $q->where('general_submissions.floor_number', $floor);
             });
 
-        foreach ([$noteQ, $subQ] as $q) {
-            if ($type !== null) $q->where('mime_type', 'like', $type . '/%');
-            if ($date !== null) $q->whereDate('created_at', $date);
+        $dayStart = $dayEnd = null;
+        if ($date !== null) {
+            try {
+                $day = \Carbon\Carbon::parse($date)->startOfDay();
+                $dayStart = $day->toDateTimeString();
+                $dayEnd = $day->copy()->endOfDay()->toDateTimeString();
+            } catch (\Throwable) {
+                $dayStart = $dayEnd = null;
+            }
+        }
+
+        if ($type !== null) {
+            $noteQ->where('attachments.mime_type', 'like', $type . '/%');
+            $subQ->where('general_submission_attachments.mime_type', 'like', $type . '/%');
+        }
+        if ($dayStart !== null) {
+            // Range instead of whereDate() so indexes on created_at stay usable.
+            $noteQ->whereBetween('attachments.created_at', [$dayStart, $dayEnd]);
+            $subQ->whereBetween('general_submission_attachments.created_at', [$dayStart, $dayEnd]);
         }
 
 
@@ -83,6 +99,7 @@ class GalleryController extends Controller
                     'kind' => 'note', 'id' => $r['id'], 'name' => $r['original_name'], 'mime' => $r['mime_type'],
                     'size' => $r['file_size'], 'created' => $created,
                     'viewUrl' => route('notes.attachments.view', $r['id']),
+                    'thumbUrl' => route('notes.attachments.thumb', $r['id']),
                     'downloadUrl' => route('notes.attachments.download', $r['id']),
                     'parentUrl' => route('notes.show', $p), 'parentKind' => __('ui.parent_note'),
                     'parentRef' => '#' . str_pad($p->id, 4, '0', STR_PAD_LEFT),
@@ -96,6 +113,7 @@ class GalleryController extends Controller
                 'kind' => 'submission', 'id' => $r['id'], 'name' => $r['original_name'], 'mime' => $r['mime_type'],
                 'size' => $r['file_size'], 'created' => $created,
                 'viewUrl' => route('submission-attachments.view', $r['id']),
+                'thumbUrl' => route('submission-attachments.thumb', $r['id']),
                 'downloadUrl' => route('submission-attachments.download', $r['id']),
                 'parentUrl' => route('general-submissions.show', $p), 'parentKind' => __('ui.parent_submission'),
                 'parentRef' => '#' . str_pad($p->id, 4, '0', STR_PAD_LEFT),

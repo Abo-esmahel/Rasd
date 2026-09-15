@@ -98,14 +98,15 @@ class ReportInsightsService
         $rVisible = (int) ($reportCounts->visible ?? 0);
         $publishRate = $rTotal > 0 ? round($rPublished / $rTotal * 100) : 0;
 
-        $linkedNotes = DB::table('report_note')->count();
-        $reportsWithNotes = DB::table('report_note')->distinct('report_id')->count('report_id');
-        $avgNotes = $rTotal > 0
-            ? round((clone $reportsQ)->withCount('notes')->get()->avg('notes_count') ?? 0, 1)
-            : 0.0;
-        // متوسط أخف عند النطاقات الكبيرة: احسب من pivot مباشرة
-        if ($rTotal > 200) {
-            $avgNotes = $rTotal > 0 ? round($linkedNotes / max(1, Report::count()), 1) : 0.0;
+        $linkedNotes = 0;
+        $reportsWithNotes = 0;
+        $avgNotes = 0.0;
+        if ($rTotal > 0) {
+            // Pure-SQL aggregates scoped to the range (never hydrate report models).
+            $idsSub = (clone $reportsQ)->select('reports.id');
+            $linkedNotes = DB::table('report_note')->whereIn('report_id', $idsSub)->count();
+            $reportsWithNotes = DB::table('report_note')->whereIn('report_id', (clone $reportsQ)->select('reports.id'))->distinct()->count('report_id');
+            $avgNotes = round($linkedNotes / $rTotal, 1);
         }
 
         // — الملاحظات —
@@ -130,9 +131,12 @@ class ReportInsightsService
         $days = $this->dayList($range, $from, $to);
         $daily = [];
         if ($days !== []) {
-            $repPerDay = Report::whereIn(DB::raw('DATE(report_date)'), $days)
+            // Range filters use indexes; DATE() only appears in SELECT/GROUP of already-filtered rows.
+            $first = $days[0] . ' 00:00:00';
+            $last = end($days) . ' 23:59:59';
+            $repPerDay = Report::whereBetween('report_date', [$days[0], end($days)])
                 ->selectRaw('DATE(report_date) as d, COUNT(*) as c')->groupBy('d')->pluck('c', 'd')->toArray();
-            $notePerDay = Note::whereIn(DB::raw('DATE(observed_at)'), $days)
+            $notePerDay = Note::whereBetween('observed_at', [$first, $last])
                 ->where('status', Note::STATUS_ACCEPTED)
                 ->selectRaw('DATE(observed_at) as d, COUNT(*) as c')->groupBy('d')->pluck('c', 'd')->toArray();
             foreach ($days as $d) {

@@ -129,6 +129,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/notes/{note}/attachments', [NoteController::class, 'storeAttachment'])->name('notes.attachments.store');
     Route::delete('/notes/{note}/attachments/{attachment}', [NoteController::class, 'destroyAttachment'])->name('notes.attachments.destroy');
     Route::get('/attachments/{attachment}/view', [NoteController::class, 'viewAttachment'])->name('notes.attachments.view');
+    Route::get('/attachments/{attachment}/thumb', [NoteController::class, 'thumbAttachment'])->name('notes.attachments.thumb');
     Route::get('/attachments/{attachment}/download', [NoteController::class, 'downloadAttachment'])->name('notes.attachments.download');
 
     Route::get('/profile', [ProfileController::class, 'show'])->name('profile.show');
@@ -165,6 +166,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/general-submissions/{generalSubmission}/reject', [\App\Http\Controllers\Web\GeneralSubmissionController::class, 'reject'])->name('general-submissions.reject');
 
     Route::get('/submission-attachments/{attachment}/view', [\App\Http\Controllers\Web\GeneralSubmissionController::class, 'viewAttachment'])->name('submission-attachments.view');
+    Route::get('/submission-attachments/{attachment}/thumb', [\App\Http\Controllers\Web\GeneralSubmissionController::class, 'thumbAttachment'])->name('submission-attachments.thumb');
     Route::get('/submission-attachments/{attachment}/download', [\App\Http\Controllers\Web\GeneralSubmissionController::class, 'downloadAttachment'])->name('submission-attachments.download');
 
 

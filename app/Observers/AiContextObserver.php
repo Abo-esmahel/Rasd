@@ -24,8 +24,12 @@ class AiContextObserver
             return;
         }
 
+        if (!config('ai.enabled', false)) {
+            return;
+        }
+
         try {
-            $scheduled = \Illuminate\Support\Facades\Cache::add('ai-context-rebuild-scheduled', true, 60);
+            $scheduled = \Illuminate\Support\Facades\Cache::add('ai-context-rebuild-scheduled', true, 300);
             if (! $scheduled) {
                 return;
             }

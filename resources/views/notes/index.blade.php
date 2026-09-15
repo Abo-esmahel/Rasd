@@ -7,16 +7,25 @@
     $userId = auth()->id();
 
     $currentStatus = request('status');
-    $counts = \App\Models\Note::query()->whereNull('general_submission_id')
-        ->where(function($q) use ($userId){ $q->where('user_id',$userId)->orWhere('status','!=','draft'); })
-        ->where('status', '!=', 'draft')
-        ->selectRaw("COUNT(*) as total, SUM(CASE WHEN status='pending' THEN 1 ELSE 0 END) as pending, SUM(CASE WHEN status='accepted' THEN 1 ELSE 0 END) as accepted, SUM(CASE WHEN status='rejected' THEN 1 ELSE 0 END) as rejected")
-        ->first();
-    $totalCount = $counts->total ?? 0;
-    $pendingCount = $counts->pending ?? 0;
-    $acceptedCount = $counts->accepted ?? 0;
-    $rejectedCount = $counts->rejected ?? 0;
-    $draftCount = \App\Models\Note::where('user_id',$userId)->whereNull('general_submission_id')->where('status','draft')->count();
+    $headerCounts = \Illuminate\Support\Facades\Cache::remember('notes-header-counts:'.$userId, 30, function () use ($userId) {
+        $counts = \App\Models\Note::query()->whereNull('general_submission_id')
+            ->where(function($q) use ($userId){ $q->where('user_id',$userId)->orWhere('status','!=','draft'); })
+            ->where('status', '!=', 'draft')
+            ->selectRaw("COUNT(*) as total, SUM(CASE WHEN status='pending' THEN 1 ELSE 0 END) as pending, SUM(CASE WHEN status='accepted' THEN 1 ELSE 0 END) as accepted, SUM(CASE WHEN status='rejected' THEN 1 ELSE 0 END) as rejected")
+            ->first();
+        return [
+            'total' => $counts->total ?? 0,
+            'pending' => $counts->pending ?? 0,
+            'accepted' => $counts->accepted ?? 0,
+            'rejected' => $counts->rejected ?? 0,
+            'draft' => \App\Models\Note::where('user_id',$userId)->whereNull('general_submission_id')->where('status','draft')->count(),
+        ];
+    });
+    $totalCount = $headerCounts['total'];
+    $pendingCount = $headerCounts['pending'];
+    $acceptedCount = $headerCounts['accepted'];
+    $rejectedCount = $headerCounts['rejected'];
+    $draftCount = $headerCounts['draft'];
 @endphp
 
 
@@ -1053,7 +1062,9 @@ document.querySelectorAll('[data-ajax-tab]').forEach(tab => {
             .finally(function(){ busy = false; });
     }
     document.addEventListener('visibilitychange', function(){ if (!document.hidden) tick(); });
-    setInterval(tick, 1000);
+    // Reduced from 1s -> 15s: php artisan serve is single-threaded + sqlite locks on every poll (session+cache+data on one file).
+    // Polling every second queued navigation behind polls and caused the 30s spinner.
+    setInterval(tick, 15000);
 })();
 </script>
 @endpush

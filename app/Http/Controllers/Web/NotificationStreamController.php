@@ -125,23 +125,17 @@ class NotificationStreamController extends Controller
 
                 
                 try {
-                    
-                    $freshUser = \App\Models\User::find($user->id);
-                    if (!$freshUser) {
-                        $this->sendEvent('error', ['message' => 'user not found']);
-                        break;
-                    }
-
-                    $new = $freshUser->notifications()
+                    $new = $user->notifications()
                         ->where('created_at', '>', $cursor)
                         ->orderBy('created_at', 'asc')
                         ->limit(20)
                         ->get();
 
                     if ($new->isNotEmpty()) {
-                        $unread = $freshUser->unreadNotifications()->count();
+                        $unread = $user->unreadNotifications()->count();
+                        $presenterSse = null;
+                        try { $presenterSse = app(\App\Services\Localization\LocalizedPresenter::class); } catch (\Throwable) {}
                         foreach ($new as $n) {
-                            try { $presenterSse = app(\App\Services\Localization\LocalizedPresenter::class); } catch (\Throwable) { $presenterSse = null; }
                             $payload = $this->normalize($n, $presenterSse);
                             
                             if ($n->created_at->gt($cursor)) {
@@ -164,7 +158,7 @@ class NotificationStreamController extends Controller
                             
                             
                             static $lastUnread = null;
-                            $currentUnread = $freshUser->unreadNotifications()->count();
+                            $currentUnread = $user->unreadNotifications()->count();
                             if ($lastUnread === null) {
                                 $lastUnread = $currentUnread;
                             } elseif ($lastUnread !== $currentUnread) {

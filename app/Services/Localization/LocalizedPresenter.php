@@ -11,6 +11,9 @@ class LocalizedPresenter
 
     protected static array $warmScheduled = [];
 
+    /** Keys "{$type}:{$id}:{$field}:{$locale}" known to hold a REAL stored translation. */
+    protected static array $translatedKeys = [];
+
     public function __construct(private TranslationService $translations)
     {
     }
@@ -68,6 +71,7 @@ class LocalizedPresenter
         $ik = TranslationService::itemKey($type, $id, $field);
         if (isset($map[$ik])) {
             self::$requestCache[$ck] = $map[$ik];
+            self::$translatedKeys[$ck] = true;
 
             return $map[$ik];
         }
@@ -102,6 +106,10 @@ class LocalizedPresenter
     {
         try {
             $loc = $this->locale($locale);
+            // Preloaded real translation — no I/O at all.
+            if (isset(self::$translatedKeys["{$type}:{$id}:{$field}:{$loc}"])) {
+                return 'ready';
+            }
             $t = trim((string) $source);
             if ($type === 'report' && $field === 'title') {
                 if ($loc === 'en' && preg_match('/^التقرير اليومي\s*[—\-]\s*\d{4}-\d{2}-\d{2}$/u', $t)) {
@@ -134,6 +142,7 @@ class LocalizedPresenter
         }
         foreach ($map as $key => $text) {
             self::$requestCache["{$key}:{$locale}"] = $text;
+            self::$translatedKeys["{$key}:{$locale}"] = true;
         }
     }
 
@@ -349,13 +358,16 @@ class LocalizedPresenter
 
     private function scheduleWarm(string $type, int|string $id, string $field, string $source, string $locale): void
     {
+        if ($this->warmCircuitOpen()) {
+            return;
+        }
         $dk = "{$type}:{$id}:{$field}:{$locale}:".TranslationService::sourceHash($source);
         if (isset(self::$warmScheduled[$dk])) {
             return;
         }
         self::$warmScheduled[$dk] = true;
         try {
-            WarmTranslationProjection::dispatchAfterResponse($type, $id, [$field => $source], $locale);
+            WarmTranslationProjection::scheduleAfterResponse($type, $id, [$field => $source], $locale);
         } catch (\Throwable $e) {
             Log::warning('[L10N] warm schedule failed', ['key' => "{$type}:{$id}:{$field}"]);
         }
@@ -363,6 +375,9 @@ class LocalizedPresenter
 
     private function scheduleWarmBatch(string $type, int|string $id, array $fields, string $locale): void
     {
+        if ($this->warmCircuitOpen()) {
+            return;
+        }
         $toDispatch = [];
         foreach ($fields as $field => $text) {
             $text = trim((string) $text);
@@ -380,10 +395,30 @@ class LocalizedPresenter
             return;
         }
         try {
-            WarmTranslationProjection::dispatchAfterResponse($type, $id, $toDispatch, $locale);
+            WarmTranslationProjection::scheduleAfterResponse($type, $id, $toDispatch, $locale);
         } catch (\Throwable $e) {
             Log::warning('[L10N] warm batch schedule failed', ['key' => "{$type}:{$id}", 'fields' => array_keys($toDispatch)]);
         }
+    }
+
+    /**
+     * قاطع الدائرة للتدفئة الخلفية: لا تجدول مهام Gemini إذا كان الذكاء معطلاً
+     * أو سبق وفشل (حصة/حظر/تعطل) — وإلا تراكمت مهام afterResponse وعلّقت السيرفر.
+     */
+    private function warmCircuitOpen(): bool
+    {
+        try {
+            if (!config('ai.enabled', false) || trim((string) config('ai.gemini.api_key', '')) === '') {
+                return true;
+            }
+            $cache = \Illuminate\Support\Facades\Cache::store(config('cache.default'));
+            if ($cache->get('gemini:quota:exhausted') || $cache->get('gemini:blocked') || $cache->get('gemini:unavailable')) {
+                return true;
+            }
+        } catch (\Throwable) {
+        }
+
+        return false;
     }
 
     private function containsEnglishSource(array $observations, string $recommendations): bool
@@ -419,6 +454,7 @@ class LocalizedPresenter
     {
         self::$requestCache = [];
         self::$warmScheduled = [];
+        self::$translatedKeys = [];
         TranslationService::flushRequestCache();
     }
 }

@@ -98,7 +98,7 @@ class DynamicTranslationController extends Controller
 
         try {
             // Async warm (after response) — never block the request on Gemini (2-15s).
-            \App\Jobs\WarmTranslationProjection::dispatchAfterResponse($type, $model->id, $missing, $locale);
+            \App\Jobs\WarmTranslationProjection::scheduleAfterResponse($type, $model->id, $missing, $locale);
         } catch (\Throwable) {
             try { \App\Jobs\WarmTranslationProjection::dispatch($type, $model->id, $missing, $locale); } catch (\Throwable) {}
         }

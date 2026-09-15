@@ -195,8 +195,14 @@ class NotesList extends Component
 
     public function render()
     {
+        $notes = $this->notes;
+        try {
+            app(\App\Services\Localization\LocalizedPresenter::class)->preloadNotes($notes->items());
+        } catch (\Throwable) {
+        }
+
         return view('livewire.notes-list', [
-            'notes'     => $this->notes,
+            'notes'     => $notes,
             'counts'    => $this->counts,
             'observers' => $this->observers,
         ]);

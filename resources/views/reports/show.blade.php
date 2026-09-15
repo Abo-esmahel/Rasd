@@ -13,6 +13,9 @@
     $locked = $report->isPublished() && $report->isLocked();
     $deadline = $report->editDeadline();
     $aiEnabled = (bool) config('ai.enabled', false);
+    $aiKeyPresent = trim((string) config('ai.gemini.api_key', '')) !== '';
+    // فالديشن واجهة: عند غياب المفتاح نعرض زراً معطلاً مع رسالة بدل إخفائه بصمت.
+    $aiMissingKey = ($aiMissingKey ?? false) || ($aiEnabled && !$aiKeyPresent);
     $showFinal = $isOwner && $isDraft && $isSheet && !empty($editorData ?? null);
     $showLegacy = $isOwner && $isDraft && !$isSheet;
     $pageMenu = $isOwner && ($isDraft || !$locked);
@@ -598,6 +601,11 @@
                         <svg id="final-ai-spin" class="hidden spin w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-90" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/></svg>
                         <span id="final-ai-label">{{ __('ui.smart_gen') }}</span>
                     </button>
+                    @elseif($aiMissingKey ?? false)
+                    <button type="button" disabled title="{{ __('api.ai_not_configured') }}" class="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 h-10 sm:h-9 px-4 rounded-xl border border-[#fecaca] bg-[#fef2f2] text-[#b91c1c] text-[13.5px] sm:text-[13px] font-bold opacity-70 cursor-not-allowed transition">
+                        <span>{{ __('ui.smart_gen') }}</span>
+                    </button>
+                    <span class="text-[11.5px] font-bold text-[#b91c1c]">{{ __('api.ai_not_configured') }}</span>
                     @endif
                     <span id="final-status" class="hidden text-[12px] font-bold text-[#0e6a38] sm:ms-auto text-center sm:text-right"></span>
                 </div>
@@ -638,9 +646,12 @@
                         <p id="ai-error-msg" class="text-[#b91c1c] font-bold"></p>
                     </div>
                     @if($aiEnabled)
+                    @if($aiMissingKey ?? false)
+                    <div class="mt-3 rounded-lg bg-[#fef2f2] border border-[#fecaca] px-3 py-2 text-[12px] font-bold text-[#b91c1c]">{{ __('api.ai_not_configured') }}</div>
+                    @endif
                     <form id="ai-form" method="POST" action="{{ route('reports.generate', $report) }}" data-ajax="1" class="mt-3 flex flex-wrap items-center gap-2">
                         @csrf
-                        <button id="ai-generate-btn" type="submit" @disabled($notesCount === 0) class="rpt-btn inline-flex items-center gap-1.5 h-9 px-4 rounded-lg bg-[#0e6a38] text-white text-[13px] font-bold hover:bg-[#0a4d28] disabled:opacity-40 disabled:cursor-not-allowed">
+                        <button id="ai-generate-btn" type="submit" @disabled($notesCount === 0 || ($aiMissingKey ?? false)) title="{{ ($aiMissingKey ?? false) ? __('api.ai_not_configured') : '' }}" class="rpt-btn inline-flex items-center gap-1.5 h-9 px-4 rounded-lg bg-[#0e6a38] text-white text-[13px] font-bold hover:bg-[#0a4d28] disabled:opacity-40 disabled:cursor-not-allowed">
                             <svg id="ai-spin" class="hidden spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-90" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/></svg>
                             <span id="ai-btn-label">{{ __('ui.gen_draft') }}</span>
                         </button>
@@ -702,6 +713,8 @@ const RPT_T = {
     draftDone: @json(__('ui.rpt_draft_done')),
     generateFailed: @json(__('ui.rpt_generate_failed')),
     genDraft: @json(__('ui.gen_draft')),
+    aiConfigured: @json(!($aiMissingKey ?? false)),
+    aiNotConfigured: @json(__('api.ai_not_configured')),
 };
 
 (function () {
@@ -969,6 +982,8 @@ const RPT_T = {
         setStatus(RPT_T.systemRestored);
     });
     aiBtn?.addEventListener('click', async function () {
+        // فالديشن واجهة مبكر: بدون مفتاح API لا نرسل الطلب أصلاً.
+        if (RPT_T.aiConfigured === false) { showError(RPT_T.aiNotConfigured); setStatus(''); return; }
         aiBtn.disabled = true;
         aiSpin?.classList.remove('hidden');
         if (aiLabel) aiLabel.textContent = RPT_T.generating;
@@ -1077,6 +1092,12 @@ const RPT_T = {
     form.addEventListener('submit', async function (e) {
         e.preventDefault();
         errBox.classList.add('hidden');
+        // فالديشن واجهة مبكر: بدون مفتاح API نعرض رسالة التحقق فوراً.
+        if (RPT_T.aiConfigured === false) {
+            errMsg.textContent = RPT_T.aiNotConfigured;
+            errBox.classList.remove('hidden');
+            return;
+        }
         btn.disabled = true;
         spin.classList.remove('hidden');
         label.textContent = RPT_T.generating;

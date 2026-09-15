@@ -36,6 +36,9 @@ class NoteController extends Controller
 
         $query = $this->noteService->getVisibleNotesQuery($user);
 
+        // Eager-load attachments once (cards + modals read them repeatedly).
+        $query->with(['attachments' => fn ($q) => $q->select(['id', 'note_id', 'original_name', 'mime_type', 'file_size'])]);
+
         if ($request->filled('status') && in_array($request->status, ['draft','pending','accepted','rejected'], true)) {
             $query->where('notes.status', $request->status);
         } else {
@@ -62,7 +65,10 @@ class NoteController extends Controller
 
 
         if ($request->boolean('live')) {
-            return response()->json($this->notesSignature($query));
+            $sigKey = 'notes-sig:index:u'.$user->id.':'.md5($request->getQueryString() ?? '');
+            $sig = \Illuminate\Support\Facades\Cache::remember($sigKey, 5, fn () => $this->notesSignature($query));
+
+            return response()->json($sig);
         }
 
         $notes = $query->paginate(15)->withQueryString();
@@ -85,7 +91,7 @@ class NoteController extends Controller
     public function myNotes(Request $request, LocalizedPresenter $presenter)
     {
         $user = $request->user();
-        $query = Note::with(['owner:id,name,name_en,name_ar,avatar_path', 'processor:id,name,name_en,name_ar'])->withCount('attachments')->where('user_id', $user->id)->whereNull('notes.general_submission_id');
+        $query = Note::with(['owner:id,name,name_en,name_ar,avatar_path', 'processor:id,name,name_en,name_ar', 'attachments:id,note_id,original_name,mime_type,file_size'])->withCount('attachments')->where('user_id', $user->id)->whereNull('notes.general_submission_id');
 
         if ($request->filled('status') && in_array($request->status, ['draft','pending','accepted','rejected'], true)) {
             $query->where('status', $request->status);
@@ -105,7 +111,10 @@ class NoteController extends Controller
 
 
         if ($request->boolean('live')) {
-            return response()->json($this->notesSignature($query));
+            $sigKey = 'notes-sig:my:u'.$user->id.':'.md5($request->getQueryString() ?? '');
+            $sig = \Illuminate\Support\Facades\Cache::remember($sigKey, 5, fn () => $this->notesSignature($query));
+
+            return response()->json($sig);
         }
 
         $notes = $query->orderByDesc('created_at')->paginate(15)->withQueryString();
@@ -506,6 +515,19 @@ class NoteController extends Controller
 
         if ($this->storage->isLocal($attachment)) {
             return $this->storage->fileResponse($attachment, true);
+        }
+
+        abort(404, __('api.file_not_found'));
+    }
+
+    public function thumbAttachment(Attachment $attachment)
+    {
+        $user = auth()->user();
+        $note = $attachment->note;
+        if (!$user->can('view', $note)) abort(403, __('api.forbidden_attach_view'));
+
+        if ($this->storage->isLocal($attachment)) {
+            return $this->storage->fileResponseThumb($attachment);
         }
 
         abort(404, __('api.file_not_found'));

@@ -60,15 +60,17 @@ class GeminiAiTextGenerator implements AiTextGeneratorInterface
             ],
         ];
 
-        $maxRetries = 3;
+        $maxRetries = 2;
         $attempt = 0;
+        $callStarted = microtime(true);
         while (true) {
             $attempt++;
             $started = microtime(true);
             try {
                 // asJson forces UTF-8 JSON encoding (critical for Arabic prompts).
                 // Gemini requires the key as a query parameter.
-                $response = Http::asJson()->connectTimeout(10)->timeout($timeout)->retry(0)
+                // connectTimeout قصير: الفشل السريع أهم من الانتظار (صفحة الويب تموت بعد 30 ثانية).
+                $response = Http::asJson()->connectTimeout(5)->timeout($timeout)->retry(0)
                     ->post("https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key=" . urlencode($apiKey), $payload);
             } catch (ConnectionException $e) {
                 Log::warning('[AI] gemini timeout', ['model' => $model, 'timeout' => $timeout, 'attempt' => $attempt]);
@@ -110,21 +112,27 @@ class GeminiAiTextGenerator implements AiTextGeneratorInterface
                 if ($daily) {
                     throw new AiRateLimitException(__('api.ai_quota_daily'), retryAfter: null, previous: null);
                 }
-                if ($attempt < $maxRetries && $retryAfter !== null && $retryAfter <= 60) {
-                    $wait = min($retryAfter + 2, 65);
-                    Log::info('[AI] gemini rate limited, retrying after wait', ['model' => $model, 'attempt' => $attempt, 'wait_seconds' => $wait]);
-                    sleep($wait);
-                    continue;
+                // فشل سريع: لا تنم داخل طلب الويب أكثر من 10 ثوانٍ — وإلا مات الطلب
+                // بحد الـ 30 ثانية وعلّق اللودر. إعادة المحاولة الطويلة للمهام الخلفية فقط.
+                if ($retryAfter === null || $retryAfter > 10 || $attempt >= $maxRetries) {
+                    if ($retryAfter !== null) {
+                        throw new AiRateLimitException(__('api.ai_rate_wait', ['seconds' => $retryAfter]), retryAfter: $retryAfter, previous: null);
+                    }
+                    throw new AiRateLimitException(__('api.ai_rate_generic'), retryAfter: null, previous: null);
                 }
-                if ($retryAfter !== null) {
-                    throw new AiRateLimitException(__('api.ai_rate_wait', ['seconds' => $retryAfter]), retryAfter: $retryAfter, previous: null);
+                if (!$this->hasTimeForRetry($callStarted, $timeout, $phpLimit)) {
+                    throw new AiRateLimitException(__('api.ai_rate_generic'), retryAfter: null, previous: null);
                 }
-                throw new AiRateLimitException(__('api.ai_rate_generic'), retryAfter: null, previous: null);
+                $wait = min($retryAfter + 1, 10);
+                Log::info('[AI] gemini rate limited, retrying after wait', ['model' => $model, 'attempt' => $attempt, 'wait_seconds' => $wait]);
+                sleep($wait);
+                continue;
             }
             if ($status >= 500 || $status === 0) {
-                if ($attempt < $maxRetries) {
+                // فشل سريع: نومة واحدة قصيرة فقط، ونتأكد أن المجموع لا يقترب من حد PHP.
+                if ($attempt < $maxRetries && $this->hasTimeForRetry($callStarted, $timeout, $phpLimit)) {
                     Log::warning('[AI] gemini server error, retrying', ['model' => $model, 'status' => $status, 'attempt' => $attempt]);
-                    sleep(3);
+                    sleep(1);
                     continue;
                 }
                 Log::warning('[AI] gemini unavailable', ['model' => $model, 'status' => $status, 'latency_ms' => $latency]);
@@ -211,6 +219,20 @@ class GeminiAiTextGenerator implements AiTextGeneratorInterface
         }
 
         return null;
+    }
+
+    /**
+     * هل بقي وقت كافٍ لمحاولة أخرى قبل أن يقتل PHP الطلب؟
+     * يمنع سيناريو: timeout × محاولات + sleep > max_execution_time (اللودر يعلق 30 ثانية).
+     */
+    private function hasTimeForRetry(float $callStarted, int $timeout, int $phpLimit): bool
+    {
+        if ($phpLimit <= 0) {
+            return true;
+        }
+        $elapsed = microtime(true) - $callStarted;
+        // نحتاج: محاولة كاملة أخرى + هامش أمان 5 ثوانٍ
+        return ($elapsed + $timeout + 5) < $phpLimit;
     }
 
     private function parseRetryAfter(?string $header): ?int

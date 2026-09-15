@@ -159,6 +159,7 @@ class NoteService
             if ($userId) {
                 $cache->forget('notes-counts:'.$userId.':my');
                 $cache->forget('notes-counts:'.$userId.':all');
+                $cache->forget('notes-header-counts:'.$userId);
                 $cache->forget('profile-stats:'.$userId);
             }
             $cache->forget('ranking-global-stats');

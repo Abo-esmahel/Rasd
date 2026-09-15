@@ -313,7 +313,149 @@ class AttachmentStorageService
         );
     }
 
-    public function fileResponseForPath(string $relativePath, string $mime, ?string $originalName, bool $asDownload = false)
+    /**
+     * Lightweight thumbnail for gallery grids (max 480px, JPEG q70).
+     * Generated once via GD and cached under thumbs/ on the same disk.
+     * Falls back to the original file when the source isn't a supported image.
+     */
+    public function fileResponseThumb(Attachment $attachment)
+    {
+        $thumb = $this->thumbPath((string) $attachment->file_path, (string) ($attachment->mime_type ?: ''));
+        if ($thumb !== null) {
+            return $this->fileResponseForPath($thumb, 'image/jpeg', $attachment->original_name, false);
+        }
+
+        // SVG has no GD thumbnail — serve it inline so <img> previews always render.
+        // Scripts stay blocked by the strict CSP (default-src 'none') sent with the response.
+        $mime = strtolower(trim((string) ($attachment->mime_type ?: '')));
+        if (in_array($mime, ['image/svg+xml', 'image/svg'], true)) {
+            return $this->fileResponseForPath((string) $attachment->file_path, 'image/svg+xml', $attachment->original_name, false, true);
+        }
+
+        return $this->fileResponse($attachment, false);
+    }
+
+    public function fileResponseSubmissionThumb(\App\Models\GeneralSubmissionAttachment $attachment)
+    {
+        $thumb = $this->thumbPath((string) $attachment->file_path, (string) ($attachment->mime_type ?: ''));
+        if ($thumb !== null) {
+            return $this->fileResponseForPath($thumb, 'image/jpeg', $attachment->original_name, false);
+        }
+
+        // SVG has no GD thumbnail — serve it inline so <img> previews always render.
+        // Scripts stay blocked by the strict CSP (default-src 'none') sent with the response.
+        $mime = strtolower(trim((string) ($attachment->mime_type ?: '')));
+        if (in_array($mime, ['image/svg+xml', 'image/svg'], true)) {
+            return $this->fileResponseForPath((string) $attachment->file_path, 'image/svg+xml', $attachment->original_name, false, true);
+        }
+
+        return $this->fileResponseSubmission($attachment, false);
+    }
+
+    private function thumbPath(string $relativePath, string $mime): ?string
+    {
+        if ($relativePath === '' || !extension_loaded('gd')) {
+            return null;
+        }
+        $mime = strtolower(trim($mime));
+        $ext = strtolower(pathinfo($relativePath, PATHINFO_EXTENSION));
+        $supportedMimes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+        $supportedExts = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
+        if (!in_array($mime, $supportedMimes, true) && !in_array($ext, $supportedExts, true)) {
+            return null;
+        }
+        if (!$this->exists($relativePath)) {
+            return null;
+        }
+
+        $thumb = 'thumbs/' . md5($relativePath) . '-480.jpg';
+        try {
+            if ($this->disk()->exists($thumb)) {
+                return $thumb;
+            }
+        } catch (\Throwable) {
+            return null;
+        }
+
+        try {
+            $absolute = $this->absolutePath($relativePath);
+            if (!is_file($absolute) || filesize($absolute) > 40 * 1024 * 1024) {
+                return null;
+            }
+            $info = @getimagesize($absolute);
+            if (!$info || ($info[0] ?? 0) <= 0 || ($info[1] ?? 0) <= 0) {
+                return null;
+            }
+            [$w, $h] = [$info[0], $info[1]];
+            // Already small enough — serve the original (avoids upscale + extra file).
+            if (max($w, $h) <= 480) {
+                return null;
+            }
+            $data = @file_get_contents($absolute);
+            if ($data === false) {
+                return null;
+            }
+            $src = @imagecreatefromstring($data);
+            unset($data);
+            if (!$src) {
+                return null;
+            }
+            $scale = 480 / max($w, $h);
+            $tw = max(1, (int) round($w * $scale));
+            $th = max(1, (int) round($h * $scale));
+            $dst = @imagescale($src, $tw, $th);
+            if (!$dst) {
+                @imagedestroy($src);
+                return null;
+            }
+            // Flatten transparency on white (JPEG has no alpha).
+            $bg = @imagecreatetruecolor($tw, $th);
+            if (!$bg) {
+                @imagedestroy($src);
+                @imagedestroy($dst);
+                return null;
+            }
+            $white = @imagecolorallocate($bg, 255, 255, 255);
+            @imagefill($bg, 0, 0, $white);
+            @imagecopy($bg, $dst, 0, 0, 0, 0, $tw, $th);
+            @imagedestroy($src);
+            @imagedestroy($dst);
+            $tmp = tempnam(sys_get_temp_dir(), 'thumb');
+            if ($tmp === false) {
+                @imagedestroy($bg);
+                return null;
+            }
+            $ok = @imagejpeg($bg, $tmp, 70);
+            @imagedestroy($bg);
+            if (!$ok) {
+                @unlink($tmp);
+                return null;
+            }
+            $stream = @fopen($tmp, 'rb');
+            @unlink($tmp);
+            if (!$stream) {
+                return null;
+            }
+            try {
+                $this->disk()->writeStream($thumb, $stream);
+            } finally {
+                if (is_resource($stream)) {
+                    @fclose($stream);
+                }
+            }
+            if (!$this->disk()->exists($thumb)) {
+                return null;
+            }
+
+            return $thumb;
+        } catch (\Throwable $e) {
+            Log::warning('[ATTACHMENT] thumb generation failed', ['path' => $relativePath, 'message' => $e->getMessage()]);
+
+            return null;
+        }
+    }
+
+    public function fileResponseForPath(string $relativePath, string $mime, ?string $originalName, bool $asDownload = false, bool $forceInline = false)
     {
         if ($relativePath === '' || str_contains($relativePath, '..') || str_starts_with($relativePath, '/') || str_starts_with($relativePath, '\\') || preg_match('#^[a-zA-Z]:#', $relativePath)) {
             abort(404, __('api.file_not_found'));
@@ -362,7 +504,7 @@ class AttachmentStorageService
         }
 
         $dangerousInline = ['image/svg+xml', 'image/svg', 'text/html', 'application/xhtml+xml', 'text/javascript', 'application/javascript', 'application/x-javascript'];
-        if (!$asDownload && in_array(strtolower($mime), $dangerousInline, true)) {
+        if (!$asDownload && !$forceInline && in_array(strtolower($mime), $dangerousInline, true)) {
             $asDownload = true;
             $headers['Cache-Control'] = 'private, max-age=0, must-revalidate';
         }

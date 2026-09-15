@@ -161,8 +161,11 @@ class ReportController extends Controller
         $fillStale = $hasFilled ? $fill->isStale($report) : false;
         $viewerIsOwner = $isOwnerWriter;
         $aiEnabledForFill = (bool) config('ai.enabled', false);
+        $aiApiKeyPresent = trim((string) config('ai.gemini.api_key', '')) !== '';
+        $aiDataEnabled = $aiEnabledForFill && $aiApiKeyPresent;
+        // يُمرر للواجهة لإظهار فالديشن واضح عند غياب المفتاح بدل إخفاء الزر بصمت.
+        $aiMissingKey = $aiEnabledForFill && !$aiApiKeyPresent;
         $canFill = $viewerIsOwner && $report->isDraft() && $sheet !== null;
-        $aiDataEnabled = $aiEnabledForFill && trim((string) config('ai.gemini.api_key', '')) !== '';
         $fillBlockReason = null;
         if ($viewerIsOwner && $report->isDraft() && !$canFill) {
             $notesCountForSheet = $report->notes->count();
@@ -213,7 +216,7 @@ class ReportController extends Controller
             }
         }
 
-        return view('reports.show', compact('report', 'candidates', 'candidatesTruncated', 'preview', 'sheet', 'shCfg', 'shImg', 'shNotes', 'hasFilled', 'fillStale', 'canFill', 'fillBlockReason', 'systemData', 'editorData', 'expectedTemplate', 'sheetImageState', 'latestRender', 'renderError', 'aiDataEnabled', 'htmlPreview', 'canPrint', 'needsAutoRender'));
+        return view('reports.show', compact('report', 'candidates', 'candidatesTruncated', 'preview', 'sheet', 'shCfg', 'shImg', 'shNotes', 'hasFilled', 'fillStale', 'canFill', 'fillBlockReason', 'systemData', 'editorData', 'expectedTemplate', 'sheetImageState', 'latestRender', 'renderError', 'aiDataEnabled', 'aiMissingKey', 'htmlPreview', 'canPrint', 'needsAutoRender'));
     }
 
     private function isApprovedPublishedFromState(Report $report, array $imageState): bool
@@ -221,9 +224,11 @@ class ReportController extends Controller
         if (!$report->isPublished()) return false;
         $state = $imageState['state'] ?? 'none';
         if (in_array($state, ['system','custom'], true)) return true;
+        // Same tail check as isApprovedPublished() but on the already-loaded
+        // relation/state — avoids re-querying htmlState (identical result).
         $n = $report->notes->count();
         if ($n > (int) config('report_sheets.max_notes',7) && trim((string) $report->content) !== '') return true;
-        return $this->isApprovedPublished($report);
+        return false;
     }
 
     public function edit(Report $report)
@@ -367,6 +372,10 @@ class ReportController extends Controller
         }
         @ini_set('max_execution_time', '120');
         $this->authorize('generateAi', $report);
+        // فالديشن مبكر: لا يوجد مفتاح API في env → خطأ تحقق 422 واضح بدل 502 مبهم من الخدمة.
+        if ($missing = $this->aiMissingKeyResponse($request)) {
+            return $missing;
+        }
         $request->validate([
             'regenerate' => ['nullable', 'boolean'],
             'confirm_overwrite_manual' => ['nullable', 'boolean'],
@@ -388,11 +397,21 @@ class ReportController extends Controller
             $hint = $this->aiHint($e);
             $msg = $e->getMessage() . ($hint ? ' ' . $hint : '');
             if ($wantsJson) {
-                return response()->json([
+                $meta = $this->aiErrorMeta($e);
+                $payload = [
                     'success' => false,
                     'message' => $msg,
-                    'error' => $this->aiErrorMeta($e),
-                ], $this->aiHttpStatus($e));
+                    'error' => $meta,
+                ];
+                if (($meta['code'] ?? '') === 'AI_NOT_CONFIGURED') {
+                    $payload['errors'] = ['ai' => [$msg]];
+                }
+
+                return response()->json($payload, $this->aiHttpStatus($e));
+            }
+
+            if ($this->aiErrorMeta($e)['code'] === 'AI_NOT_CONFIGURED') {
+                return back()->withErrors(['ai' => $msg])->withInput();
             }
 
             return back()->withErrors(['general' => $msg]);
@@ -412,6 +431,31 @@ class ReportController extends Controller
         }
 
         return back()->with('success', 'تم التوليد — اعتمد الملخص والتوصيات في حقولهما ثم احفظ.');
+    }
+
+    /**
+     * فالديشن إعداد الذكاء: إذا كان GEMINI_API_KEY فارغاً في env نرجع
+     * استجابة تحقق 422 (JSON مع errors أو redirect مع withErrors) بدل
+     * الوصول للخدمة والفشل بـ 502 مبهم.
+     *
+     * @return \Illuminate\Http\JsonResponse|\Illuminate\Http\RedirectResponse|null
+     */
+    private function aiMissingKeyResponse(Request $request)
+    {
+        if (trim((string) config('ai.gemini.api_key', '')) !== '') {
+            return null;
+        }
+        $msg = __('api.ai_not_configured');
+        if ($request->expectsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => false,
+                'message' => $msg,
+                'errors' => ['ai' => [$msg]],
+                'error' => ['code' => 'AI_NOT_CONFIGURED', 'retryable' => false],
+            ], 422);
+        }
+
+        return back()->withErrors(['ai' => $msg])->withInput();
     }
 
     private function aiHint(\Throwable $e): string
@@ -435,6 +479,11 @@ class ReportController extends Controller
 
     private function aiErrorMeta(\Throwable $e): array
     {
+        // دفاع إضافي: مفتاح مفقود يُعامل كفالديشن لا كخطأ مصادقة مبهم.
+        if ($e instanceof \App\Exceptions\Ai\AiAuthenticationException
+            && trim((string) config('ai.gemini.api_key', '')) === '') {
+            return ['code' => 'AI_NOT_CONFIGURED', 'retryable' => false];
+        }
         $map = [
             \App\Exceptions\Ai\AiRateLimitException::class => ['AI_RATE_LIMITED', true],
             \App\Exceptions\Ai\AiAuthenticationException::class => ['AI_AUTH', false],
@@ -463,6 +512,11 @@ class ReportController extends Controller
 
     private function aiHttpStatus(\Throwable $e): int
     {
+        if ($e instanceof \App\Exceptions\Ai\AiAuthenticationException
+            && trim((string) config('ai.gemini.api_key', '')) === '') {
+            return 422;
+        }
+
         return match (true) {
             $e instanceof \App\Exceptions\Ai\AiRateLimitException => 429,
             $e instanceof \App\Exceptions\Ai\AiAuthenticationException,
@@ -509,6 +563,10 @@ class ReportController extends Controller
         }
         @ini_set('max_execution_time', '180');
         $this->authorize('fillSheet', $report);
+        // فالديشن مبكر للتوليد الذكي: بدون GEMINI_API_KEY نرجع 422 تحقق بدل 502.
+        if ($missing = $this->aiMissingKeyResponse($request)) {
+            return $missing;
+        }
         $wantsJson = $request->expectsJson() || $request->ajax();
         $locale = \App\Services\Localization\SourceLanguage::normalizeLocale(app()->getLocale());
         try {
@@ -517,11 +575,20 @@ class ReportController extends Controller
             $hint = $this->aiHint($e);
             $msg = $e->getMessage() . ($hint ? ' ' . $hint : '');
             if ($wantsJson) {
-                return response()->json([
+                $meta = $this->aiErrorMeta($e);
+                $payload = [
                     'success' => false,
                     'message' => $msg,
-                    'error' => $this->aiErrorMeta($e),
-                ], $this->aiHttpStatus($e));
+                    'error' => $meta,
+                ];
+                if (($meta['code'] ?? '') === 'AI_NOT_CONFIGURED') {
+                    $payload['errors'] = ['ai' => [$msg]];
+                }
+
+                return response()->json($payload, $this->aiHttpStatus($e));
+            }
+            if ($this->aiErrorMeta($e)['code'] === 'AI_NOT_CONFIGURED') {
+                return back()->withErrors(['ai' => $msg])->withInput();
             }
 
             return back()->withErrors(['general' => $msg]);

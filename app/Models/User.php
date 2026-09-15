@@ -145,10 +145,10 @@ class User extends Authenticatable
     public function getRatingAttribute(): float
     {
         if (!$this->isMonitor()) return 0.0;
-        $total = $this->notes()->count();
+        $total = $this->attributes['total_notes'] ?? $this->notes()->count();
         if ($total === 0) return 0.0;
-        $accepted = $this->notes()->where('status', 'accepted')->count();
-        $rate = round(($accepted / max(1,$total)) * 5, 1);
+        $accepted = $this->attributes['accepted_notes'] ?? $this->notes()->where('status', 'accepted')->count();
+        $rate = round(($accepted / max(1, $total)) * 5, 1);
         return $rate;
     }
 

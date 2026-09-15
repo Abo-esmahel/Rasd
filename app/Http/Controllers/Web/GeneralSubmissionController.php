@@ -231,6 +231,20 @@ class GeneralSubmissionController extends Controller
         return $this->storage->fileResponseSubmission($attachment, true);
     }
 
+    public function thumbAttachment(GeneralSubmissionAttachment $attachment)
+    {
+        $submission = $attachment->submission;
+        if (!auth()->user()->can('view', $submission)) {
+            abort(403, __('api.forbidden_attach_view'));
+        }
+
+        if (!$this->storage->isLocalSubmission($attachment)) {
+            abort(404, __('api.file_not_found'));
+        }
+
+        return $this->storage->fileResponseSubmissionThumb($attachment);
+    }
+
     public function sharedViewAttachment(int $attachment)
     {
         if (!auth()->check()) {

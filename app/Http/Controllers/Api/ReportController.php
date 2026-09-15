@@ -183,6 +183,17 @@ class ReportController extends Controller
         if (!$request->user()->can('generateAi', $report)) {
             return response()->json(['success' => false, 'message' => __('api.report_unauthorized_generate')], 403);
         }
+        // فالديشن مبكر للتوليد الذكي: بدون GEMINI_API_KEY نرجع 422 تحقق بدل 502.
+        if (trim((string) config('ai.gemini.api_key', '')) === '') {
+            $msg = __('api.ai_not_configured');
+
+            return response()->json([
+                'success' => false,
+                'message' => $msg,
+                'errors' => ['ai' => [$msg]],
+                'error' => ['code' => 'AI_NOT_CONFIGURED', 'retryable' => false],
+            ], 422);
+        }
         $request->validate([
             'regenerate' => ['nullable', 'boolean'],
             'confirm_overwrite_manual' => ['nullable', 'boolean'],
@@ -215,6 +226,16 @@ class ReportController extends Controller
      */
     private function aiErrorResponse(\Throwable $e): JsonResponse
     {
+        // دفاع إضافي: مفتاح مفقود يُعامل كفالديشن 422 لا كخطأ مصادقة 502.
+        if ($e instanceof \App\Exceptions\Ai\AiAuthenticationException
+            && trim((string) config('ai.gemini.api_key', '')) === '') {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+                'errors' => ['ai' => [$e->getMessage()]],
+                'error' => ['code' => 'AI_NOT_CONFIGURED', 'retryable' => false],
+            ], 422);
+        }
         $map = [
             \App\Exceptions\Ai\AiRateLimitException::class => [429, 'AI_RATE_LIMITED', true],
             \App\Exceptions\Ai\AiAuthenticationException::class => [502, 'AI_AUTH', false],
