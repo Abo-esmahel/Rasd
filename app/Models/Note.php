@@ -54,6 +54,11 @@ class Note extends Model
         return $this->hasMany(Attachment::class);
     }
 
+    public function reactions(): \Illuminate\Database\Eloquent\Relations\MorphMany
+    {
+        return $this->morphMany(Reaction::class, 'reactable');
+    }
+
     public function isDraft(): bool
     {
         return $this->status === self::STATUS_DRAFT;

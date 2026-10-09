@@ -20,8 +20,6 @@ class LocaleController extends Controller
 
         $request->session()->put('locale', $locale);
 
-        // Persist to user row AFTER the response is sent — POST returns instantly,
-        // DB write (sqlite lock) never blocks the language flip.
         if ($request->user()) {
             $userId = $request->user()->getKey();
             try {

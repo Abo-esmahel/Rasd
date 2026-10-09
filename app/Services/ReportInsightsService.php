@@ -43,7 +43,21 @@ class ReportInsightsService
     {
         $range = self::normalizeRange($rangeKey);
 
-        return Cache::remember('report-insights:v2:'.$range, 120, fn () => $this->compute($range));
+        try {
+            return Cache::remember('report-insights:v2:'.$range, 120, fn () => $this->compute($range));
+        } catch (\Throwable $e) {
+            return $this->compute($range);
+        }
+    }
+
+    public static function flush(): void
+    {
+        try {
+            foreach (self::RANGES as $range) {
+                Cache::forget('report-insights:v2:'.$range);
+            }
+        } catch (\Throwable $e) {
+        }
     }
 
     private function prevBounds(string $range, ?string $from, string $to): array
@@ -88,7 +102,6 @@ class ReportInsightsService
             $notesQ->whereDate('observed_at', '>=', $from)->whereDate('observed_at', '<=', $to);
         }
 
-        // — التقارير —
         $reportCounts = (clone $reportsQ)
             ->selectRaw('COUNT(*) as total, SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as published, SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as draft, SUM(CASE WHEN visible_to_monitors = 1 THEN 1 ELSE 0 END) as visible', [Report::STATUS_PUBLISHED, Report::STATUS_DRAFT])
             ->first();
@@ -102,14 +115,12 @@ class ReportInsightsService
         $reportsWithNotes = 0;
         $avgNotes = 0.0;
         if ($rTotal > 0) {
-            // Pure-SQL aggregates scoped to the range (never hydrate report models).
             $idsSub = (clone $reportsQ)->select('reports.id');
             $linkedNotes = DB::table('report_note')->whereIn('report_id', $idsSub)->count();
             $reportsWithNotes = DB::table('report_note')->whereIn('report_id', (clone $reportsQ)->select('reports.id'))->distinct()->count('report_id');
             $avgNotes = round($linkedNotes / $rTotal, 1);
         }
 
-        // — الملاحظات —
         $raw = (clone $notesQ)->selectRaw('status, COUNT(*) as c')->groupBy('status')->pluck('c', 'status')->toArray();
         $nTotal = array_sum($raw);
         $nAccepted = (int) ($raw[Note::STATUS_ACCEPTED] ?? 0);
@@ -119,7 +130,6 @@ class ReportInsightsService
         $decided = $nAccepted + $nRejected;
         $acceptRate = $decided > 0 ? round($nAccepted / $decided * 100) : 0;
 
-        // مقبولة وغير مربوطة بأي تقرير (بانتظار التوظيف في تقرير)
         $unlinkedQ = Note::where('status', Note::STATUS_ACCEPTED)
             ->whereNotIn('id', fn ($q) => $q->select('note_id')->from('report_note'));
         if ($from !== null) {
@@ -127,11 +137,9 @@ class ReportInsightsService
         }
         $unlinkedAccepted = (clone $unlinkedQ)->count();
 
-        // — سلسلة يومية مصغرة للرسم (آخر N يوم حسب النطاق) —
         $days = $this->dayList($range, $from, $to);
         $daily = [];
         if ($days !== []) {
-            // Range filters use indexes; DATE() only appears in SELECT/GROUP of already-filtered rows.
             $first = $days[0] . ' 00:00:00';
             $last = end($days) . ' 23:59:59';
             $repPerDay = Report::whereBetween('report_date', [$days[0], end($days)])
@@ -142,7 +150,7 @@ class ReportInsightsService
             foreach ($days as $d) {
                 $daily[] = [
                     'day' => $d,
-                    'label' => mb_substr($d, 5), // MM-DD
+                    'label' => mb_substr($d, 5),
                     'reports' => (int) ($repPerDay[$d] ?? 0),
                     'notes' => (int) ($notePerDay[$d] ?? 0),
                 ];
@@ -153,7 +161,6 @@ class ReportInsightsService
             $maxDaily = max($maxDaily, $d['reports'], $d['notes']);
         }
 
-        // — رسالة ذكية واحدة (للتوافق الخلفي) —
         $smartKey = 'ok';
         if ($nPending > 0 && $nPending >= max(5, (int) ceil($nTotal * 0.2))) {
             $smartKey = 'pending_backlog';
@@ -165,7 +172,6 @@ class ReportInsightsService
             $smartKey = 'empty';
         }
 
-        // — مقاييس هندسية مشتقة من البيانات نفسها (بلا حشو) —
         $totalDays = max(1, count($daily));
         $activeDays = 0;
         $peak = null;
@@ -186,7 +192,6 @@ class ReportInsightsService
         $quietDays = $totalDays - $activeDays;
         $coverage = $totalDays > 0 ? (int) round($activeDays / $totalDays * 100) : 0;
 
-        // سلسلة متصلة حتى اليوم
         $streak = 0;
         for ($i = count($daily) - 1; $i >= 0; $i--) {
             if (($daily[$i]['reports'] + $daily[$i]['notes']) > 0) {
@@ -202,7 +207,6 @@ class ReportInsightsService
         $perWeek = round($avgPerDay * 7, 1);
         $backlog = $nPending + $unlinkedAccepted + $rDraft;
 
-        // مقارنة مع الفترة السابقة (نفس الطول مباشرة قبل النطاق)
         $prev = $this->prevBounds($range, $from, $to);
         $deltaReports = null;
         $deltaNotes = null;
@@ -215,7 +219,6 @@ class ReportInsightsService
             $deltaNotes = $this->deltaPct($nAccepted, $prevNotes);
         }
 
-        // درجة الصحة التشغيلية 0-100 (موزونة وقابلة للتفسير)
         $health = (int) round(
             $publishRate * 0.30
             + $acceptRate * 0.25
@@ -227,7 +230,6 @@ class ReportInsightsService
         }
         $healthKey = $health >= 85 ? 'excellent' : ($health >= 65 ? 'stable' : ($health >= 40 ? 'watch' : 'critical'));
 
-        // إجراءات مرتبة بالأثر (بحد أقصى 4) — كل إجراء مرتبط برقم حقيقي
         $actions = [];
         if ($rTotal === 0 && $nTotal === 0) {
             $actions[] = ['key' => 'empty', 'level' => 'info', 'count' => 0];
@@ -308,7 +310,6 @@ class ReportInsightsService
     private function dayList(string $range, ?string $from, string $to): array
     {
         if ($range === 'all') {
-            // للنطاق الكلي: آخر 14 يوم فقط للرسم حتى لا يثقل
             $tz = (string) config('app.timezone', 'Asia/Damascus');
             $end = Carbon::parse($to, $tz);
             $out = [];

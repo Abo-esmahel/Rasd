@@ -6,13 +6,14 @@ use App\Models\Note;
 use App\Models\User;
 use App\Notifications\NoteSentNotification;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 
-class FanoutNoteNotifications implements ShouldQueue
+class FanoutNoteNotifications implements ShouldQueue, ShouldBeUnique
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
@@ -20,12 +21,19 @@ class FanoutNoteNotifications implements ShouldQueue
 
     public int $timeout = 300;
 
+    public int $uniqueFor = 600;
+
     public function __construct(
         public int $noteId,
         public int $senderId,
         public string $senderName,
         public bool $writersOnly = false,
     ) {
+    }
+
+    public function uniqueId(): string
+    {
+        return (string) $this->noteId;
     }
 
     public function handle(): void
@@ -48,15 +56,15 @@ class FanoutNoteNotifications implements ShouldQueue
                             ->where('data->note_id', $note->id)
                             ->exists();
                         if (! $exists) {
-                            $recipient->notify(new NoteSentNotification($note, $this->senderName));
+                            $recipient->notify(new NoteSentNotification($note));
+                            $loc = in_array($recipient->locale ?? null, ['ar', 'en'], true) ? $recipient->locale : 'ar';
+                            SendPushToUser::dispatch($recipient->id, [
+                                'title' => __('notifications.note_sent_title', ['id' => $note->id], $loc),
+                                'body' => __('notifications.note_sent_message', ['id' => $note->id], $loc),
+                                'url' => '/notes/'.$note->id,
+                                'tag' => 'rasd-note-'.$note->id,
+                            ]);
                         }
-
-                        $loc = in_array($recipient->locale ?? null, ['ar', 'en'], true) ? $recipient->locale : 'ar';
-                        SendPushToUser::dispatch($recipient->id, [
-                            'title' => __('ui.kind_note', [], $loc).' #'.$note->id,
-                            'body' => __('ui.camera', [], $loc).' '.$note->camera_number,
-                            'url' => '/notes/'.$note->id,
-                        ]);
                     } catch (\Throwable $e) {
                         Log::warning('[FANOUT] note notify failed', ['user_id' => $recipient->id, 'error' => $e->getMessage()]);
                     }

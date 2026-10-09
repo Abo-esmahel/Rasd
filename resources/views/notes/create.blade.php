@@ -1,52 +1,85 @@
 ﻿@extends('layouts.app')
 
 @section('content')
-<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 mb-4 sm:mb-5 px-0.5 sm:px-0">
-    <div class="flex items-center gap-2.5 sm:gap-3">
-        <a href="{{ route('notes.index') }}" class="w-9 h-9 min-w-[40px] min-h-[40px] rounded-lg bg-white border border-[#e6e9e1] flex items-center justify-center text-ink-400 hover:text-ink-700 hover:bg-[#f5f7f5] transition shrink-0" aria-label="{{ __('ui.back_aria') }}">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+<div class="flex items-center justify-between gap-3 mb-4 sm:mb-6">
+    <div class="flex items-center gap-3 min-w-0">
+        <a href="{{ route('notes.index') }}" class="w-10 h-10 rounded-2xl bg-white dark:bg-[#252b26] border border-[#e6e9e1] dark:border-[#2e352e] flex items-center justify-center text-ink-400 dark:text-[#9bb0a0] hover:text-[#0e6a38] dark:hover:text-[#4ade80] hover:border-[#0e6a38]/40 hover:shadow-md transition shrink-0" aria-label="{{ __('ui.back_aria') }}">
+            <x-phosphor-caret-left-duotone class="w-4 h-4 rtl:rotate-180" />
         </a>
-        <div>
-            <h1 class="text-[18px] sm:text-xl font-extrabold text-ink-800 leading-none">{{ __('ui.new_note_title') }}</h1>
+        <div class="min-w-0">
+            <h1 class="text-[19px] sm:text-[22px] font-extrabold tracking-tight text-ink-800 dark:text-[#e7ece5] leading-tight">{{ __('ui.new_note_title') }}</h1>
+            <p class="text-xs text-ink-400 dark:text-[#8a9a8e] mt-0.5 font-medium">{{ __('ui.my_notes_hint') }}</p>
         </div>
     </div>
+    <div id="create-steps-hint" class="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#eef4f0] dark:bg-[#1e3328] border border-[#cde7d6] dark:border-[#24402e] text-[11px] font-bold text-[#0e6a38] dark:text-[#4ade80] shrink-0">
+        <span class="w-1.5 h-1.5 rounded-full bg-[#0e6a38] dark:bg-[#4ade80] animate-pulse"></span>
+        <span id="create-steps-text">1 / 4</span>
+    </div>
+  </div>
 
- </div>
+<div class="sm:hidden sticky top-[58px] z-30 mb-4">
+    <div class="bg-white dark:bg-[#252b26] rounded-2xl border border-[#e6e9e1] dark:border-[#2e352e] shadow-[0_4px_18px_rgba(26,46,31,0.08)] p-2.5">
+        <div class="flex gap-1.5 overflow-x-auto scrollbar-hide" style="scrollbar-width:none;" role="navigation" aria-label="أقسام النموذج">
+            <a href="#sec-loc" data-mnav="sec-loc" class="shrink-0 inline-flex items-center gap-1.5 px-3.5 min-h-[40px] rounded-full text-xs font-extrabold border transition bg-[#0e6a38] text-white border-[#0e6a38]">1 · {{ __('ui.floor_label') }}</a>
+            <a href="#sec-time" data-mnav="sec-time" class="shrink-0 inline-flex items-center gap-1.5 px-3.5 min-h-[40px] rounded-full text-xs font-bold border transition bg-white dark:bg-[#2a302b] text-ink-600 dark:text-[#9bb0a0] border-[#e6e9e1] dark:border-[#343a34]">2 · {{ __('ui.time_label') }}</a>
+            <a href="#sec-desc" data-mnav="sec-desc" class="shrink-0 inline-flex items-center gap-1.5 px-3.5 min-h-[40px] rounded-full text-xs font-bold border transition bg-white dark:bg-[#2a302b] text-ink-600 dark:text-[#9bb0a0] border-[#e6e9e1] dark:border-[#343a34]">3 · {{ __('ui.description_label') }}</a>
+            <a href="#sec-files" data-mnav="sec-files" class="shrink-0 inline-flex items-center gap-1.5 px-3.5 min-h-[40px] rounded-full text-xs font-bold border transition bg-white dark:bg-[#2a302b] text-ink-600 dark:text-[#9bb0a0] border-[#e6e9e1] dark:border-[#343a34]">4 · {{ __('ui.attachments_label') }}</a>
+        </div>
+        <div class="mt-2 flex items-center gap-1.5 px-1 text-[11px] font-bold text-ink-500 dark:text-[#9bb0a0] tabular-nums whitespace-nowrap overflow-hidden">
+            <x-phosphor-video-camera-duotone class="w-3.5 h-3.5 text-[#0e6a38] dark:text-[#4ade80] shrink-0" />
+            <span id="m-sum-loc" class="truncate min-w-0 flex-1">—</span>
+            <span class="opacity-40 shrink-0">·</span>
+            <x-phosphor-clock-duotone class="w-3.5 h-3.5 text-[#0e6a38] dark:text-[#4ade80] shrink-0" />
+            <span id="m-sum-time" class="truncate min-w-0 flex-1">—</span>
+            <span class="opacity-40 shrink-0">·</span>
+            <span id="m-sum-desc" class="shrink-0">0</span>
+        </div>
+    </div>
+</div>
 
-<div class="max-w-4xl mx-auto">
-    <div class="bg-[#fdfcfa] rounded-2xl border border-[#e6e9e1] overflow-hidden">
-        <form method="POST" action="{{ route('notes.store', [], false) }}" enctype="multipart/form-data" class="p-4 sm:p-6 space-y-4 sm:space-y-5" id="create-form" novalidate>
+<div class="max-w-3xl mx-auto">
+    <div class="bg-white dark:bg-[#252b26] rounded-[20px] border border-[#e6e9e1] dark:border-[#2e352e] shadow-[0_2px_20px_rgba(26,46,31,0.05)] overflow-hidden">
+        <form method="POST" action="{{ route('notes.store', [], false) }}" enctype="multipart/form-data" class="p-4 sm:p-6 space-y-5 sm:space-y-6" id="create-form" novalidate>
             @csrf
-            <div id="form-errors" class="hidden p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700"></div>
-            <div id="upload-progress" class="hidden p-4 bg-[#eef4f0] border border-[#cde7d6] rounded-xl">
+            <div id="form-errors" class="hidden p-4 bg-red-50 dark:bg-[#2d1f1f] border border-red-200 dark:border-[#3d2626] rounded-2xl text-sm text-red-700 dark:text-[#f08080]"></div>
+            <div id="upload-progress" class="hidden p-4 bg-[#eef4f0] dark:bg-[#1e3328] border border-[#cde7d6] dark:border-[#24402e] rounded-2xl">
                 <div class="flex items-center justify-between mb-2">
-                    <span class="text-sm font-bold text-[#0e6a38] flex items-center gap-2"><span class="w-3 h-3 border-2 border-[#0e6a38] border-t-transparent rounded-full animate-spin"></span>{{ __('ui.uploading') }}</span>
-                    <span id="upload-progress-text" class="text-xs font-bold text-ink-500">0%</span>
+                    <span class="text-sm font-bold text-[#0e6a38] dark:text-[#4ade80] flex items-center gap-2"><span class="w-3.5 h-3.5 border-2 border-[#0e6a38] dark:border-[#4ade80] border-t-transparent rounded-full animate-spin"></span>{{ __('ui.uploading') }}</span>
+                    <span id="upload-progress-text" class="text-xs font-bold text-ink-500 dark:text-[#9bb0a0] tabular-nums">0%</span>
                 </div>
-                <div class="w-full bg-white rounded-full h-2.5 border border-[#e6e9e1] overflow-hidden">
-                    <div id="upload-progress-bar" class="h-2.5 rounded-full bg-[#0e6a38] transition-all duration-300" style="width:0%"></div>
+                <div class="w-full bg-white dark:bg-[#1e2320] rounded-full h-2.5 border border-[#e6e9e1] dark:border-[#2e352e] overflow-hidden">
+                    <div id="upload-progress-bar" class="h-2.5 rounded-full bg-gradient-to-l from-[#0e6a38] to-[#2e9e5b] transition-all duration-300" style="width:0%"></div>
                 </div>
-                <div id="upload-progress-detail" class="mt-1 text-[11px] text-ink-400">{{ __('ui.uploading_dont_close') }}</div>
+                <div id="upload-progress-detail" class="mt-1.5 text-[11px] text-ink-400 dark:text-[#8a9a8e] font-medium">{{ __('ui.uploading_dont_close') }}</div>
             </div>
-            <div class="grid grid-cols-2 sm:grid-cols-2 gap-3 sm:gap-4">
-                <div>
-                    <label for="floor_number" class="block text-[13px] sm:text-sm font-bold text-ink-700 mb-1.5">{{ __('ui.floor_label') }} <span class="text-red-500">*</span></label>
+            <section id="sec-loc" data-step="1" class="scroll-mt-44 rounded-2xl border border-[#eceee9] dark:border-[#2e352e] bg-[#fdfcfa] dark:bg-[#1e2320] p-4 sm:p-5">
+                <div class="flex items-center gap-2.5 mb-4">
+                    <span class="w-7 h-7 rounded-xl bg-[#0e6a38] text-white text-[13px] font-extrabold flex items-center justify-center shadow-sm shrink-0">1</span>
+                    <h2 class="text-sm font-extrabold text-ink-800 dark:text-[#e7ece5]">{{ __('ui.floor_label') }} · {{ __('ui.camera_label') }}</h2>
+                </div>
+            <div class="grid grid-cols-2 gap-3 sm:gap-4 min-w-0">
+                <div class="min-w-0">
+                    <label for="floor_number" class="block text-[13px] sm:text-sm font-bold text-ink-700 dark:text-[#d5ded6] mb-1.5">{{ __('ui.floor_label') }} <span class="text-red-500">*</span></label>
                     <input type="number" id="floor_number" name="floor_number" value="{{ old('floor_number') }}" min="0" required inputmode="numeric"
-                        class="block w-full rounded-xl border border-[#e6e9e1] bg-white py-3 px-3 sm:px-4 min-h-[44px] text-[16px] sm:text-sm font-medium text-ink-800 placeholder:text-ink-300 focus:border-[#0e6a38] focus:ring-2 focus:ring-[#0e6a38]/10 outline-none transition @error('floor_number') border-red-400 @enderror"
+                        class="block w-full rounded-xl border border-[#e6e9e1] dark:border-[#343a34] bg-white dark:bg-[#2a302b] py-3 px-3 sm:px-4 min-h-[48px] text-[16px] sm:text-sm font-bold text-ink-800 dark:text-[#e7ece5] placeholder:text-ink-300 dark:placeholder:text-[#6b7a6e] placeholder:font-medium focus:border-[#0e6a38] dark:focus:border-[#4ade80] focus:ring-4 focus:ring-[#0e6a38]/10 outline-none transition @error('floor_number') border-red-400 @enderror"
                         placeholder="3">
                     @error('floor_number') <p class="mt-1 text-xs font-bold text-red-500">{{ $message }}</p> @enderror
                 </div>
-                <div>
-                    <label for="camera_number" class="block text-[13px] sm:text-sm font-bold text-ink-700 mb-1.5">{{ __('ui.camera_label') }} <span class="text-red-500">*</span></label>
+                <div class="min-w-0">
+                    <label for="camera_number" class="block text-[13px] sm:text-sm font-bold text-ink-700 dark:text-[#d5ded6] mb-1.5">{{ __('ui.camera_label') }} <span class="text-red-500">*</span></label>
                     <input type="number" id="camera_number" name="camera_number" value="{{ old('camera_number') }}" min="1" required inputmode="numeric"
-                        class="block w-full rounded-xl border border-[#e6e9e1] bg-white py-3 px-3 sm:px-4 min-h-[44px] text-[16px] sm:text-sm font-medium text-ink-800 placeholder:text-ink-300 focus:border-[#0e6a38] focus:ring-2 focus:ring-[#0e6a38]/10 outline-none transition @error('camera_number') border-red-400 @enderror"
+                        class="block w-full rounded-xl border border-[#e6e9e1] dark:border-[#343a34] bg-white dark:bg-[#2a302b] py-3 px-3 sm:px-4 min-h-[48px] text-[16px] sm:text-sm font-bold text-ink-800 dark:text-[#e7ece5] placeholder:text-ink-300 dark:placeholder:text-[#6b7a6e] placeholder:font-medium focus:border-[#0e6a38] dark:focus:border-[#4ade80] focus:ring-4 focus:ring-[#0e6a38]/10 outline-none transition @error('camera_number') border-red-400 @enderror"
                         placeholder="12">
                     @error('camera_number') <p class="mt-1 text-xs font-bold text-red-500">{{ $message }}</p> @enderror
                 </div>
             </div>
+            </section>
 
-            <div class="rounded-xl border border-[#e6e9e1] bg-[#f5f7f5] p-3 sm:p-4">
-                <label class="block text-[13px] sm:text-sm font-bold text-ink-700 mb-1">{{ __('ui.time_label') }} <span class="text-red-500">*</span></label>
+            <section id="sec-time" data-step="2" class="scroll-mt-44 rounded-2xl border border-[#eceee9] dark:border-[#2e352e] bg-[#fdfcfa] dark:bg-[#1e2320] p-4 sm:p-5">
+                <div class="flex items-center gap-2.5 mb-4">
+                    <span class="w-7 h-7 rounded-xl bg-[#0e6a38] text-white text-[13px] font-extrabold flex items-center justify-center shadow-sm shrink-0">2</span>
+                    <h2 class="text-sm font-extrabold text-ink-800 dark:text-[#e7ece5]">{{ __('ui.time_label') }} <span class="text-red-500">*</span></h2>
+                </div>
                 @php
                     $oldObserved = old('observed_at');
                     $oldDate = $oldObserved ? date('Y-m-d', strtotime($oldObserved)) : '';
@@ -54,92 +87,103 @@
                     $oldObservedEnd = old('observed_end_at');
                     $oldEndTime = $oldObservedEnd ? date('H:i', strtotime($oldObservedEnd)) : '';
                 @endphp
-                <div class="space-y-3">
-                    <div>
-                        <div class="text-xs font-bold text-ink-500 mb-1.5">{{ __('ui.date_label') }}</div>
-                        <input type="date" id="observed_date" value="{{ $oldDate }}" required
-                            class="block w-full rounded-xl border border-[#e6e9e1] bg-white py-2.5 px-4 text-sm font-bold text-ink-800 focus:border-[#0e6a38] focus:ring-2 focus:ring-[#0e6a38]/10 outline-none transition cursor-pointer"
+                <div class="space-y-3 min-w-0">
+                    <div class="min-w-0">
+                        <div class="text-xs font-bold text-ink-500 dark:text-[#9bb0a0] mb-1.5">{{ __('ui.date_label') }}</div>
+                        <input type="date" id="observed_date" value="{{ $oldDate }}" required dir="ltr"
+                            class="block w-full min-w-0 max-w-full rounded-xl border border-[#e6e9e1] dark:border-[#343a34] bg-white dark:bg-[#2a302b] py-3 px-3 sm:px-4 min-h-[48px] text-left text-sm font-bold text-ink-800 dark:text-[#e7ece5] focus:border-[#0e6a38] dark:focus:border-[#4ade80] focus:ring-4 focus:ring-[#0e6a38]/10 outline-none transition cursor-pointer"
                             style="color-scheme: light dark;">
                     </div>
-                    <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <div class="text-xs font-bold text-ink-500 mb-1.5">{{ __('ui.start_label') }}</div>
-                            <input type="time" id="observed_time" value="{{ $oldTime }}" required step="60"
-                                class="block w-full rounded-xl border border-[#e6e9e1] bg-white py-2.5 px-4 text-sm font-bold text-ink-800 focus:border-[#0e6a38] focus:ring-2 focus:ring-[#0e6a38]/10 outline-none transition cursor-pointer"
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div class="min-w-0">
+                            <div class="text-xs font-bold text-ink-500 dark:text-[#9bb0a0] mb-1.5">{{ __('ui.start_label') }}</div>
+                            <input type="time" id="observed_time" value="{{ $oldTime }}" required step="60" dir="ltr"
+                                class="block w-full min-w-0 max-w-full rounded-xl border border-[#e6e9e1] dark:border-[#343a34] bg-white dark:bg-[#2a302b] py-3 px-3 sm:px-4 min-h-[48px] text-left text-sm font-bold tabular-nums text-ink-800 dark:text-[#e7ece5] focus:border-[#0e6a38] dark:focus:border-[#4ade80] focus:ring-4 focus:ring-[#0e6a38]/10 outline-none transition cursor-pointer"
                                 style="color-scheme: light dark;">
                         </div>
-                        <div>
-                            <div class="text-xs font-bold text-ink-500 mb-1.5">{{ __('ui.end_label') }}</div>
-                            <input type="time" id="observed_end_time" value="{{ $oldEndTime }}" step="60"
-                                class="block w-full rounded-xl border border-[#e6e9e1] bg-white py-2.5 px-4 text-sm font-bold text-ink-800 focus:border-[#0e6a38] focus:ring-2 focus:ring-[#0e6a38]/10 outline-none transition cursor-pointer"
+                        <div class="min-w-0">
+                            <div class="text-xs font-bold text-ink-500 dark:text-[#9bb0a0] mb-1.5">{{ __('ui.end_label') }} <span class="font-medium opacity-60">{{ __('ui.attachments_optional') }}</span></div>
+                            <input type="time" id="observed_end_time" value="{{ $oldEndTime }}" step="60" dir="ltr"
+                                class="block w-full min-w-0 max-w-full rounded-xl border border-[#e6e9e1] dark:border-[#343a34] bg-white dark:bg-[#2a302b] py-3 px-3 sm:px-4 min-h-[48px] text-left text-sm font-bold tabular-nums text-ink-800 dark:text-[#e7ece5] focus:border-[#0e6a38] dark:focus:border-[#4ade80] focus:ring-4 focus:ring-[#0e6a38]/10 outline-none transition cursor-pointer"
                                 style="color-scheme: light dark;">
                         </div>
                     </div>
                 </div>
-                <div class="mt-3 flex flex-wrap gap-1.5">
-                    <button type="button" data-preset="now" class="preset-btn px-3 py-2 sm:py-1.5 min-h-[36px] sm:min-h-0 rounded-lg bg-[#0e6a38] text-white text-xs font-bold hover:bg-[#0a4d28] transition">{{ __('ui.now_btn') }}</button>
-                    <button type="button" data-preset="hour-ago" class="preset-btn px-3 py-2 sm:py-1.5 min-h-[36px] sm:min-h-0 rounded-lg bg-[#fdfcfa] border border-[#e6e9e1] text-[#1a2e1f] text-xs font-bold hover:bg-[#f5f7f5] transition">{{ __('ui.hour_ago_btn') }}</button>
-                    <button type="button" data-preset="today-08" class="preset-btn px-3 py-2 sm:py-1.5 min-h-[36px] sm:min-h-0 rounded-lg bg-[#fdfcfa] border border-[#e6e9e1] text-[#1a2e1f] text-xs font-bold hover:bg-[#f5f7f5] transition">{{ __('ui.today_08_btn') }}</button>
-                    <button type="button" id="clear-datetime" class="px-3 py-2 sm:py-1.5 min-h-[36px] sm:min-h-0 rounded-lg bg-transparent border border-[#e6e9e1] text-ink-400 text-xs font-bold hover:bg-white transition">{{ __('ui.clear_btn') }}</button>
+                <div class="mt-4 flex flex-wrap gap-2">
+                    <button type="button" data-preset="now" class="preset-btn inline-flex items-center gap-1.5 px-4 py-2 min-h-[40px] rounded-full bg-[#0e6a38] hover:bg-[#0a4d28] active:scale-[0.97] text-white text-xs font-extrabold shadow-[0_2px_10px_rgba(14,106,56,0.25)] transition">{{ __('ui.now_btn') }}</button>
+                    <button type="button" data-preset="hour-ago" class="preset-btn inline-flex items-center gap-1.5 px-4 py-2 min-h-[40px] rounded-full bg-white dark:bg-[#2a302b] border border-[#e6e9e1] dark:border-[#343a34] text-[#1a2e1f] dark:text-[#e7ece5] text-xs font-bold hover:border-[#0e6a38]/40 hover:text-[#0e6a38] dark:hover:text-[#4ade80] active:scale-[0.97] transition">{{ __('ui.hour_ago_btn') }}</button>
+                    <button type="button" data-preset="today-08" class="preset-btn inline-flex items-center gap-1.5 px-4 py-2 min-h-[40px] rounded-full bg-white dark:bg-[#2a302b] border border-[#e6e9e1] dark:border-[#343a34] text-[#1a2e1f] dark:text-[#e7ece5] text-xs font-bold hover:border-[#0e6a38]/40 hover:text-[#0e6a38] dark:hover:text-[#4ade80] active:scale-[0.97] transition">{{ __('ui.today_08_btn') }}</button>
+                    <button type="button" id="clear-datetime" class="inline-flex items-center gap-1 px-3 py-2 min-h-[40px] rounded-full bg-transparent text-ink-400 dark:text-[#8a9a8e] text-xs font-bold hover:bg-black/5 dark:hover:bg-white/5 transition">{{ __('ui.clear_btn') }}</button>
                 </div>
-                <div class="mt-3 flex items-center gap-2 p-2.5 rounded-lg bg-white border border-[#e6e9e1]">
-                    <svg class="w-4 h-4 text-[#0e6a38] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                    <div id="observed_preview" class="text-sm font-bold text-ink-700 truncate">{{ __('ui.choose_time') }}</div>
+                <div class="mt-3 flex items-center gap-2.5 p-3 rounded-2xl bg-[#eef4f0] dark:bg-[#1e3328] border border-[#cde7d6] dark:border-[#24402e]">
+                    <span class="w-8 h-8 rounded-xl bg-white dark:bg-[#2a302b] border border-[#cde7d6] dark:border-[#24402e] flex items-center justify-center shrink-0">
+                        <x-phosphor-clock-duotone class="w-4 h-4 text-[#0e6a38] dark:text-[#4ade80]" />
+                    </span>
+                    <div id="observed_preview" class="text-[13px] font-bold text-[#0e4d28] dark:text-[#bfe9cd] truncate">{{ __('ui.choose_time') }}</div>
                 </div>
                 <input type="hidden" name="observed_at" id="observed_at" value="{{ old('observed_at') }}">
                 <input type="hidden" name="observed_end_at" id="observed_end_at" value="{{ old('observed_end_at') }}">
                 @error('observed_at') <p class="mt-1 text-xs font-bold text-red-500">{{ $message }}</p> @enderror
                 @error('observed_end_at') <p class="mt-1 text-xs font-bold text-red-500">{{ $message }}</p> @enderror
-            </div>
+            </section>
 
-            <div>
-                <label for="description" class="block text-sm font-bold text-ink-700 mb-1.5">{{ __('ui.description_label') }} <span class="text-red-500">*</span></label>
-                <div class="relative">
-                    <textarea id="description" name="description" rows="5" required maxlength="5000"
-                        class="block w-full rounded-xl border border-[#e6e9e1] bg-white p-3 sm:p-4 min-h-[110px] text-[16px] sm:text-sm leading-6 sm:leading-7 text-ink-800 placeholder:text-ink-300 focus:border-[#0e6a38] focus:ring-2 focus:ring-[#0e6a38]/10 outline-none transition resize-none @error('description') border-red-400 @enderror"
-                        placeholder="{{ __('ui.desc_placeholder') }}">{{ old('description') }}</textarea>
-                    <div class="absolute bottom-3 left-3 text-[11px] font-bold text-ink-400 bg-white border border-[#e6e9e1] rounded-full px-2 py-0.5">
-                        <span id="desc-count">0</span> / 5000
+            <section id="sec-desc" data-step="3" class="scroll-mt-44 rounded-2xl border border-[#eceee9] dark:border-[#2e352e] bg-[#fdfcfa] dark:bg-[#1e2320] p-4 sm:p-5">
+                <div class="flex items-center justify-between gap-2 mb-4">
+                    <div class="flex items-center gap-2.5">
+                        <span class="w-7 h-7 rounded-xl bg-[#0e6a38] text-white text-[13px] font-extrabold flex items-center justify-center shadow-sm shrink-0">3</span>
+                        <label for="description" class="text-sm font-extrabold text-ink-800 dark:text-[#e7ece5]">{{ __('ui.description_label') }} <span class="text-red-500">*</span></label>
                     </div>
+                    <span class="inline-flex items-center gap-1 text-[11px] font-bold text-ink-400 dark:text-[#8a9a8e] bg-white dark:bg-[#2a302b] border border-[#e6e9e1] dark:border-[#343a34] rounded-full px-2.5 py-1 tabular-nums shrink-0">
+                        <span id="desc-count">0</span><span class="opacity-50">/ 5000</span>
+                    </span>
+                </div>
+                <div class="relative">
+                    <textarea id="description" name="description" rows="6" required maxlength="5000"
+                        class="block w-full rounded-2xl border border-[#e6e9e1] dark:border-[#343a34] bg-white dark:bg-[#2a302b] p-4 min-h-[140px] text-[15px] sm:text-sm leading-[1.9] text-ink-800 dark:text-[#e7ece5] placeholder:text-ink-300 dark:placeholder:text-[#6b7a6e] focus:border-[#0e6a38] dark:focus:border-[#4ade80] focus:ring-4 focus:ring-[#0e6a38]/10 outline-none transition resize-y shadow-[inset_0_1px_3px_rgba(26,46,31,0.04)] @error('description') border-red-400 @enderror"
+                        placeholder="{{ __('ui.desc_placeholder') }}">{{ old('description') }}</textarea>
                 </div>
                 @error('description') <p class="mt-1 text-xs font-bold text-red-500">{{ $message }}</p> @enderror
                 <div class="mt-3">
                     @include('notes.partials.smart_hint')
                 </div>
-            </div>
+            </section>
 
-            <div>
-                <label class="block text-sm font-bold text-ink-700 mb-1.5">{{ __('ui.attachments_label') }} <span class="text-ink-300 font-medium text-xs">{{ __('ui.attachments_optional') }}</span></label>
-                <div class="rounded-xl border-2 border-dashed border-[#e6e9e1] bg-[#f5f7f5] hover:border-[#0e6a38] hover:bg-[#f5f7f5] transition p-4 sm:p-5 text-center group" id="drop-zone">
-                    <div class="mx-auto w-10 h-10 rounded-xl bg-white border border-[#e6e9e1] flex items-center justify-center group-hover:border-[#0e6a38] transition">
-                        <svg class="w-5 h-5 text-[#0e6a38]" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.7"><path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+            <section id="sec-files" data-step="4" class="scroll-mt-44 rounded-2xl border border-[#eceee9] dark:border-[#2e352e] bg-[#fdfcfa] dark:bg-[#1e2320] p-4 sm:p-5">
+                <div class="flex items-center gap-2.5 mb-4">
+                    <span class="w-7 h-7 rounded-xl bg-ink-800 dark:bg-[#2a302b] dark:border dark:border-[#343a34] text-white dark:text-[#e7ece5] text-[13px] font-extrabold flex items-center justify-center shadow-sm shrink-0">4</span>
+                    <h2 class="text-sm font-extrabold text-ink-800 dark:text-[#e7ece5]">{{ __('ui.attachments_label') }}</h2>
+                    <span class="text-[11px] font-medium text-ink-400 dark:text-[#8a9a8e]">{{ __('ui.attachments_optional') }}</span>
+                </div>
+                <div class="rounded-2xl border-2 border-dashed border-[#dbe2da] dark:border-[#343a34] bg-white dark:bg-[#2a302b]/50 hover:border-[#0e6a38]/50 dark:hover:border-[#4ade80]/40 transition p-4 sm:p-5 text-center group" id="drop-zone">
+                    <div class="mx-auto w-11 h-11 rounded-2xl bg-[#eef4f0] dark:bg-[#1e3328] border border-[#cde7d6] dark:border-[#24402e] flex items-center justify-center transition group-hover:scale-105">
+                        <x-phosphor-cloud-arrow-up-duotone class="w-5 h-5 text-[#0e6a38] dark:text-[#4ade80]" />
                     </div>
-                    <div class="mt-3 flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-2">
-                        <label for="files" class="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2.5 sm:py-2 min-h-[44px] sm:min-h-0 rounded-lg bg-[#0e6a38] text-white font-bold text-sm cursor-pointer hover:bg-[#0a4d28] transition">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
-                            {{ __('ui.choose_files') }}
+                    <p class="mt-2.5 text-xs font-medium text-ink-400 dark:text-[#8a9a8e]">{{ __('ui.uploading_originals') }}</p>
+                    <div class="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2 min-w-0">
+                        <label for="files" class="min-w-0 inline-flex items-center justify-center gap-1.5 px-3 py-2.5 min-h-[44px] rounded-xl bg-[#0e6a38] hover:bg-[#0a4d28] active:scale-[0.98] text-white font-bold text-sm text-center cursor-pointer shadow-[0_2px_10px_rgba(14,106,56,0.25)] transition">
+                            <x-phosphor-plus-duotone class="w-4 h-4 shrink-0" />
+                            <span class="truncate">{{ __('ui.choose_files') }}</span>
                         </label>
-                        <span class="hidden sm:inline text-xs text-ink-400">{{ __('ui.or_word') }}</span>
-                        <button type="button" id="open-camera-btn" class="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2.5 sm:py-2 min-h-[44px] sm:min-h-0 rounded-lg bg-[#fdfcfa] border border-[#e6e9e1] text-[#1a2e1f] font-bold text-sm hover:bg-[#f5f7f5] transition">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 13a3 3 0 100-6 3 3 0 000 6z"/></svg>
-                            {{ __('ui.live_camera') }}
+                        <button type="button" id="open-camera-btn" class="min-w-0 inline-flex items-center justify-center gap-1.5 px-3 py-2.5 min-h-[44px] rounded-xl bg-white dark:bg-[#2a302b] border border-[#e6e9e1] dark:border-[#343a34] text-[#1a2e1f] dark:text-[#e7ece5] font-bold text-sm text-center hover:border-[#0e6a38]/40 active:scale-[0.98] transition">
+                            <x-phosphor-video-camera-duotone class="w-4 h-4 shrink-0" />
+                            <span class="truncate">{{ __('ui.live_camera') }}</span>
                         </button>
-                        <button type="button" id="audio-record-btn" class="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2.5 sm:py-2 min-h-[44px] sm:min-h-0 rounded-lg bg-[#fdfcfa] border border-[#e6e9e1] text-[#1a2e1f] font-bold text-sm hover:bg-[#f5f7f5] transition">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/></svg>
+                        <button type="button" id="audio-record-btn" class="min-w-0 inline-flex items-center justify-center gap-1.5 px-3 py-2.5 min-h-[44px] rounded-xl bg-white dark:bg-[#2a302b] border border-[#e6e9e1] dark:border-[#343a34] text-[#1a2e1f] dark:text-[#e7ece5] font-bold text-sm text-center hover:border-[#0e6a38]/40 active:scale-[0.98] transition">
+                            <x-phosphor-microphone-duotone class="w-4 h-4" />
                             {{ __('ui.audio_recording') }}
                         </button>
                     </div>
                     <div id="audio-preview" class="hidden mt-3 p-3 bg-white border border-[#e6e9e1] rounded-xl">
                         <div class="flex items-center gap-3">
                             <div id="audio-preview-icon" class="w-10 h-10 rounded-lg bg-red-50 border border-red-200 flex items-center justify-center shrink-0">
-                                <svg class="w-5 h-5 text-red-500 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/></svg>
+                                <x-phosphor-microphone-duotone class="w-5 h-5 text-red-500 animate-pulse" />
                             </div>
                             <div class="flex-1 min-w-0">
                                 <div id="audio-preview-status" class="text-sm font-bold text-ink-700">{{ __('ui.requesting_mic') }}</div>
                                 <div id="audio-preview-timer" class="text-xs text-ink-400 mt-0.5 hidden">00:00</div>
                             </div>
                             <button type="button" id="audio-preview-delete" class="hidden shrink-0 w-8 h-8 rounded-lg hover:bg-red-50 flex items-center justify-center text-ink-400 hover:text-red-500 transition" title="{{ __('ui.delete_recording') }}">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                                <x-phosphor-x-duotone class="w-4 h-4" />
                             </button>
                         </div>
                         <audio id="audio-preview-player" class="hidden w-full mt-2 rounded-lg" controls></audio>
@@ -161,10 +205,10 @@
                             </h3>
                             <div class="flex items-center gap-1.5">
                                 <button type="button" id="switch-camera-btn" class="w-8 h-8 rounded-lg bg-[#f5f7f5] border border-[#e6e9e1] flex items-center justify-center text-ink-500 hover:text-ink-700 transition" title="{{ __('ui.switch_camera') }}">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4M16 17H4m0 0l4 4m-4-4l4-4"/></svg>
+                                    <x-phosphor-arrows-left-right-duotone class="w-4 h-4" />
                                 </button>
                                 <button type="button" id="close-camera-btn" class="w-8 h-8 rounded-lg hover:bg-[#f5f7f5] flex items-center justify-center text-ink-400 hover:text-ink-700 transition" title="{{ __('ui.close_camera') }}">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                                    <x-phosphor-x-duotone class="w-5 h-5" />
                                 </button>
                             </div>
                         </div>
@@ -173,7 +217,7 @@
                             <canvas id="camera-canvas" class="hidden"></canvas>
                             <div id="camera-placeholder" class="text-center py-12">
                                 <div class="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center mx-auto mb-3">
-                                    <svg class="w-6 h-6 text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.7"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                                    <x-phosphor-video-camera-duotone class="w-6 h-6 text-white/70" />
                                 </div>
                                 <p class="text-sm text-white/70">{{ __('ui.camera_starting') }}</p>
                                 <p id="camera-error" class="hidden mt-2 text-xs text-red-300 max-w-xs mx-auto leading-5"></p>
@@ -181,17 +225,17 @@
                             <div id="camera-fallback" class="w-full max-w-md p-4 border-t border-amber-200 bg-amber-50/50">
                                 <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
                                     <label class="flex flex-col items-center gap-2 p-4 rounded-xl bg-white border-2 border-dashed border-amber-300 hover:border-amber-400 hover:bg-amber-50 cursor-pointer transition text-center shadow-sm">
-                                        <svg class="w-7 h-7 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9a2 2 0 012-2z"/><circle cx="12" cy="13" r="3"/></svg>
+                                        <x-phosphor-camera-duotone class="w-7 h-7 text-amber-600" />
                                         <span class="text-sm font-bold text-ink-800">{{ __('ui.photo_capture_fallback') }}</span>
                                         <input type="file" accept="image/*" capture="environment" class="hidden" onchange="handleFallbackFile(this)">
                                     </label>
                                     <label class="flex flex-col items-center gap-2 p-4 rounded-xl bg-white border-2 border-dashed border-amber-300 hover:border-amber-400 hover:bg-amber-50 cursor-pointer transition text-center shadow-sm">
-                                        <svg class="w-7 h-7 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                                        <x-phosphor-video-camera-duotone class="w-7 h-7 text-amber-600" />
                                         <span class="text-sm font-bold text-ink-800">{{ __('ui.video_recording_fallback') }}</span>
                                         <input type="file" accept="video/*" capture="environment" class="hidden" onchange="handleFallbackFile(this)">
                                     </label>
                                     <label class="flex flex-col items-center gap-2 p-4 rounded-xl bg-white border-2 border-dashed border-amber-300 hover:border-amber-400 hover:bg-amber-50 cursor-pointer transition text-center shadow-sm">
-                                        <svg class="w-7 h-7 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/></svg>
+                                        <x-phosphor-microphone-duotone class="w-7 h-7 text-red-500" />
                                         <span class="text-sm font-bold text-ink-800">{{ __('ui.audio_recording_fallback') }}</span>
                                         <input type="file" accept="audio/*" capture="user" class="hidden" onchange="handleFallbackFile(this)">
                                     </label>
@@ -205,7 +249,7 @@
                         <div class="p-4 border-t border-[#e6e9e1] bg-white shrink-0">
                             <div class="flex gap-2 justify-center flex-wrap">
                                 <button type="button" id="capture-photo-btn" class="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-[#0e6a38] hover:bg-[#0a4d28] text-white font-bold text-sm transition">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 9h2l2-2h4l2 2h2a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2V9a2 2 0 012-2z"/><circle cx="12" cy="13" r="3"/></svg>
+                                    <x-phosphor-camera-duotone class="w-4 h-4" />
                                     {{ __('ui.capture_photo') }}
                                 </button>
                                 <button type="button" id="start-record-btn" class="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-white border-2 border-red-200 text-red-600 font-bold text-sm hover:bg-red-50 transition">
@@ -213,7 +257,7 @@
                                     {{ __('ui.start_video_recording') }}
                                 </button>
                                 <button type="button" id="stop-record-btn" class="hidden flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-sm transition">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><rect x="6" y="6" width="12" height="12" rx="1"/></svg>
+                                    <x-phosphor-stop-duotone class="w-4 h-4" />
                                     {{ __('ui.stop_and_save') }}
                                 </button>
                             </div>
@@ -224,14 +268,22 @@
                 </div>
             </div>
 
-            <div class="flex flex-col-reverse sm:flex-row gap-2.5 sm:gap-3 pt-4 sm:pt-5 border-t border-[#e6e9e1]">
-                <a href="{{ route('notes.index') }}" class="w-full sm:w-auto inline-flex items-center justify-center px-5 py-3 sm:py-2.5 min-h-[44px] sm:min-h-0 rounded-xl bg-transparent border border-[#e6e9e1] text-[#525252] font-bold text-sm hover:bg-[#f5f7f5] transition">{{ __('ui.cancel_btn') }}</a>
+            </section>
+
+            <div class="m-crud-bar flex flex-col-reverse sm:flex-row gap-2.5 sm:gap-3 pt-4 sm:pt-5 border-t border-[#eceee9] dark:border-[#2e352e]">
+                <a href="{{ route('notes.index') }}" class="w-full sm:w-auto inline-flex items-center justify-center px-5 py-3 min-h-[48px] sm:min-h-0 sm:py-2.5 rounded-2xl sm:rounded-xl bg-transparent border border-[#e6e9e1] dark:border-[#343a34] text-[#525252] dark:text-[#9bb0a0] font-bold text-sm hover:bg-black/5 dark:hover:bg-white/5 active:scale-[0.98] transition">{{ __('ui.cancel_btn') }}</a>
                 <div class="flex-1 flex flex-col sm:flex-row gap-2 sm:justify-end">
                     @if(auth()->user()->isReportWriter())
-                        <button type="submit" name="action" value="save" class="w-full sm:w-auto px-6 py-3 sm:py-2.5 min-h-[44px] sm:min-h-0 rounded-xl bg-[#0e6a38] hover:bg-[#0a4d28] text-white font-bold text-sm shadow-sm transition">{{ __('ui.save_note_btn') }}</button>
+                        <button type="submit" name="action" value="save" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3 min-h-[48px] sm:min-h-0 sm:py-2.5 rounded-2xl sm:rounded-xl bg-gradient-to-l from-[#0e6a38] to-[#12934f] hover:from-[#0a4d28] hover:to-[#0e6a38] active:scale-[0.98] text-white font-extrabold text-sm shadow-[0_4px_18px_rgba(14,106,56,0.3)] transition">
+                            <x-phosphor-check-duotone class="w-4 h-4" />
+                            {{ __('ui.save_note_btn') }}
+                        </button>
                     @else
-                        <button type="submit" name="action" value="send" class="w-full sm:w-auto px-6 py-3 sm:py-2.5 min-h-[44px] sm:min-h-0 rounded-xl bg-[#0e6a38] hover:bg-[#0a4d28] text-white font-bold text-sm shadow-sm transition sm:order-last">{{ __('ui.save_and_send_btn') }}</button>
-                        <button type="submit" name="action" value="save" class="w-full sm:w-auto px-5 py-3 sm:py-2.5 min-h-[44px] sm:min-h-0 rounded-xl bg-[#fdfcfa] border border-[#e6e9e1] text-[#1a2e1f] font-bold text-sm hover:bg-[#f5f7f5] transition">{{ __('ui.save_draft_btn') }}</button>
+                        <button type="submit" name="action" value="send" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3 min-h-[48px] sm:min-h-0 sm:py-2.5 rounded-2xl sm:rounded-xl bg-gradient-to-l from-[#0e6a38] to-[#12934f] hover:from-[#0a4d28] hover:to-[#0e6a38] active:scale-[0.98] text-white font-extrabold text-sm shadow-[0_4px_18px_rgba(14,106,56,0.3)] transition sm:order-last">
+                            <x-phosphor-paper-plane-tilt-duotone class="w-4 h-4 rtl:rotate-180" />
+                            {{ __('ui.save_and_send_btn') }}
+                        </button>
+                        <button type="submit" name="action" value="save" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 min-h-[48px] sm:min-h-0 sm:py-2.5 rounded-2xl sm:rounded-xl bg-white dark:bg-[#2a302b] border border-[#e6e9e1] dark:border-[#343a34] text-[#1a2e1f] dark:text-[#e7ece5] font-bold text-sm hover:border-[#0e6a38]/40 active:scale-[0.98] transition">{{ __('ui.save_draft_btn') }}</button>
                     @endif
                 </div>
             </div>
@@ -359,7 +411,34 @@
             });
         });
         document.getElementById('clear-datetime')?.addEventListener('click',()=>{ if(dateEl) dateEl.value=''; if(timeEl) timeEl.value=''; if(endTimeEl) endTimeEl.value=''; sync(); });
+        // ذكاء افتراضي: إن لم يكن هناك قيمة قديمة، عبّئ التاريخ والوقت الحاليين تلقائياً
+        try{
+            const hasOld = (hidden?.value || '').trim() !== '' || (dateEl?.value || '').trim() !== '';
+            if(!hasOld && dateEl && timeEl){
+                const n = new Date();
+                const p2 = v => String(v).padStart(2,'0');
+                dateEl.value = n.getFullYear()+'-'+p2(n.getMonth()+1)+'-'+p2(n.getDate());
+                timeEl.value = p2(n.getHours())+':'+p2(n.getMinutes());
+            }
+        }catch(_){}
         sync();
+        // مؤشر الخطوات + تكبير تلقائي للوصف
+        try{
+            const stepsTxt = document.getElementById('create-steps-text');
+            const updSteps = ()=>{
+                let done = 0;
+                if(document.getElementById('floor_number')?.value && document.getElementById('camera_number')?.value) done++;
+                if(document.getElementById('observed_at')?.value) done++;
+                if((document.getElementById('description')?.value || '').trim().length >= 10) done++;
+                if((typeof fileTransfer !== 'undefined' && fileTransfer?.files?.length > 0) || (typeof recordedAudioBlob !== 'undefined' && recordedAudioBlob)) done++;
+                if(stepsTxt) stepsTxt.textContent = Math.min(4, done + 1) + ' / 4';
+            };
+            ['floor_number','camera_number','description'].forEach(id=>document.getElementById(id)?.addEventListener('input', updSteps));
+            dateEl?.addEventListener('change', updSteps); timeEl?.addEventListener('change', updSteps);
+            const ta = document.getElementById('description');
+            if(ta){ const grow=()=>{ ta.style.height='auto'; ta.style.height=Math.min(420, Math.max(140, ta.scrollHeight))+'px'; }; ta.addEventListener('input', ()=>{grow(); updSteps();}); grow(); }
+            updSteps();
+        }catch(_){}
         document.getElementById('create-form')?.addEventListener('submit',e=>{
             sync();
             if(!hidden.value){ e.preventDefault(); hidden.setCustomValidity(FORM_T.datetime); hidden.reportValidity(); }
@@ -460,7 +539,7 @@ function syncInput(){ try{ input.files = fileTransfer.files; }catch(e){ } }
                     <div class="text-xs text-ink-400">${sz} • ${f.type||'—'}</div>
                 </div>
                 <button type="button" data-remove="${i}" class="shrink-0 w-7 h-7 rounded-lg hover:bg-red-50 text-ink-300 hover:text-red-500 flex items-center justify-center transition" title="${escAttr(CRT_T.delTitle)}">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                    <x-phosphor-x-duotone class="w-4 h-4" />
                 </button>
             </div>`;
         }).join('') + (files.length>MAX_FILES?'<p class="text-xs font-bold text-red-500">'+escAttr(crtFill(CRT_T.limitMax,{':max':MAX_FILES}))+'</p>':'');
@@ -903,10 +982,10 @@ function syncInput(){ try{ input.files = fileTransfer.files; }catch(e){ } }
         if(audioPreviewPlayer){ audioPreviewPlayer.classList.add('hidden'); audioPreviewPlayer.src=''; }
         if(audioPreviewDelete) audioPreviewDelete.classList.add('hidden');
         if(audioPreviewPending) audioPreviewPending.classList.add('hidden');
-        if(audioPreviewIcon) audioPreviewIcon.innerHTML='<svg class="w-5 h-5 text-red-500 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/></svg>';
+        if(audioPreviewIcon) audioPreviewIcon.innerHTML='<x-phosphor-microphone-duotone class="w-5 h-5 text-red-500 animate-pulse" />';
     }
     function showAudioRecorded(){
-        if(audioPreviewIcon) audioPreviewIcon.innerHTML='<svg class="w-5 h-5 text-[#0e6a38]" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/></svg>';
+        if(audioPreviewIcon) audioPreviewIcon.innerHTML='<x-phosphor-music-note-duotone class="w-5 h-5 text-[#0e6a38]" />';
         if(audioPreviewStatus) audioPreviewStatus.textContent=CRT_T.audioDone;
         if(audioPreviewTimer) audioPreviewTimer.classList.remove('hidden');
         if(audioPreviewPlayer){ audioPreviewPlayer.classList.remove('hidden'); audioPreviewPlayer.src=recordedAudioUrl; }
@@ -925,7 +1004,7 @@ function syncInput(){ try{ input.files = fileTransfer.files; }catch(e){ } }
         recordedAudioBlob=null;
         audioRecordBtn.classList.remove('bg-red-50','border-red-300','text-red-600');
         audioRecordBtn.classList.add('bg-[#fdfcfa]','border-[#e6e9e1]','text-[#1a2e1f]');
-        audioRecordBtn.innerHTML='<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/></svg>'+CRT_T.audioBtn;
+        audioRecordBtn.innerHTML='<x-phosphor-microphone-duotone class="w-4 h-4" />'+CRT_T.audioBtn;
         hideAudioPreview();
     }
     function getSupportedAudioMime(){
@@ -979,7 +1058,7 @@ function syncInput(){ try{ input.files = fileTransfer.files; }catch(e){ } }
                         showAudioRecorded();
                         audioRecordBtn.classList.remove('bg-[#fdfcfa]','border-[#e6e9e1]','text-[#1a2e1f]');
                         audioRecordBtn.classList.add('bg-red-50','border-red-300','text-red-600');
-                        audioRecordBtn.innerHTML='<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>'+CRT_T.delRec;
+                        audioRecordBtn.innerHTML='<x-phosphor-x-duotone class="w-4 h-4" />'+CRT_T.delRec;
                     };
                     audioRecorder.start();
                     audioStartTime=Date.now();
@@ -1004,6 +1083,53 @@ function syncInput(){ try{ input.files = fileTransfer.files; }catch(e){ } }
             });
         }
     }
+
+    // بلوك الجوال: ملخص حي + تظليل القسم الحالي — للجوال فقط، لا يمس منطق الحفظ
+    (function(){
+        const loc = document.getElementById('m-sum-loc');
+        const tim = document.getElementById('m-sum-time');
+        const dsc = document.getElementById('m-sum-desc');
+        if(!loc && !tim && !dsc) return;
+        const f = document.getElementById('floor_number');
+        const c = document.getElementById('camera_number');
+        const d = document.getElementById('observed_date');
+        const t = document.getElementById('observed_time');
+        const ta = document.getElementById('description');
+        function upd(){
+            try{
+                const fv = (f?.value || '').trim(), cv = (c?.value || '').trim();
+                if(loc) loc.textContent = (fv || cv) ? ('ط ' + (fv || '—') + ' · ك ' + (cv || '—')) : '—';
+                const dv = (d?.value || '').slice(5), tv = (t?.value || '');
+                if(tim) tim.textContent = tv ? ((dv ? dv + ' ' : '') + tv) : '—';
+                if(dsc) dsc.textContent = String((ta?.value || '').length);
+            }catch(_){}
+        }
+        [f,c,d,t,ta].forEach(el=>{ el?.addEventListener('input', upd); el?.addEventListener('change', upd); });
+        upd();
+        // تظليل زر القسم المرئي
+        try{
+            const chips = Array.from(document.querySelectorAll('[data-mnav]'));
+            if(!('IntersectionObserver' in window) || !chips.length) return;
+            const on = 'bg-[#0e6a38]', onTx = 'text-white', onBd = 'border-[#0e6a38]';
+            const off = ['bg-white','dark:bg-[#2a302b]','text-ink-600','dark:text-[#9bb0a0]','border-[#e6e9e1]','dark:border-[#343a34]'];
+            const setActive = (id)=>{
+                chips.forEach(ch=>{
+                    const active = ch.getAttribute('data-mnav') === id;
+                    ch.classList.toggle(on, active);
+                    ch.classList.toggle(onTx, active);
+                    ch.classList.toggle(onBd, active);
+                    ch.classList.toggle('font-extrabold', active);
+                });
+            };
+            const io = new IntersectionObserver((entries)=>{
+                entries.forEach(en=>{ if(en.isIntersecting) setActive(en.target.id); });
+            }, { rootMargin: '-40% 0px -50% 0px', threshold: 0 });
+            ['sec-loc','sec-time','sec-desc','sec-files'].forEach(id=>{
+                const s = document.getElementById(id);
+                if(s) io.observe(s);
+            });
+        }catch(_){}
+    })();
 </script>
 @endpush
 @endsection

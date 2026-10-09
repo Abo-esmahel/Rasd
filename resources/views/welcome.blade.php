@@ -54,20 +54,7 @@
                                 Read the
                                 <a href="https:
                                     <span>Documentation</span>
-                                    <svg
-                                        width="10"
-                                        height="11"
-                                        viewBox="0 0 10 11"
-                                        fill="none"
-                                        xmlns="http:
-                                        class="w-2.5 h-2.5"
-                                    >
-                                        <path
-                                            d="M7.70833 6.95834V2.79167H3.54167M2.5 8L7.5 3.00001"
-                                            stroke="currentColor"
-                                            stroke-linecap="square"
-                                        />
-                                    </svg>
+                                    <x-phosphor-arrow-up-right-duotone class="w-2.5 h-2.5" />
                                 </a>
                             </span>
                         </li>
@@ -81,20 +68,7 @@
                                 Watch video tutorials at
                                 <a href="https:
                                     <span>Laracasts</span>
-                                    <svg
-                                        width="10"
-                                        height="11"
-                                        viewBox="0 0 10 11"
-                                        fill="none"
-                                        xmlns="http:
-                                        class="w-2.5 h-2.5"
-                                    >
-                                        <path
-                                            d="M7.70833 6.95834V2.79167H3.54167M2.5 8L7.5 3.00001"
-                                            stroke="currentColor"
-                                            stroke-linecap="square"
-                                        />
-                                    </svg>
+                                    <x-phosphor-arrow-up-right-duotone class="w-2.5 h-2.5" />
                                 </a>
                             </span>
                         </li>
@@ -111,20 +85,7 @@
                         v{{ app()->version() }}
                         <a href="https:
                             <span>View changelog</span>
-                            <svg
-                                width="10"
-                                height="11"
-                                viewBox="0 0 10 11"
-                                fill="none"
-                                xmlns="http:
-                                class="w-2.5 h-2.5"
-                            >
-                                <path
-                                    d="M7.70833 6.95834V2.79167H3.54167M2.5 8L7.5 3.00001"
-                                    stroke="currentColor"
-                                    stroke-linecap="square"
-                                />
-                            </svg>
+                            <x-phosphor-arrow-up-right-duotone class="w-2.5 h-2.5" />
                         </a>
                     </p>
                 </div>

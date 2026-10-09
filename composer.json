@@ -13,6 +13,7 @@
         "ext-dom": "*",
         "ext-fileinfo": "*",
         "ext-filter": "*",
+        "ext-gd": "*",
         "ext-hash": "*",
         "ext-libxml": "*",
         "ext-mbstring": "*",
@@ -26,6 +27,7 @@
         "ext-xml": "*",
         "ext-xmlwriter": "*",
         "ext-zip": "*",
+        "codeat3/blade-phosphor-icons": "^2.4",
         "laravel/framework": "^13.17",
         "laravel/tinker": "^3.0",
         "livewire/livewire": "^4.0",
@@ -76,6 +78,7 @@
             "composer install",
             "@php -r \"file_exists('.env') || copy('.env.example', '.env');\"",
             "@php artisan key:generate",
+            "@php -r \"file_exists('database/database.sqlite') || touch('database/database.sqlite');\"",
             "@php artisan migrate --force",
             "npm install --ignore-scripts",
             "npm run build"

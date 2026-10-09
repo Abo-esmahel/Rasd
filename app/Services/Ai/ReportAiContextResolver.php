@@ -24,7 +24,6 @@ class ReportAiContextResolver
         $this->contexts->ensureBuilt();
         $full = $this->contexts->read();
 
-        // Fast slice: only system rules + lines containing target date (no full scan of similar reports bloat)
         $out = [];
         $needles = ['CONTEXT_VERSION','GENERATED_AT','== SYSTEM','DATABASE =','== REPORT RULES','REPORT =','== WRITING','عربية رسمية','== TERMINOLOGY','مراقب'];
         foreach (explode("\n", $full) as $line) {
@@ -33,14 +32,14 @@ class ReportAiContextResolver
             if (str_starts_with($line, '  - att#') && !empty($out) && str_contains(end($out), $date)) $out[] = $line;
         }
 
-        // Similar reports: lightweight, cached per day, style only — not factual source
         try {
-            $similar = Report::where('status', Report::STATUS_PUBLISHED)
-                ->where('id', '!=', $report->id)
+            $similarQuery = Report::where('status', Report::STATUS_PUBLISHED)
                 ->whereDate('report_date', '<', $date)
-                ->orderByDesc('report_date')
-                ->limit(2)
-                ->get(['id', 'title', 'report_date']);
+                ->orderByDesc('report_date');
+            if ($report->exists) {
+                $similarQuery->where('id', '!=', $report->id);
+            }
+            $similar = $similarQuery->limit(2)->get(['id', 'title', 'report_date']);
             if ($similar->isNotEmpty()) {
                 $out[] = '== SIMILAR REPORTS (style only, not facts) ==';
                 foreach ($similar as $s) $out[] = "#{$s->id} | {$s->report_date->toDateString()} | " . mb_substr((string) $s->title, 0, 60);

@@ -12,7 +12,6 @@ class TranslationWarmObserver
 {
     public function saved(Model $model): void
     {
-        // فشل سريع: لا تجدول تدفئة إذا كان الذكاء معطلاً أو القاطع مفتوحاً.
         try {
             if (!config('ai.enabled', false) || trim((string) config('ai.gemini.api_key', '')) === '') {
                 return;
@@ -49,7 +48,6 @@ class TranslationWarmObserver
             foreach (['ar', 'en'] as $target) {
                 if (empty($byTarget[$target])) continue;
                 $targetFields = $byTarget[$target];
-                // dedup per target
                 if ($service) {
                     try {
                         $refs = [];
@@ -64,7 +62,6 @@ class TranslationWarmObserver
                         if ($targetFields === []) continue;
                     } catch (\Throwable) {}
                 }
-                // Use sync afterResponse so it runs immediately after HTTP response (no queue worker needed) but doesn't block the request
                 try {
                     WarmTranslationProjection::scheduleAfterResponse($type, $id, $targetFields, $target, 'sync');
                 } catch (\Throwable) {

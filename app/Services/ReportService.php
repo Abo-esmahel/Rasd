@@ -11,6 +11,7 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Database\QueryException;
 use InvalidArgumentException;
 
 class ReportService
@@ -57,25 +58,125 @@ class ReportService
         $allowed['author_id'] = $author->id;
         $allowed['status'] = Report::STATUS_DRAFT;
         $allowed['generation_mode'] = Report::MODE_MANUAL;
+        $previewNoteIds = is_array($data['ai_preview_note_ids'] ?? null)
+            ? array_values(array_unique(array_map('intval', (array) $data['ai_preview_note_ids'])))
+            : null;
         if (array_key_exists('visible_to_monitors', $allowed)) {
             $allowed['visible_to_monitors'] = (bool) $allowed['visible_to_monitors'];
         }
 
-        return DB::transaction(function () use ($author, $allowed) {
-            $report = Report::create($allowed);
-            $day = Carbon::parse($allowed['report_date'])->toDateString();
-            $ids = Note::where('status', Note::STATUS_ACCEPTED)
-                ->whereNull('general_submission_id')
-                ->whereDate('observed_at', $day)
-                ->whereNotIn('id', function ($q) { $q->select('note_id')->from('report_note'); })
-                ->orderBy('observed_at')->orderBy('id')
-                ->pluck('id')->all();
-            if ($ids !== []) {
-                $this->attachNotes($author, $report, $ids);
-            }
+        try {
+            return DB::transaction(function () use ($author, $allowed, $previewNoteIds) {
+                $day = Carbon::parse($allowed['report_date'])->toDateString();
+                if (Report::whereDate('report_date', $day)->exists()) {
+                    throw new InvalidArgumentException(__('api.report_duplicate_day'));
+                }
 
-            return $report->fresh(['notes', 'author']);
-        });
+                $pendingCount = $this->pendingReviewNotesForDate($day, false, true)->count();
+                if ($pendingCount > 0) {
+                    throw new InvalidArgumentException(__('api.report_pending_notes', ['n' => $pendingCount]));
+                }
+
+                $eligible = $this->autoAttachableNotesForDateWithLock($day, false);
+                if ($eligible->isEmpty()) {
+                    throw new InvalidArgumentException(__('api.report_create_needs_accepted_note'));
+                }
+                $ids = $eligible->pluck('id')->map(fn ($id) => (int) $id)->all();
+                if ($previewNoteIds !== null && $previewNoteIds !== $ids) {
+                    throw new InvalidArgumentException(__('api.ai_notes_changed'));
+                }
+
+                $report = Report::create($allowed);
+                $this->attachNotes($author, $report, $ids);
+
+                return $report->fresh(['notes', 'author']);
+            }, 3);
+        } catch (QueryException $e) {
+            if ($this->isUniqueViolationFor($e, 'reports.report_date', 'reports_report_date_unique')) {
+                throw new InvalidArgumentException(__('api.report_duplicate_day'), previous: $e);
+            }
+            if ($this->isUniqueViolationFor($e, 'report_note.note_id', 'report_note_note_id_unique')) {
+                throw new InvalidArgumentException(__('api.report_note_already_linked'), previous: $e);
+            }
+            throw $e;
+        }
+    }
+
+    /** The exact accepted, unlinked notes that a new daily report will attach. */
+    public function autoAttachableNotesForDate(string $date, bool $withAttachments = true): \Illuminate\Support\Collection
+    {
+        $query = Note::query();
+        if ($withAttachments) $query->with('attachments');
+
+        return $query->where('status', Note::STATUS_ACCEPTED)
+            ->whereNull('general_submission_id')
+            ->whereDate('observed_at', Carbon::parse($date)->toDateString())
+            ->whereNotIn('id', function ($q) { $q->select('note_id')->from('report_note'); })
+            ->orderBy('observed_at')->orderBy('id')
+            ->get();
+    }
+
+    /** Accepted notes that can become part of a new report for this exact day. */
+    public function autoAttachableNotesForDateWithLock(string $date, bool $withAttachments = true): \Illuminate\Support\Collection
+    {
+        $query = Note::query();
+        if ($withAttachments) $query->with('attachments');
+
+        return $query->where('status', Note::STATUS_ACCEPTED)
+            ->whereNull('general_submission_id')
+            ->whereDate('observed_at', Carbon::parse($date)->toDateString())
+            ->whereNotIn('id', function ($q) { $q->select('note_id')->from('report_note'); })
+            ->orderBy('observed_at')->orderBy('id')
+            ->lockForUpdate()
+            ->get();
+    }
+
+    /** Pending daily notes are previewable, but must be decided before a report is created. */
+    public function pendingReviewNotesForDate(string $date, bool $withAttachments = true, bool $lock = false): \Illuminate\Support\Collection
+    {
+        $query = Note::query();
+        if ($withAttachments) $query->with('attachments');
+
+        $query->where('status', Note::STATUS_PENDING)
+            ->whereNull('general_submission_id')
+            ->whereDate('observed_at', Carbon::parse($date)->toDateString())
+            ->whereNotIn('id', function ($q) { $q->select('note_id')->from('report_note'); })
+            ->orderBy('observed_at')->orderBy('id');
+
+        if ($lock) $query->lockForUpdate();
+
+        return $query->get();
+    }
+
+    /** AI preview uses only accepted or pending, unlinked notes from this date. */
+    public function aiPreviewNotesForDate(string $date): \Illuminate\Support\Collection
+    {
+        return Note::with('attachments')
+            ->whereIn('status', [Note::STATUS_ACCEPTED, Note::STATUS_PENDING])
+            ->whereNull('general_submission_id')
+            ->whereDate('observed_at', Carbon::parse($date)->toDateString())
+            ->whereNotIn('id', function ($q) { $q->select('note_id')->from('report_note'); })
+            ->orderBy('observed_at')->orderBy('id')
+            ->get();
+    }
+
+    /** Small, date-scoped summary used by the report writer's create screen. */
+    public function dailyOverview(string $date): array
+    {
+        $day = Carbon::parse($date)->toDateString();
+        $acceptedNotes = $this->autoAttachableNotesForDate($day, false);
+        $pendingCount = $this->pendingReviewNotesForDate($day, false)->count();
+        $reportExists = Report::whereDate('report_date', $day)->exists();
+
+        return [
+            'date' => $day,
+            'accepted_count' => $acceptedNotes->count(),
+            'accepted_note_ids' => $acceptedNotes->pluck('id')->map(fn ($id) => (int) $id)->values()->all(),
+            'pending_count' => $pendingCount,
+            'preview_count' => $acceptedNotes->count() + $pendingCount,
+            'report_exists' => $reportExists,
+            'can_create' => !$reportExists && $pendingCount === 0 && $acceptedNotes->isNotEmpty(),
+        ];
     }
 
     public function composeContent(Report $report): string
@@ -125,8 +226,8 @@ class ReportService
             if ($newDate > now()->toDateString()) {
                 throw new InvalidArgumentException(__('api.report_date_future'));
             }
-            if (Report::whereDate('report_date', $newDate)->where('status', Report::STATUS_PUBLISHED)->where('id', '!=', $report->id)->exists()) {
-                throw new InvalidArgumentException(__('api.report_publish_duplicate_day'));
+            if (Report::whereDate('report_date', $newDate)->where('id', '!=', $report->id)->exists()) {
+                throw new InvalidArgumentException(__('api.report_duplicate_day'));
             }
             $notes = $report->notes()->get();
             foreach ($notes as $n) {
@@ -184,50 +285,57 @@ class ReportService
             throw new InvalidArgumentException(__('api.report_no_notes'));
         }
 
-        return DB::transaction(function () use ($report, $noteIds) {
-            $locked = $report->fresh();
-            $day = $locked->report_date->toDateString();
-            $maxOrder = (int) ($locked->notes()->max('report_note.order_index') ?? -1);
+        try {
+            return DB::transaction(function () use ($report, $noteIds) {
+                $locked = $report->fresh();
+                $day = $locked->report_date->toDateString();
+                $maxOrder = (int) ($locked->notes()->max('report_note.order_index') ?? -1);
 
-            $notes = Note::whereIn('id', $noteIds)->get()->keyBy('id');
-            foreach ($noteIds as $nid) {
-                $n = $notes->get($nid);
-                if (!$n) {
-                    throw new InvalidArgumentException(__('api.report_note_not_found', ['id' => $nid]));
+                $notes = Note::whereIn('id', $noteIds)->get()->keyBy('id');
+                foreach ($noteIds as $nid) {
+                    $n = $notes->get($nid);
+                    if (!$n) {
+                        throw new InvalidArgumentException(__('api.report_note_not_found', ['id' => $nid]));
+                    }
+                    if ($n->status !== Note::STATUS_ACCEPTED) {
+                        throw new InvalidArgumentException(__('api.report_note_not_accepted', ['id' => $nid]));
+                    }
+                    if ($this->reportDay($n) !== $day) {
+                        throw new InvalidArgumentException(__('api.report_note_wrong_day', ['id' => $nid]));
+                    }
+                    if (DB::table('report_note')->where('note_id', $nid)->where('report_id', '!=', $locked->id)->exists()) {
+                        throw new InvalidArgumentException(__('api.report_note_already_in_report', ['id' => $nid]));
+                    }
                 }
-                if ($n->status !== Note::STATUS_ACCEPTED) {
-                    throw new InvalidArgumentException(__('api.report_note_not_accepted', ['id' => $nid]));
+
+                $existingNotes = $locked->notes()->get();
+                foreach ($existingNotes as $existing) {
+                    if ($this->reportDay($existing) !== $day) {
+                        throw new InvalidArgumentException(__('api.report_has_wrong_day_note'));
+                    }
                 }
-                if ($this->reportDay($n) !== $day) {
-                    throw new InvalidArgumentException(__('api.report_note_wrong_day', ['id' => $nid]));
+
+                foreach ($noteIds as $nid) {
+                    $maxOrder++;
+                    if ($existingNotes->contains('id', $nid)) {
+                        $maxOrder--;
+                        continue;
+                    }
+                    $locked->notes()->attach($nid, ['order_index' => $maxOrder]);
                 }
-                if (DB::table('report_note')->where('note_id', $nid)->where('report_id', '!=', $locked->id)->exists()) {
-                    throw new InvalidArgumentException(__('api.report_note_already_in_report', ['id' => $nid]));
-                }
+
+                $locked->load(['notes', 'author']);
+                $this->recomposeIfStructured($locked);
+                $this->warmReportObservations($locked);
+
+                return $locked;
+            });
+        } catch (QueryException $e) {
+            if ($this->isUniqueViolationFor($e, 'report_note.note_id', 'report_note_note_id_unique')) {
+                throw new InvalidArgumentException(__('api.report_note_already_linked'), previous: $e);
             }
-
-            $existingNotes = $locked->notes()->get();
-            foreach ($existingNotes as $existing) {
-                if ($this->reportDay($existing) !== $day) {
-                    throw new InvalidArgumentException(__('api.report_has_wrong_day_note'));
-                }
-            }
-
-            foreach ($noteIds as $nid) {
-                $maxOrder++;
-                if ($existingNotes->contains('id', $nid)) {
-                    $maxOrder--;
-                    continue;
-                }
-                $locked->notes()->attach($nid, ['order_index' => $maxOrder]);
-            }
-
-            $locked->load(['notes', 'author']);
-            $this->recomposeIfStructured($locked);
-            $this->warmReportObservations($locked);
-
-            return $locked;
-        });
+            throw $e;
+        }
     }
 
     public function detachNote(User $user, Report $report, int $noteId): Report
@@ -285,8 +393,16 @@ class ReportService
                 throw new InvalidArgumentException(__('api.report_publish_needs_note'));
             }
             $day = $locked->report_date->toDateString();
-            if (Report::whereDate('report_date', $day)->where('status', Report::STATUS_PUBLISHED)->where('id', '!=', $locked->id)->exists()) {
-                throw new InvalidArgumentException(__('api.report_publish_duplicate_day'));
+            if (Report::whereDate('report_date', $day)->where('id', '!=', $locked->id)->exists()) {
+                throw new InvalidArgumentException(__('api.report_duplicate_day'));
+            }
+            $pendingCount = $this->pendingReviewNotesForDate($day, false)->count();
+            if ($pendingCount > 0) {
+                throw new InvalidArgumentException(__('api.report_pending_notes', ['n' => $pendingCount]));
+            }
+            $acceptedUnattachedCount = $this->autoAttachableNotesForDate($day, false)->count();
+            if ($acceptedUnattachedCount > 0) {
+                throw new InvalidArgumentException(__('api.report_unattached_accepted_notes', ['n' => $acceptedUnattachedCount]));
             }
             foreach ($locked->notes()->get() as $n) {
                 if ($n->status !== Note::STATUS_ACCEPTED || $this->reportDay($n) !== $day) {
@@ -334,9 +450,7 @@ class ReportService
 
             $publishedId = $locked->id;
             try {
-                if ($locked->visible_to_monitors) {
-                    \App\Jobs\FanoutReportPublished::dispatch($publishedId)->afterResponse();
-                }
+                \App\Jobs\FanoutReportPublished::dispatch($publishedId)->afterResponse();
                 \App\Jobs\RebuildAiContext::dispatch()->afterResponse();
             } catch (\Throwable $e) {
                 Log::warning('[REPORT] post-publish hook failed: '.$e->getMessage());
@@ -374,10 +488,19 @@ class ReportService
     {
         $q = Report::with(['author:id,name,name_en,name_ar'])->withCount('notes');
         if ($user->isReportWriter()) {
-            return $q;
+            return $q->where(function ($query) use ($user) {
+                $query->where('status', Report::STATUS_PUBLISHED)
+                    ->orWhere(function ($drafts) use ($user) {
+                        $drafts->where('status', Report::STATUS_DRAFT)->where('author_id', $user->id);
+                    });
+            });
         }
 
-        return $q->where('status', Report::STATUS_PUBLISHED)->where('visible_to_monitors', true);
+        if ($user->isGeneralManager()) {
+            return $q->where('status', Report::STATUS_PUBLISHED);
+        }
+
+        return $q->whereRaw('1 = 0');
     }
 
     private function assertOwner(User $user, Report $report): void
@@ -468,6 +591,14 @@ class ReportService
         } catch (\Throwable $e) {
             Log::warning('[L10N] report observations warm skipped', ['report_id' => $report->id ?? null]);
         }
+    }
+
+    private function isUniqueViolationFor(QueryException $exception, string $column, string $index): bool
+    {
+        $message = strtolower($exception->getMessage());
+
+        return str_contains($message, strtolower($column))
+            || str_contains($message, strtolower($index));
     }
 
     public static function aiLockKey(int $reportId): string

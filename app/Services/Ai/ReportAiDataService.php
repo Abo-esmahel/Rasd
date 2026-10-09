@@ -36,7 +36,6 @@ class ReportAiDataService
         $isEn = $locale === 'en';
 
         $report->loadMissing(['author', 'notes']);
-        // System orders chronologically — AI must not reorder arbitrarily
         $notes = $report->notes->sortBy(fn ($n) => $n->observed_at?->timestamp ?? PHP_INT_MAX)->values();
         $count = $notes->count();
         if ($count < 1 || $count > 7) {
@@ -143,8 +142,6 @@ class ReportAiDataService
             if ($t === '' || mb_strlen($t) > 2000) {
                 throw new AiInvalidResponseException(__('api.ai_note_invalid'));
             }
-            // The engine renders its own ordinal titles — drop any numbering
-            // or bullets the model prepended, plus leading filler openers.
             $t = self::stripObservationFluff($t);
             if ($t === '') {
                 throw new AiInvalidResponseException(__('api.ai_note_empty'));
@@ -152,7 +149,6 @@ class ReportAiDataService
             self::assertObservationIsFact($t);
             $texts[] = $t;
         }
-        // The same fact must not be repeated across observations.
         if (count(array_unique($texts)) !== count($texts)) {
             throw new AiInvalidResponseException(__('api.ai_notes_duplicate'));
         }
@@ -160,11 +156,7 @@ class ReportAiDataService
         if (mb_strlen($reco) > 2000) {
             throw new AiInvalidResponseException(__('api.ai_reco_too_long'));
         }
-        // A disclaimer instead of actions ("no recommendations") is not a
-        // recommendation: normalize short ones to empty so the document
-        // omits the section instead of displaying filler.
         $reco = self::normalizeRecommendations($reco);
-        // Recommendations must be actions, not a verbatim restatement.
         if ($reco !== '' && in_array($reco, $texts, true)) {
             throw new AiInvalidResponseException(__('api.ai_reco_is_note'));
         }
@@ -186,7 +178,6 @@ class ReportAiDataService
         if ($stripped === '') {
             return '';
         }
-        // Explicit Arabic-aware boundary (\b is unreliable after Arabic
         if (preg_match('/^(لا\s+(توجد|يوجد|حاجة|داعي)|بدون|لاشيء|لا شيء)(?=\s|$|[.،,:؛!؟\-–—])/u', $stripped)
             || in_array($stripped, ['لا', 'لا يوجد', 'لا توجد'], true)) {
             return '';
@@ -219,21 +210,16 @@ class ReportAiDataService
      */
     private static function assertObservationIsFact(string $t): void
     {
-        // Dodge: "no observations" while notes exist.
         if (preg_match('/لا\s+(يوجد|توجد)\s+(ملاحظات|ملاحظة)/u', $t)) {
             throw new AiInvalidResponseException(__('api.ai_empty_denial'));
         }
-        // Smuggled numbered action list inside a single observation.
         if (preg_match_all('/(?:^|\s)\d{1,2}\s*[.)]\s+/u', $t) >= 2) {
             throw new AiInvalidResponseException(__('api.ai_numbered_list'));
         }
-        // Recommendation modal language or an explicit "recommendation" lead.
         if (preg_match('/(يوصى|ينبغي|يتوجب|يجب (أن|على|عليكم)|عليكم بـ|التوصية بـ?)\s*/u', $t)
             || preg_match('/^التوصية/u', trim($t))) {
             throw new AiInvalidResponseException(__('api.ai_reco_leak'));
         }
-        // Leading imperative orders (review/coordinate/complete/…) belong in
-        // recommendations, never in an observed fact.
         if (preg_match('/^(راجع(وا|ي)?|نسّق(وا)?|استكمل(وا)?|قم|قوموا|تواصل(وا)?|أبلغ(وا)?|عزّز(وا)?|كثّف(وا)?|احرص(وا)?|اتخذ(وا)?|بادر(وا)?)\b/u', trim($t))) {
             throw new AiInvalidResponseException(__('api.ai_imperative'));
         }

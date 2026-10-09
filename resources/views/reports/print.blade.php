@@ -83,14 +83,14 @@
   @endif
 </style>
 @if(!empty($htmlPreview ?? null))
-<link rel="stylesheet" href="{{ asset('report/css/report-engine.css') }}?v=17">
+<link rel="stylesheet" href="{{ asset('report/css/report-engine.css') }}?v=19">
 @endif
 </head>
 <body class="{{ ($sheet ?? null) ? 'sheet-mode' : '' }}">
 
 <div class="toolbar">
     <a class="tbtn" href="{{ route('reports.show', $report) }}">→ {{ __('ui.redirect_back') }}</a>
-    <button class="primary" onclick="window.print()">{{ __('ui.rpt_print_pdf') }}</button>
+    <button class="primary" onclick="printReportWhenReady(this)">{{ __('ui.rpt_print_pdf') }}</button>
     <span class="t-title">{{ \Illuminate\Support\Str::limit($report->title, 45) }}</span>
     @if(!empty($htmlPreview ?? null))
         <span class="pages-label">{{ __('ui.rpt_engine_doc') }} · {{ $report->notes->count() }} {{ $report->notes->count() === 1 ? __('ui.note_one') : __('ui.notes_many') }}</span>
@@ -106,9 +106,6 @@
 </div>
 
 @if(!empty($htmlPreview ?? null))
-        {{-- The official engine document — byte-identical HTML and identical
-             shell/CSS as the show-page preview. No banners here: approval
-             state is gated on the report page itself. --}}
         <div class="report-preview" id="sheet-page" data-paper-fit>
             <div data-paper-fit-inner>
             {!! $htmlPreview !!}
@@ -123,8 +120,6 @@
 <div style="display:flex;justify-content:center;padding:0 12px;"><div class="sheet-note">{{ __('ui.rpt_no_version_a') }}<a href="{{ route('reports.show', $report) }}" style="color:#0e6a38;font-weight:800;">{{ __('ui.rpt_approve_link') }}</a>{{ __('ui.rpt_no_version_b') }}</div></div>
 @endif
 
-{{-- Legacy text fallback ONLY when no official engine document exists.
-     When $htmlPreview is present it is the single printed document. --}}
 @if(empty($htmlPreview ?? null))
 <div id="preview-root">
     <noscript>
@@ -344,6 +339,6 @@ window.addEventListener('load', function () {
     @endif
 });
 </script>
+@include('reports.partials.print_ready')
 </body>
 </html>
-

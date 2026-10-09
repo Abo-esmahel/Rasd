@@ -1,7 +1,6 @@
 <?php
 
 return [
-    // عام
     'app_name' => 'نظام ملاحظات كاميرات المراقبة',
     'app_short' => 'ملاحظة',
     'ministry' => 'وزارة الإعلام',
@@ -30,12 +29,32 @@ return [
     'active' => 'نشط',
     'developers' => 'المطورون',
 
-    // تنقل
     'nav_notes' => 'الملاحظات',
     'nav_my_notes' => 'ملاحظاتي',
     'nav_gallery' => 'المعرض',
     'nav_submissions' => 'الإرسالات العامة',
     'nav_reports' => 'التقارير',
+    'report_comments' => 'التعليقات والتفاعل',
+    'note_reactions' => 'التفاعل على الملاحظة',
+    'comment_placeholder' => 'اكتب تعليقك على التقرير…',
+    'comment_added' => 'تمت إضافة التعليق',
+    'comment_send' => 'إرسال التعليق',
+    'ai_generate_suggestion' => 'صياغة التقرير بالذكاء الاصطناعي',
+    'ai_generating_suggestion' => 'يجمع الملاحظات ويصوغ المسودة…',
+    'ai_suggestion_ready' => 'اقتراح جاهز للمراجعة والتعديل قبل إنشاء التقرير.',
+    'ai_suggestion_pending' => 'الاقتراح يشمل :n ملاحظات قيد المراجعة. هذه معاينة فقط؛ احسم الملاحظات ثم أعد التوليد قبل إنشاء التقرير.',
+    'ai_suggestion_stale' => 'تغيّر التاريخ بعد التوليد؛ أعد التوليد لمطابقة ملاحظات اليوم المحدد.',
+    'ai_suggestion_overwrite' => 'سيستبدل هذا الاقتراح النص الحالي. هل تريد المتابعة؟',
+    'ai_unavailable' => 'التوليد الذكي غير مهيأ حالياً.',
+    'reply' => 'رد',
+    'reply_placeholder' => 'اكتب ردك…',
+    'like' => 'إعجاب',
+    'love' => 'أحبه',
+    'insightful' => 'مفيد',
+    'thanks' => 'شكراً',
+    'dislike' => 'عدم إعجاب',
+    'angry' => 'غضب',
+    'no_comments' => 'لا توجد تعليقات بعد. ابدأ النقاش حول التقرير.',
     'nav_ranking' => 'الترتيب',
     'nav_account' => 'حسابي',
     'logout' => 'خروج',
@@ -43,7 +62,6 @@ return [
     'toggle_theme' => 'تبديل الوضع',
     'dark_mode' => 'الوضع الداكن',
 
-    // إشعارات
     'notifications' => 'الإشعارات',
     'notif_center' => 'مركز الإشعارات',
     'notif_settings' => 'إعدادات الإشعارات',
@@ -69,11 +87,9 @@ return [
     'offline' => 'غير متصل',
     'all_marked_read' => 'تم تحديد كل الإشعارات كمقروءة',
 
-    // تنبيهات عامة
     'alert_review' => 'تنبيه — يرجى المراجعة',
     'attach_partial' => 'تم الحفظ، لكن بعض المرفقات لم تُرفع:',
 
-    // الملف الشخصي
     'profile' => 'الملف الشخصي',
     'profile_of' => 'ملف :name',
     'profile_subtitle' => 'بيانات حسابك ودورك في النظام',
@@ -101,6 +117,8 @@ return [
     'role_monitor_desc' => 'مراقب — إنشاء ومتابعة الملاحظات',
     'role_writer' => 'كاتب تقارير',
     'role_writer_desc' => 'كاتب تقارير — اعتماد ورفض',
+    'role_general_manager' => 'المدير العام',
+    'role_general_manager_desc' => 'المدير العام — قراءة التقارير والمعرض فقط',
     'entity' => 'الجهة',
     'change_password' => 'تغيير كلمة المرور',
     'optional' => '— اختياري',
@@ -132,7 +150,6 @@ return [
     'zoom_avatar' => 'تكبير الصورة',
     'preview_avatar_alt' => 'معاينة الصورة',
 
-    // اللغة — بطاقة جديدة
     'language' => 'اللغة',
     'language_title' => 'لغة الواجهة',
     'language_hint' => 'تغيير اللغة يعرض النسخة المحفوظة بتلك اللغة — الأصل محفوظ ولا يُعاد ترجمته هنا أبداً.',
@@ -140,12 +157,10 @@ return [
     'english' => 'English',
     'lang_switched' => 'تم تغيير اللغة بنجاح',
 
-    // الترتيب
     'ranking_monitors' => 'ترتيب المراقبين',
     'ranking_hint' => 'الأكثر قبولاً أولاً',
     'ranking_calc' => 'يُحتسب الترتيب من الملاحظات المقبولة فقط',
 
-    // تسجيل الدخول
     'login' => 'تسجيل الدخول',
     'login_title' => 'وزارة الإعلام — تسجيل الدخول',
     'login_hint' => 'أدخل بيانات الاعتماد للمتابعة إلى لوحة المتابعة',
@@ -155,7 +170,6 @@ return [
     'enter' => 'دخول',
     'verifying' => 'جارٍ التحقق...',
 
-    // ملاحظات — شائع
     'new_note' => 'ملاحظة جديدة',
     'doc_field_note' => 'وثّق ملاحظة ميدانية',
     'my_notes_hint' => 'تابع ملاحظاتك الميدانية وإدارتها',
@@ -208,7 +222,6 @@ return [
     'no_description' => 'لا يوجد وصف',
     'reject' => 'رفض',
 
-    // تقارير — شائع
     'daily_reports' => 'التقارير اليومية',
     'new_report' => 'تقرير جديد',
     'new_daily_report' => 'تقرير يومي جديد',
@@ -250,7 +263,6 @@ return [
     'manual_text_hint' => 'يحفظ النص اليدوي فقط — للوثيقة الرسمية استخدم النشر',
     'ai_draft_gen' => 'توليد مسودة بالذكاء الاصطناعي',
 
-    // معرض
     'gallery_title' => 'معرض المرفقات',
     'gallery_sub' => 'مرفق · ملاحظات وإرسالات',
     'view_options' => 'خيارات العرض',
@@ -272,7 +284,6 @@ return [
     'video_clip' => 'مقطع فيديو',
     'audio_clip' => 'مقطع صوتي',
 
-    // إرسالات
     'sub_new' => 'إرسال عام جديد',
     'sub_new_plus' => '+ إرسال عام جديد',
     'sub_hint' => 'الإرسالات الموجهة إليك أو التي أنشأتها',
@@ -292,26 +303,22 @@ return [
     'sender' => 'المرسل:',
     'to' => 'موجه إلى:',
 
-    // تحقق
     'profile_updated' => 'تم تحديث الملف الشخصي بنجاح',
 
-    // الوثيقة الرسمية — labels تعرض حسب اللغة (القيم الداخلية لا تتغير)
     'published' => 'منشور',
     'report_number' => 'رقم التقرير',
     'report_date_label' => 'التاريخ',
     'daily_report' => 'التقرير اليومي',
     'observations_section' => 'الملاحظات',
+    'notes_eyebrow' => 'الرصد الميداني',
+    'notes_subtitle' => 'تابع سير الملاحظات الميدانية وراجع حالاتها أولًا بأول',
     'recommendations_title' => 'التوصيات',
     'signature' => 'التوقيع',
     'prepared_by' => 'معدّ التقرير',
     'responsible' => 'مسؤول',
 
-    // الترجمة الديناميكية — Presentation Layer فقط
     'preparing_content' => 'جارٍ تجهيز المحتوى…',
 
-    // الترجمة الذكية للملاحظة — Smart Note (عرض فقط، بلا مصطلحات تقنية)
-    // Architecture: Source → خلفية → نسخة محفوظة → عرض حسب اللغة.
-    // Language Switch يعرض المحفوظ فقط — بلا Gemini.
     'smart_note_title' => 'الترجمة الذكية للملاحظة',
     'smart_note_hint_create' => 'اكتب الملاحظة بلغتك الحالية — تُحفظ كما هي، وتُجهَّز النسخة باللغة الأخرى تلقائياً في الخلفية.',
     'smart_note_hint_edit' => 'تعديل الوصف يحدّث الترجمة تلقائياً في الخلفية — الأصل محفوظ ولا يتغير بالتبديل.',
@@ -326,15 +333,30 @@ return [
     'note_translation_retry_queued' => 'تمت جدولة تجهيز الترجمة — ستظهر قريباً.',
     'note_translation_nothing_to_do' => 'لا توجد ترجمة مطلوبة لهذه الملاحظة.',
 
-    // الطباعة — Chrome + وثيقة A4 (تتبع اللغة الحالية، بلا Gemini)
     'print_ministry' => 'الجمهورية العربية السورية',
     'print_ministry_sub' => 'وزارة الإعلام',
     'print_start' => 'وقت بدء الملاحظة',
     'print_end' => 'وقت انتهاء الملاحظة',
+    'print_description' => 'وصف الملاحظة',
+    'print_sent_at' => 'وقت الإرسال',
+    'print_processed_at' => 'وقت المعالجة',
+    'print_rejection' => 'سبب الرفض',
+    'print_updated_at' => 'آخر تحديث',
     'print_description_cont' => 'الوصف (تتمة)',
     'print_page_of' => 'صفحة :a من :b',
+    'print_open_attachment' => 'اضغط لفتح المرفق',
+    'videoSnapshot' => 'الصورة أدناه لقطة واحدة من هذا الفيديو — الفيديو الكامل عبر الرابط أدناه',
+    'videoNoFrame' => 'تعذّر التقاط لقطة من هذا الفيديو — الفيديو الكامل عبر الرابط أدناه',
+    'imageScaled' => 'نسخة عرض محسّنة من الأصل (الملف كاملاً عبر الرابط أدناه)',
+    'imageTooLarge' => 'حجم الصورة كبير جداً على الوثيقة — الملف الأصلي كاملاً عبر الرابط أدناه:',
     'print_video_frame' => 'إطار من فيديو',
     'print_no_attachments' => '(لا توجد مرفقات)',
+    'file_missing' => 'الملف غير متوفر على الخادم',
+    'print_attachments' => 'المرفقات',
+    'print_attachments_count' => 'المرفقات (:count)',
+    'print_note_title' => 'ملاحظة',
+    'print_submission_title' => 'إرسالية',
+    'print_page_num' => 'صفحة',
     'print_selected_of' => ':count من :total محدد',
     'print_open_failed' => 'تعذر فتح الطباعة',
     'print_official_page' => 'وثيقة رسمية — صفحة 1 من 1',
@@ -344,7 +366,6 @@ return [
     'fill_block_empty' => 'أرفق ملاحظة أولاً لتفعيل المعاينة.',
     'fill_block_range' => 'المعاينة تغطي 1–7 ملاحظات فقط — هذا التقرير (:n) يُطبع بالتنسيق العام أدناه.',
 
-    // مشاركة/تحويل عام + صفحات مشتركة
     'download_btn' => 'تنزيل',
     'copied_ok' => 'تم النسخ ✓',
     'no_preview_title' => 'لا توجد معاينة لهذا النوع',
@@ -357,7 +378,6 @@ return [
     'redirect_back' => 'رجوع',
     'redirect_home' => 'الرئيسية',
 
-    // ملفات ورفع وكاميرا وتسجيل (واجهة JS)
     'file_image' => 'صورة',
     'file_video' => 'فيديو',
     'file_audio' => 'مقطع صوتي',
@@ -422,7 +442,6 @@ return [
     'photo_done_short' => 'تم التقاط الصورة ✓',
     'rec_fail_short' => 'فشل: :message',
 
-    // صفحة التقرير — نصوص واجهة (القيم الداخلية لا تتغير)
     'hidden_from_monitors' => 'مخفي عن المراقبين',
     'add_note' => 'أضف ملاحظة',
     'approve_report' => 'اعتمد التقرير',
@@ -479,7 +498,6 @@ return [
     'preview_badge' => 'معاينة',
     'export_hint' => 'للتصدير استخدم قائمة ⋮ في التقارير.',
 
-    // قائمة التقارير — نصوص واجهة
     'report_one' => 'تقرير واحد',
     'report_two' => 'تقريران',
     'reports_many' => ':n تقارير',
@@ -490,7 +508,6 @@ return [
     'print_pdf' => 'طباعة / PDF',
     'download_png' => 'تحميل PNG',
 
-    // هيكل عام — درج الإشعارات والبانرات (نصوص واجهة)
     'connected' => 'متصل',
     'settings_short' => 'الإعدادات',
     'close_notif_drawer' => 'إغلاق لوحة الإشعارات',
@@ -499,12 +516,12 @@ return [
     'enable_sound_short' => 'فعّل الصوت',
     'main_nav' => 'التنقل',
     'profile_aria' => 'عرض الملف الشخصي',
+    'view_profile' => 'عرض الملف',
     'team_info' => 'معلومات الفريق',
     'dev_info' => 'معلومات المطورين',
     'form_errors_title' => 'تحقق من الحقول',
     'attach_partial_short' => 'بعض المرفقات لم تُرفع:',
 
-    // تدقيق صفر-عربية — واجهة وفلاتر وعدادات وإشعارات
     'drafts' => 'مسودات',
     'observer_label' => 'المراقب',
     'sort_by' => 'ترتيب حسب',
@@ -592,7 +609,6 @@ return [
     'sheet_no' => 'ورقة رقم :n',
     'sheet_alt' => 'ورقة التقرير الرسمية رقم :n',
 
-    // Localization (Presentation Concern)
     'rating_excellent' => 'ممتاز',
     'rating_very_good' => 'جيد جداً',
     'rating_good' => 'جيد',
@@ -621,7 +637,6 @@ return [
     'js_have_notification' => 'لديك إشعار جديد',
     'js_notification_word' => 'إشعار',
 
-    // مفاتيح مسار الترجمة (ReportController/Presenter)
     'report_unavailable' => 'التقرير غير متاح.',
     'no_approved_data' => 'لا توجد بيانات معتمدة بعد.',
     'localized_unavailable' => 'تعذر تجهيز النسخة المترجمة حالياً.',
@@ -632,7 +647,6 @@ return [
     'rating_weak' => 'ضعيف',
     'rating_none' => 'بدون تقييم',
 
-    // Login page
     'login_title_full' => 'تسجيل الدخول — وزارة الإعلام السورية',
     'enter_credentials' => 'أدخل بياناتك للمتابعة',
     'username_label' => 'اسم المستخدم',
@@ -645,7 +659,6 @@ return [
     'ministry_short' => 'وزارة الإعلام',
     'copyright' => '© :year الجمهورية العربية السورية',
 
-    // Reports create
     'back_to_reports_aria' => 'رجوع للتقارير',
     'new_report_title' => 'تقرير جديد',
     'new_report_subtitle' => 'مسودة جديدة — تُرفَق ملاحظات اليوم المقبولة تلقائياً',
@@ -657,12 +670,19 @@ return [
     'date_invalid_error' => 'تاريخ غير صالح.',
     'visible_to_monitors' => 'مرئي للمراقبين عند النشر',
     'visible_to_monitors_hint' => 'يظهر التقرير للمراقبين بعد نشره فقط',
-    'auto_attach_hint' => 'سيُرفَق تلقائياً بالمسودة كل الملاحظات المقبولة من نفس التاريخ، ويمكنك تعديلها لاحقاً من صفحة التقرير.',
+    'auto_attach_hint' => 'سيُرفق بالتقرير كل ما قُبل من ملاحظات هذا اليوم وغير المرتبط بتقرير آخر. يجب قبول الملاحظات المعلّقة أو رفضها أولاً، والملاحظة لا تدخل في أكثر من تقرير.',
+    'report_day_status_loading' => 'جارٍ التحقق من ملاحظات هذا اليوم…',
+    'report_day_status_error' => 'تعذر التحقق من حالة هذا اليوم. أعد المحاولة قبل إنشاء التقرير.',
+    'report_day_status_pending' => 'توجد :n ملاحظات يومية قيد المراجعة. يجب قبولها أو رفضها قبل إنشاء التقرير. اقتراح الذكاء الاصطناعي يعرضها للمعاينة فقط.',
+    'report_day_status_ready' => 'يوجد :n ملاحظات مقبولة غير مرتبطة بتقرير؛ ستُرفق كلها تلقائياً.',
+    'report_day_status_exists' => 'يوجد تقرير مسجل لهذا اليوم بالفعل. لا يمكن إنشاء تقرير ثانٍ.',
+    'report_day_status_empty' => 'لا توجد ملاحظات مقبولة غير مرتبطة بتقرير لهذا اليوم بعد.',
+    'review_notes' => 'مراجعة الملاحظات اليومية',
     'create_draft_btn' => 'إنشاء المسودة',
     'creating_draft' => 'جارٍ إنشاء المسودة...',
     'review_fields_alert' => 'راجع الحقول المحددة.',
+    'content_optional' => 'محتوى التقرير (اختياري)',
 
-    // Notes create
     'new_note_title' => 'ملاحظة جديدة',
     'back_aria' => 'العودة',
     'floor_label' => 'الطابق',
@@ -735,7 +755,6 @@ return [
     'server_limit_exceeded' => 'الحجم الإجمالي :size MB يتجاوز الحد الآمن 120M (حد الخادم 128M). قلل العدد أو حجم الملفات ثم أعد المحاولة — لم يُرسل شيء.',
     'client_files_count' => 'إجمالي المرفقات',
 
-    // Gallery
     'gallery_title' => 'معرض المرفقات',
     'attachments_count' => ':count مرفق',
     'view_options_aria' => 'خيارات العرض',
@@ -765,7 +784,6 @@ return [
     'attachment_kind_submission' => 'إ',
     'created_date' => ':date',
 
-    // Notes index / my
     'my_notes_title' => 'ملاحظاتي',
     'note_statuses_aria' => 'حالات الملاحظات',
     'all_tab' => 'الكل',
@@ -871,7 +889,6 @@ return [
     'upload_complete_short' => 'تم الرفع',
     'fix_fields_error' => 'يرجى تصحيح الحقول:',
 
-    // Profile
     'profile_title' => 'الملف الشخصي',
     'edit_profile_btn' => 'تعديل الملف',
     'account_data' => 'بيانات الحساب',
@@ -892,6 +909,8 @@ return [
     'role_monitor_desc' => 'مراقب — إنشاء ومتابعة الملاحظات',
     'role_writer' => 'كاتب تقارير',
     'role_writer_desc' => 'كاتب تقارير — اعتماد ورفض',
+    'role_general_manager' => 'المدير العام',
+    'role_general_manager_desc' => 'المدير العام — قراءة التقارير والمعرض فقط',
     'entity_label' => 'الجهة',
     'change_password' => 'تغيير كلمة المرور',
     'password_optional' => '— اختياري',
@@ -910,7 +929,6 @@ return [
     'no_stats' => 'لا توجد إحصائيات بعد.',
     'activity_performance' => 'النشاط والأداء',
 
-    // Notifications
     'notifications_title' => 'الإشعارات',
     'notif_center' => 'مركز الإشعارات',
     'notif_settings' => 'إعدادات الإشعارات',
@@ -955,17 +973,14 @@ return [
     'js_have_notification' => 'لديك إشعار جديد',
     'js_notification_word' => 'إشعار',
 
-    // Pagination
     'showing' => 'عرض',
     'of' => 'من',
 
-    // JavaScript common strings
     'done_keyword' => 'تم',
     'success_keyword' => 'بنجاح',
     'error_occurred' => 'حدث خطأ',
     'processing' => 'جاري التنفيذ...',
 
-    // لوحة مؤشرات كتّاب التقارير — صفحة مستقلة (كتّاب فقط)
     'view_insights' => 'لوحة المؤشرات',
     'insights_title' => 'المؤشرات التشغيلية',
     'insights_sub' => 'ملخص الفترة المحددة',
@@ -997,7 +1012,6 @@ return [
     'smart_empty' => 'لا توجد بيانات في هذا النطاق بعد — ابدأ بإنشاء تقرير اليوم.',
     'insights_no_data' => 'لا توجد بيانات بعد في هذا النطاق.',
     'insights_loading' => 'جارٍ تحديث المؤشرات…',
-    // قراءة هندسية مبنية على البيانات
     'insights_range_meta' => ':from → :to · :days يوم',
     'health_title' => 'الجاهزية التشغيلية',
     'health_excellent' => 'جاهزية عالية',

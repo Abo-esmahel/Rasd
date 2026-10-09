@@ -3,14 +3,10 @@
 namespace App\Notifications;
 
 use App\Models\GeneralSubmission;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
 
-class DispatchSentNotification extends Notification implements ShouldQueue
+class DispatchSentNotification extends Notification
 {
-    use Queueable;
-
     public GeneralSubmission $submission;
     public string $senderName;
 
@@ -30,14 +26,6 @@ class DispatchSentNotification extends Notification implements ShouldQueue
         return [
             'submission_id' => $this->submission->id,
             'general_submission_id' => $this->submission->id,
-            'camera_number' => $this->submission->camera_number,
-            'floor_number' => $this->submission->floor_number,
-            'sender_name' => $this->senderName,
-            'sender_id' => $this->submission->user_id,
-            'observed_at' => $this->submission->observed_at?->toIso8601String(),
-            'title_key' => 'notifications.dispatch_sent_title',
-            'message_key' => 'notifications.dispatch_sent_message',
-            'url' => '/general-submissions/'.$this->submission->id,
             'type' => 'dispatch_sent',
             'category' => 'dispatch',
             'priority' => 'normal',

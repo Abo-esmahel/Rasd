@@ -12,7 +12,7 @@
     <p class="text-[13px] text-[#6b7a6e] mt-1">{{ $report->report_date?->toDateString() }}</p>
 </div>
 
-<link rel="stylesheet" href="{{ asset('report/css/report-engine.css') }}?v=17">
+<link rel="stylesheet" href="{{ asset('report/css/report-engine.css') }}?v=19">
 <p id="report-l10n-badge" class="hidden text-[12px] font-bold text-[#0e6a38] bg-[#e8f3ec] border border-[#cde7d6] rounded-xl px-3 py-1.5 mb-2 w-fit" role="status"></p>
 <div class="bg-white border border-[#e6e9e1] rounded-2xl p-3 sm:p-5 shadow-sm overflow-x-auto" data-report-id="{{ $report->id }}" data-paper-fit>
     <div class="report-preview" id="report-export-doc" data-paper-fit-inner>
@@ -68,7 +68,7 @@
             const article = node.querySelector('.report');
             const docDir = (article && article.getAttribute('dir')) || document.documentElement.getAttribute('dir') || 'rtl';
             const docLang = (article && article.getAttribute('lang')) || document.documentElement.getAttribute('lang') || 'ar';
-            const cssUrl = @json(asset('report/css/report-engine.css') . '?v=17');
+            const cssUrl = @json(asset('report/css/report-engine.css') . '?v=19');
             const libUrl = @json(asset('js/vendor/html2canvas.min.js'));
             const page = '<!DOCTYPE html><html><head><meta charset="utf-8">'
                 + '<link rel="stylesheet" href="' + cssUrl + '">'

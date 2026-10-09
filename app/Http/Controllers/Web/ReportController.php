@@ -24,7 +24,7 @@ class ReportController extends Controller
     {
         $this->authorize('viewAny', Report::class);
         $query = $this->reports->getVisibleQuery($request->user());
-        if ($request->user()->isReportWriter() && $request->filled('status') && in_array($request->status, ['draft', 'published'], true)) {
+        if (($request->user()->isReportWriter() || $request->user()->isGeneralManager()) && $request->filled('status') && in_array($request->status, ['draft', 'published'], true)) {
             $query->where('status', $request->status);
         }
         if ($request->filled('report_date') && strtotime($request->report_date) !== false) {
@@ -35,7 +35,16 @@ class ReportController extends Controller
 
         $canViewInsights = $request->user()->can('viewInsights', Report::class);
 
-        return view('reports.index', compact('reports', 'canViewInsights'));
+        $reportStats = ['total' => 0, 'published' => 0, 'draft' => 0, 'today' => 0];
+        try {
+            $base = $this->reports->getVisibleQuery($request->user());
+            $reportStats['total'] = (clone $base)->count();
+            $reportStats['published'] = (clone $base)->where('status', 'published')->count();
+            $reportStats['draft'] = (clone $base)->where('status', 'draft')->count();
+            $reportStats['today'] = (clone $base)->whereDate('report_date', now('Asia/Damascus')->toDateString())->count();
+        } catch (\Throwable) {}
+
+        return view('reports.index', compact('reports', 'canViewInsights', 'reportStats'));
     }
 
     /**
@@ -55,11 +64,34 @@ class ReportController extends Controller
         return view('reports.insights', ['insights' => $data]);
     }
 
-    public function create()
+    public function create(Request $request)
     {
         $this->authorize('create', Report::class);
+        $aiEnabled = (bool) config('ai.enabled', false) && (string) config('ai.provider', 'gemini') === 'gemini';
+        $aiConfigured = $aiEnabled && trim((string) config('ai.gemini.api_key', '')) !== '';
+        $candidateDate = old('report_date', $request->query('report_date', now(config('app.timezone'))->toDateString()));
+        try {
+            $date = \Carbon\Carbon::parse($candidateDate)->toDateString();
+            if ($date > now(config('app.timezone'))->toDateString()) $date = now(config('app.timezone'))->toDateString();
+        } catch (\Throwable) {
+            $date = now(config('app.timezone'))->toDateString();
+        }
+        $dailyOverview = $this->reports->dailyOverview($date);
 
-        return view('reports.create');
+        return view('reports.create', compact('aiEnabled', 'aiConfigured', 'dailyOverview'));
+    }
+
+    public function dailyStatus(Request $request)
+    {
+        $this->authorize('create', Report::class);
+        $data = $request->validate([
+            'report_date' => ['required', 'date', 'before_or_equal:today'],
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'data' => $this->reports->dailyOverview($data['report_date']),
+        ]);
     }
 
     public function store(Request $request)
@@ -73,6 +105,8 @@ class ReportController extends Controller
             'report_date' => ['required', 'date', 'before_or_equal:today'],
             'content' => ['nullable', 'string', 'max:20000'],
             'visible_to_monitors' => ['nullable', 'boolean'],
+            'ai_preview_note_ids' => ['sometimes', 'array', 'max:500'],
+            'ai_preview_note_ids.*' => ['integer', 'distinct', 'exists:notes,id'],
         ]);
         $validated['visible_to_monitors'] = $request->boolean('visible_to_monitors', true);
 
@@ -117,7 +151,6 @@ class ReportController extends Controller
         } catch (\Throwable) {}
         try { $presenter->preloadReports([$report]); } catch (\Throwable) {}
 
-        // (defer heavy isApprovedPublished until we have imageState)
 
         $candidates = collect();
         $candidatesTruncated = false;
@@ -146,7 +179,6 @@ class ReportController extends Controller
         $sheetImageState = $imageState['state'];
         $latestRender = $imageState['render'];
 
-        // Monitor gate — after we have state (cheaper than second htmlState inside isApprovedPublished)
         if ($request->user()->isMonitor() && !$this->isApprovedPublishedFromState($report, $imageState)) {
             abort(404, __('ui.report_unavailable'));
         }
@@ -163,7 +195,6 @@ class ReportController extends Controller
         $aiEnabledForFill = (bool) config('ai.enabled', false);
         $aiApiKeyPresent = trim((string) config('ai.gemini.api_key', '')) !== '';
         $aiDataEnabled = $aiEnabledForFill && $aiApiKeyPresent;
-        // يُمرر للواجهة لإظهار فالديشن واضح عند غياب المفتاح بدل إخفاء الزر بصمت.
         $aiMissingKey = $aiEnabledForFill && !$aiApiKeyPresent;
         $canFill = $viewerIsOwner && $report->isDraft() && $sheet !== null;
         $fillBlockReason = null;
@@ -176,9 +207,6 @@ class ReportController extends Controller
 
         $renderError = null;
         $autoRenderHtml = null;
-        // Fast open: NEVER render synchronously here (was blocking TTFB 500-2000ms with
-        // DB transaction + view build). The page returns instantly with the sheet
-        // placeholder; frontend auto-renders async via POST render (see show.blade.php).
         $needsAutoRender = $viewerIsOwner && $report->isDraft() && $expectedTemplate !== null && $sheetImageState === 'none';
 
         try {
@@ -196,8 +224,6 @@ class ReportController extends Controller
             }
         }
 
-        // HTML preview — build from render row (cached 3600s). Skipped when an
-        // auto-render is still pending (no row exists yet — async JS will fill it).
         $htmlPreview = null;
         if (!$needsAutoRender) {
             try {
@@ -207,7 +233,6 @@ class ReportController extends Controller
             }
         }
 
-        // canPrint from already-computed state — no second htmlState query.
         $canPrint = in_array($sheetImageState, ['system', 'custom'], true);
         if (!$canPrint && $report->isPublished()) {
             $n = $report->notes->count();
@@ -224,8 +249,6 @@ class ReportController extends Controller
         if (!$report->isPublished()) return false;
         $state = $imageState['state'] ?? 'none';
         if (in_array($state, ['system','custom'], true)) return true;
-        // Same tail check as isApprovedPublished() but on the already-loaded
-        // relation/state — avoids re-querying htmlState (identical result).
         $n = $report->notes->count();
         if ($n > (int) config('report_sheets.max_notes',7) && trim((string) $report->content) !== '') return true;
         return false;
@@ -372,7 +395,6 @@ class ReportController extends Controller
         }
         @ini_set('max_execution_time', '120');
         $this->authorize('generateAi', $report);
-        // فالديشن مبكر: لا يوجد مفتاح API في env → خطأ تحقق 422 واضح بدل 502 مبهم من الخدمة.
         if ($missing = $this->aiMissingKeyResponse($request)) {
             return $missing;
         }
@@ -381,7 +403,6 @@ class ReportController extends Controller
             'confirm_overwrite_manual' => ['nullable', 'boolean'],
             'include_images' => ['nullable', 'boolean'],
         ]);
-        // AJAX (smart panel) expects JSON; classic form expects redirect.
         $wantsJson = $request->expectsJson() || $request->ajax();
         $withImages = !$request->has('include_images') || $request->boolean('include_images');
         $locale = \App\Services\Localization\SourceLanguage::normalizeLocale(app()->getLocale());
@@ -479,7 +500,6 @@ class ReportController extends Controller
 
     private function aiErrorMeta(\Throwable $e): array
     {
-        // دفاع إضافي: مفتاح مفقود يُعامل كفالديشن لا كخطأ مصادقة مبهم.
         if ($e instanceof \App\Exceptions\Ai\AiAuthenticationException
             && trim((string) config('ai.gemini.api_key', '')) === '') {
             return ['code' => 'AI_NOT_CONFIGURED', 'retryable' => false];
@@ -563,7 +583,6 @@ class ReportController extends Controller
         }
         @ini_set('max_execution_time', '180');
         $this->authorize('fillSheet', $report);
-        // فالديشن مبكر للتوليد الذكي: بدون GEMINI_API_KEY نرجع 422 تحقق بدل 502.
         if ($missing = $this->aiMissingKeyResponse($request)) {
             return $missing;
         }

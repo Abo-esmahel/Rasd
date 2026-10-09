@@ -8,11 +8,14 @@ use App\Models\Note;
 use App\Services\Localization\LocalizedPresenter;
 use App\Services\Localization\SourceLanguage;
 use App\Services\Localization\TranslationService;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
 class NoteTranslationController extends Controller
 {
+    use AuthorizesRequests;
+
     public function status(Note $note, LocalizedPresenter $presenter)
     {
         $this->authorize('view', $note);
@@ -99,7 +102,6 @@ class NoteTranslationController extends Controller
         }
 
         try {
-            // Async warm (after response) — never block the request on Gemini (2-15s).
             WarmTranslationProjection::scheduleAfterResponse('note', $note->id, $missing, $locale);
         } catch (\Throwable $e) {
             Log::warning('[L10N] note retry dispatch failed', ['note_id' => $note->id]);

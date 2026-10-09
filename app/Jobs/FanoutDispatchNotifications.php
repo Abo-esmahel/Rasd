@@ -6,13 +6,14 @@ use App\Models\GeneralSubmission;
 use App\Models\User;
 use App\Notifications\DispatchSentNotification;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 
-class FanoutDispatchNotifications implements ShouldQueue
+class FanoutDispatchNotifications implements ShouldQueue, ShouldBeUnique
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
@@ -20,8 +21,18 @@ class FanoutDispatchNotifications implements ShouldQueue
 
     public int $timeout = 180;
 
+    public int $uniqueFor = 600;
+
     public function __construct(public int $submissionId, public string $senderName, public array $writerIds = [])
     {
+    }
+
+    public function uniqueId(): string
+    {
+        $writerIds = $this->writerIds;
+        sort($writerIds);
+
+        return $this->submissionId.':'.implode(',', $writerIds);
     }
 
     public function handle(): void

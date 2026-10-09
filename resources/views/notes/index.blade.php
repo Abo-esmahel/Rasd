@@ -3,7 +3,8 @@
 @section('content')
 @php
     $isMonitor = auth()->user()->isMonitor();
-    $isWriter = !$isMonitor;
+    $isWriter = auth()->user()->isReportWriter();
+    $isGM = auth()->user()->isGeneralManager();
     $userId = auth()->id();
 
     $currentStatus = request('status');
@@ -29,36 +30,41 @@
 @endphp
 
 
-<div class="flex flex-col sm:flex-row sm:items-end justify-between gap-4 sm:gap-6 mb-6 sm:mb-7">
-    <div class="min-w-0">
-        <h1 class="text-[20px] sm:text-[22px] font-semibold tracking-tight text-ink-800 dark:text-[#e7ece5] leading-tight">{{ __('ui.observations_section') }}</h1>
+<div class="notes-hero mb-6 sm:mb-7">
+    <div class="notes-hero-main">
+        <div class="notes-hero-icon" aria-hidden="true">
+            <x-phosphor-binoculars-duotone />
+        </div>
+        <div class="min-w-0">
+            <span class="notes-eyebrow">{{ __('ui.notes_eyebrow') }}</span>
+            <h1 class="notes-title">{{ __('ui.observations_section') }}</h1>
+            <p class="notes-subtitle">{{ __('ui.notes_subtitle') }}</p>
+        </div>
     </div>
-    @if($isMonitor || $isWriter)
-        <a href="{{ route('notes.create') }}" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 sm:py-2.5 min-h-[44px] sm:min-h-0 rounded-xl bg-[#0e6a38] hover:bg-[#0a4d28] text-white font-semibold text-[14px] sm:text-[13.5px] shadow-[0_2px_10px_rgba(14,106,56,0.16)] hover:shadow-[0_4px_16px_rgba(14,106,56,0.22)] transition-all shrink-0">
-            <svg class="w-[15px] h-[15px]" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+    @if(($isMonitor || $isWriter) && !$isGM)
+        <a href="{{ route('notes.create') }}" class="notes-hero-cta">
+            <x-phosphor-plus-duotone />
             {{ __('ui.new_note') }}
         </a>
     @endif
-    </div>
+</div>
 
 
     @if(isset($observerUser) && $observerUser)
         <div class="mb-5 sm:mb-6 p-3.5 sm:p-4 bg-white dark:bg-[#252b26] border border-[#eceee9] dark:border-[#2e352e] rounded-2xl flex items-center gap-3.5 shadow-[0_2px_12px_rgba(0,0,0,0.04)]">
-            @if($observerUser->avatar_url)
-                <a href="{{ route('profile.showUser', $observerUser->id) }}" class="shrink-0 hover:opacity-80 transition" aria-label="{{ __('ui.profile_aria') }}"><img src="{{ $observerUser->avatar_url }}" alt="{{ $observerUser->localized_name }}" class="w-10 h-10 rounded-xl object-cover border border-[#eceee9] dark:border-[#2e352e] shadow-sm shrink-0"></a>
-            @else
-                <div class="w-10 h-10 rounded-xl bg-[#eef4f0] dark:bg-[#1e3328] text-[#0e6a38] dark:text-[#4ade80] border border-[#e6e9e1] dark:border-[#2e352e] flex items-center justify-center font-semibold text-[13px] shrink-0">{{ $observerUser->initial }}</div>
-            @endif
+            <x-user-link :user="$observerUser" size="xl" shape="rounded-xl" skin="soft" wrapper-class="mt-0.5" />
             <div class="min-w-0 flex-1">
-                <div class="text-[13.5px] font-semibold text-ink-800 dark:text-[#e7ece5] leading-none">{{ $observerUser->localized_name }}</div>
+                <div class="text-[13.5px] font-semibold text-ink-800 dark:text-[#e7ece5] leading-none">
+                    <a href="{{ route('profile.showUser', $observerUser->id) }}" class="hover:text-[#0e6a38] hover:underline transition">{{ $observerUser->localized_name }}</a>
+                </div>
             </div>
             <a href="{{ route('notes.index', request()->except(['observer','user','page'])) }}" class="shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-[#f5f7f5] dark:bg-[#2a302b] border border-[#eceee9] dark:border-[#2e352e] text-ink-600 dark:text-[#9bb0a0] text-xs font-semibold hover:bg-white dark:hover:bg-[#2e352e] transition">{{ __('ui.clear_filter') }} <span class="text-[11px]">✕</span></a>
         </div>
     @endif
 
 
-<div class="w-full max-w-full overflow-x-auto scrollbar-hide border-b border-[#eceee9] dark:border-[#2e352e] mb-5 sm:mb-7 -mx-0 px-0 sm:px-0 tabs-scroll-shadow" style="scrollbar-width:none;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;scroll-snap-type:x proximity;">
-    <nav class="flex gap-2 sm:gap-7 min-w-max w-max" aria-label="{{ __('ui.note_statuses') }}">
+<div class="mb-5 sm:mb-7">
+    <nav class="notes-tabs" aria-label="{{ __('ui.note_statuses') }}">
         @php
             $tabs = [
                 ['key'=>null, 'label'=>__('ui.all'), 'count'=>$totalCount],
@@ -75,9 +81,9 @@
                     ? route('notes.index')
                     : route('notes.index', array_merge(request()->except('status','page'), ['status' => $tab['key']]));
             @endphp
-            <a href="{{ $url }}" data-ajax-tab class="relative flex flex-col sm:flex-row items-center justify-center gap-1.5 sm:gap-2 py-3 sm:py-3.5 px-1 sm:px-0 min-h-[52px] sm:min-h-0 text-[13px] whitespace-nowrap border-b-[2.5px] transition scroll-snap-align:start {{ $isActive ? 'border-[#0e6a38] text-ink-800 font-semibold dark:text-[#e7ece5] dark:border-[#4ade80]' : 'border-transparent text-ink-400 dark:text-[#8a9a8e] hover:text-ink-700 dark:hover:text-[#e7ece5] font-medium' }}">
-                <span class="shrink-0 leading-none tracking-tight">{{ $tab['label'] }}</span>
-                <span class="shrink-0 inline-flex items-center justify-center min-w-[22px] h-[20px] px-1.5 rounded-full text-[11px] font-semibold tabular-nums leading-none border {{ $isActive ? 'bg-[#eef4f0] text-[#0e6a38] border-[#d6e8dc] dark:bg-[#1e3328] dark:text-[#4ade80] dark:border-[#24402e]' : 'bg-[#f5f7f5] text-ink-500 border-transparent dark:bg-[#252b26] dark:text-[#8a9a8e]' }}">{{ $tab['count'] }}</span>
+            <a href="{{ $url }}" data-ajax-tab class="notes-tab {{ $isActive ? 'is-active' : '' }}" @if($isActive) aria-current="page" @endif>
+                <span>{{ $tab['label'] }}</span>
+                <span class="notes-tab-count">{{ $tab['count'] }}</span>
             </a>
         @endforeach
     </nav>
@@ -88,12 +94,12 @@
     <details class="group">
         <summary class="inline-flex items-center gap-1.5 sm:gap-2.5 px-3 sm:px-4 py-1.5 sm:py-2.5 min-h-[32px] sm:min-h-[44px] touch-manipulation rounded-full bg-white dark:bg-[#252b26] border border-[#eceee9] dark:border-[#2e352e] shadow-sm text-[12px] sm:text-[13px] font-medium text-ink-600 dark:text-[#9bb0a0] hover:text-ink-800 dark:hover:text-[#e7ece5] hover:border-[#e0e7df] dark:hover:border-[#343a34] hover:bg-[#fdfcfa] dark:hover:bg-[#2a302b] cursor-pointer transition list-none select-none [&::-webkit-details-marker]:hidden">
             <span class="w-5 h-5 sm:w-7 sm:h-7 rounded-full bg-[#f5f7f5] dark:bg-[#2a302b] border border-[#eceee9] dark:border-[#2e352e] flex items-center justify-center shrink-0">
-                <svg class="w-3 h-3 sm:w-3.5 sm:h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
+                <x-phosphor-sliders-horizontal-duotone class="w-3 h-3 sm:w-3.5 sm:h-3.5" aria-hidden="true" />
             </span>
             @if(request()->hasAny(['date','floor_number','camera_number','observer','sort']))
                 <span class="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-[#0e6a38] animate-pulse"></span>
             @endif
-            <svg class="w-3 h-3 sm:w-3.5 sm:h-3.5 text-ink-300 dark:text-[#8a9a8e] transition group-open:rotate-180 ml-0.5 sm:ml-1 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+            <x-phosphor-caret-down-duotone class="w-3 h-3 sm:w-3.5 sm:h-3.5 text-ink-300 dark:text-[#8a9a8e] transition group-open:rotate-180 ml-0.5 sm:ml-1 shrink-0" aria-hidden="true" />
         </summary>
         <div class="mt-4 p-4 sm:p-5 bg-white dark:bg-[#252b26] rounded-2xl border border-[#eceee9] dark:border-[#2e352e] shadow-[0_8px_30px_rgba(0,0,0,0.06)] touch-manipulation">
             <form method="GET" action="{{ route('notes.index') }}">
@@ -137,7 +143,7 @@
                     </div>
                     <div class="flex gap-2.5 items-end">
                         <button type="submit" class="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#0e6a38] hover:bg-[#0a4d28] active:bg-[#083d20] text-white font-semibold text-[15px] sm:text-[13.5px] py-3 min-h-[48px] touch-manipulation shadow-[0_2px_10px_rgba(14,106,56,0.18)] active:scale-[0.98] transition">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                            <x-phosphor-magnifying-glass-duotone class="w-4 h-4" aria-hidden="true" />
                             {{ __('ui.apply') }}
                         </button>
                         <a href="{{ route('notes.index', request()->has('status') ? ['status' => request('status')] : []) }}" class="inline-flex items-center justify-center px-4 py-3 min-h-[48px] touch-manipulation rounded-xl border border-[#eceee9] dark:border-[#2e352e] bg-white dark:bg-[#1e2320] text-ink-600 dark:text-[#9bb0a0] font-medium text-[15px] sm:text-[13.5px] hover:bg-[#f5f7f5] dark:hover:bg-[#2a302b] active:scale-[0.98] transition">{{ __('ui.clear') }}</a>
@@ -153,7 +159,7 @@
 @if($notes->count() === 0)
     <div class="bg-white dark:bg-[#252b26] rounded-2xl border border-[#eceee9] dark:border-[#2e352e] shadow-[0_2px_16px_rgba(0,0,0,0.04)] p-8 sm:p-10 text-center max-w-[560px] mx-auto">
         <div class="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-[#f5f7f5] dark:bg-[#1e2320] border border-[#eceee9] dark:border-[#2e352e] flex items-center justify-center mx-auto shadow-sm">
-            <svg class="w-7 h-7 sm:w-8 sm:h-8 text-ink-300 dark:text-[#6b7a6e]" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.4"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            <x-phosphor-note-blank-duotone class="w-7 h-7 sm:w-8 sm:h-8 text-ink-300 dark:text-[#6b7a6e]" aria-hidden="true" />
         </div>
         <h3 class="mt-5 text-[15px] sm:text-base font-semibold tracking-tight text-ink-700 dark:text-[#e7ece5]">{{ __('ui.no_notes') }}</h3>
         <div class="mt-6 flex flex-wrap items-center justify-center gap-2.5">
@@ -176,23 +182,28 @@
                 <div class="p-5">
                     <div class="flex items-start justify-between gap-3 mb-3.5">
                         <div class="flex items-center gap-3 min-w-0">
-                            <a href="{{ route('profile.showUser', $note->owner->id) }}" onclick="event.stopPropagation()" class="shrink-0">
-                                @if($note->owner->avatar_url)
-                                    <img src="{{ $note->owner->avatar_url }}" alt="{{ $note->owner->localized_name }}" class="w-10 h-10 rounded-xl object-cover border border-[#eceee9] dark:border-[#2e352e] shadow-sm">
-                                @else
-                                    <span class="w-10 h-10 rounded-xl bg-[#f5f7f5] dark:bg-[#1e2320] border border-[#eceee9] dark:border-[#2e352e] text-[#0e6a38] dark:text-[#5cb87a] flex items-center justify-center text-[13px] font-semibold shadow-sm">{{ $note->owner->initial }}</span>
-                                @endif
-                            </a>
+                            <x-user-link :user="$note->owner" size="xl" shape="rounded-xl" skin="note" :stop="true" />
                             <div class="min-w-0">
-                                <div class="text-[13.5px] font-semibold tracking-tight text-ink-800 dark:text-[#e7ece5] truncate">{{ $note->owner->localized_name }}</div>
-                                <div class="mt-0.5 inline-flex items-center gap-1.5 text-[11.5px] font-medium text-ink-500 dark:text-[#8a9a8e]"><span class="w-1 h-1 rounded-full bg-ink-200 dark:bg-[#3a4d3d]"></span><span dir="ltr" class="tabular-nums">{{ $note->camera_number }} · {{ $note->floor_number }}</span></div>
+                                <a href="{{ route('profile.showUser', $note->owner->id) }}" onclick="event.stopPropagation()" class="note-owner-name text-ink-800 dark:text-[#e7ece5] truncate hover:text-[#0e6a38] hover:underline transition block">{{ $note->owner->localized_name }}</a>
+                                <div class="mt-1.5 flex items-center gap-1.5 flex-wrap">
+                                    @if($note->isDraft())
+                                        <span class="note-status-pill is-draft"><span class="dot"></span>{{ __('ui.draft') }}</span>
+                                    @elseif($note->isPending())
+                                        <span class="note-status-pill is-pending"><span class="dot"></span>{{ __('ui.pending') }}</span>
+                                    @elseif($note->isAccepted())
+                                        <span class="note-status-pill is-accepted"><span class="dot"></span>{{ __('ui.accepted') }}</span>
+                                    @elseif($note->isRejected())
+                                        <span class="note-status-pill is-rejected"><span class="dot"></span>{{ __('ui.rejected') }}</span>
+                                    @endif
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-[#f5f7f5] dark:bg-[#1e2320] border border-[#eceee9] dark:border-[#2e352e] text-[11px] font-bold text-ink-500 dark:text-[#8a9a8e]"><span dir="ltr" class="tnum">{{ $note->camera_number }} · {{ $note->floor_number }}</span></span>
+                                </div>
                             </div>
                         </div>
                         <span class="shrink-0 inline-flex items-center px-2.5 py-1 rounded-full bg-[#f5f7f5] dark:bg-[#1e2320] border border-[#eceee9] dark:border-[#2e352e] text-[11px] font-medium text-ink-500 dark:text-[#9bb0a0] tabular-nums whitespace-nowrap">{{ $note->observed_at->toTime12() }}{{ $note->observed_end_at ? ' → '.$note->observed_end_at->toTime12() : '' }}</span>
                     </div>
-                    <p class="text-[14px] leading-[1.75] tracking-tight text-ink-700 dark:text-[#d5ded6] line-clamp-2 min-h-[48px] mb-4" data-i18n-field="description">{{ \Illuminate\Support\Str::limit(l10n_text('note', $note->id, 'description', $note->description), 120) }}</p>
+                    <p class="note-desc note-desc-panel text-ink-700 dark:text-[#d5ded6] line-clamp-2 min-h-[48px] mb-4" data-i18n-field="description">{{ \Illuminate\Support\Str::limit(l10n_text('note', $note->id, 'description', $note->description), 120) }}</p>
                     <div class="flex items-center justify-between gap-3 pt-3.5 border-t border-[#f1f3f0] dark:border-[#2a352f]">
-                        <span class="text-xs text-ink-400 dark:text-[#8a9a8e] flex items-center gap-1.5"><svg class="w-3 h-3 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> {{ $note->created_at->diffForHumans() }}@if($note->attachments->count() > 0) <span class="hidden sm:inline">·</span> <span class="inline-flex items-center gap-1"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg> {{ __('ui.attachment_count', ['count' => $note->attachments->count()]) }}</span>@endif</span>
+                        <span class="text-xs text-ink-400 dark:text-[#8a9a8e] flex items-center gap-1.5"><x-phosphor-clock-duotone class="w-3 h-3 opacity-60" aria-hidden="true" /> {{ $note->created_at->diffForHumans() }}@if($note->attachments->count() > 0) <span class="hidden sm:inline">·</span> <span class="inline-flex items-center gap-1"><x-phosphor-paperclip-duotone class="w-3 h-3" aria-hidden="true" /> {{ __('ui.attachment_count', ['count' => $note->attachments->count()]) }}</span>@endif</span>
                         <div class="flex items-center gap-1.5" onclick="event.stopPropagation()">
                             @if(!$note->isRejected() && $note->owner->whatsapp_number)
                                 @php
@@ -205,7 +216,7 @@
                                     $shareAttachments = $note->attachments->map(fn($a) => ['id'=>$a->id, 'name'=>$a->original_name, 'mime'=>$a->mime_type, 'url'=>'/s/attachments/'.$a->id])->toArray();
                                 @endphp
                                 <button type="button" onclick='openShareModal(@json($shareText), @json($shareAttachments), "{{ $note->owner->whatsapp_number }}")' class="w-7 h-7 rounded-full bg-[#25D366] hover:bg-[#1da851] text-white shadow-sm flex items-center justify-center transition" title="{{ __('ui.share') }}">
-                                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                                    <x-phosphor-whatsapp-logo-duotone class="w-3.5 h-3.5" aria-hidden="true" />
                                 </button>
                             @endif
                             @if($isMonitor && $note->user_id === $userId && $note->isDraft())
@@ -221,7 +232,7 @@
                                 <button type="button" onclick="openModal('reject-{{ $note->id }}')" class="px-3.5 py-1.5 rounded-full bg-white dark:bg-[#1e2320] border border-red-200 dark:border-[#3d2626] text-red-600 dark:text-[#f08080] text-xs font-semibold hover:bg-red-50 dark:hover:bg-[#2d1f1f] transition">{{ __('ui.reject_btn') }}</button>
                             @elseif($note->isAccepted())
                                 <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-[#0e6a38] dark:text-[#5cb87a] bg-[#eef4f0] dark:bg-[#1e3328] border border-[#d6e8dc] dark:border-[#24402e] px-2.5 py-1 rounded-full">
-                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                                    <x-phosphor-check-circle-duotone class="w-3 h-3" aria-hidden="true" />
                                     {{ __('ui.approved_badge') }}
                                 </span>
                             @endif
@@ -241,19 +252,24 @@
                 </div>
                 <div class="p-4">
                     <div class="flex gap-3">
-                        <a href="{{ route('profile.showUser', $note->owner->id) }}" onclick="event.stopPropagation()" class="shrink-0 mt-0.5">
-                            @if($note->owner->avatar_url)
-                                <img src="{{ $note->owner->avatar_url }}" alt="{{ $note->owner->localized_name }}" class="w-10 h-10 rounded-xl object-cover border border-[#eceee9] dark:border-[#2e352e] shadow-sm">
-                            @else
-                                <span class="w-10 h-10 rounded-xl bg-[#f5f7f5] dark:bg-[#1e2320] border border-[#eceee9] dark:border-[#2e352e] text-[#0e6a38] dark:text-[#5cb87a] flex items-center justify-center text-[13px] font-semibold shadow-sm">{{ $note->owner->initial }}</span>
-                            @endif
-                        </a>
+                        <x-user-link :user="$note->owner" size="xl" shape="rounded-xl" skin="note" wrapper-class="mt-0.5" :stop="true" />
                         <div class="flex-1 min-w-0">
-                            <div class="flex items-start justify-between gap-2 mb-1">
-                                <span class="text-[12px] font-semibold tracking-tight text-ink-700 dark:text-[#d5ded6] truncate pr-1">{{ $note->owner->localized_name }}</span>
-                                <span class="shrink-0 inline-flex items-center px-2 py-0.5 rounded-full bg-[#f5f7f5] dark:bg-[#1e2320] border border-[#eceee9] dark:border-[#2e352e] text-[10px] font-medium text-ink-500 dark:text-[#8a9a8e] tabular-nums" dir="ltr">{{ $note->camera_number }} · {{ $note->floor_number }}</span>
+                            <div class="flex items-start justify-between gap-2 mb-1.5">
+                                <a href="{{ route('profile.showUser', $note->owner->id) }}" onclick="event.stopPropagation()" class="text-[12px] font-bold text-ink-700 dark:text-[#d5ded6] truncate hover:text-[#0e6a38] hover:underline transition">{{ $note->owner->localized_name }}</a>
+                                <span class="shrink-0 inline-flex items-center px-2 py-0.5 rounded-full bg-[#f5f7f5] dark:bg-[#1e2320] border border-[#eceee9] dark:border-[#2e352e] text-[10px] font-bold text-ink-500 dark:text-[#8a9a8e]" dir="ltr"><span class="tnum">{{ $note->camera_number }} · {{ $note->floor_number }}</span></span>
                             </div>
-                            <p class="text-[14px] leading-[1.65] tracking-tight text-ink-700 dark:text-[#d5ded6] line-clamp-2 mb-3 note-card-body" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;word-break:break-word" data-i18n-field="description">{{ \Illuminate\Support\Str::limit(l10n_text('note', $note->id, 'description', $note->description), 100) }}</p>
+                            <div class="mb-2.5">
+                                @if($note->isDraft())
+                                    <span class="note-status-pill is-draft"><span class="dot"></span>{{ __('ui.draft') }}</span>
+                                @elseif($note->isPending())
+                                    <span class="note-status-pill is-pending"><span class="dot"></span>{{ __('ui.pending') }}</span>
+                                @elseif($note->isAccepted())
+                                    <span class="note-status-pill is-accepted"><span class="dot"></span>{{ __('ui.accepted') }}</span>
+                                @elseif($note->isRejected())
+                                    <span class="note-status-pill is-rejected"><span class="dot"></span>{{ __('ui.rejected') }}</span>
+                                @endif
+                            </div>
+                            <p class="note-desc note-desc-panel text-ink-700 dark:text-[#d5ded6] line-clamp-2 mb-3 note-card-body" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;word-break:break-word" data-i18n-field="description">{{ \Illuminate\Support\Str::limit(l10n_text('note', $note->id, 'description', $note->description), 100) }}</p>
                             <div class="flex items-center gap-2 flex-wrap touch-manipulation" onclick="event.stopPropagation()" ontouchstart="event.stopPropagation()">
                                 @if(!$note->isRejected() && $note->owner->whatsapp_number)
                                     @php
@@ -266,7 +282,7 @@
                                         $shareAttachments = $note->attachments->map(fn($a) => ['id'=>$a->id, 'name'=>$a->original_name, 'mime'=>$a->mime_type, 'url'=>'/s/attachments/'.$a->id])->toArray();
                                     @endphp
                                     <button type="button" onclick='openShareModal(@json($shareText), @json($shareAttachments), "{{ $note->owner->whatsapp_number }}")' class="w-10 h-10 rounded-full bg-[#25D366] hover:bg-[#1da851] active:bg-[#168a3a] text-white shadow-sm flex items-center justify-center transition touch-manipulation" title="{{ __('ui.share') }}">
-                                        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                                        <x-phosphor-whatsapp-logo-duotone class="w-3.5 h-3.5" aria-hidden="true" />
                                     </button>
                                 @endif
                                 @if($isMonitor && $note->user_id === $userId && $note->isDraft())
@@ -328,15 +344,7 @@
 
             <div class="px-4 sm:px-6 py-3 sm:py-4 border-b border-[#e6e9e1] flex items-start justify-between gap-3 sm:gap-4 shrink-0">
                 <div class="flex items-center gap-3 min-w-0">
-                    <a href="{{ route('profile.showUser', $note->owner->id) }}" onclick="event.stopPropagation()" class="shrink-0 hover:opacity-80 transition">
-                        @if($note->owner->avatar_url)
-                            <img src="{{ $note->owner->avatar_url }}" alt="{{ $note->owner->localized_name }}" class="w-10 h-10 rounded-xl object-cover border border-[#e6e9e1] shadow-sm shrink-0">
-                        @else
-                            <div class="w-10 h-10 rounded-xl bg-[#eef4f0] text-[#0e6a38] flex items-center justify-center font-bold text-sm shrink-0">
-                                {{ $note->owner->initial }}
-                            </div>
-                        @endif
-                    </a>
+                    <x-user-link :user="$note->owner" size="xl" shape="rounded-xl" skin="soft" img-extra-class="border border-[#e6e9e1] shadow-sm" :stop="true" />
                     <div class="min-w-0">
                         <div class="flex items-center gap-2 flex-wrap">
                             <h2 class="text-base font-bold text-ink-800">{{ __('ui.camera_floor_format', ['camera' => $note->camera_number, 'floor' => $note->floor_number]) }}</h2>
@@ -356,12 +364,10 @@
                 </div>
                 <div class="flex items-center gap-2">
                     <a href="{{ route('notes.show', $note) }}" class="w-8 h-8 rounded-lg hover:bg-[#f5f7f5] flex items-center justify-center text-ink-400 hover:text-ink-700 transition" title="{{ __('ui.view_details_aria') }}">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
-                        </svg>
+                        <x-phosphor-arrow-square-out-duotone class="w-4 h-4" aria-hidden="true" />
                     </a>
                     <button type="button" onclick="closeModal('detail-{{ $note->id }}')" class="w-8 h-8 rounded-lg hover:bg-[#f5f7f5] flex items-center justify-center text-ink-300 hover:text-ink-700 transition shrink-0" aria-label="{{ __('ui.close') }}">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                        <x-phosphor-x-duotone class="w-5 h-5" aria-hidden="true" />
                     </button>
                 </div>
             </div>
@@ -392,13 +398,7 @@
 
 
                 <div class="flex items-center gap-3 p-3 rounded-xl bg-[#f5f7f5] border border-[#e6e9e1]">
-                    <a href="{{ route('profile.showUser', $note->owner->id) }}" onclick="event.stopPropagation()" class="shrink-0 hover:opacity-80 transition">
-                        @if($note->owner->avatar_url)
-                            <img src="{{ $note->owner->avatar_url }}" alt="{{ $note->owner->localized_name }}" class="w-9 h-9 rounded-lg object-cover border border-[#e6e9e1] shadow-sm shrink-0">
-                        @else
-                            <div class="w-9 h-9 rounded-lg bg-[#eef4f0] text-[#0e6a38] flex items-center justify-center font-bold text-sm shrink-0">{{ $note->owner->initial }}</div>
-                        @endif
-                    </a>
+                    <x-user-link :user="$note->owner" size="lg" shape="rounded-lg" skin="soft" img-extra-class="border border-[#e6e9e1] shadow-sm" :stop="true" />
                     <div>
                         <div class="text-[11px] font-bold text-ink-300">{{ __('ui.observer') }}</div>
                         <a href="{{ route('profile.showUser', $note->owner->id) }}" onclick="event.stopPropagation()" class="text-sm font-bold text-ink-800 hover:text-[#0e6a38] transition">{{ $note->owner->localized_name }}</a>
@@ -412,22 +412,22 @@
 
                 <div>
                     <h3 class="text-sm font-bold text-ink-700 mb-2 flex items-center gap-2">
-                        <svg class="w-4 h-4 text-[#0e6a38]" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                        <x-phosphor-note-pencil-duotone class="w-4 h-4 text-[#0e6a38]" aria-hidden="true" />
                         {{ __('ui.description') }}
                     </h3>
-                    <div class="p-4 rounded-xl bg-[#f5f7f5] border border-[#e6e9e1] text-sm leading-[1.9] text-ink-700 whitespace-pre-wrap break-words" data-i18n-field="description">{{ l10n_text('note', $note->id, 'description', $note->description) }}</div>
+                    <div class="note-modal-desc p-4 rounded-xl bg-[#f5f7f5] border border-[#e6e9e1] text-ink-700 whitespace-pre-wrap break-words" data-i18n-field="description">{{ l10n_text('note', $note->id, 'description', $note->description) }}</div>
                 </div>
 
 
                 @if($note->isRejected() && $note->rejection_reason)
                     <div class="p-4 rounded-xl bg-red-50 border border-red-200">
                         <h3 class="text-sm font-bold text-red-700 mb-2 flex items-center gap-2">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            <x-phosphor-warning-duotone class="w-4 h-4" aria-hidden="true" />
                             {{ __('ui.reject_reason') }}
                         </h3>
                         <p class="text-sm leading-7 text-red-600" data-i18n-field="rejection_reason">{{ l10n_text('note', $note->id, 'rejection_reason', $note->rejection_reason) }}</p>
                         @if($note->processor)
-                            <div class="mt-2 text-xs font-bold text-red-500">{{ __('ui.by_user') }} {{ $note->processor->localized_name }} — {{ $note->processed_at?->toDatetime12() }}</div>
+                            <div class="mt-2 text-xs font-bold text-red-500">{{ __('ui.by_user') }} <a href="{{ route('profile.showUser', $note->processor->id) }}" class="hover:underline transition">{{ $note->processor->localized_name }}</a> — {{ $note->processed_at?->toDatetime12() }}</div>
                         @endif
                     </div>
                 @endif
@@ -436,7 +436,7 @@
                 @if($note->attachments->count() > 0)
                     <div>
                         <h3 class="text-sm font-bold text-ink-700 mb-2 flex items-center gap-2">
-                            <svg class="w-4 h-4 text-[#0e6a38]" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
+                            <x-phosphor-paperclip-duotone class="w-4 h-4 text-[#0e6a38]" aria-hidden="true" />
                             {{ __('ui.attachments_section', ['count' => $note->attachments->count()]) }}
                         </h3>
                         <div class="space-y-2">
@@ -444,11 +444,11 @@
                                 <div class="flex items-center gap-3 p-3 rounded-xl border border-[#e6e9e1] hover:border-[#cde7d6] hover:bg-[#eef4f0]/30 transition group">
                                     <div class="w-9 h-9 rounded-lg bg-[#f5f7f5] border border-[#e6e9e1] flex items-center justify-center shrink-0">
                                         @if(str_contains($attachment->mime_type, 'video'))
-                                            <svg class="w-4 h-4 text-[#737373]" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 13a3 3 0 100-6 3 3 0 000 6z"/></svg>
+                                            <x-phosphor-video-camera-duotone class="w-4 h-4 text-[#737373]" aria-hidden="true" />
                                         @elseif(str_contains($attachment->mime_type, 'audio'))
-                                            <svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/></svg>
+                                            <x-phosphor-microphone-duotone class="w-4 h-4 text-red-500" aria-hidden="true" />
                                         @else
-                                            <svg class="w-4 h-4 text-[#0e6a38]" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                                            <x-phosphor-image-duotone class="w-4 h-4 text-[#0e6a38]" aria-hidden="true" />
                                         @endif
                                     </div>
                                     <div class="min-w-0 flex-1">
@@ -457,12 +457,12 @@
                                     </div>
                                     <div class="flex items-center gap-1.5 shrink-0">
                                         <button type="button" onclick="openAttachmentView('{{ route('notes.attachments.view', $attachment) }}', '{{ $attachment->mime_type }}', '{{ addslashes($attachment->original_name) }}')" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-[#e6e9e1] text-ink-700 text-xs font-bold hover:bg-[#f5f7f5] hover:border-[#d4ddd3] transition">
-                                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                            <x-phosphor-eye-duotone class="w-3.5 h-3.5" aria-hidden="true" />
                                             {{ __('ui.view_attachment') }}
                                         </button>
-                                        @if(auth()->user()->isReportWriter())
+                                        @if(auth()->user()->isReportWriter() || auth()->user()->isGeneralManager())
                                             <a href="{{ route('notes.attachments.download', $attachment) }}" class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#0e6a38] text-white text-xs font-bold hover:bg-[#0a4d28] transition" title="{{ __('ui.download_manager_only') }}">
-                                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                                                <x-phosphor-download-simple-duotone class="w-3.5 h-3.5" aria-hidden="true" />
                                             </a>
                                         @endif
                                     </div>
@@ -475,10 +475,10 @@
 
                 @if($note->processor)
                     <div class="p-3 rounded-xl bg-[#f5f7f5] border border-[#e6e9e1] flex items-center gap-3">
-                        <div class="w-8 h-8 rounded-lg bg-[#eceee9] flex items-center justify-center text-xs font-bold text-[#525252]">{{ mb_substr($note->processor->localized_name, 0, 1) }}</div>
+                        <x-user-link :user="$note->processor" size="md" shape="rounded-lg" skin="gray" weight="font-bold" :stop="true" />
                         <div>
                             <div class="text-[11px] font-bold text-ink-300">{{ $note->isAccepted() ? __('ui.approved_by') : __('ui.rejected_by') }}</div>
-                            <div class="text-sm font-bold text-ink-700">{{ $note->processor->localized_name }} — {{ $note->processed_at?->toDatetime12() }}</div>
+                            <div class="text-sm font-bold text-ink-700"><a href="{{ route('profile.showUser', $note->processor->id) }}" onclick="event.stopPropagation()" class="hover:text-[#0e6a38] hover:underline transition">{{ $note->processor->localized_name }}</a> — {{ $note->processed_at?->toDatetime12() }}</div>
                         </div>
                     </div>
                 @endif
@@ -498,14 +498,12 @@
                         $shareAttachments = $note->attachments->map(fn($a) => ['id'=>$a->id, 'name'=>$a->original_name, 'mime'=>$a->mime_type, 'url'=>'/s/attachments/'.$a->id])->toArray();
                     @endphp
                     <button type="button" onclick='openShareModal(@json($shareText), @json($shareAttachments), "{{ $note->owner->whatsapp_number }}")' class="px-4 py-2 rounded-lg bg-[#25D366] text-white text-sm font-bold hover:bg-[#1da851] transition inline-flex items-center gap-1.5">
-                        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                        <x-phosphor-whatsapp-logo-duotone class="w-4 h-4" aria-hidden="true" />
                         {{ __('ui.share_whatsapp') }}
                     </button>
                 @endif
                 <button type="button" onclick='openPrintModal(@json($notePrintData))' class="px-3.5 py-2 rounded-lg bg-[#0e6a38] text-white text-sm font-bold hover:bg-[#0a4d28] transition inline-flex items-center gap-1.5 shadow-sm" title="{{ __('ui.print') }}">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
-                    </svg>
+                    <x-phosphor-printer-duotone class="w-4 h-4" aria-hidden="true" />
                     <span>{{ __('ui.print') }}</span>
                 </button>
                 @if($isMonitor && $note->user_id === $userId && $note->isDraft())
@@ -534,7 +532,7 @@
                     <button type="button" onclick="closeModal('detail-{{ $note->id }}');setTimeout(()=>openModal('reject-{{ $note->id }}'),200)" class="px-4 py-2 rounded-lg bg-red-500 text-white text-sm font-bold hover:bg-red-600 transition">{{ __('ui.reject_btn') }}</button>
                 @elseif($note->isAccepted())
                     <span class="inline-flex items-center gap-1.5 text-sm font-bold text-[#0e6a38]">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                        <x-phosphor-check-circle-duotone class="w-4 h-4" aria-hidden="true" />
                         {{ __('ui.approved_badge') }}
                     </span>
                 @endif
@@ -576,7 +574,7 @@
         <div class="px-4 py-3 border-b border-surface-300 flex items-center justify-between gap-3 shrink-0">
             <h3 id="attachment-view-title" class="text-sm font-bold text-ink-800 truncate"></h3>
             <button type="button" onclick="closeModal('attachment-view-modal')" class="w-8 h-8 rounded-lg hover:bg-surface-100 flex items-center justify-center text-ink-400 hover:text-ink-700 transition">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                <x-phosphor-x-duotone class="w-5 h-5" aria-hidden="true" />
             </button>
         </div>
         <div class="flex-1 min-h-0 bg-ink-900 flex items-center justify-center p-4 overflow-auto">
@@ -673,8 +671,8 @@ function openShareModal(text, attachments, phone) {
             const isImage = a.mime.includes('image');
             const isVideo = a.mime.includes('video');
             const icon = isVideo
-                ? '<svg class="w-4 h-4 text-red-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>'
-                : '<svg class="w-4 h-4 text-sage-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>';
+                ? '<x-phosphor-video-camera-duotone class="w-4 h-4 text-red-400 shrink-0" />'
+                : '<x-phosphor-image-duotone class="w-4 h-4 text-sage-600 shrink-0" />';
             html += '<label class="flex items-center gap-3 p-2.5 rounded-xl border border-[#e6e9e1] hover:bg-[#f5f7f5] cursor-pointer transition">' +
                 '<input type="checkbox" class="share-file-cb rounded border-[#c2cbc1] text-[#0e6a38] focus:ring-[#0e6a38]/20 w-4 h-4" data-url="' + a.url + '" data-name="' + a.name + '" data-mime="' + a.mime + '" checked onchange="updateShareSelectedCount()">' +
                 '<span class="shrink-0">' + icon + '</span>' +
@@ -802,7 +800,7 @@ function showShareFallback(items, text) {
         items.forEach(it => {
             var absUrl = shareBase() + it.url;
             html += '<div class="p-2.5 rounded-xl border border-[#e6e9e1] bg-white space-y-2">';
-            html += '<div class="text-sm text-ink-700 font-bold truncate"><svg class="w-3.5 h-3.5 inline-block -mt-0.5 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>' + escShareHtml(it.name) + '</div>';
+            html += '<div class="text-sm text-ink-700 font-bold truncate"><x-phosphor-paperclip-duotone class="w-3.5 h-3.5 inline-block -mt-0.5 ml-1" />' + escShareHtml(it.name) + '</div>';
             html += '<div class="flex items-center gap-2"><input readonly onclick="this.select()" value="' + escShareHtml(absUrl) + '" dir="ltr" class="flex-1 min-w-0 text-xs font-mono text-ink-500 bg-[#f5f7f5] border border-[#e6e9e1] rounded-lg px-2 py-1.5">';
             html += '<button data-url="' + escShareHtml(absUrl) + '" onclick="copyShareLink(this)" class="shrink-0 px-3 py-1.5 rounded-lg bg-[#0e6a38] text-white text-xs font-bold hover:bg-[#0a4d28] transition">' + SHARE_T.copyLink + '</button></div></div>';
         });
@@ -848,7 +846,7 @@ function copyShareText() {
         <div class="px-5 py-4 border-b border-[#e6e9e1] flex items-center justify-between shrink-0">
             <h3 class="text-base font-bold text-ink-800">{{ __('ui.share') }}</h3>
             <button onclick="closeShareModal()" class="w-8 h-8 rounded-lg hover:bg-[#f5f7f5] flex items-center justify-center text-ink-300 hover:text-ink-700 transition" aria-label="{{ __('ui.close') }}">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                <x-phosphor-x-duotone class="w-5 h-5" aria-hidden="true" />
             </button>
         </div>
         <div class="p-5 overflow-y-auto flex-1 space-y-4">

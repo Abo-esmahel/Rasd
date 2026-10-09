@@ -1,5 +1,3 @@
-// Print Modal — extracted from print_modal.blade.php
-// Uses window.PRINT_T config (set by inline Blade script)
 function printPageLabel(a, b){
     return (PRINT_T.locale === 'en' ? ('Page ' + a + ' of ' + b) : ('صفحة ' + a + ' من ' + b));
 }
@@ -70,7 +68,7 @@ function openPrintModalFromButton(btn) {
             attachmentCount: data && data.attachments ? data.attachments.length : -1,
             descriptionType: data ? typeof data.description : 'n/a'
         });
-        window.toast(PRINT_T.openFailed);
+        notifyPrint(PRINT_T.openFailed);
         return;
     }
     
@@ -103,14 +101,14 @@ function renderAttachmentsSelector() {
         const isImage = item.mime && item.mime.includes('image');
         const imgWord = String(PRINT_T.photoBadge || '').replace(/^—\s*/, '') || PRINT_T.imageSingle;
         const badgeIcon = isVideo
-            ? `<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 text-[10px] font-bold border border-amber-200"><svg class="w-3 h-3 text-red-500" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>${escPrint(PRINT_T.video)}</span>`
-            : `<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#eef4f0] text-[#0e6a38] text-[10px] font-bold border border-[#cde7d6]"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>${escPrint(imgWord)}</span>`;
+            ? `<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 text-[10px] font-bold border border-amber-200"><svg class="w-3 h-3 text-red-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M228.23,134.69,84.15,222.81A8,8,0,0,1,72,216.12V39.88a8,8,0,0,1,12.15-6.69l144.08,88.12A7.82,7.82,0,0,1,228.23,134.69Z" opacity="0.2"/><path d="M232.4,114.49,88.32,26.35a16,16,0,0,0-16.2-.3A15.86,15.86,0,0,0,64,39.87V216.13A15.94,15.94,0,0,0,80,232a16.07,16.07,0,0,0,8.36-2.35L232.4,141.51a15.81,15.81,0,0,0,0-27ZM80,215.94V40l143.83,88Z"/></svg>${escPrint(PRINT_T.video)}</span>`
+            : `<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#eef4f0] text-[#0e6a38] text-[10px] font-bold border border-[#cde7d6]"><svg class="w-3 h-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M224,56V178.06l-39.72-39.72a8,8,0,0,0-11.31,0L147.31,164,97.66,114.34a8,8,0,0,0-11.32,0L32,168.69V56a8,8,0,0,1,8-8H216A8,8,0,0,1,224,56Z" opacity="0.2"/><path d="M216,40H40A16,16,0,0,0,24,56V200a16,16,0,0,0,16,16H216a16,16,0,0,0,16-16V56A16,16,0,0,0,216,40Zm0,16V158.75l-26.07-26.06a16,16,0,0,0-22.63,0l-20,20-44-44a16,16,0,0,0-22.62,0L40,149.37V56ZM40,172l52-52,80,80H40Zm176,28H194.63l-36-36,20-20L216,181.38V200ZM144,100a12,12,0,1,1,12,12A12,12,0,0,1,144,100Z"/></svg>${escPrint(imgWord)}</span>`;
         html += `
             <div onclick="toggleAttachmentSelection(${index})" class="relative flex items-center gap-3 p-3 rounded-xl border transition cursor-pointer select-none ${item.selected ? 'border-[#0e6a38] bg-[#eef4f0]/40 shadow-sm' : 'border-[#e6e9e1] bg-white hover:border-[#c2cbc1]'}">
                 <input type="checkbox" id="print-cb-${index}" ${item.selected ? 'checked' : ''} onclick="event.stopPropagation(); toggleAttachmentSelection(${index});" class="rounded border-[#c2cbc1] text-[#0e6a38] focus:ring-[#0e6a38]/20 w-4 h-4 shrink-0">
                 <div class="w-14 h-14 rounded-lg bg-[#f5f7f5] border border-[#e6e9e1] overflow-hidden flex items-center justify-center shrink-0">
                     ${isImage ? `<img src="${escPrint(item.url)}" alt="${escPrint(item.name)}" class="w-full h-full object-cover">` : ''}
-                    ${isVideo ? `<div class="flex flex-col items-center justify-center text-red-500"><svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg><span class="text-[9px] font-bold text-[#525252]">HD Video</span></div>` : ''}
+                    ${isVideo ? `<div class="flex flex-col items-center justify-center text-red-500"><svg class="w-6 h-6" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M228.23,134.69,84.15,222.81A8,8,0,0,1,72,216.12V39.88a8,8,0,0,1,12.15-6.69l144.08,88.12A7.82,7.82,0,0,1,228.23,134.69Z" opacity="0.2"/><path d="M232.4,114.49,88.32,26.35a16,16,0,0,0-16.2-.3A15.86,15.86,0,0,0,64,39.87V216.13A15.94,15.94,0,0,0,80,232a16.07,16.07,0,0,0,8.36-2.35L232.4,141.51a15.81,15.81,0,0,0,0-27ZM80,215.94V40l143.83,88Z"/></svg><span class="text-[9px] font-bold text-[#525252]">HD Video</span></div>` : ''}
                 </div>
                     <div class="min-w-0 flex-1">
                         <div class="text-xs font-bold text-ink-800 truncate" title="${escPrint(item.name)}">${escPrint(item.name)}</div>
@@ -213,13 +211,33 @@ function partitionItemsIntoPages(items) {
 let _printEngine = null;
 function getPrintEngine(){
     if(_printEngine) return _printEngine;
-    const Cls = (typeof PrintLayoutEngine !== 'undefined' ? PrintLayoutEngine : (typeof window !== 'undefined' && window.PrintLayoutEngine ? window.PrintLayoutEngine : null));
+    const Cls = (typeof window !== 'undefined' && window.PrintLayoutEngine ? window.PrintLayoutEngine : null);
     if(!Cls){
-        console.warn('[PRINT ENGINE] PrintLayoutEngine not found — window.PrintLayoutEngine:', typeof window.PrintLayoutEngine, 'bare:', typeof PrintLayoutEngine);
+        console.warn('[PRINT ENGINE] PrintLayoutEngine not found yet — window.PrintLayoutEngine:', typeof window !== 'undefined' ? typeof window.PrintLayoutEngine : 'no-window');
         return null;
     }
     try{ _printEngine = new Cls(); }catch(e){ console.error(e); return null; }
     return _printEngine;
+}
+
+// Module scripts (print-layout-engine) are deferred: a fast click may run
+// before window.PrintLayoutEngine exists. Wait briefly instead of failing.
+function waitForPrintEngine(timeoutMs){
+    timeoutMs = timeoutMs || 5000;
+    return new Promise((resolve) => {
+        if(getPrintEngine()){ resolve(getPrintEngine()); return; }
+        const started = Date.now();
+        const timer = setInterval(() => {
+            _printEngine = null;
+            if(getPrintEngine() || Date.now() - started > timeoutMs){
+                clearInterval(timer);
+                resolve(getPrintEngine());
+            }
+        }, 100);
+    });
+}
+function notifyPrint(msg){
+    try{ if(window.toast) window.toast(msg); }catch(e){ console.warn('[PRINT]', msg); }
 }
 
 function renderLayout(layout, container){
@@ -343,7 +361,7 @@ function assertBeforePrint(printableDoc){
             const inner = el.querySelector('img');
             if(inner){
                 const ics = getComputedStyle(inner);
-                if(ics.objectFit !== 'fill' && ics.objectFit !== 'fill ') errors.push(`Page ${pi} img ${ii} inner object-fit is ${ics.objectFit} != fill (CSS override?)`);
+                if(ics.objectFit !== 'contain' && ics.objectFit !== 'contain ') errors.push(`Page ${pi} img ${ii} inner object-fit is ${ics.objectFit} != contain (CSS override?)`);
                 if(ics.aspectRatio && ics.aspectRatio !== 'auto' && ics.aspectRatio !== 'auto ') {
                     if(ics.aspectRatio.includes('4 / 3') || ics.aspectRatio.includes('4/3')) errors.push(`Page ${pi} img ${ii} aspect-ratio is ${ics.aspectRatio} != auto`);
                 }
@@ -509,7 +527,7 @@ function buildA4PageHtml(note, pageItems, pageIndex, totalPages, isLastPage, wit
                     
                     return `<div data-print-image="${r.id}" data-engine-x="${r.x}" data-engine-y="${r.y}" data-engine-w="${r.width}" data-engine-h="${r.height}" style="position:absolute; left:${r.x}mm; top:${r.y}mm; width:${r.width}mm; height:${r.height}mm; overflow:hidden; background:white; border:0.3mm solid #e5e7eb; border-radius:1.5mm; box-sizing:border-box;">
                         <img src="${it.src}" style="position:absolute; left:0; top:0; width:100%; height:100%; object-fit:contain; display:block; background:white;" loading="eager" decoding="sync" />
-                        ${it.isVideo?`<div style="position:absolute; bottom:2mm; right:2mm; background:#0e6a38 !important; color:#ffffff !important; font-size:3mm; font-weight:700; padding:1mm 2.5mm; border-radius:1.5mm; border:0.2mm solid white; display:flex; gap:1.2mm; align-items:center; box-shadow:0 0.8mm 2mm rgba(0,0,0,0.35); z-index:10; -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important;"><svg width="3.2mm" height="3.2mm" fill="white" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg><span>${escPrint(PRINT_T.videoFrame)}</span></div>`:''}
+                        ${it.isVideo?`<div style="position:absolute; bottom:2mm; right:2mm; background:#0e6a38 !important; color:#ffffff !important; font-size:3mm; font-weight:700; padding:1mm 2.5mm; border-radius:1.5mm; border:0.2mm solid white; display:flex; gap:1.2mm; align-items:center; box-shadow:0 0.8mm 2mm rgba(0,0,0,0.35); z-index:10; -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important;"><svg width="3.2mm" height="3.2mm" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M228.23,134.69,84.15,222.81A8,8,0,0,1,72,216.12V39.88a8,8,0,0,1,12.15-6.69l144.08,88.12A7.82,7.82,0,0,1,228.23,134.69Z" opacity="0.2"/><path d="M232.4,114.49,88.32,26.35a16,16,0,0,0-16.2-.3A15.86,15.86,0,0,0,64,39.87V216.13A15.94,15.94,0,0,0,80,232a16.07,16.07,0,0,0,8.36-2.35L232.4,141.51a15.81,15.81,0,0,0,0-27ZM80,215.94V40l143.83,88Z"/></svg><span>${escPrint(PRINT_T.videoFrame)}</span></div>`:''}
                     </div>`;
                 }).join('');
                 
@@ -615,6 +633,13 @@ async function generateAndOpenPreview() {
     const text = document.getElementById('print-proceed-text');
     proceedBtn.disabled = true; spinner.classList.remove('hidden'); icon.classList.add('hidden'); text.textContent = PRINT_T.analyzing;
     try {
+        // Wait for the deferred engine module before rendering (fixes fast-click race).
+        const engineReady = await waitForPrintEngine(5000);
+        if(!engineReady){
+            console.error('[PRINT ENGINE] still not loaded after wait — cached/blocked module?');
+            notifyPrint(PRINT_T.openFailed);
+            return;
+        }
         const selectedItems = currentAttachmentsState.filter(item => item.selected);
         
         const resolvedAssets = await Promise.all(selectedItems.map(item =>
@@ -794,7 +819,7 @@ async function generateAndOpenPreview() {
         document.body.style.overflow = 'hidden';
     } catch (e) {
         console.error('Error generating print preview:', e);
-        window.toast(PRINT_T.openFailed);
+        notifyPrint(PRINT_T.openFailed);
     } finally {
         proceedBtn.disabled = false; spinner.classList.add('hidden'); icon.classList.remove('hidden'); text.textContent = PRINT_T.previewA4;
     }
@@ -804,7 +829,7 @@ async function triggerNativePrint() {
     const printableDoc = document.getElementById('printable-a4-doc');
     if (!printableDoc || !printableDoc.innerHTML.trim()) {
         console.error('[PRINT ERROR] empty doc');
-        window.toast(PRINT_T.openPreviewFirst);
+        notifyPrint(PRINT_T.openPreviewFirst);
         return;
     }
     let html = printableDoc.innerHTML;
@@ -841,7 +866,7 @@ async function triggerNativePrint() {
 
     
     const win = window.open('', '_blank', 'width=800,height=600');
-    if(!win){ window.toast(PRINT_T.openPreviewFirst); return; }
+    if(!win){ notifyPrint(PRINT_T.openPreviewFirst); return; }
 
 
     const hasLandscape = html.includes('data-orientation="landscape"');
@@ -858,7 +883,7 @@ async function triggerNativePrint() {
   .a4-print-page { position:relative !important; width:210mm !important; height:297mm !important; min-width:210mm !important; min-height:297mm !important; max-width:210mm !important; max-height:297mm !important; margin:0 !important; padding:0 !important; overflow:visible !important; display:block !important; box-sizing:border-box !important; background:white !important; page-break-inside:avoid !important; break-inside:avoid !important; border:none !important; box-shadow:none !important; direction:${isoDir}; }
   .a4-print-page[data-orientation="landscape"] { width:297mm !important; height:210mm !important; min-width:297mm !important; min-height:210mm !important; max-width:297mm !important; max-height:210mm !important; }
   [data-print-image] { position:absolute !important; box-sizing:border-box !important; overflow:hidden !important; background:white !important; border:0.3mm solid #e5e7eb !important; border-radius:1.5mm !important; display:block !important; }
-  [data-print-image] img { position:absolute !important; left:0 !important; top:0 !important; width:100% !important; height:100% !important; max-width:none !important; max-height:none !important; object-fit:fill !important; display:block !important; aspect-ratio:auto !important; border:none !important; -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }
+  [data-print-image] img { position:absolute !important; left:0 !important; top:0 !important; width:100% !important; height:100% !important; max-width:none !important; max-height:none !important; object-fit:contain !important; object-position:center !important; display:block !important; aspect-ratio:auto !important; border:none !important; -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }
 
   [data-print-description], .print-description-text { direction:${isoDir} !important; unicode-bidi:plaintext !important; text-align:${isoAlign} !important; overflow-wrap:anywhere !important; }
    @media print {

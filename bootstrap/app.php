@@ -36,7 +36,6 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->report(function (MethodNotAllowedHttpException $e) {
             try {
                 $req = request();
-                // تنقية السجلات: لا تسجل التوكنات أو الكوكيز أو كامل الترويسات.
                 $safeHeaders = [];
                 foreach (['content-type', 'accept', 'x-requested-with'] as $h) {
                     $v = $req->header($h);

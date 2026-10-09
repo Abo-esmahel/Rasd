@@ -5,11 +5,14 @@
     $isMonitor = $user->isMonitor();
     $total = isset($stats) ? (int) ($stats['total'] ?? 0) : 0;
     $notesUrl = ($isOwn ?? true) ? route('notes.index') : route('notes.index', ['observer' => $user->id]);
+    $stAccepted = (int) ($stats['accepted'] ?? 0);
+    $stPending = (int) ($stats['pending'] ?? 0);
+    $stRejected = (int) ($stats['rejected'] ?? 0);
 @endphp
 <div class="max-w-3xl mx-auto">
     <div class="mb-4">
         <a href="{{ route('notes.index') }}" aria-label="{{ __('ui.back') }}" class="w-9 h-9 rounded-xl bg-white border border-surface-300 inline-flex items-center justify-center text-ink-400 hover:text-ink-700 hover:bg-surface-100 transition">
-            <svg class="w-4 h-4 ltr:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+            <x-phosphor-caret-right-duotone class="w-4 h-4 ltr:rotate-180" />
         </a>
     </div>
 
@@ -71,7 +74,7 @@
             <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                 <div class="min-w-0">
                     <h1 class="text-[22px] sm:text-2xl font-extrabold text-ink-800 leading-snug truncate">{{ $user->localized_name }}</h1>
-                    <p class="mt-1 text-[13px] font-bold text-ink-400">{{ $isMonitor ? __('ui.role_monitor') : __('ui.role_writer') }}</p>
+                    <p class="mt-1 text-[13px] font-bold text-ink-400">{{ $user->isGeneralManager() ? __('ui.role_general_manager') : ($isMonitor ? __('ui.role_monitor') : __('ui.role_writer')) }}</p>
                 </div>
                 @if($isOwn ?? true)
                 <div class="shrink-0">
@@ -88,14 +91,14 @@
             <h2 id="account-info-title" class="pt-4 pb-1 text-[13px] font-extrabold text-ink-500">{{ __('ui.account_info') }}</h2>
             <dl class="divide-y divide-surface-300">
                 <div class="flex items-center gap-3 py-3.5">
-                    <svg class="w-[18px] h-[18px] shrink-0 text-ink-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                    <x-phosphor-user-duotone class="w-[18px] h-[18px] shrink-0 text-ink-300" />
                     <div class="min-w-0 flex-1">
                         <dt class="text-[11px] font-bold text-ink-400">{{ __('ui.username') }}</dt>
                         <dd class="mt-0.5 text-sm font-bold text-ink-800 truncate" dir="ltr">{{ '@' . $user->username }}</dd>
                     </div>
                 </div>
                 <div class="flex items-center gap-3 py-3.5">
-                    <svg class="w-[18px] h-[18px] shrink-0 text-ink-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
+                    <x-phosphor-phone-duotone class="w-[18px] h-[18px] shrink-0 text-ink-300" />
                     <div class="min-w-0 flex-1">
                         <dt class="text-[11px] font-bold text-ink-400">{{ __('ui.personal_number') }}</dt>
                         @if($user->personal_number)
@@ -106,7 +109,7 @@
                     </div>
                 </div>
                 <div class="flex items-center gap-3 py-3.5">
-                    <svg class="w-[18px] h-[18px] shrink-0 text-ink-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5h1l1 1v4m-4 0h4"/></svg>
+                    <x-phosphor-buildings-duotone class="w-[18px] h-[18px] shrink-0 text-ink-300" />
                     <div class="min-w-0 flex-1">
                         <dt class="text-[11px] font-bold text-ink-400">{{ __('ui.entity') }}</dt>
                         <dd class="mt-0.5 text-sm font-bold text-ink-800">{{ __('ui.ministry_syria') }}</dd>
@@ -117,7 +120,47 @@
     </section>
 
     
-    <section class="mt-6 text-center" aria-label="{{ __('ui.total_notes') }}">
+    @unless($user->isGeneralManager())
+    <section class="mt-5 md:hidden" aria-label="{{ __('ui.total_notes') }}">
+        <div class="m-stats">
+            <div class="m-stat green">
+                <div class="m-stat-top">
+                    <span class="m-stat-ic"><x-phosphor-files-duotone class="w-5 h-5" /></span>
+                    <span class="m-stat-delta up">{{ __('ui.total') }}</span>
+                </div>
+                <div class="m-stat-v tabular-nums">{{ $total }}</div>
+                <div class="m-stat-k">{{ __('ui.total_notes') }}</div>
+            </div>
+            <div class="m-stat green">
+                <div class="m-stat-top">
+                    <span class="m-stat-ic"><x-phosphor-seal-check-duotone class="w-5 h-5" /></span>
+                    <span class="m-stat-delta up">{{ __('ui.accepted') }}</span>
+                </div>
+                <div class="m-stat-v tabular-nums">{{ $stAccepted }}</div>
+                <div class="m-stat-k">{{ __('ui.accepted') }}</div>
+            </div>
+            <div class="m-stat amber">
+                <div class="m-stat-top">
+                    <span class="m-stat-ic"><x-phosphor-clock-duotone class="w-5 h-5" /></span>
+                    <span class="m-stat-delta down">{{ __('ui.pending') }}</span>
+                </div>
+                <div class="m-stat-v tabular-nums">{{ $stPending }}</div>
+                <div class="m-stat-k">{{ __('ui.pending') }}</div>
+            </div>
+            <div class="m-stat red">
+                <div class="m-stat-top">
+                    <span class="m-stat-ic"><x-phosphor-x-circle-duotone class="w-5 h-5" /></span>
+                    <span class="m-stat-delta">{{ __('ui.rejected') }}</span>
+                </div>
+                <div class="m-stat-v tabular-nums">{{ $stRejected }}</div>
+                <div class="m-stat-k">{{ __('ui.rejected') }}</div>
+            </div>
+        </div>
+    </section>
+    @endunless
+
+    @unless($user->isGeneralManager())
+    <section class="mt-6 text-center hidden md:block" aria-label="{{ __('ui.total_notes') }}">
         <div class="border-y border-surface-300 py-6 px-6">
         @if($total > 0)
         <a href="{{ $notesUrl }}" class="inline-block hover:opacity-70 transition">
@@ -133,6 +176,7 @@
         @endif
         </div>
     </section>
+    @endunless
 
     @if($isOwn ?? true)
     <section class="mt-6">
@@ -159,7 +203,7 @@
         <div class="relative w-full max-w-lg">
             <img src="{{ $user->avatar_url }}" alt="{{ $user->localized_name }}" class="w-full max-h-[80vh] object-contain rounded-2xl shadow-2xl border border-white/20 bg-ink-900">
             <button type="button" onclick="closeModal('avatar-view-modal')" aria-label="{{ __('ui.close') }}" class="absolute -top-3 -end-3 w-9 h-9 rounded-full bg-white text-ink-600 shadow-lg flex items-center justify-center hover:text-ink-900 transition">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                <x-phosphor-x-duotone class="w-4 h-4" />
             </button>
         </div>
     </div>

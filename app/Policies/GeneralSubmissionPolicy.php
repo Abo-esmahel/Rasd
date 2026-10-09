@@ -11,7 +11,7 @@ class GeneralSubmissionPolicy
     
     public function viewAny(User $user): bool
     {
-        return $user->isMonitor() || $user->isReportWriter();
+        return $user->isMonitor() || $user->isReportWriter() || $user->isGeneralManager();
     }
 
     
@@ -23,7 +23,7 @@ class GeneralSubmissionPolicy
         }
 
         
-        if ($user->isReportWriter()) {
+        if ($user->isReportWriter() || $user->isGeneralManager()) {
             
             if ($generalSubmission->relationLoaded('reportWriters')) {
                 return $generalSubmission->reportWriters->contains('id', $user->id);
@@ -54,7 +54,10 @@ class GeneralSubmissionPolicy
 
     public function accept(User $user, GeneralSubmission $generalSubmission): bool
     {
-        if (!$user->isReportWriter() || !$generalSubmission->isPending()) {
+        if ((!$user->isReportWriter() && !$user->isGeneralManager()) || !$generalSubmission->isPending()) {
+            return false;
+        }
+        if ($user->isGeneralManager()) {
             return false;
         }
         if ($generalSubmission->relationLoaded('reportWriters')) {
@@ -65,7 +68,10 @@ class GeneralSubmissionPolicy
 
     public function reject(User $user, GeneralSubmission $generalSubmission): bool
     {
-        if (!$user->isReportWriter() || !$generalSubmission->isPending()) {
+        if ((!$user->isReportWriter() && !$user->isGeneralManager()) || !$generalSubmission->isPending()) {
+            return false;
+        }
+        if ($user->isGeneralManager()) {
             return false;
         }
         if ($generalSubmission->relationLoaded('reportWriters')) {
@@ -77,8 +83,7 @@ class GeneralSubmissionPolicy
     
     public function delete(User $user, GeneralSubmission $generalSubmission): bool
     {
-        
-        return $generalSubmission->user_id === $user->id;
+        return $generalSubmission->user_id === $user->id && $generalSubmission->isDraft();
     }
 
     

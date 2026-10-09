@@ -385,7 +385,7 @@ export class NotificationManager {
         
         if (location.protocol === 'http:') return true;
         if (!window.isSecureContext) return true;
-        if (location.hostname === '127.0.0.1' || location.hostname === 'localhost' || location.hostname === '10.150.2.29' || location.hostname.endsWith('.lan') || location.hostname.endsWith('.home.arpa') === false && location.hostname.match(/^\d+\.\d+\.\d+\.\d+$/)) {
+        if (location.hostname === '127.0.0.1' || location.hostname === 'localhost' || location.hostname.endsWith('.lan') || location.hostname.endsWith('.home.arpa') === false && location.hostname.match(/^\d+\.\d+\.\d+\.\d+$/)) {
           
           return true;
         }
@@ -874,7 +874,6 @@ export class NotificationManager {
     toast.style.opacity = '0';
 
     const title = this.escapeHtml(data.title || this.titleForType(rawType, data));
-    const body = this.escapeHtml((data.message || data.reason || NOTIF_FB.youHave).substring(0, 180));
     const time = this.escapeHtml(notification.created_at_human || data.created_at_human || NOTIF_FB.now);
     
     const accent = isHigh ? 'bg-red-500' : (cfg.color === 'green' ? 'bg-primary' : (cfg.color === 'amber' ? 'bg-amber-500' : 'bg-text-muted'));
@@ -885,18 +884,17 @@ export class NotificationManager {
       <div class="h-1 w-full ${accent}"></div>
       <div class="p-4 flex gap-3">
         <div class="w-10 h-10 rounded-xl ${iconBg} flex items-center justify-center shrink-0" aria-hidden="true">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="${this.iconPathFor(cfg.icon)}"/></svg>
+          ${this.iconSvgFor(cfg.icon, 'w-5 h-5')}
         </div>
         <div class="flex-1 min-w-0">
           <div class="text-sm font-extrabold text-text-primary dark:text-text-primary leading-5">${title}</div>
-          <div class="text-xs text-text-secondary dark:text-text-secondary leading-5 mt-1 line-clamp-2">${body}</div>
           <div class="text-[11px] text-text-muted dark:text-text-muted mt-1.5">${time}</div>
         </div>
           <button type="button" aria-label="${this.escapeHtml(NOTIF_FB.close)}" class="shrink-0 w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-text-muted dark:text-text-muted hover:text-text-secondary dark:hover:text-text-secondary transition">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+          <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M216,56V200a16,16,0,0,1-16,16H56a16,16,0,0,1-16-16V56A16,16,0,0,1,56,40H200A16,16,0,0,1,216,56Z" opacity="0.2"/><path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,205.66a8,8,0,0,1-11.32-11.32L116.69,128,50.34,61.66A8,8,0,0,1,61.66,50.34L128,116.69l66.34-66.35a8,8,0,0,1,11.32,11.32L139.31,128Z"/></svg>
         </button>
       </div>
-      ${url ? `<div class="px-4 pb-3 -mt-1"><span class="inline-flex items-center gap-1 text-xs font-bold text-primary">${this.escapeHtml(NOTIF_FB.viewDetails)} <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></span></div>` : ''}
+      ${url ? `<div class="px-4 pb-3 -mt-1"><span class="inline-flex items-center gap-1 text-xs font-bold text-primary">${this.escapeHtml(NOTIF_FB.viewDetails)} <svg class="w-3 h-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M176,128,96,208V48Z" opacity="0.2"/><path d="M181.66,122.34l-80-80A8,8,0,0,0,88,48V208a8,8,0,0,0,13.66,5.66l80-80A8,8,0,0,0,181.66,122.34ZM104,188.69V67.31L164.69,128Z"/></svg></span></div>` : ''}
     `;
 
     
@@ -972,12 +970,13 @@ export class NotificationManager {
     return cfgLabel(cfg) || NOTIF_FB.newNotif;
   }
 
-  iconPathFor(iconKey) {
+  iconSvgFor(iconKey, cls) {
+    const svgOpen = `<svg class="${cls}" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor">`;
     const map = {
-      bell: 'M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9',
-      check: 'M5 13l4 4L19 7',
-      'x-circle': 'M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
-      inbox: 'M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9',
+      bell: `${svgOpen}<path d="M208,192H48a8,8,0,0,1-6.88-12C47.71,168.6,56,147.81,56,112a72,72,0,0,1,144,0c0,35.82,8.3,56.6,14.9,68A8,8,0,0,1,208,192Z" opacity="0.2"/><path d="M224,71.1a8,8,0,0,1-10.78-3.42,94.13,94.13,0,0,0-33.46-36.91,8,8,0,1,1,8.54-13.54,111.46,111.46,0,0,1,39.12,43.09A8,8,0,0,1,224,71.1ZM35.71,72a8,8,0,0,0,7.1-4.32A94.13,94.13,0,0,1,76.27,30.77a8,8,0,1,0-8.54-13.54A111.46,111.46,0,0,0,28.61,60.32,8,8,0,0,0,35.71,72Zm186.1,103.94A16,16,0,0,1,208,200H167.2a40,40,0,0,1-78.4,0H48a16,16,0,0,1-13.79-24.06C43.22,160.39,48,138.28,48,112a80,80,0,0,1,160,0C208,138.27,212.78,160.38,221.81,175.94ZM150.62,200H105.38a24,24,0,0,0,45.24,0ZM208,184c-10.64-18.27-16-42.49-16-72a64,64,0,0,0-128,0c0,29.52-5.38,53.74-16,72Z"/></svg>`,
+      check: `${svgOpen}<path d="M232,56V200a16,16,0,0,1-16,16H40a16,16,0,0,1-16-16V56A16,16,0,0,1,40,40H216A16,16,0,0,1,232,56Z" opacity="0.2"/><path d="M205.66,85.66l-96,96a8,8,0,0,1-11.32,0l-40-40a8,8,0,0,1,11.32-11.32L104,164.69l90.34-90.35a8,8,0,0,1,11.32,11.32Z"/></svg>`,
+      'x-circle': `${svgOpen}<path d="M224,128a96,96,0,1,1-96-96A96,96,0,0,1,224,128Z" opacity="0.2"/><path d="M165.66,101.66,139.31,128l26.35,26.34a8,8,0,0,1-11.32,11.32L128,139.31l-26.34,26.35a8,8,0,0,1-11.32-11.32L116.69,128,90.34,101.66a8,8,0,0,1,11.32-11.32L128,116.69l26.34-26.35a8,8,0,0,1,11.32,11.32ZM232,128A104,104,0,1,1,128,24,104.11,104.11,0,0,1,232,128Zm-16,0a88,88,0,1,0-88,88A88.1,88.1,0,0,0,216,128Z"/></svg>`,
+      inbox: `${svgOpen}<path d="M216,48V160H179.31a8,8,0,0,0-5.66,2.34l-19.31,19.32a8,8,0,0,1-5.66,2.34H107.31a8,8,0,0,1-5.66-2.34L82.34,162.34A8,8,0,0,0,76.68,160H40V48a8,8,0,0,1,8-8H208A8,8,0,0,1,216,48Z" opacity="0.2"/><path d="M208,32H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32Zm0,16V152h-28.7A15.86,15.86,0,0,0,168,156.69L148.69,176H107.31L88,156.68A15.89,15.89,0,0,0,76.69,152H48V48Zm0,160H48V168H76.69L96,187.32A15.89,15.89,0,0,0,107.31,192h41.38A15.86,15.86,0,0,0,160,187.31L179.31,168H208v40Z"/></svg>`,
     };
     return map[iconKey] || map.bell;
   }
@@ -1011,26 +1010,18 @@ export class NotificationManager {
     document.querySelector('#notification-drawer .notif-footlink')?.classList.toggle('hidden', empty);
 
     if (empty) {
-      this.listEl.innerHTML = '<div class="notif-empty" role="status"><div class="notif-empty-ic" aria-hidden="true"><svg class="notif-empty-svg" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg></div><p class="notif-empty-title">' + this.escapeHtml(NOTIF_FB.emptyTitle) + '</p><p class="notif-empty-hint">' + this.escapeHtml(NOTIF_FB.emptyHint) + '</p></div>';
+      this.listEl.innerHTML = '<div class="notif-empty" role="status"><div class="notif-empty-ic" aria-hidden="true"><svg class="notif-empty-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M208,192H48a8,8,0,0,1-6.88-12C47.71,168.6,56,147.81,56,112a72,72,0,0,1,144,0c0,35.82,8.3,56.6,14.9,68A8,8,0,0,1,208,192Z" opacity="0.2"/><path d="M224,71.1a8,8,0,0,1-10.78-3.42,94.13,94.13,0,0,0-33.46-36.91,8,8,0,1,1,8.54-13.54,111.46,111.46,0,0,1,39.12,43.09A8,8,0,0,1,224,71.1ZM35.71,72a8,8,0,0,0,7.1-4.32A94.13,94.13,0,0,1,76.27,30.77a8,8,0,1,0-8.54-13.54A111.46,111.46,0,0,0,28.61,60.32,8,8,0,0,0,35.71,72Zm186.1,103.94A16,16,0,0,1,208,200H167.2a40,40,0,0,1-78.4,0H48a16,16,0,0,1-13.79-24.06C43.22,160.39,48,138.28,48,112a80,80,0,0,1,160,0C208,138.27,212.78,160.38,221.81,175.94ZM150.62,200H105.38a24,24,0,0,0,45.24,0ZM208,184c-10.64-18.27-16-42.49-16-72a64,64,0,0,0-128,0c0,29.52-5.38,53.74-16,72Z"/></svg></div><p class="notif-empty-title">' + this.escapeHtml(NOTIF_FB.emptyTitle) + '</p><p class="notif-empty-hint">' + this.escapeHtml(NOTIF_FB.emptyHint) + '</p></div>';
       return;
     }
 
     this.listEl.innerHTML = this.notifications.slice(0, 20).map(n => {
       const data = n.data || {};
-      const rawType = data.type || n.type || 'generic';
-      const cfg = getTypeConfig(rawType);
+      const cfg = getTypeConfig('generic');
       const isUnread = !n.read_at;
       const rawUrl = this.resolveUrl(n);
       const url = this.escapeHtml(rawUrl || '');
       const title = this.escapeHtml(data.title || cfgLabel(cfg) || NOTIF_FB.notif);
-      const body = this.escapeHtml(data.message || '');
       const time = this.escapeHtml(n.created_at_human || NOTIF_FB.now);
-      const sender = this.escapeHtml(data.sender_name || data.processor_name || '');
-      const meta = [];
-      if (data.camera_number) meta.push(`${NOTIF_FB.camera} ${this.escapeHtml(String(data.camera_number))}`);
-      if (data.floor_number) meta.push(`${NOTIF_FB.floor} ${this.escapeHtml(String(data.floor_number))}`);
-      const metaStr = meta.join(' · ');
-      const reason = data.reason ? `<div class="notif-reason">${this.escapeHtml(data.reason)}</div>` : '';
       const tone = cfg.color === 'green' ? 'green' : cfg.color === 'amber' ? 'amber' : cfg.color === 'red' ? 'red' : 'slate';
 
       const openTag = rawUrl
@@ -1040,7 +1031,7 @@ export class NotificationManager {
       return `
         ${openTag}
           <div class="notif-ic notif-ic--${tone}" aria-hidden="true">
-            <svg class="notif-ic-svg" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.9"><path stroke-linecap="round" stroke-linejoin="round" d="${this.iconPathFor(cfg.icon)}"/></svg>
+            ${this.iconSvgFor(cfg.icon, 'notif-ic-svg')}
           </div>
           <div class="notif-main">
             <div class="notif-head">
@@ -1048,9 +1039,6 @@ export class NotificationManager {
               ${isUnread ? `<span class="notif-dot" aria-label="${this.escapeHtml(NOTIF_FB.unread)}"></span>` : ''}
               <span class="notif-time">${time}</span>
             </div>
-            ${body ? `<span class="notif-msg">${body}</span>` : ''}
-            ${(metaStr || sender) ? `<span class="notif-meta">${sender ? sender + (metaStr ? ' · ' + metaStr : '') : metaStr}</span>` : ''}
-            ${reason}
           </div>
         ${closeTag}
       `;
@@ -1208,11 +1196,10 @@ export class NotificationManager {
       const rawType = data.type || notification.type || '';
       const cfg = getTypeConfig(rawType);
       const title = data.title || cfgLabel(cfg) || NOTIF_FB.newNotif;
-      const body = (data.message || data.reason || NOTIF_FB.youHave).substring(0, 130);
       const url = this.resolveUrl(notification);
 
       const n = new Notification(title, {
-        body,
+        body: '',
         icon: '/pwa/icons/icon-192.png',
         badge: '/pwa/icons/icon-192.png',
         tag: String(notification.id),
@@ -1220,8 +1207,9 @@ export class NotificationManager {
         silent: false,
       });
       n.onclick = () => {
+        if (!url) return;
         window.focus();
-        if (url) window.location.href = url;
+        window.location.href = url;
         n.close();
       };
       

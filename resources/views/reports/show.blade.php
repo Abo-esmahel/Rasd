@@ -12,7 +12,7 @@
     $canPublish = $isOwner && $isDraft && $notesCount > 0 && (trim((string) $report->content) !== '' || $hasApproved);
     $locked = $report->isPublished() && $report->isLocked();
     $deadline = $report->editDeadline();
-    $aiEnabled = (bool) config('ai.enabled', false);
+    $aiEnabled = (bool) config('ai.enabled', false) && (string) config('ai.provider', 'gemini') === 'gemini';
     $aiKeyPresent = trim((string) config('ai.gemini.api_key', '')) !== '';
     // فالديشن واجهة: عند غياب المفتاح نعرض زراً معطلاً مع رسالة بدل إخفائه بصمت.
     $aiMissingKey = ($aiMissingKey ?? false) || ($aiEnabled && !$aiKeyPresent);
@@ -22,6 +22,11 @@
     $publishMissingNotes = $notesCount === 0;
     $publishMissingApprove = trim((string) $report->content) === '' && !$hasApproved;
     $publishHint = ($publishMissingNotes && $publishMissingApprove) ? __('ui.publish_hint_both') : ($publishMissingNotes ? __('ui.publish_hint_note') : ($publishMissingApprove ? __('ui.publish_hint_approve') : ''));
+    $reactionLabels = ['like' => ['👍', __('ui.like')], 'love' => ['❤️', __('ui.love')], 'insightful' => ['💡', __('ui.insightful')], 'thanks' => ['🙏', __('ui.thanks')], 'dislike' => ['👎', __('ui.dislike')], 'angry' => ['😡', __('ui.angry')]];
+    $reportReactions = $report->reactions->groupBy('reaction')->map->count();
+    $myReportReaction = $report->reactions->firstWhere('user_id', auth()->id())?->reaction;
+    $reportComments = $report->comments;
+    $canComment = auth()->user()->can('comment', $report);
 @endphp
 
 <style>
@@ -279,7 +284,7 @@
     <div class="rpt-head">
         <div class="flex items-start gap-2.5 min-w-0 flex-1">
             <a href="{{ route('reports.index') }}" class="shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-lg border border-[#e6e9e1] dark:border-[#333b34] bg-white dark:bg-[#232926] text-[#6b7a6e] dark:text-[#9bb0a0] hover:text-[#0e6a38] dark:hover:text-[#4ade80] hover:border-[#0e6a38] transition mt-0.5" aria-label="{{ __('ui.back_to_reports') }}">
-                <svg class="w-4 h-4 rtl:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                <x-phosphor-caret-right-duotone class="w-4 h-4 rtl:rotate-180" />
             </a>
             <div class="min-w-0 flex-1">
                 <h1 class="rpt-head-title truncate">{{ l10n_text('report', $report->id, 'title', $report->title) }}</h1>
@@ -292,9 +297,6 @@
                     <span class="tabular-nums">{{ $report->report_date->toDateString() }}</span>
                     <span>·</span>
                     <span>{{ $notesCount }} {{ $notesCount === 1 ? __('ui.note_one') : __('ui.notes_many') }}</span>
-                    @if(!$report->visible_to_monitors)
-                        <span class="inline-flex items-center px-1.5 py-0.5 rounded bg-[#fef3c7] text-[11px] font-bold text-[#92400e] border border-[#fde68a]">{{ __('ui.hidden_from_monitors') }}</span>
-                    @endif
                     @if($isOwner && $report->isPublished())
                         <span class="hidden sm:inline text-[#9aa99a]">·</span>
                         <span class="text-[11.5px] text-[#9aa99a]">{{ __('ui.published_since') }} {{ $report->published_at?->format('Y-m-d H:i') }}@if($deadline && !$locked) · {{ __('ui.edit_until') }} {{ $deadline->format('Y-m-d H:i') }}@elseif($locked) · <span class="font-bold text-[#b45309]">{{ __('ui.locked') }}</span>@endif</span>
@@ -307,14 +309,14 @@
                 @if($canPrint ?? false)
                 <a href="{{ route('reports.print', $report) }}" class="hidden sm:inline-flex items-center justify-center h-8 px-3 rounded-lg border border-[#e6e9e1] dark:border-[#333b34] bg-white dark:bg-[#232926] text-[12px] font-bold text-[#6b7a6e] dark:text-[#9bb0a0] hover:border-[#0e6a38] hover:text-[#0e6a38] dark:hover:text-[#4ade80] transition">{{ __('ui.print') }}</a>
                 <a href="{{ route('reports.print', $report) }}" class="sm:hidden inline-flex items-center justify-center w-8 h-8 rounded-lg border border-[#e6e9e1] dark:border-[#333b34] bg-white dark:bg-[#232926] text-[#6b7a6e] dark:text-[#9bb0a0] hover:border-[#0e6a38] hover:text-[#0e6a38] dark:hover:text-[#4ade80] transition" aria-label="{{ __('ui.print') }}">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.7"><path stroke-linecap="round" stroke-linejoin="round" d="M6 9V3h12v6M6 18h12M8 14h8M6 9h12a2 2 0 012 2v4a2 2 0 01-2 2H6a2 2 0 01-2-2v-4a2 2 0 012-2z"/></svg>
+                    <x-phosphor-printer-duotone class="w-4 h-4" />
                 </a>
                 @endif
             @endcan
             @if($pageMenu)
             <div data-menu>
                 <button type="button" data-menu-btn aria-haspopup="menu" aria-expanded="false" aria-label="{{ __('ui.report_actions') }}" class="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-[#e6e9e1] dark:border-[#333b34] bg-white dark:bg-[#232926] text-[#6b7a6e] dark:text-[#9bb0a0] hover:border-[#0e6a38] dark:hover:text-[#4ade80] hover:text-[#0e6a38] transition">
-                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><circle cx="10" cy="4" r="1.6"/><circle cx="10" cy="10" r="1.6"/><circle cx="10" cy="16" r="1.6"/></svg>
+                    <x-phosphor-dots-three-duotone class="w-4 h-4" />
                 </button>
                 <div data-menu-list class="hidden" role="menu">
                     @if($isOwner && !$locked)
@@ -336,7 +338,7 @@
     @if($errors->any())<div class="flex items-center gap-2 bg-[#fef2f2] border border-[#fecaca] text-[#b91c1c] rounded-xl px-3.5 py-2.5 mt-3 text-[13px] font-bold rpt-anim-in">{{ $errors->first() }}</div>@endif
     @if(($pvState ?? 'none') === 'stale')
     <div class="mt-3 flex items-start gap-2 bg-[#fef3c7] border border-[#fde68a] text-[#92400e] rounded-xl px-3.5 py-2.5 text-[12.5px] leading-5 font-bold">
-        <svg class="w-4 h-4 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+        <x-phosphor-warning-duotone class="w-4 h-4 mt-0.5 shrink-0" />
         <span>{{ __('ui.stale_approved') }}</span>
     </div>
     @endif
@@ -358,11 +360,11 @@
                 </div>
                 <div class="flex items-center gap-1">
                     <button type="button" id="preview-expand-btn" class="inline-flex items-center justify-center w-7 h-7 rounded-lg border border-[#e6e9e1] dark:border-[#333b34] bg-white dark:bg-[#232926] text-[#6b7a6e] dark:text-[#9bb0a0] hover:text-[#0e6a38] dark:hover:text-[#4ade80] hover:border-[#0e6a38] transition" aria-label="{{ __('ui.expand_full') }}" title="{{ __('ui.expand_full') }}">
-                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+                        <x-phosphor-arrows-out-duotone class="w-3.5 h-3.5" />
                     </button>
                 </div>
             </div>
-            <link rel="stylesheet" href="{{ asset('report/css/report-engine.css') }}?v=18">
+            <link rel="stylesheet" href="{{ asset('report/css/report-engine.css') }}?v=19">
             <div id="paper-preview-wrap" data-paper-fit data-report-id="{{ $report->id }}" class="rpt-preview-viewport">
                 <p id="report-l10n-badge" class="hidden text-[11px] font-bold text-[#0e6a38] bg-[#e8f3ec] border border-[#cde7d6] rounded-lg px-2.5 py-1 mb-2 w-fit" role="status"></p>
                 @if(!empty($htmlPreview ?? null))
@@ -381,7 +383,7 @@
                     @else
                     <div class="flex items-center gap-3 px-4 py-3 bg-white dark:bg-[#232926] border border-dashed border-[#d4ddd3] dark:border-[#333b34] rounded-xl">
                         <div class="w-9 h-9 rounded-lg bg-[#f5f7f5] dark:bg-[#1e2320] border border-[#e6e9e1] dark:border-[#333b34] flex items-center justify-center shrink-0">
-                            <svg class="w-4.5 h-4.5 text-[#c2cbc1] dark:text-[#4a5a4f]" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                            <x-phosphor-file-text-duotone class="w-4.5 h-4.5 text-[#c2cbc1] dark:text-[#4a5a4f]" />
                         </div>
                         <div class="min-w-0">
                             <p class="text-[12.5px] font-semibold text-[#6b7a6e] dark:text-[#9bb0a0]">{{ __('ui.no_notes_yet') }}</p>
@@ -400,7 +402,7 @@
                 @if($canPrint ?? false)
                 <a href="{{ route('reports.preview', $report) }}" class="font-bold text-[#0e6a38] dark:text-[#4ade80] hover:underline inline-flex items-center gap-1">
                     {{ __('ui.open') }}
-                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6v6m-11 5L21 3"/></svg>
+                    <x-phosphor-arrow-square-out-duotone class="w-3 h-3" />
                 </a>
                 @endif
             </div>
@@ -415,7 +417,7 @@
                         <div class="text-[11px] text-white/70">{{ $report->report_date->toDateString() }} · {{ $notesCount }} {{ __('ui.notes_many') }}</div>
                     </div>
                     <button type="button" id="preview-modal-close" class="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-white/10 hover:bg-white/15 text-white backdrop-blur">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                        <x-phosphor-x-duotone class="w-5 h-5" />
                     </button>
                 </div>
                 <div class="flex-1 min-h-0 max-w-[900px] w-full mx-auto bg-[#ece7d9] rounded-xl overflow-auto p-3 sm:p-4" id="preview-modal-body"></div>
@@ -470,20 +472,20 @@
                                 <span class="tabular-nums whitespace-nowrap" dir="ltr">{{ $n->observed_at?->format('H:i') }}</span>
                                 @if($n->attachments && $n->attachments->count())
                                     <span class="hidden sm:inline opacity-60">·</span>
-                                    <span class="inline-flex items-center gap-1 whitespace-nowrap text-[#6b7a6e]"><svg class="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg> <span dir="ltr">{{ $n->attachments->count() }}</span></span>
+                                    <span class="inline-flex items-center gap-1 whitespace-nowrap text-[#6b7a6e]"><x-phosphor-paperclip-duotone class="w-3 h-3 shrink-0" /> <span dir="ltr">{{ $n->attachments->count() }}</span></span>
                                 @endif
                                 @if($isOwner && $isDraft)
                                 <span class="ms-auto inline-flex items-center gap-0.5">
                                     <button type="button" class="reorder-btn rpt-ic" data-dir="-1" aria-label="{{ __('ui.move_up') }}">
-                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7"/></svg>
+                                        <x-phosphor-caret-up-duotone class="w-3.5 h-3.5" />
                                     </button>
                                     <button type="button" class="reorder-btn rpt-ic" data-dir="1" aria-label="{{ __('ui.move_down') }}">
-                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                                        <x-phosphor-caret-down-duotone class="w-3.5 h-3.5" />
                                     </button>
                                     <form method="POST" action="{{ route('reports.detach', [$report, $n->id]) }}" onsubmit="return confirm('{{ __('ui.remove_note_confirm') }}')" class="inline">
                                         @csrf @method('DELETE')
                                         <button type="submit" class="rpt-ic rpt-ic-danger" aria-label="{{ __('ui.remove') }}">
-                                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                                            <x-phosphor-x-duotone class="w-3.5 h-3.5" />
                                         </button>
                                     </form>
                                 </span>
@@ -504,9 +506,7 @@
                     <div class="epn-medal" aria-hidden="true">
                         <span class="epn-ring"></span>
                         <span class="epn-core">
-                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.3">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                            </svg>
+                            <x-phosphor-file-text-duotone />
                         </span>
                         <span class="epn-plus">+</span>
                     </div>
@@ -515,7 +515,7 @@
                     @if($isOwner && $isDraft)
                     <div class="epn-cta">
                         <button type="button" class="epn-btn" onclick="var d=document.getElementById('attach-details');if(d){d.open=true;d.scrollIntoView({behavior:'smooth',block:'start'});}">
-                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+                            <x-phosphor-plus-duotone />
                             {{ __('ui.add_notes') }}
                         </button>
                         <a href="{{ route('reports.edit', $report) }}" class="epn-link">{{ __('ui.edit_btn') }}</a>
@@ -523,9 +523,9 @@
                     @endif
                 </div>
                 <div class="epn-foot">
-                    <span class="epn-chip"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg> {{ __('ui.camera') }}</span>
-                    <span class="epn-chip"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg> {{ __('ui.floor') }}</span>
-                    <span class="epn-chip"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg> <span class="tabular-nums">{{ $report->report_date->toDateString() }}</span></span>
+                    <span class="epn-chip"><x-phosphor-video-camera-duotone /> {{ __('ui.camera') }}</span>
+                    <span class="epn-chip"><x-phosphor-buildings-duotone /> {{ __('ui.floor') }}</span>
+                    <span class="epn-chip"><x-phosphor-calendar-duotone /> <span class="tabular-nums">{{ $report->report_date->toDateString() }}</span></span>
                 </div>
             </div>
             @endif
@@ -533,10 +533,10 @@
             <details id="attach-details" class="epa">
                 <summary class="epa-sum">
                     <span class="epa-ic">
-                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+                        <x-phosphor-plus-duotone />
                     </span>
                     {{ __('ui.add_notes') }} @if(isset($candidates) && $candidates->count())<span class="epa-count">{{ $candidates->count() }} {{ __('ui.available') }}</span>@endif
-                    <svg class="epa-chev" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                    <x-phosphor-caret-down-duotone class="epa-chev" />
                 </summary>
                 <form method="POST" action="{{ route('reports.attach', $report) }}" id="attach-form" class="epa-body">
                     @csrf
@@ -567,12 +567,92 @@
         </section>
         @endif
 
+        <section id="report-discussion" class="rpt-card p-4 sm:p-5 scroll-mt-4">
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+                <div>
+                    <h2 class="text-[14px] font-extrabold text-[#1a2e1f] dark:text-[#e7ece5]">{{ __('ui.report_comments') }}</h2>
+                </div>
+                <div class="flex flex-wrap gap-1.5" aria-label="{{ __('ui.report_comments') }}">
+                    @foreach($reactionLabels as $type => [$emoji, $label])
+                        <form method="POST" action="{{ route('reports.reaction', $report) }}">
+                            @csrf @method('PUT')
+                            <input type="hidden" name="reaction" value="{{ $type }}">
+                            <button type="submit" aria-pressed="{{ $myReportReaction === $type ? 'true' : 'false' }}" class="inline-flex items-center gap-1.5 min-h-9 px-2.5 rounded-full border text-[11.5px] font-bold transition {{ $myReportReaction === $type ? 'bg-[#e8f3ec] border-[#9dc9aa] text-[#0e6a38] dark:bg-[#1e3328] dark:border-[#315b3c] dark:text-[#4ade80]' : 'bg-[#f9faf8] border-[#e6e9e1] text-[#6b7a6e] hover:border-[#0e6a38] hover:text-[#0e6a38] dark:bg-[#1e2320] dark:border-[#333b34] dark:text-[#9bb0a0]' }}" title="{{ $label }}">
+                                <span aria-hidden="true">{{ $emoji }}</span><span>{{ $reportReactions[$type] ?? 0 }}</span>
+                            </button>
+                        </form>
+                    @endforeach
+                </div>
+            </div>
+
+            @if($canComment)
+                <form method="POST" action="{{ route('reports.comments.store', $report) }}" class="grid gap-2.5 mb-5">
+                    @csrf
+                    <label for="report-comment-body" class="sr-only">{{ __('ui.comment_placeholder') }}</label>
+                    <textarea id="report-comment-body" name="body" rows="3" maxlength="3000" required placeholder="{{ __('ui.comment_placeholder') }}" class="w-full resize-y min-h-[84px] rounded-xl border border-[#e6e9e1] bg-[#fdfcfa] px-3.5 py-3 text-[13px] leading-6 text-[#1a2e1f] placeholder:text-[#9aa99a] focus:outline-none focus:border-[#0e6a38] focus:ring-2 focus:ring-[#0e6a38]/10 dark:border-[#333b34] dark:bg-[#1e2320] dark:text-[#e7ece5]">{{ old('body') }}</textarea>
+                    @error('body')<p class="text-[12px] font-bold text-red-600">{{ $message }}</p>@enderror
+                    <button type="submit" class="justify-self-start inline-flex items-center justify-center min-h-9 px-4 rounded-lg bg-[#0e6a38] text-white text-[12px] font-bold hover:bg-[#0a4d28] transition">{{ __('ui.comment_send') }}</button>
+                </form>
+            @endif
+
+            <div class="grid gap-3">
+                @forelse($reportComments as $comment)
+                    <article class="rounded-xl border border-[#eceee9] bg-[#f9faf8] p-3.5 dark:border-[#333b34] dark:bg-[#1e2320]">
+                        <div class="flex items-center justify-between gap-3">
+                            <a href="{{ $comment->user ? route('profile.showUser', $comment->user->id) : '#' }}" @if(!$comment->user) class="pointer-events-none opacity-60" @endif class="text-[12px] font-extrabold text-[#1a2e1f] dark:text-[#e7ece5] hover:text-[#0e6a38] hover:underline transition">{{ $comment->user?->localized_name ?? '—' }}</a>
+                            <time class="text-[10.5px] text-[#9aa99a] tabular-nums" datetime="{{ $comment->created_at?->toIso8601String() }}">{{ $comment->created_at?->format('Y-m-d H:i') }}</time>
+                        </div>
+                        <p class="mt-2 text-[13px] leading-6 text-[#34483a] dark:text-[#c6d1c8] whitespace-pre-line break-words">{{ $comment->body }}</p>
+                        <div class="flex flex-wrap items-center gap-1.5 mt-3">
+                            @php
+                                $commentMyReaction = $comment->reactions->firstWhere('user_id', auth()->id())?->reaction;
+                            @endphp
+                            @foreach($reactionLabels as $type => [$emoji, $label])
+                                <form method="POST" action="{{ route('reports.comments.reaction', $comment) }}">
+                                    @csrf @method('PUT')
+                                    <input type="hidden" name="reaction" value="{{ $type }}">
+                                    <button type="submit" aria-pressed="{{ $commentMyReaction === $type ? 'true' : 'false' }}" class="inline-flex items-center gap-1 min-h-8 px-2 rounded-full border text-[10.5px] font-bold {{ $commentMyReaction === $type ? 'bg-[#e8f3ec] border-[#9dc9aa] text-[#0e6a38] dark:bg-[#1e3328] dark:border-[#315b3c] dark:text-[#4ade80]' : 'bg-white border-[#e6e9e1] text-[#6b7a6e] hover:border-[#0e6a38] dark:bg-[#232926] dark:border-[#333b34] dark:text-[#9bb0a0]' }}" title="{{ $label }}"><span aria-hidden="true">{{ $emoji }}</span><span>{{ $comment->reactions->where('reaction', $type)->count() }}</span></button>
+                                </form>
+                            @endforeach
+                        </div>
+                        @foreach($comment->replies as $reply)
+                            <div class="mt-3 ms-3 sm:ms-5 border-s-2 border-[#cde7d6] ps-3 sm:ps-4">
+                                <div class="flex items-center justify-between gap-3"><a href="{{ $reply->user ? route('profile.showUser', $reply->user->id) : '#' }}" @if(!$reply->user) class="pointer-events-none opacity-60" @endif class="text-[11.5px] font-extrabold text-[#1a2e1f] dark:text-[#e7ece5] hover:text-[#0e6a38] hover:underline transition">{{ $reply->user?->localized_name ?? '—' }}</a><time class="text-[10px] text-[#9aa99a] tabular-nums">{{ $reply->created_at?->format('Y-m-d H:i') }}</time></div>
+                                <p class="mt-1.5 text-[12.5px] leading-6 text-[#34483a] dark:text-[#c6d1c8] whitespace-pre-line break-words">{{ $reply->body }}</p>
+                                <div class="flex flex-wrap gap-1.5 mt-2">
+                                    @php
+                                        $replyMyReaction = $reply->reactions->firstWhere('user_id', auth()->id())?->reaction;
+                                    @endphp
+                                    @foreach($reactionLabels as $type => [$emoji, $label])
+                                        <form method="POST" action="{{ route('reports.comments.reaction', $reply) }}">@csrf @method('PUT')<input type="hidden" name="reaction" value="{{ $type }}"><button type="submit" aria-pressed="{{ $replyMyReaction === $type ? 'true' : 'false' }}" class="inline-flex items-center gap-1 min-h-7 px-2 rounded-full border text-[10px] font-bold {{ $replyMyReaction === $type ? 'bg-[#e8f3ec] border-[#9dc9aa] text-[#0e6a38]' : 'bg-white border-[#e6e9e1] text-[#6b7a6e] dark:bg-[#232926] dark:border-[#333b34] dark:text-[#9bb0a0]' }}" title="{{ $label }}"><span aria-hidden="true">{{ $emoji }}</span><span>{{ $reply->reactions->where('reaction', $type)->count() }}</span></button></form>
+                                    @endforeach
+                                </div>
+                            </div>
+                        @endforeach
+                        @if($canComment)
+                            <details class="mt-3">
+                                <summary class="w-fit cursor-pointer list-none text-[11.5px] font-bold text-[#0e6a38] hover:text-[#0a4d28]">{{ __('ui.reply') }}</summary>
+                                <form method="POST" action="{{ route('reports.comments.store', $report) }}" class="grid gap-2 mt-2">
+                                    @csrf<input type="hidden" name="parent_id" value="{{ $comment->id }}">
+                                    <label for="reply-{{ $comment->id }}" class="sr-only">{{ __('ui.reply_placeholder') }}</label>
+                                    <textarea id="reply-{{ $comment->id }}" name="body" rows="2" maxlength="3000" required placeholder="{{ __('ui.reply_placeholder') }}" class="w-full resize-y min-h-[64px] rounded-lg border border-[#e6e9e1] bg-white px-3 py-2.5 text-[12.5px] leading-5 text-[#1a2e1f] focus:outline-none focus:border-[#0e6a38] dark:border-[#333b34] dark:bg-[#232926] dark:text-[#e7ece5]"></textarea>
+                                    <button type="submit" class="justify-self-start min-h-8 px-3 rounded-lg border border-[#cde7d6] bg-[#e8f3ec] text-[#0e6a38] text-[11px] font-bold hover:bg-[#dceee2]">{{ __('ui.reply') }}</button>
+                                </form>
+                            </details>
+                        @endif
+                    </article>
+                @empty
+                    <p class="rounded-xl border border-dashed border-[#d9e1d9] px-4 py-5 text-center text-[12px] text-[#6b7a6e] dark:border-[#333b34] dark:text-[#9bb0a0]">{{ __('ui.no_comments') }}</p>
+                @endforelse
+            </div>
+        </section>
+
         @if($showFinal)
         <section id="final-data-editor" class="scroll-mt-4">
             <div class="flex items-center justify-between gap-3 mb-3">
                 <div class="flex items-center gap-2.5">
                     <span class="w-7 h-7 rounded-lg bg-[#eef4f0] border border-[#cde7d6] flex items-center justify-center text-[#0e6a38] hidden sm:flex">
-                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                        <x-phosphor-pencil-simple-duotone class="w-3.5 h-3.5" />
                     </span>
                     <h2 class="text-[13px] sm:text-[14px] font-extrabold text-[#1a2e1f] tracking-tight">{{ __('ui.final_data') }}</h2>
                     <span class="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full bg-[#f6f7f5] border border-[#e6e9e1] text-[11px] font-bold text-[#6b7a6e]">{{ count($editorData['observations'] ?? []) }} {{ __('ui.notes_many') }}</span>
@@ -590,7 +670,7 @@
                         @endforeach
                     </div>
                     <label class="grid gap-1.5 p-2.5 sm:p-3 bg-[#fdfcfa] border border-[#eceee9] rounded-xl hover:border-[#d4ddd3] hover:bg-white transition">
-                        <span class="flex items-center gap-2 text-[11.5px] font-bold text-[#6b7a6e]"><svg class="w-3.5 h-3.5 text-[#0e6a38]" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l6 6m-6-4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg> {{ __('ui.recommendations') }}</span>
+                        <span class="flex items-center gap-2 text-[11.5px] font-bold text-[#6b7a6e]"><x-phosphor-file-text-duotone class="w-3.5 h-3.5 text-[#0e6a38]" /> {{ __('ui.recommendations') }}</span>
                         <textarea id="final-reco" rows="3" maxlength="2000" class="w-full min-h-[88px] sm:min-h-[96px] p-3 rounded-xl border border-[#e6e9e1] bg-white text-[13.5px] sm:text-[14px] leading-7 text-[#1a2e1f] placeholder:text-[#b0bab2] focus:outline-none focus:border-[#0e6a38] focus:ring-2 focus:ring-[#0e6a38]/10 transition resize-y shadow-sm" placeholder="{{ __('ui.reco_placeholder') }}">{{ $editorData['recommendations'] ?? '' }}</textarea>
                     </label>
                 </div>
@@ -640,8 +720,6 @@
                         <span class="text-[11px] text-[#9aa99a]">{{ __('ui.ai_draft_gen') }}</span>
                     </div>
                     <div id="ai-draft-box" class="text-[13.5px] leading-6 text-[#1a2e1f] whitespace-pre-wrap break-words bg-[#f9faf8] dark:bg-[#1e2320] border border-[#eceee9] dark:border-[#333b34] rounded-xl px-3.5 py-3 min-h-[56px] max-h-[220px] overflow-auto">{{ $report->ai_draft_content ?: __('ui.no_draft_yet') }}</div>
-                    <div id="ai-summary-src" class="hidden">{{ $report->ai_summary }}</div>
-                    <div id="ai-reco-src" class="hidden">{{ $report->ai_recommendations }}</div>
                     <div id="ai-error" class="hidden mt-2 rounded-lg bg-[#fef2f2] border border-[#fecaca] px-3 py-2 text-[12px]">
                         <p id="ai-error-msg" class="text-[#b91c1c] font-bold"></p>
                     </div>
@@ -649,15 +727,14 @@
                     @if($aiMissingKey ?? false)
                     <div class="mt-3 rounded-lg bg-[#fef2f2] border border-[#fecaca] px-3 py-2 text-[12px] font-bold text-[#b91c1c]">{{ __('api.ai_not_configured') }}</div>
                     @endif
-                    <form id="ai-form" method="POST" action="{{ route('reports.generate', $report) }}" data-ajax="1" class="mt-3 flex flex-wrap items-center gap-2">
+                    <form id="ai-form" method="POST" action="{{ route('reports.ai-preview') }}" data-report-id="{{ $report->id }}" class="mt-3 flex flex-wrap items-center gap-2">
                         @csrf
                         <button id="ai-generate-btn" type="submit" @disabled($notesCount === 0 || ($aiMissingKey ?? false)) title="{{ ($aiMissingKey ?? false) ? __('api.ai_not_configured') : '' }}" class="rpt-btn inline-flex items-center gap-1.5 h-9 px-4 rounded-lg bg-[#0e6a38] text-white text-[13px] font-bold hover:bg-[#0a4d28] disabled:opacity-40 disabled:cursor-not-allowed">
                             <svg id="ai-spin" class="hidden spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-90" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/></svg>
-                            <span id="ai-btn-label">{{ __('ui.gen_draft') }}</span>
+                            <span id="ai-btn-label">{{ __('ui.ai_generate_suggestion') }}</span>
                         </button>
-                        <button id="ai-adopt-summary" type="button" @disabled(!$report->ai_summary) class="rpt-btn h-8 px-3 rounded-lg border border-[#e6e9e1] bg-white text-[12px] font-bold text-[#6b7a6e] hover:border-[#0e6a38] hover:text-[#0e6a38] disabled:opacity-40 disabled:cursor-not-allowed">{{ __('ui.adopt_summary') }}</button>
-                        <button id="ai-adopt-reco" type="button" @disabled(!$report->ai_recommendations) class="rpt-btn h-8 px-3 rounded-lg border border-[#e6e9e1] bg-white text-[12px] font-bold text-[#6b7a6e] hover:border-[#0e6a38] hover:text-[#0e6a38] disabled:opacity-40 disabled:cursor-not-allowed">{{ __('ui.adopt_reco') }}</button>
                     </form>
+                    <p id="ai-preview-ready" class="hidden mt-2 text-[11.5px] leading-5 text-[#0e6a38]">{{ __('ui.ai_suggestion_ready') }}</p>
                     @endif
                 </div>
                 @endif
@@ -669,14 +746,14 @@
         <details class="rounded-xl border border-[#e6e9e1] dark:border-[#333b34] bg-[#f9faf8] dark:bg-[#232926] px-3.5 py-3">
             <summary class="text-[12px] font-bold text-[#6b7a6e] dark:text-[#9bb0a0] cursor-pointer list-none [&::-webkit-details-marker]:hidden select-none flex items-center justify-between">
                 <span>{{ __('ui.revisions_log', ['n' => $report->revisions->count()]) }}</span>
-                <svg class="w-3.5 h-3.5 text-[#9aa99a]" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                <x-phosphor-caret-down-duotone class="w-3.5 h-3.5 text-[#9aa99a]" />
             </summary>
             <div class="mt-3 grid gap-1.5 border-t border-[#eceee9] dark:border-[#333b34] pt-3">
             @foreach($report->revisions as $rev)
                 <div class="flex gap-2 text-[12px] leading-5">
                     <span class="tabular-nums text-[#9aa99a] shrink-0">{{ $rev->created_at?->format('Y-m-d H:i') }}</span>
                     <span class="w-px bg-[#e6e9e1] dark:bg-[#333b34] shrink-0"></span>
-                    <span class="font-bold text-[#1a2e1f] dark:text-[#e7ece5] truncate">{{ $rev->editor->localized_name ?? '—' }}</span>
+                    <a href="{{ $rev->editor ? route('profile.showUser', $rev->editor->id) : '#' }}" @if(!$rev->editor) class="pointer-events-none opacity-60" @endif class="font-bold text-[#1a2e1f] dark:text-[#e7ece5] truncate hover:text-[#0e6a38] hover:underline transition">{{ $rev->editor->localized_name ?? '—' }}</a>
                     <span class="text-[#6b7a6e] dark:text-[#9bb0a0] truncate flex-1">{{ \Illuminate\Support\Str::limit($rev->content_snapshot, 110) }}</span>
                 </div>
             @endforeach
@@ -715,6 +792,9 @@ const RPT_T = {
     genDraft: @json(__('ui.gen_draft')),
     aiConfigured: @json(!($aiMissingKey ?? false)),
     aiNotConfigured: @json(__('api.ai_not_configured')),
+    aiSuggestionReady: @json(__('ui.ai_suggestion_ready')),
+    aiOverwrite: @json(__('ui.ai_suggestion_overwrite')),
+    aiGenerate: @json(__('ui.ai_generate_suggestion')),
 };
 
 (function () {
@@ -1092,6 +1172,9 @@ const RPT_T = {
     form.addEventListener('submit', async function (e) {
         e.preventDefault();
         errBox.classList.add('hidden');
+        const summaryField = document.getElementById('field-summary');
+        const recoField = document.getElementById('field-reco');
+        if ((summaryField?.value.trim() || recoField?.value.trim()) && !window.confirm(RPT_T.aiOverwrite)) return;
         // فالديشن واجهة مبكر: بدون مفتاح API نعرض رسالة التحقق فوراً.
         if (RPT_T.aiConfigured === false) {
             errMsg.textContent = RPT_T.aiNotConfigured;
@@ -1108,42 +1191,31 @@ const RPT_T = {
                 method: 'POST',
                 signal: controller.signal,
                 headers: { 'X-CSRF-TOKEN': csrf, 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json', 'Content-Type': 'application/json' },
-                body: JSON.stringify({ include_images: true }),
+                body: JSON.stringify({ report_id: Number(form.dataset.reportId) }),
             });
             const data = await res.json().catch(() => ({}));
             if (res.ok && data.success) {
-                document.getElementById('ai-draft-box').innerText = data.data.ai_draft_content || '';
-                document.getElementById('ai-summary-src').innerText = data.data.ai_summary || '';
-                document.getElementById('ai-reco-src').innerText = data.data.ai_recommendations || '';
-                document.getElementById('ai-adopt-summary').disabled = !data.data.ai_summary;
-                document.getElementById('ai-adopt-reco').disabled = !data.data.ai_recommendations;
+                document.getElementById('ai-draft-box').innerText = data.data.content || '';
+                if (summaryField) summaryField.value = data.data.summary || '';
+                if (recoField) recoField.value = data.data.recommendations || '';
+                document.getElementById('ai-preview-ready')?.classList.remove('hidden');
+                summaryField?.focus();
                 label.textContent = RPT_T.draftDone;
             } else {
                 errMsg.textContent = data.message || RPT_T.generateFailed;
                 errBox.classList.remove('hidden');
-                label.textContent = RPT_T.genDraft;
+                label.textContent = RPT_T.aiGenerate;
             }
         } catch (err) {
             errMsg.textContent = err && err.name === 'AbortError' ? RPT_T.timeoutRetry : RPT_T.offlineGenerate;
             errBox.classList.remove('hidden');
-            label.textContent = RPT_T.genDraft;
+            label.textContent = RPT_T.aiGenerate;
         } finally {
             clearTimeout(killer);
             btn.disabled = false;
             spin.classList.add('hidden');
         }
     });
-    function adopt(btnId, srcId, targetId) {
-        document.getElementById(btnId)?.addEventListener('click', function () {
-            const text = document.getElementById(srcId)?.innerText.trim() || '';
-            const target = document.getElementById(targetId);
-            if (!text || !target) return;
-            target.value = text;
-            target.focus();
-        });
-    }
-    adopt('ai-adopt-summary', 'ai-summary-src', 'field-summary');
-    adopt('ai-adopt-reco', 'ai-reco-src', 'field-reco');
 })();
 
 (function () {
@@ -1186,7 +1258,6 @@ const RPT_T = {
 })();
 </script>
 
-{{-- جهات الاتصال الفورية --}}
 @php
     try {
         $footerContacts = \Illuminate\Support\Facades\Cache::remember('report_footer_contacts_'.auth()->id(), 600, fn () => \App\Models\User::select(['id','name','name_en','name_ar','role','avatar_path','personal_number'])->where('role','report_writer')->whereNotNull('personal_number')->where('personal_number','!=','')->where('id','!=',auth()->id())->orderBy('name')->limit(6)->get());
@@ -1203,7 +1274,7 @@ const RPT_T = {
         <div class="px-5 sm:px-6 py-4 border-b border-[#f1f3f0] dark:border-[#2a352f] flex items-center justify-between gap-3">
             <h2 class="text-[14px] sm:text-[15px] font-semibold tracking-tight text-ink-800 dark:text-[#e7ece5] flex items-center gap-2.5">
                 <span class="w-8 h-8 rounded-xl bg-[#eef4f0] dark:bg-[#1e3328] border border-[#eceee9] dark:border-[#2e352e] flex items-center justify-center shrink-0">
-                    <svg class="w-4 h-4 text-[#0e6a38] dark:text-[#5cb87a]" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
+                    <x-phosphor-phone-duotone class="w-4 h-4 text-[#0e6a38] dark:text-[#5cb87a]" />
                 </span>
                 {{ __('ui.instant_contacts') }}
             </h2>
@@ -1216,25 +1287,19 @@ const RPT_T = {
                     <div class="absolute bottom-0 left-1/2 -translate-x-1/2 w-[44px] h-[3px] pointer-events-none">
                         <div class="w-full h-full bg-[#0e6a38] dark:bg-[#1a8a50] rounded-t-[3px]" style="clip-path: polygon(7% 100%, 93% 100%, 88% 0, 12% 0)"></div>
                     </div>
-                    <a href="{{ route('profile.showUser', $c->id) }}" class="shrink-0">
-                        @if($c->avatar_url)
-                            <img src="{{ $c->avatar_url }}" alt="{{ $c->localized_name }}" class="w-10 h-10 rounded-xl object-cover border border-[#eceee9] dark:border-[#2e352e] shadow-sm">
-                        @else
-                            <span class="w-10 h-10 rounded-xl bg-[#eef4f0] dark:bg-[#1e3328] border border-[#eceee9] dark:border-[#2e352e] text-[#0e6a38] dark:text-[#5cb87a] flex items-center justify-center text-[13px] font-semibold shadow-sm">{{ $c->initial }}</span>
-                        @endif
-                    </a>
+                    <x-user-link :user="$c" size="xl" shape="rounded-xl" skin="soft" />
                     <div class="min-w-0 flex-1">
-                        <div class="text-[13.5px] font-semibold tracking-tight text-ink-800 dark:text-[#e7ece5] truncate">{{ $c->localized_name }}</div>
+                        <a href="{{ route('profile.showUser', $c->id) }}" class="block text-[13.5px] font-semibold tracking-tight text-ink-800 dark:text-[#e7ece5] truncate hover:text-[#0e6a38] hover:underline transition">{{ $c->localized_name }}</a>
                         <div class="text-xs text-ink-500 dark:text-[#8a9a8e] truncate">{{ $c->isReportWriter() ? __('ui.role_writer') : __('ui.role_monitor') }}</div>
                         <div class="mt-0.5 text-[11px] font-mono tabular-nums tracking-widest text-ink-600 dark:text-[#9bb0a0]" dir="ltr">{{ $c->personal_number }}</div>
                     </div>
                     <div class="flex items-center gap-1.5 shrink-0">
                         <a href="tel:{{ $c->personal_number }}" class="w-9 h-9 sm:w-8 sm:h-8 rounded-full bg-white dark:bg-[#252b26] border border-[#eceee9] dark:border-[#2e352e] text-ink-600 dark:text-[#9bb0a0] hover:text-[#0e6a38] hover:border-[#e0e7df] flex items-center justify-center transition touch-manipulation" title="{{ __('ui.call') }}">
-                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
+                            <x-phosphor-phone-duotone class="w-3.5 h-3.5" />
                         </a>
                         @if($c->whatsapp_url)
                         <a href="{{ $c->whatsapp_url }}" target="_blank" rel="noopener" class="w-9 h-9 sm:w-8 sm:h-8 rounded-full bg-[#25D366] hover:bg-[#1da851] active:bg-[#168a3a] text-white flex items-center justify-center shadow-sm transition touch-manipulation" title="{{ __('ui.share_whatsapp') }}">
-                            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                            <x-phosphor-whatsapp-logo-duotone class="w-3.5 h-3.5" />
                         </a>
                         @endif
                     </div>

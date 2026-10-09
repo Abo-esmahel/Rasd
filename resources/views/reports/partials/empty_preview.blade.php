@@ -1,4 +1,3 @@
-{{-- معاينة ذكية للتقرير الفارغ (0 ملاحظات): رسم فقط بلا حشو نصي --}}
 <div class="bg-white dark:bg-[#232926] border border-[#e6e9e1] dark:border-[#333b34] rounded-xl overflow-hidden">
     <style>
         .ep-scope{
@@ -42,17 +41,13 @@
             <line x1="128" y1="0" x2="128" y2="340"/><line x1="256" y1="0" x2="256" y2="340"/><line x1="384" y1="0" x2="384" y2="340"/><line x1="512" y1="0" x2="512" y2="340"/>
         </g>
 
-        {{-- هيكل وثيقة التقرير: 3 أقسام فارغة بدقة --}}
         <g>
             <rect x="56" y="36" width="220" height="268" rx="12" style="fill:var(--ep-doc);stroke:var(--ep-edge)" stroke-width="2"/>
-            {{-- ترويسة الوثيقة --}}
             <rect x="76" y="52" width="180" height="12" rx="6" style="fill:var(--ep-acc)" opacity="0.9"/>
             <rect x="76" y="70" width="118" height="8" rx="4" style="fill:var(--ep-mut)" opacity="0.65"/>
-            {{-- 1) الملخص --}}
             <rect x="76" y="90" width="64" height="14" rx="7" style="fill:var(--ep-accsoft)"/>
             <rect x="76" y="110" width="180" height="7" rx="3.5" style="fill:var(--ep-line)"/>
             <rect x="76" y="121" width="132" height="7" rx="3.5" style="fill:var(--ep-line)"/>
-            {{-- 2) جدول الملاحظات: 3 صفوف فارغة + شارة 0 --}}
             <rect x="76" y="140" width="96" height="14" rx="7" style="fill:var(--ep-accsoft)"/>
             <g style="stroke:var(--ep-dash)" stroke-width="1.6" stroke-dasharray="6 4" fill="none">
                 <rect x="76" y="160" width="180" height="20" rx="6"/>
@@ -62,38 +57,31 @@
             <g style="fill:var(--ep-mut)" opacity="0.8">
                 <circle cx="90" cy="170" r="4"/><circle cx="90" cy="194" r="4"/><circle cx="90" cy="218" r="4"/>
             </g>
-            {{-- 3) التوصيات --}}
             <rect x="76" y="238" width="76" height="14" rx="7" style="fill:var(--ep-accsoft)"/>
             <rect x="76" y="258" width="180" height="7" rx="3.5" style="fill:var(--ep-line)"/>
             <rect x="76" y="271" width="110" height="7" rx="3.5" style="fill:var(--ep-line)"/>
-            {{-- سطر التوقيع --}}
             <line x1="76" y1="292" x2="256" y2="292" style="stroke:var(--ep-edge)" stroke-width="1.5"/>
-            {{-- شارة الصفر فوق الجدول --}}
             <g class="ep-pulse">
                 <circle cx="262" cy="150" r="24" style="fill:var(--ep-zero)" stroke="#fff" stroke-width="3.5"/>
                 <text x="262" y="160" font-size="26" font-weight="800" fill="#fff" text-anchor="middle" font-family="sans-serif">0</text>
             </g>
         </g>
 
-        {{-- تدفق بلا بيانات: من الخط الزمني إلى الوثيقة --}}
         <line x1="292" y1="194" x2="352" y2="194" class="ep-dashflow" style="stroke:var(--ep-dash)" stroke-width="2.5" fill="none"/>
         <g style="stroke:var(--ep-zero)" stroke-width="2.5" stroke-linecap="round">
             <line x1="316" y1="187" x2="328" y2="199"/>
             <line x1="328" y1="187" x2="316" y2="199"/>
         </g>
 
-        {{-- لوحة الخط الزمني 24h بلا وقائع + مسح راداري --}}
         <g>
             <rect x="352" y="36" width="232" height="268" rx="12" style="fill:var(--ep-panel);stroke:var(--ep-edge)" stroke-width="2"/>
             <rect x="372" y="52" width="150" height="12" rx="6" style="fill:var(--ep-acc)" opacity="0.9"/>
-            {{-- محور 24 ساعة: تكات فارغة --}}
             <g style="fill:var(--ep-line)">
                 @for($i = 0; $i < 12; $i++)
                 <rect x="{{ 372 + $i * 17 }}" y="86" width="9" height="26" rx="4.5"/>
                 @endfor
             </g>
             <line x1="372" y1="122" x2="564" y2="122" style="stroke:var(--ep-edge)" stroke-width="2"/>
-            {{-- رادار المسح --}}
             <g>
                 <circle cx="468" cy="205" r="52" fill="none" style="stroke:var(--ep-edge)" stroke-width="2"/>
                 <circle cx="468" cy="205" r="36" fill="none" style="stroke:var(--ep-edge)" stroke-width="1.5" stroke-dasharray="4 4"/>
@@ -103,13 +91,11 @@
                 </g>
                 <rect x="416" y="153" width="104" height="104" rx="52" style="fill:var(--ep-scan)"/>
             </g>
-            {{-- عدسة فوق الفراغ --}}
             <g>
                 <circle cx="540" cy="248" r="22" fill="none" style="stroke:var(--ep-mut)" stroke-width="4"/>
                 <line x1="556" y1="264" x2="572" y2="280" style="stroke:var(--ep-mut)" stroke-width="7" stroke-linecap="round"/>
                 <line x1="532" y1="248" x2="548" y2="248" style="stroke:var(--ep-dash)" stroke-width="2.5" stroke-linecap="round"/>
             </g>
-            {{-- شريط حالة المسودة --}}
             <g>
                 <circle cx="384" cy="288" r="5" style="fill:var(--ep-amber)"/>
                 <circle cx="402" cy="288" r="5" style="fill:var(--ep-line)"/>

@@ -8,17 +8,17 @@
             <div class="pointer-events-none absolute -bottom-20 right-6 h-52 w-52 rounded-full bg-black/15 blur-3xl" aria-hidden="true"></div>
             <div class="relative mx-auto flex h-16 w-16 items-center justify-center rounded-3xl border border-white/30 bg-white/15 text-white backdrop-blur-sm shadow-lg">
                 @if($icon === 'moved')
-                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3"/></svg>
+                    <x-phosphor-arrow-right-duotone class="w-8 h-8" />
                 @elseif($icon === 'expired')
-                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    <x-phosphor-clock-duotone class="w-8 h-8" />
                 @elseif($icon === 'denied')
-                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                    <x-phosphor-seal-check-duotone class="w-8 h-8" />
                 @elseif($icon === 'done')
-                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    <x-phosphor-check-circle-duotone class="w-8 h-8" />
                 @elseif($icon === 'missing')
-                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M9.172 16.172A4 4 0 015.656 14H5a3 3 0 01-3-3V9a3 3 0 013-3h1.172a4 4 0 012.828-1.172h1.172A4 4 0 0113 5.656V6a3 3 0 003 3h2a3 3 0 013 3v2a3 3 0 01-3 3h-.344a4 4 0 01-2.828 1.172H9.172z"/><circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/></svg>
+                    <x-phosphor-puzzle-piece-duotone class="w-8 h-8" />
                 @else
-                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/></svg>
+                    <x-phosphor-sparkle-duotone class="w-8 h-8" />
                 @endif
             </div>
         </div>
@@ -44,7 +44,7 @@
 
             <div class="mt-4 grid gap-2">
                 <a href="{{ $target }}" id="sr-go" class="inline-flex items-center justify-center gap-2 rounded-xl bg-sage-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-sage-700 transition">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3"/></svg>
+                    <x-phosphor-arrow-right-duotone class="w-4 h-4" />
                     {{ __('ui.redirect_go_now') }}
                 </a>
                 <div class="grid grid-cols-2 gap-2">

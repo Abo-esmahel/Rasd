@@ -29,10 +29,29 @@ class GeneralSubmissionController extends Controller
         $query = $this->generalSubmissionService->getVisibleSubmissions($user);
 
         if ($request->filled('status') && in_array($request->status, ['draft', 'pending', 'accepted', 'rejected'], true)) {
-            $query->where('status', $request->status);
+            $query->where('general_submissions.status', $request->status);
+        }
+        if ($request->filled('date') && strtotime($request->date) !== false) {
+            $query->whereDate('general_submissions.observed_at', $request->date);
+        }
+        if ($request->filled('floor_number') && is_numeric($request->floor_number)) {
+            $query->where('general_submissions.floor_number', (int) $request->floor_number);
+        }
+        if ($request->filled('camera_number') && is_numeric($request->camera_number)) {
+            $query->where('general_submissions.camera_number', (int) $request->camera_number);
+        }
+        if ($request->filled('search') && mb_strlen(trim($request->search)) >= 2) {
+            $query->where('general_submissions.description', 'like', '%'.trim($request->search).'%');
         }
 
-        $submissions = $query->orderByDesc('created_at')->paginate(15);
+        $sort = (string) $request->query('sort', 'latest');
+        if ($sort === 'oldest') {
+            $query->orderBy('general_submissions.created_at');
+        } else {
+            $query->orderByDesc('general_submissions.created_at');
+        }
+
+        $submissions = $query->paginate(15);
 
         return response()->json([
             'success' => true,
@@ -248,11 +267,36 @@ class GeneralSubmissionController extends Controller
         $user = $request->user();
         $submission = $attachment->submission;
 
-        if (!$user->can('view', $submission)) {
+        if (!$user->isGeneralManager() && !$user->can('view', $submission)) {
             return response()->json(['success' => false, 'message' => __('api.forbidden_attach_view')], 403);
         }
 
         if (!$this->storage->isLocalSubmission($attachment)) {
+            return response()->json(['success' => false, 'message' => 'الملف غير موجود'], 404);
+        }
+
+        return $this->storage->fileResponseSubmission($attachment, false);
+    }
+
+    /**
+     * عرض مرفق إرسالية برابط موقّع (من داخل PDF) — بلا جلسة ولا Bearer.
+     *
+     * التوقيع نفسه هو التفويض: محدّد بملف واحد وبوقت انتهاء.
+     */
+    public function signedAttachmentView(Request $request, \App\Models\GeneralSubmissionAttachment $attachment)
+    {
+        $ok = \App\Services\Pdf\AttachmentSignedUrl::verify(
+            (int) $attachment->getKey(),
+            $request->query('e'),
+            $request->query('s'),
+            true,
+        );
+
+        if (! $ok) {
+            return response()->json(['success' => false, 'message' => __('api.forbidden_attach_view')], 403);
+        }
+
+        if (! $this->storage->isLocalSubmission($attachment)) {
             return response()->json(['success' => false, 'message' => 'الملف غير موجود'], 404);
         }
 
@@ -264,11 +308,11 @@ class GeneralSubmissionController extends Controller
         $user = $request->user();
         $submission = $attachment->submission;
 
-        if (!$user->can('view', $submission)) {
+        if (!$user->isGeneralManager() && !$user->can('view', $submission)) {
             return response()->json(['success' => false, 'message' => __('api.forbidden_attach_download')], 403);
         }
 
-        if (!$user->isReportWriter()) {
+        if (!$user->isReportWriter() && !$user->isGeneralManager() && $submission->user_id !== $user->id) {
             return response()->json(['success' => false, 'message' => __('api.download_writer_only')], 403);
         }
 

@@ -150,17 +150,25 @@ self.addEventListener('push', e => {
   let data = {};
   try { data = e.data ? e.data.json() : {}; } catch { try{ data = JSON.parse(e.data.text()); }catch{ data={}; } }
   const title = data.title || data.data?.title || 'إشعار جديد';
-  const body = data.body || data.message || data.data?.message || 'لديك إشعار جديد';
+  const body = data.body || data.message || data.data?.message || '';
   const url = data.url || data.data?.url || '/notifications';
   const tag = data.tag || 'rasd-' + Date.now();
-  e.waitUntil(self.registration.showNotification(title, {
-    body: body.substring(0,180),
-    icon: '/pwa/icons/icon-192.png',
-    badge: '/pwa/icons/icon-192.png',
-    tag: tag,
-    requireInteraction: true,
-    vibrate: [250, 100, 250],
-    data: { url: url }
+  e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(windows => {
+    const appIsOpen = windows.some(client => {
+      try { return new URL(client.url).origin === self.location.origin; }
+      catch { return false; }
+    });
+    if (appIsOpen) return;
+
+    return self.registration.showNotification(title, {
+      body: body.substring(0,180),
+      icon: '/pwa/icons/icon-192.png',
+      badge: '/pwa/icons/icon-192.png',
+      tag: tag,
+      requireInteraction: true,
+      vibrate: [250, 100, 250],
+      data: { url: url }
+    });
   }));
 });
 
@@ -172,5 +180,3 @@ self.addEventListener('notificationclick', e => {
     return clients.openWindow(url);
   }));
 });
-
-

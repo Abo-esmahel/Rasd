@@ -57,6 +57,8 @@ class User extends Authenticatable
         'role',
         'locale',
         'avatar_path',
+        'banned_at',
+        'ban_reason',
     ];
 
     protected $appends = ['avatar_url', 'whatsapp_number', 'whatsapp_url'];
@@ -70,6 +72,7 @@ class User extends Authenticatable
     {
         return [
             'password' => 'hashed',
+            'banned_at' => 'datetime',
         ];
     }
 
@@ -91,6 +94,22 @@ class User extends Authenticatable
     public function isReportWriter(): bool
     {
         return $this->role === 'report_writer';
+    }
+
+    public function isGeneralManager(): bool
+    {
+        return $this->role === 'general_manager';
+    }
+
+    /**
+     * محظور = تسجيل الدخول مرفوض.
+     *
+     * لا نخفيه عند isGeneralManager: الحظر يشمل الجميع بلا استثناء، وإلا
+     * استُخدم دور المدير كملاذ من الحظر.
+     */
+    public function isBanned(): bool
+    {
+        return $this->banned_at !== null;
     }
 
     public function getAvatarUrlAttribute(): ?string

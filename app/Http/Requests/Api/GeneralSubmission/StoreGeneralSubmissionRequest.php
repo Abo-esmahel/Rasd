@@ -39,7 +39,7 @@ class StoreGeneralSubmissionRequest extends FormRequest
                         $fail(__('api.validation_recipients_unique'));
                     }
                     
-                    $validWriters = User::whereIn('id', $value)->where('role', 'report_writer')->pluck('id');
+                    $validWriters = User::whereIn('id', $value)->whereIn('role', ['report_writer', 'general_manager'])->pluck('id');
                     $invalidIds = array_diff($value, $validWriters->toArray());
                     if (!empty($invalidIds)) {
                         $fail(__('api.validation_recipients_writers'));

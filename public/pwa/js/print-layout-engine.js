@@ -1024,7 +1024,7 @@ export function runTests(){
   });
 
   test('N=3 very long desc — NO clipping, desc stays inside A4, images reduced but not thumbnails', ()=>{
-    const longDesc = 'تم رصد الحالة عبر كاميرا المراقبة_IP_192.168.1.20 في الطابق الثالث عند الساعة 14:35. ';
+    const longDesc = 'تم رصد الحالة عبر كاميرا المراقبة_IP_192.0.2.20 في الطابق الثالث عند الساعة 14:35. ';
     const o=eng.layout([mk('a',4000,3000),mk('b',2000,3000),mk('c',2000,3000)], longDesc.repeat(8), {width:210,height:297});
     eng.validateLayout(o);
     
@@ -1046,7 +1046,7 @@ export function runTests(){
   });
 
   test('N=3 Arabic+English+numbers — RTL correct, no content loss', ()=>{
-    const mixedDesc = 'تم رصد الحالة عند الساعة 14:35\nCamera ID: CAM-03\nIP: 192.168.1.20\nالغرفة: غرفة التحكم الرئيسية - الطابق الثالث';
+    const mixedDesc = 'تم رصد الحالة عند الساعة 14:35\nCamera ID: CAM-03\nIP: 192.0.2.20\nالغرفة: غرفة التحكم الرئيسية - الطابق الثالث';
     const o=eng.layout([mk('a',4000,3000),mk('b',2000,3000),mk('c',2000,3000)], mixedDesc, {width:210,height:297});
     eng.validateLayout(o);
     

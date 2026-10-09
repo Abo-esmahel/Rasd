@@ -24,13 +24,13 @@
             </div>
             <div class="mt-3 text-sm">
                 <span class="text-ink-400">{{ __('ui.sender') }}</span>
-                <span class="font-bold text-ink-700" data-no-translate>{{ $generalSubmission->owner->localized_name }}</span>
+                <a href="{{ route('profile.showUser', $generalSubmission->owner->id) }}" class="font-bold text-ink-700 hover:text-[#0e6a38] hover:underline transition" data-no-translate>{{ $generalSubmission->owner->localized_name }}</a>
             </div>
             @if(auth()->user()->isMonitor())
             <div class="mt-2 flex flex-wrap gap-1">
                 <span class="text-xs text-ink-400">{{ __('ui.to') }}</span>
                 @foreach($generalSubmission->reportWriters as $w)
-                    <span class="px-2 py-0.5 rounded-full bg-[#f5f7f5] border text-xs font-bold">{{ $w->localized_name }}</span>
+                    <a href="{{ route('profile.showUser', $w->id) }}" class="px-2 py-0.5 rounded-full bg-[#f5f7f5] border text-xs font-bold hover:text-[#0e6a38] hover:border-[#cde7d6] transition">{{ $w->localized_name }}</a>
                 @endforeach
             </div>
             @endif
@@ -72,7 +72,7 @@
                     @if($generalSubmission->processed_by)
                         @php $processor = \App\Models\User::find($generalSubmission->processed_by); @endphp
                         @if($processor)
-                            <div class="mt-2 text-xs font-bold text-red-500">{{ __('ui.by_user') }} {{ $processor->localized_name }} — {{ $generalSubmission->processed_at?->format('Y-m-d H:i') }}</div>
+                            <div class="mt-2 text-xs font-bold text-red-500">{{ __('ui.by_user') }} <a href="{{ route('profile.showUser', $processor->id) }}" class="hover:underline transition">{{ $processor->localized_name }}</a> — {{ $generalSubmission->processed_at?->format('Y-m-d H:i') }}</div>
                         @endif
                     @endif
                 </div>
@@ -81,7 +81,7 @@
                 @php $processor = \App\Models\User::find($generalSubmission->processed_by); @endphp
                 @if($processor)
                     <div class="mt-4 p-3 rounded-xl bg-[#eef4f0] border border-[#cde7d6] text-sm">
-                        <span class="font-bold text-[#0e6a38]">{{ __('ui.approved_by') }} {{ $processor->localized_name }}</span>
+                        <a href="{{ route('profile.showUser', $processor->id) }}" class="font-bold text-[#0e6a38] hover:underline transition">{{ __('ui.approved_by') }} {{ $processor->localized_name }}</a>
                         <span class="text-ink-400"> — {{ $generalSubmission->processed_at?->format('Y-m-d H:i') }}</span>
                     </div>
                 @endif
@@ -90,7 +90,7 @@
         
         <div class="p-4 bg-[#f5f7f5] border-t border-[#e6e9e1] flex flex-wrap items-center gap-2">
             <button type="button" onclick="openModal('gs-share-modal')" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#25D366] text-white text-sm font-bold hover:bg-[#1da851] transition">
-                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2a10 10 0 00-8.6 15.1L2 22l5-1.3A10 10 0 1012 2zm0 18.2a8.2 8.2 0 01-4.2-1.1l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1112 20.2zm4.6-6.1c-.3-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1l-.8 1c-.1.2-.3.2-.5.1a6.7 6.7 0 01-3.3-2.9c-.3-.4 0-.5.1-.7l.5-.6c.1-.2.1-.4 0-.5L9.5 8c-.2-.4-.4-.4-.6-.4h-.5c-.2 0-.5.2-.7.5-.9 1-.6 2.7.7 4.5a11.6 11.6 0 004.5 3.9c1.7.7 2.4.8 3.2.6.5-.1 1.5-.6 1.7-1.2.2-.6.2-1.1.1-1.2 0-.1-.2-.1-.4-.2z"/></svg>
+                <x-phosphor-whatsapp-logo-duotone class="w-4 h-4" />
                 {{ __('ui.share_whatsapp') }}
             </button>
             @can('accept', $generalSubmission)
@@ -127,7 +127,7 @@
             <div class="px-5 py-4 border-b border-[#e6e9e1] flex items-center justify-between">
                 <h3 class="text-sm font-extrabold text-ink-800">{{ __('ui.share_sub') }}</h3>
                 <button type="button" onclick="closeModal('gs-share-modal')" class="w-8 h-8 rounded-lg hover:bg-[#f5f7f5] flex items-center justify-center text-ink-300 hover:text-ink-700 transition" aria-label="{{ __('ui.close_camera') }}">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                    <x-phosphor-x-duotone class="w-5 h-5" />
                 </button>
             </div>
             <div class="p-5 space-y-3">

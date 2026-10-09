@@ -59,7 +59,7 @@ class GeneralSubmissionService
         }
 
         
-        $writers = User::whereIn('id', $writerIds)->where('role', 'report_writer')->get();
+        $writers = User::whereIn('id', $writerIds)->whereIn('role', ['report_writer', 'general_manager'])->get();
         if ($writers->isEmpty() || $writers->count() !== count($writerIds)) {
             throw new InvalidArgumentException(__('api.sub_recipients_must_writers'));
         }
@@ -271,7 +271,7 @@ class GeneralSubmissionService
 
         
         $writers = User::whereIn('id', $reportWriterIds)
-            ->where('role', 'report_writer')
+            ->whereIn('role', ['report_writer', 'general_manager'])
             ->get();
 
         if ($writers->count() !== count($reportWriterIds)) {

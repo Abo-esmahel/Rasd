@@ -17,24 +17,35 @@ class ProfileController extends Controller
 
     public function show(Request $request, ?int $id = null)
     {
+        $viewer = Auth::user();
         if ($id) {
             $user = \App\Models\User::findOrFail($id);
-            $stats = $this->getStats($user);
-            $isOwn = Auth::id() === $user->id;
+            $stats = $this->getStats($user, $viewer);
+            $isOwn = $viewer->id === $user->id;
             return view('profile.show', compact('user', 'stats', 'isOwn'));
         }
-        $user = Auth::user();
-        $stats = $this->getStats($user);
+        $user = $viewer;
+        $stats = $this->getStats($user, $viewer);
         $isOwn = true;
         return view('profile.show', compact('user', 'stats', 'isOwn'));
     }
 
     public function ranking()
     {
+        $viewer = Auth::user();
+        $canSeeDrafts = $viewer && ($viewer->isReportWriter() || $viewer->isGeneralManager());
         $monitors = \App\Models\User::where('role', 'monitor')
             ->withCount([
-                'notes as total_notes',
-                'notes as draft_notes' => fn($q) => $q->where('status', 'draft'),
+                'notes as total_notes' => function($q) use ($canSeeDrafts) {
+                    if (!$canSeeDrafts) $q->where('status', '!=', 'draft');
+                },
+                'notes as draft_notes' => function($q) use ($canSeeDrafts, $viewer) {
+                    if (!$canSeeDrafts) {
+                        $q->whereRaw('1=0');
+                    } else {
+                        $q->where('status', 'draft');
+                    }
+                },
                 'notes as pending_notes' => fn($q) => $q->where('status', 'pending'),
                 'notes as accepted_notes' => fn($q) => $q->where('status', 'accepted'),
                 'notes as rejected_notes' => fn($q) => $q->where('status', 'rejected'),
@@ -47,10 +58,21 @@ class ProfileController extends Controller
                 'notes as total_notes' => fn($q) => $q->where('user_id', \Illuminate\Support\Facades\DB::raw('users.id')),
             ])
             ->get();
-        $rawCounts = \Illuminate\Support\Facades\Cache::remember('ranking-global-stats', 300, fn () => \App\Models\Note::selectRaw('status, COUNT(*) as c')->groupBy('status')->pluck('c', 'status')->toArray());
+        $cacheKey = $canSeeDrafts ? 'ranking-global-stats:privileged' : 'ranking-global-stats:public';
+        try {
+            $rawCounts = \Illuminate\Support\Facades\Cache::remember($cacheKey, 300, function () use ($canSeeDrafts) {
+                $q = \App\Models\Note::selectRaw('status, COUNT(*) as c')->groupBy('status');
+                if (!$canSeeDrafts) $q->where('status', '!=', 'draft');
+                return $q->pluck('c', 'status')->toArray();
+            });
+        } catch (\Throwable $e) {
+            $q = \App\Models\Note::selectRaw('status, COUNT(*) as c')->groupBy('status');
+            if (!$canSeeDrafts) $q->where('status', '!=', 'draft');
+            $rawCounts = $q->pluck('c', 'status')->toArray();
+        }
         $globalStats = [
             'total' => array_sum($rawCounts),
-            'draft' => $rawCounts['draft'] ?? 0,
+            'draft' => $canSeeDrafts ? ($rawCounts['draft'] ?? 0) : 0,
             'pending' => $rawCounts['pending'] ?? 0,
             'accepted' => $rawCounts['accepted'] ?? 0,
             'rejected' => $rawCounts['rejected'] ?? 0,
@@ -59,19 +81,43 @@ class ProfileController extends Controller
         return view('profile.ranking', compact('monitors', 'writers', 'globalStats'));
     }
 
-    private function getStats(\App\Models\User $user): array
+    private function getStats(\App\Models\User $user, ?\App\Models\User $viewer = null): array
     {
-        return \Illuminate\Support\Facades\Cache::remember('profile-stats:'.$user->id, 120, function () use ($user) {
-            $counts = $user->notes()->selectRaw('status, COUNT(*) as c')->groupBy('status')->pluck('c', 'status')->toArray();
+        $viewer = $viewer ?: Auth::user();
+        $isOwn = $viewer && $viewer->id === $user->id;
+        $canSeeDrafts = $isOwn || ($viewer && ($viewer->isReportWriter() || $viewer->isGeneralManager()));
+        $cacheKey = 'profile-stats:'.$user->id.':'.($canSeeDrafts ? 'priv' : 'pub');
+        try {
+            return \Illuminate\Support\Facades\Cache::remember($cacheKey, 120, function () use ($user, $canSeeDrafts) {
+            $q = $user->notes()->selectRaw('status, COUNT(*) as c')->groupBy('status');
+            if (!$canSeeDrafts) {
+                $q->where('status', '!=', 'draft');
+            }
+            $counts = $q->pluck('c', 'status')->toArray();
 
             return [
                 'total' => array_sum($counts),
-                'draft' => $counts['draft'] ?? 0,
+                'draft' => $canSeeDrafts ? ($counts['draft'] ?? 0) : 0,
                 'pending' => $counts['pending'] ?? 0,
                 'accepted' => $counts['accepted'] ?? 0,
                 'rejected' => $counts['rejected'] ?? 0,
             ];
-        });
+            });
+        } catch (\Throwable $e) {
+            $q = $user->notes()->selectRaw('status, COUNT(*) as c')->groupBy('status');
+            if (!$canSeeDrafts) {
+                $q->where('status', '!=', 'draft');
+            }
+            $counts = $q->pluck('c', 'status')->toArray();
+
+            return [
+                'total' => array_sum($counts),
+                'draft' => $canSeeDrafts ? ($counts['draft'] ?? 0) : 0,
+                'pending' => $counts['pending'] ?? 0,
+                'accepted' => $counts['accepted'] ?? 0,
+                'rejected' => $counts['rejected'] ?? 0,
+            ];
+        }
     }
 
     public function edit()

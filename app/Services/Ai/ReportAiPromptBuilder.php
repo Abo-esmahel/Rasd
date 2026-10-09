@@ -33,12 +33,14 @@ class ReportAiPromptBuilder
                 '- INTELLIGENCE REQUIRED: Understand notes as a whole, not isolated paragraphs.',
                 '  • Order events chronologically.',
                 '  • Group similar events together (same location/type/time window).',
-                '  • Remove duplication (identical facts repeated across cameras).',
+                '  • Merge only confirmed duplicates of the same event; retain every distinct event.',
                 '  • Highlight critical/urgent vs routine.',
                 '  • Show relationships between notes (cause -> effect, same incident on two cameras).',
                 '  • Preserve all factual anchors: times, camera/floor numbers, locations.',
-                '  • Output ONE cohesive, coherent report structure, not N isolated rephrasings.',
-                '- Output JSON ONLY: {"title":"...","summary":"executive summary","recommendations":"numbered practical recommendations","warnings":[],"uncertainties":[]}.',
+                '  • Output ONE cohesive report with a short executive summary and a concise factual narrative, not N isolated rephrasings.',
+                '  • Be precise and restrained: do not repeat facts, add filler, dramatize routine events, or turn uncertainty into certainty.',
+                '- SUMMARY: 1–3 concise sentences; BODY: a coherent chronological narrative (up to 3 short paragraphs) that covers every distinct event and meaningful relationship without repeating the summary. Merge only confirmed duplicates; never omit an independent event. Keep it concise, not flowery.',
+                '- Output JSON ONLY: {"title":"...","summary":"short executive summary","body":"cohesive factual narrative","recommendations":"numbered practical recommendations or empty string","warnings":[],"uncertainties":[]}.',
                 '- generation_language: en — ALL output fields MUST be in English even if notes are Arabic.',
             ]);
         } else {
@@ -55,20 +57,20 @@ class ReportAiPromptBuilder
                 '- الذكاء المطلوب: افهم الملاحظات ككل، لا كفقرات منعزلة.',
                 '  • رتّب الأحداث زمنياً.',
                 '  • جمّع الأحداث المتشابهة (نفس الموقع/النوع/النافذة الزمنية).',
-                '  • أزل التكرار (نفس الواقعة بكاميرتين).',
+                '  • ادمج التكرار المؤكد للواقعة نفسها فقط، مع الإبقاء على كل واقعة مستقلة.',
                 '  • ميّز المهم/العاجل من الروتيني.',
                 '  • أوضح العلاقة بين الملاحظات (سبب→نتيجة، نفس الحادثة بزاويتين).',
                 '  • حافظ على كل المرساة الوقائعية: الأوقات وأرقام الكاميرا/الطابق والمواقع.',
-                '  • أنتج تقريراً واحداً متماسكاً، لا N فقرة معاد صياغتها.',
-                '- أخرج JSON فقط بهذا الشكل: {"title":"...","summary":"ملخص تنفيذي قصير","recommendations":"توصيات عملية مرقمة","warnings":[],"uncertainties":[]}. summary يلخص الملاحظات فقط، وrecommendations توصيات مستمدة منها حصراً.',
+                '  • اكتب تقريراً واحداً متماسكاً بملخص تنفيذي قصير وسرد وقائعي موجز، لا فقرات معاد صياغتها بمعزل عن بعضها.',
+                '  • كن دقيقاً ومقتصداً: لا تكرر الوقائع، ولا تضف حشواً أو تهويلاً، ولا تحوّل عدم اليقين إلى حقيقة.',
+                '- الملخص: جملة إلى ثلاث جمل موجزة. body: سرد زمني متماسك (حتى 3 فقرات قصيرة) يغطي كل واقعة مستقلة والعلاقات المهمة دون إعادة الملخص. ادمج التكرار المؤكد فقط؛ لا تحذف واقعة مستقلة. صياغة مقتصدة بلا إنشاء.',
+                '- أخرج JSON فقط بهذا الشكل: {"title":"...","summary":"ملخص تنفيذي قصير","body":"سرد وقائعي متماسك","recommendations":"توصيات عملية مرقمة أو نص فارغ","warnings":[],"uncertainties":[]}. summary يلخص الملاحظات فقط، وbody يربط الوقائع دون اختراع، وrecommendations مستمدة منها حصراً.',
                 '- generation_language: ar — كل الحقول يجب أن تكون بالعربية حتى لو كانت الملاحظات إنجليزية.',
             ]);
         }
 
-        // Backend: structured facts — dates, locale, ordering (no AI guesswork)
         $generationLanguage = $isEn ? 'en' : 'ar';
         $tz = (string) config('app.timezone', 'UTC');
-        // Chronological order — system decides, not AI
         $sorted = $notes->sortBy(fn ($n) => $n->observed_at?->timestamp ?? PHP_INT_MAX)->values();
 
         $lines = [];
@@ -78,12 +80,14 @@ class ReportAiPromptBuilder
             $lines[] = 'Report title: ' . $report->title;
             $lines[] = 'FACTS from system (not AI): count=' . $sorted->count() . ', timezone=' . $tz;
             $lines[] = '';
-            $lines[] = 'ACCEPTED NOTES for this day only (' . $sorted->count() . ') — already sorted chronologically by system:';
+            $lines[] = 'DAILY NOTES for this day only (' . $sorted->count() . ') — already sorted chronologically by system:';
+            $lines[] = 'Status tags show review state. PENDING means not yet accepted; include it only in this preview and keep its claims neutral. The writer must resolve all pending notes before creating the report.';
             foreach ($sorted as $i => $note) {
                 $at = $note->observed_at ? $note->observed_at->setTimezone($tz)->format('Y-m-d H:i') : 'unspecified';
                 $desc = trim((string) $note->description);
                 if (mb_strlen($desc) > 800) $desc = mb_substr($desc, 0, 800) . '…';
-                $lines[] = sprintf('%d) Note #%d | Floor %s | Camera %s | %s | %s', $i + 1, $note->id, $note->floor_number, $note->camera_number, $at, $desc);
+                $reviewState = $note->status === \App\Models\Note::STATUS_PENDING ? 'PENDING REVIEW' : 'ACCEPTED';
+                $lines[] = sprintf('%d) [%s] Note #%d | Floor %s | Camera %s | %s | %s', $i + 1, $reviewState, $note->id, $note->floor_number, $note->camera_number, $at, $desc);
             }
             $lines[] = '';
             $lines[] = 'Attachment metadata (video/audio/file reference only, no visual analysis):';
@@ -103,12 +107,14 @@ class ReportAiPromptBuilder
             $lines[] = 'عنوان التقرير: ' . $report->title;
             $lines[] = 'حقائق من النظام (ليست من AI): العدد=' . $sorted->count() . '، المنطقة الزمنية=' . $tz;
             $lines[] = '';
-            $lines[] = 'الملاحظات المقبولة لهذا اليوم فقط (' . $sorted->count() . ') — مرتبة زمنياً مسبقاً من النظام:';
+            $lines[] = 'ملاحظات هذا اليوم فقط (' . $sorted->count() . ') — مرتبة زمنياً مسبقاً من النظام:';
+            $lines[] = 'وسم الحالة يوضح المراجعة. قيد المراجعة تعني أنها لم تُقبل بعد؛ أدرجها في هذا الاقتراح فقط بصياغة محايدة. يجب على الكاتب حسم كل الملاحظات المعلّقة قبل إنشاء التقرير.';
             foreach ($sorted as $i => $note) {
                 $at = $note->observed_at ? $note->observed_at->setTimezone($tz)->format('Y-m-d H:i') : 'غير محدد';
                 $desc = trim((string) $note->description);
                 if (mb_strlen($desc) > 800) $desc = mb_substr($desc, 0, 800) . '…';
-                $lines[] = sprintf('%d) ملاحظة #%d | طابق %s | كاميرا %s | %s | %s', $i + 1, $note->id, $note->floor_number, $note->camera_number, $at, $desc);
+                $reviewState = $note->status === \App\Models\Note::STATUS_PENDING ? 'قيد المراجعة' : 'مقبولة';
+                $lines[] = sprintf('%d) [%s] ملاحظة #%d | طابق %s | كاميرا %s | %s | %s', $i + 1, $reviewState, $note->id, $note->floor_number, $note->camera_number, $at, $desc);
             }
             $lines[] = '';
             $lines[] = 'ميتاداتا المرفقات (video/audio/file للمرجع فقط، لا تحليل بصري لها):';

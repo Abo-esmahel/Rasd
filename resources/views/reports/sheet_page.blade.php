@@ -6,7 +6,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{ $report->title }} — {{ __('ui.rpt_sheet_preview') }}</title>
-<link rel="stylesheet" href="{{ asset('report/css/report-engine.css') }}?v=17">
+<link rel="stylesheet" href="{{ asset('report/css/report-engine.css') }}?v=19">
 <style>
   body { margin: 0; background: #525659; font-family: 'Cairo','Segoe UI',Tahoma,sans-serif; }
   .wrap { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 18px 12px 30px; min-height: 100vh; }

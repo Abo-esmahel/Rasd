@@ -7,9 +7,7 @@
         <div class="px-6 py-4 border-b border-[#e6e9e1] flex items-center justify-between gap-4 shrink-0 bg-[#fdfcfa]">
             <div class="flex items-center gap-2.5">
                 <div class="w-9 h-9 rounded-xl bg-[#eef4f0] text-[#0e6a38] flex items-center justify-center shrink-0">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
-                    </svg>
+                    <x-phosphor-printer-duotone class="w-5 h-5" />
                 </div>
                 <div>
                     <h2 class="text-base font-extrabold text-ink-800">{{ __('ui.print') }}</h2>
@@ -17,7 +15,7 @@
                 </div>
             </div>
             <button type="button" onclick="closePrintSelectionModal()" class="w-8 h-8 rounded-lg hover:bg-[#f5f7f5] flex items-center justify-center text-ink-300 hover:text-ink-700 transition" aria-label="{{ __('ui.close_camera') }}">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                <x-phosphor-x-duotone class="w-5 h-5" />
             </button>
         </div>
 
@@ -59,10 +57,7 @@
             </button>
             <button type="button" id="print-proceed-preview-btn" onclick="generateAndOpenPreview()" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#0e6a38] hover:bg-[#0a4d28] text-white font-bold text-sm shadow-sm transition">
                 <span id="print-proceed-spinner" class="hidden w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin"></span>
-                <svg id="print-proceed-icon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
-                </svg>
+                <x-phosphor-eye-duotone id="print-proceed-icon" class="w-4 h-4" />
                 <span id="print-proceed-text">{{ __('ui.print_preview_a4') }}</span>
             </button>
         </div>
@@ -88,7 +83,7 @@
                     {{ __('ui.edit_attachments') }}
                 </button>
                 <button type="button" onclick="closePrintPreviewModal()" class="w-8 h-8 rounded-lg hover:bg-white/10 flex items-center justify-center text-white/70 hover:text-white transition" aria-label="{{ __('ui.close_camera') }}">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                    <x-phosphor-x-duotone class="w-5 h-5" />
                 </button>
             </div>
         </div>
@@ -110,9 +105,7 @@
                     {{ __('ui.close_camera') }}
                 </button>
                 <button type="button" onclick="triggerNativePrint()" class="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-[#0e6a38] hover:bg-[#138044] text-white font-extrabold text-sm shadow-lg shadow-[#0e6a38]/30 transition">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
-                    </svg>
+                    <x-phosphor-printer-duotone class="w-4 h-4" />
                     <span>{{ __('ui.print_now') }}</span>
                 </button>
             </div>
@@ -158,23 +151,6 @@
         min-height: 210mm !important;
         max-width: 297mm !important;
         max-height: 210mm !important;
-    }
-    @media print {
-        .a4-preview-sheet, .a4-print-page {
-            border: none !important;
-            box-shadow: none !important;
-            outline: none !important;
-            transform: none !important;
-            zoom: 1 !important;
-        }
-        #printable-a4-doc .a4-print-page {
-            break-after: avoid !important;
-            page-break-after: avoid !important;
-            break-inside: avoid !important;
-            page-break-inside: avoid !important;
-        }
-        #printable-a4-doc { display:block !important; visibility:visible !important; }
-        #rasd-print-document, #print-preview-pages-container { display:none !important; visibility:hidden !important; }
     }
     
     .a4-preview-sheet {

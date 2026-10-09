@@ -12,8 +12,6 @@ export const CATEGORY = {
   GENERIC: 'generic',
 };
 
-// Locale-aware labels: Arabic default, English when <html lang="en"> or RASD_LOCALE=en.
-// Server sends localized title/message first — these are fallbacks only (ZERO hardcoded visible Arabic in EN).
 export function rasdNotifLocale() {
   try {
     if (typeof window !== 'undefined' && window.RASD_LOCALE === 'en') return 'en';
@@ -138,6 +136,51 @@ export const TYPE_CONFIG = {
     vibrate: [250, 100, 250, 100, 250],
     requireInteraction: true,
   },
+  comment_created: {
+    label: 'تعليق جديد',
+    labelEn: 'New comment',
+    labelShort: 'تعليق',
+    labelShortEn: 'Comment',
+    icon: 'chat',
+    color: 'blue',
+    bgClass: 'bg-surface-elevated border border-border text-blue-600 dark:text-blue-400',
+    dotClass: 'bg-blue-500',
+    priority: PRIORITY.NORMAL,
+    sound: 'normal',
+    duration: 5000,
+    toast: true,
+    vibrate: [150, 80, 150],
+  },
+  reply_created: {
+    label: 'رد جديد',
+    labelEn: 'New reply',
+    labelShort: 'رد',
+    labelShortEn: 'Reply',
+    icon: 'chat',
+    color: 'indigo',
+    bgClass: 'bg-surface-elevated border border-border text-indigo-600 dark:text-indigo-400',
+    dotClass: 'bg-indigo-500',
+    priority: PRIORITY.NORMAL,
+    sound: 'normal',
+    duration: 5000,
+    toast: true,
+    vibrate: [150, 80, 150],
+  },
+  report_published: {
+    label: 'تقرير منشور',
+    labelEn: 'Report published',
+    labelShort: 'منشور',
+    labelShortEn: 'Published',
+    icon: 'doc',
+    color: 'purple',
+    bgClass: 'bg-surface-elevated border border-border text-purple-600 dark:text-purple-400',
+    dotClass: 'bg-purple-500',
+    priority: PRIORITY.NORMAL,
+    sound: 'success',
+    duration: 6000,
+    toast: true,
+    vibrate: [200, 100, 200],
+  },
   generic: {
     label: 'إشعار',
     labelEn: 'Notification',
@@ -166,6 +209,17 @@ export function getTypeConfig(rawType) {
   }
   
   return TYPE_CONFIG.generic;
+}
+
+export function resolveNotifType(data) {
+  if (!data) return 'generic';
+  if (data.comment_id) {
+    return data.parent_id ? 'reply_created' : 'comment_created';
+  }
+  if (data.category === 'report' && data.report_id) {
+    return 'report_published';
+  }
+  return data.type || 'generic';
 }
 
 export const PRIORITY_CONFIG = {

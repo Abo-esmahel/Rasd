@@ -56,7 +56,6 @@ final class ReportEngine
         $reportNumber = trim((string) ($payload['report_number'] ?? $report->id));
         $date = trim((string) ($payload['date'] ?? ($report->report_date ? $report->report_date->toDateString() : '')));
 
-        // Day name + approval date are derived facts (report_date / published_at) — never invented.
         $dayName = '';
         try {
             if ($report->report_date) {
@@ -76,16 +75,13 @@ final class ReportEngine
             $approvalDate = $date;
         }
 
-        // Per-observation structured facts (observer / camera / floor / times / attachments).
-        // Truthful mapping only: index i ↔ i-th note in pivot order WHEN counts match.
-        // Mismatch (AI merge/dedupe) → meta omitted gracefully, text stays untouched.
         $obsMeta = $this->observationDetails($report, $count, $locale);
         $observers = $this->distinctObservers($report, $count);
 
         $obsItems = [];
         foreach (array_values($observations) as $i => $text) {
             $obsItems[] = [
-                'title' => $isEn ? 'Observation '.($i + 1) : 'ملاحظة رقم '.($i + 1),
+                'title' => $this->observationTitle($i + 1, $locale),
                 'paragraphs' => self::splitParagraphs($text),
                 'meta' => $obsMeta[$i] ?? null,
             ];
@@ -97,37 +93,27 @@ final class ReportEngine
             'density' => $density,
             'logo' => '/report/assets/logo-report.png',
             'header' => [
-                'ministry' => $isEn ? 'Syrian Arab Republic' : 'الجمهورية العربية السورية',
-                'ministry_sub' => $isEn ? 'Ministry of Information' : 'وزارة الإعلام',
-                // Paper form title — matches the attached official model.
-                'doc_title' => $isEn ? 'Daily Camera Surveillance Report' : 'نموذج تقرير مراقبة الكاميرات اليومي',
+                'ministry' => __('report.ministry', [], $locale),
+                'ministry_sub' => __('report.ministry_sub', [], $locale),
+                'doc_title' => __('report.doc_title', [], $locale),
             ],
             'day_name' => $dayName,
-            'day_label' => $isEn ? 'Day' : 'اليوم',
-            // Distinct monitor names from the underlying notes (pivot order).
+            'day_label' => __('report.day', [], $locale),
             'observers' => $observers,
             'approval_date' => $approvalDate,
             'notes_count' => $count,
             'report_number' => $reportNumber,
             'report_date' => $date,
-            // Single official identity block — report number + date appear ONCE.
-            // Kept for backward compatibility; template prefers explicit keys above.
             'meta' => array_values(array_filter([
-                $reportNumber !== '' ? ['label' => $isEn ? 'Report Number' : 'رقم التقرير', 'value' => $reportNumber, 'num' => true] : null,
-                $date !== '' ? ['label' => $isEn ? 'Date' : 'التاريخ', 'value' => $date, 'num' => true] : null,
+                $reportNumber !== '' ? ['label' => __('report.number', [], $locale), 'value' => $reportNumber, 'num' => true] : null,
+                $date !== '' ? ['label' => __('report.date', [], $locale), 'value' => $date, 'num' => true] : null,
             ])),
             'observations' => $obsItems,
-            // Independent data only — never copied from observations.
             'recommendations' => self::splitRecommendations($recommendationsText),
-            'recommendations_title' => $isEn ? 'Immediate Actions Taken' : 'الإجراءات التي تم اتخاذها فوراً بناءً على الملاحظة',
-            'signature_caption' => $isEn ? 'Signature' : 'التوقيع',
-            // Real persons only (no invented facts). Rendered as a small
-            // corner signature block WITHOUT any approval heading/panel.
+            'recommendations_title' => __('report.responsibles_title', [], $locale),
+            'signature_caption' => __('report.signature', [], $locale),
             'responsibles' => $this->responsibles($report, $payload, $locale),
-            // No closing identity text: the header owns the official identity.
-            // The footer is a visual closing rule only.
             'footer' => [],
-            // Backend / audit trail only — Blade MUST NOT render this.
             'internal' => [
                 'count_for_layout' => $count,
                 'layout_density' => $density,
@@ -139,6 +125,22 @@ final class ReportEngine
     }
 
     /**
+     * Official form numbering: Arabic ordinals («الملاحظة الأولى»).
+     * Falls back to the plain number beyond the ordinal table.
+     */
+    public function observationTitle(int $n, string $locale = 'ar'): string
+    {
+        $ordinals = __('report.observation_ordinals', [], $locale);
+        $ordinal = is_array($ordinals) ? ($ordinals[$n - 1] ?? null) : null;
+
+        if ($ordinal === null || $ordinal === '') {
+            $ordinal = $n;
+        }
+
+        return __('report.observation', ['ordinal' => $ordinal], $locale);
+    }
+
+    /**
      * Backend density decision: estimated printed lines first (toughest
      * cases: many observations or very long texts → tightest readable),
      * then count + total length. Frontend/Gemini never decide layout.
@@ -147,14 +149,13 @@ final class ReportEngine
     {
         $n = count($observations);
         $total = mb_strlen($recommendations);
-        // ~60 chars per justified Arabic line at body size + title rows.
         $estLines = (int) ceil(mb_strlen($recommendations) / 60);
         foreach ($observations as $o) {
             $len = mb_strlen((string) $o);
             $total += $len;
             $estLines += (int) ceil($len / 60) + 1;
         }
-        $estLines += 8; // header + meta + section titles
+        $estLines += 8;
 
         if ($n > 7 || $estLines > 40) {
             return 'dense';
@@ -195,8 +196,6 @@ final class ReportEngine
             }
             $out[] = $text;
         }
-        // Dedupe exact duplicates (loop/merge bugs) — keep first occurrence.
-        // Never dedupe placeholders: identical "Translation is being prepared…" for different observations must stay separate.
         $seen = [];
         $deduped = [];
         foreach ($out as $t) {
@@ -274,8 +273,6 @@ final class ReportEngine
             return ['items' => [], 'paragraphs' => []];
         }
         $items = self::splitNumberedSequence($text);
-        // Fallback: one recommendation per non-empty line (explicit line
-        // breaks typed by the author), minus bullet prefixes.
         if (count($items) < 2 && str_contains($text, "\n")) {
             $lines = [];
             foreach (preg_split('/\R/u', $text) as $line) {
@@ -335,16 +332,13 @@ final class ReportEngine
         if ($t === '') {
             return '';
         }
-        // Repeated strip (in case of double prefix)
         $prev = null;
         while ($prev !== $t) {
             $prev = $t;
             $t = preg_replace('/^\s*كاميرا\s*\d+\s*[•·\|\/\-–—]\s*طابق\s*\d+\s*[•·\|\/\-–—]\s*\d{1,2}:\d{2}(?::\d{2})?\s*(?:[صم]|AM|PM)?\s*[—–\-•·]+\s*/u', '', $t) ?? $t;
-            // English: Camera 14 • Floor 5 • 06:15 —
             $t = preg_replace('/^\s*Camera\s*\d+\s*[•·\|\/\-–—]\s*Floor\s*\d+\s*[•·\|\/\-–—]\s*\d{1,2}:\d{2}(?::\d{2})?\s*(?:AM|PM)?\s*[—–\-•·]+\s*/iu', '', $t) ?? $t;
             $t = preg_replace('/^\s*كاميرا\s*\d+\s+طابق\s*\d+\s+\d{1,2}:\d{2}(?::\d{2})?\s*[-–—]+\s*/u', '', $t) ?? $t;
             $t = preg_replace('/^\s*Camera\s*\d+\s+Floor\s*\d+\s+\d{1,2}:\d{2}(?::\d{2})?\s*[-–—]+\s*/iu', '', $t) ?? $t;
-            // Only strip if dash follows time and there is remaining text
             if (preg_match('/^\s*\d{1,2}:\d{2}(?::\d{2})?\s*[-–—]+\s+/u', $t) && mb_strlen($t) > 20) {
                 $t = preg_replace('/^\s*\d{1,2}:\d{2}(?::\d{2})?\s*[-–—]+\s+/u', '', $t) ?? $t;
             }
@@ -364,7 +358,6 @@ final class ReportEngine
         if ($len < 100) {
             return $text;
         }
-        // Try repetition counts from high to low; smallest valid block wins.
         for ($n = 10; $n >= 2; $n--) {
             if ($len % $n !== 0) {
                 continue;
@@ -376,7 +369,6 @@ final class ReportEngine
             $block = mb_substr($text, 0, $blockLen);
             $rebuilt = str_repeat($block, $n);
             if ($rebuilt === $text) {
-                // Recurse: block itself might still be repeated.
                 return self::collapseRepeatedText($block);
             }
         }
@@ -388,9 +380,8 @@ final class ReportEngine
     private function responsibles(\App\Models\Report $report, array $payload, string $locale = 'ar'): array
     {
         $isEn = $locale === 'en';
-        $defaultRole = $isEn ? 'Prepared by' : 'معدّ التقرير';
-        $fallbackRole = $isEn ? 'Responsible' : 'مسؤول';
-        // Future-proof: accept explicit responsibles when FinalReportData provides them.
+        $defaultRole = __('report.prepared_by', [], $locale);
+        $fallbackRole = __('report.responsible', [], $locale);
         if (isset($payload['responsibles']) && is_array($payload['responsibles'])) {
             $out = [];
             foreach (array_values($payload['responsibles']) as $r) {
@@ -404,10 +395,10 @@ final class ReportEngine
                 $role = trim((string) ($r['role'] ?? ''));
                 if ($role === '') {
                     $role = $fallbackRole;
-                } elseif ($isEn && $role === 'معدّ التقرير') {
+                } elseif ($isEn && $role === __('report.prepared_by', [], 'ar')) {
                     $role = $defaultRole;
-                } elseif ($isEn && $role === 'مسؤول') {
-                    $role = 'Responsible';
+                } elseif ($isEn && $role === __('report.responsible', [], 'ar')) {
+                    $role = $fallbackRole;
                 }
                 $out[] = ['role' => $role, 'name' => $name];
             }

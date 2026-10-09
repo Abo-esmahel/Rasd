@@ -48,7 +48,7 @@ class SmartRedirectController extends Controller
         }
 
         $authed = auth()->check();
-        $default = $authed ? route('notes.index') : route('login');
+        $default = $authed ? (auth()->user() && (auth()->user()->isGeneralManager() || auth()->user()->isReportWriter()) ? route('reports.index') : route('notes.index')) : route('login');
         $rawTo = $request->query('to');
         $to = self::safeTarget($rawTo, $default);
         $notifPath = parse_url(route('notifications.index'), PHP_URL_PATH) ?: '/notifications';
@@ -69,7 +69,7 @@ class SmartRedirectController extends Controller
             'icon' => self::CODES[$code]['icon'],
             'target' => $to,
             'delay' => $delay,
-            'home' => $authed ? route('notes.index') : route('login'),
+            'home' => $authed ? (auth()->user() && (auth()->user()->isGeneralManager() || auth()->user()->isReportWriter()) ? route('reports.index') : route('notes.index')) : route('login'),
         ]);
     }
 

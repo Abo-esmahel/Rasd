@@ -26,7 +26,6 @@ Route::get('/pwa/', function () {
 });
 
 Route::get('/pwa/manifest.json', function (\Illuminate\Http\Request $request) {
-    // Locale-aware manifest (brand strings follow saved locale — no AI, no network).
     $locale = $request->cookie('rasd_locale');
     if (!in_array($locale, ['ar', 'en'], true)) {
         $locale = $request->session()->get('locale');
@@ -110,10 +109,15 @@ Route::middleware('auth')->group(function () {
     Route::post('/translations/page', [\App\Http\Controllers\Web\DynamicTranslationController::class, 'translatePage'])->name('translations.page')->middleware('throttle:30,1');
 
     Route::get('/dashboard', function () {
+        $u = auth()->user();
+        if ($u && ($u->isGeneralManager() || $u->isReportWriter())) {
+            return redirect()->route('reports.index');
+        }
         return redirect()->route('notes.index');
     })->name('dashboard');
 
     Route::resource('notes', NoteController::class);
+    Route::put('/notes/{note}/reaction', [\App\Http\Controllers\Web\ReportEngagementController::class, 'reactNote'])->name('notes.reaction');
     Route::get('/my-notes', [NoteController::class, 'myNotes'])->name('notes.my');
     Route::get('/gallery', [\App\Http\Controllers\Web\GalleryController::class, 'index'])->name('gallery.index');
 
@@ -173,10 +177,15 @@ Route::middleware('auth')->group(function () {
     Route::get('/reports/insights', [\App\Http\Controllers\Web\ReportController::class, 'insights'])->name('reports.insights');
     Route::get('/reports', [\App\Http\Controllers\Web\ReportController::class, 'index'])->name('reports.index');
     Route::get('/reports/create', [\App\Http\Controllers\Web\ReportController::class, 'create'])->name('reports.create');
+    Route::get('/reports/daily-status', [\App\Http\Controllers\Web\ReportController::class, 'dailyStatus'])->name('reports.daily-status');
     Route::post('/reports', [\App\Http\Controllers\Web\ReportController::class, 'store'])->name('reports.store');
+    Route::post('/reports/ai-preview', \App\Http\Controllers\ReportAiPreviewController::class)->name('reports.ai-preview')->middleware('throttle:3,1');
     Route::get('/report-sheets/{n}', [\App\Http\Controllers\Web\ReportController::class, 'sheet'])->whereNumber('n')->name('report-sheets.image');
     Route::get('/report-assets/logo', [\App\Http\Controllers\Web\ReportController::class, 'logo'])->name('report.logo');
     Route::get('/reports/{report}', [\App\Http\Controllers\Web\ReportController::class, 'show'])->name('reports.show');
+    Route::post('/reports/{report}/comments', [\App\Http\Controllers\Web\ReportEngagementController::class, 'storeComment'])->name('reports.comments.store');
+    Route::put('/reports/{report}/reaction', [\App\Http\Controllers\Web\ReportEngagementController::class, 'reactReport'])->name('reports.reaction');
+    Route::put('/report-comments/{comment}/reaction', [\App\Http\Controllers\Web\ReportEngagementController::class, 'reactComment'])->name('reports.comments.reaction');
     Route::get('/reports/{report}/edit', [\App\Http\Controllers\Web\ReportController::class, 'edit'])->name('reports.edit');
     Route::put('/reports/{report}', [\App\Http\Controllers\Web\ReportController::class, 'update'])->name('reports.update');
     Route::delete('/reports/{report}', [\App\Http\Controllers\Web\ReportController::class, 'destroy'])->name('reports.destroy');

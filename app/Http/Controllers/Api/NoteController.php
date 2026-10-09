@@ -28,13 +28,15 @@ class NoteController extends Controller
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
+        if ($user->isGeneralManager() || !$user->can('viewAny', Note::class)) {
+            return response()->json(['success' => false, 'message' => __('api.forbidden')], 403);
+        }
         $query = $this->noteService->getVisibleNotesQuery($user);
 
         $allowedStatuses = ['draft', 'pending', 'accepted', 'rejected'];
         if ($request->filled('status') && in_array($request->status, $allowedStatuses, true)) {
             $query->where('notes.status', $request->status);
         } else {
-            // قسم "الكل" يجب ألا يعرض المسودات — المسودات لها تبويب مستقل
             $query->where('notes.status', '!=', Note::STATUS_DRAFT);
         }
         if ($request->filled('date') && strtotime($request->date) !== false) {
@@ -46,8 +48,25 @@ class NoteController extends Controller
         if ($request->filled('camera_number') && is_numeric($request->camera_number)) {
             $query->where('camera_number', (int) $request->camera_number);
         }
+        if ($request->filled('search') && mb_strlen(trim($request->search)) >= 2) {
+            $query->where('notes.description', 'like', '%'.trim($request->search).'%');
+        }
+        if ($request->filled('observer') && is_numeric($request->observer)) {
+            $query->where('notes.user_id', (int) $request->observer);
+        }
 
-        $notes = $query->orderByDesc('created_at')->paginate(15);
+        $sort = (string) $request->query('sort', 'latest');
+        if ($sort === 'oldest') {
+            $query->orderBy('notes.created_at');
+        } elseif ($sort === 'observer') {
+            $query->join('users', 'users.id', '=', 'notes.user_id')
+                ->orderBy('users.name')
+                ->select('notes.*');
+        } else {
+            $query->orderByDesc('notes.created_at');
+        }
+
+        $notes = $query->paginate(15);
 
         return response()->json([
             'success' => true,
@@ -58,13 +77,15 @@ class NoteController extends Controller
     public function myNotes(Request $request): JsonResponse
     {
         $user = $request->user();
+        if ($user->isGeneralManager()) {
+            return response()->json(['success' => false, 'message' => __('api.forbidden')], 403);
+        }
         $query = Note::with(['owner', 'attachments'])->where('user_id', $user->id)->whereNull('general_submission_id');
 
         $allowedStatuses = ['draft', 'pending', 'accepted', 'rejected'];
         if ($request->filled('status') && in_array($request->status, $allowedStatuses, true)) {
             $query->where('status', $request->status);
         } else {
-            // قسم "الكل" يجب ألا يعرض المسودات — المسودات لها تبويب مستقل (حتى في ملاحظاتي)
             $query->where('status', '!=', Note::STATUS_DRAFT);
         }
         if ($request->filled('date') && strtotime($request->date) !== false) {
@@ -76,8 +97,18 @@ class NoteController extends Controller
         if ($request->filled('camera_number') && is_numeric($request->camera_number)) {
             $query->where('camera_number', (int) $request->camera_number);
         }
+        if ($request->filled('search') && mb_strlen(trim($request->search)) >= 2) {
+            $query->where('description', 'like', '%'.trim($request->search).'%');
+        }
 
-        $notes = $query->orderByDesc('created_at')->paginate(15);
+        $sort = (string) $request->query('sort', 'latest');
+        if ($sort === 'oldest') {
+            $query->orderBy('created_at');
+        } else {
+            $query->orderByDesc('created_at');
+        }
+
+        $notes = $query->paginate(15);
 
         return response()->json([
             'success' => true,
@@ -119,6 +150,13 @@ class NoteController extends Controller
     {
         $user = $request->user();
 
+        if ($note->general_submission_id !== null) {
+            return response()->json([
+                'success' => false,
+                'message' => __('api.note_not_found'),
+            ], 404);
+        }
+
         if (!$user->can('view', $note)) {
             return response()->json([
                 'success' => false,
@@ -126,9 +164,17 @@ class NoteController extends Controller
             ], 403);
         }
 
+        $note->load(['owner', 'processor', 'attachments', 'reactions']);
+        $data = $note->toArray();
+        unset($data['reactions']);
+        $data['reaction_counts'] = $note->reactions->groupBy('reaction')->map->count()->all();
+        $data['my_reaction'] = $note->reactions->firstWhere('user_id', $user->id)?->reaction;
+
+        $data['can_react'] = $user->can('react', $note);
+
         return response()->json([
             'success' => true,
-            'data' => $note->load(['owner', 'processor', 'attachments']),
+            'data' => $data,
         ]);
     }
 
@@ -406,7 +452,7 @@ class NoteController extends Controller
         $user = $request->user();
         $note = $attachment->note;
 
-        if (!$user->can('view', $note)) {
+        if (!$user->isGeneralManager() && !$user->can('view', $note)) {
             return response()->json([
                 'success' => false,
                 'message' => __('api.forbidden_attach_download'),
@@ -414,7 +460,7 @@ class NoteController extends Controller
         }
 
         
-        if (!$user->isReportWriter()) {
+        if (!$user->isReportWriter() && !$user->isGeneralManager()) {
             return response()->json([
                 'success' => false,
                 'message' => __('api.download_writer_only'),
@@ -437,7 +483,7 @@ class NoteController extends Controller
         $user = $request->user();
         $note = $attachment->note;
 
-        if (!$user->can('view', $note)) {
+        if (!$user->isGeneralManager() && !$user->can('view', $note)) {
             return response()->json([
                 'success' => false,
                 'message' => __('api.forbidden_attach_view'),
@@ -452,5 +498,37 @@ class NoteController extends Controller
             'success' => false,
             'message' => __('api.file_not_found'),
         ], 404);
+    }
+
+    /**
+     * عرض مرفق برابط موقّع (من داخل PDF) — بلا جلسة ولا Bearer.
+     *
+     * التوقيع نفسه هو التفويض: محدّد بملف واحد وبوقت انتهاء. بلا توقيع صالح
+     * (أو منتهٍ) نرد 403 لا 401 — فلا يظن المستخدم أن الملف محمي بحساب.
+     */
+    public function signedAttachmentView(Request $request, Attachment $attachment)
+    {
+        $ok = \App\Services\Pdf\AttachmentSignedUrl::verify(
+            (int) $attachment->getKey(),
+            $request->query('e'),
+            $request->query('s'),
+            false,
+        );
+
+        if (! $ok) {
+            return response()->json([
+                'success' => false,
+                'message' => __('api.forbidden_attach_view'),
+            ], 403);
+        }
+
+        if (! $this->storage->isLocal($attachment)) {
+            return response()->json([
+                'success' => false,
+                'message' => __('api.file_not_found'),
+            ], 404);
+        }
+
+        return $this->storage->fileResponse($attachment, false);
     }
 }

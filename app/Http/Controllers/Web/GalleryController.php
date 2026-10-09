@@ -23,17 +23,22 @@ class GalleryController extends Controller
         $sort = $request->input('sort') === 'oldest' ? 'oldest' : 'latest';
 
 
+        $isGM = $user->isGeneralManager();
         $noteQ = Attachment::query()
             ->select([
                 'attachments.id', 'attachments.original_name', 'attachments.mime_type',
                 'attachments.file_size', 'attachments.file_path', 'attachments.created_at',
                 'attachments.note_id as parent_id', DB::raw("'note' as kind"),
             ])
-            ->whereHas('note', function ($q) use ($user, $cam, $floor) {
-                $q->whereNull('notes.general_submission_id')
-                    ->where(function ($qq) use ($user) {
+            ->whereHas('note', function ($q) use ($user, $cam, $floor, $isGM) {
+                $q->whereNull('notes.general_submission_id');
+                $q->where(function ($qq) use ($user, $isGM) {
+                    if ($isGM) {
+                        $qq->where('notes.status', '!=', Note::STATUS_DRAFT);
+                    } else {
                         $qq->where('notes.user_id', $user->id)->orWhere('notes.status', '!=', Note::STATUS_DRAFT);
-                    });
+                    }
+                });
                 if ($cam !== null) $q->where('notes.camera_number', $cam);
                 if ($floor !== null) $q->where('notes.floor_number', $floor);
             });
@@ -46,11 +51,13 @@ class GalleryController extends Controller
                 'general_submission_attachments.file_path', 'general_submission_attachments.created_at',
                 'general_submission_attachments.general_submission_id as parent_id', DB::raw("'submission' as kind"),
             ])
-            ->whereHas('submission', function ($q) use ($user, $cam, $floor) {
-                $q->where(function ($qq) use ($user) {
-                    $qq->whereHas('reportWriters', fn ($w) => $w->where('users.id', $user->id))
-                        ->orWhere('general_submissions.user_id', $user->id);
-                });
+            ->whereHas('submission', function ($q) use ($user, $cam, $floor, $isGM) {
+                if (!$isGM) {
+                    $q->where(function ($qq) use ($user) {
+                        $qq->whereHas('reportWriters', fn ($w) => $w->where('users.id', $user->id))
+                            ->orWhere('general_submissions.user_id', $user->id);
+                    });
+                }
                 if ($cam !== null) $q->where('general_submissions.camera_number', $cam);
                 if ($floor !== null) $q->where('general_submissions.floor_number', $floor);
             });
@@ -71,7 +78,6 @@ class GalleryController extends Controller
             $subQ->where('general_submission_attachments.mime_type', 'like', $type . '/%');
         }
         if ($dayStart !== null) {
-            // Range instead of whereDate() so indexes on created_at stay usable.
             $noteQ->whereBetween('attachments.created_at', [$dayStart, $dayEnd]);
             $subQ->whereBetween('general_submission_attachments.created_at', [$dayStart, $dayEnd]);
         }
@@ -105,6 +111,7 @@ class GalleryController extends Controller
                     'parentRef' => '#' . str_pad($p->id, 4, '0', STR_PAD_LEFT),
                     'camera' => $p->camera_number, 'floor' => $p->floor_number,
                     'ownerName' => $p->owner->localized_name ?? '—',
+                    'ownerUrl' => $p->owner ? route('profile.showUser', $p->owner->id) : null,
                 ];
             }
             $p = $subs->get($r['parent_id']);
@@ -119,6 +126,7 @@ class GalleryController extends Controller
                 'parentRef' => '#' . str_pad($p->id, 4, '0', STR_PAD_LEFT),
                 'camera' => $p->camera_number, 'floor' => $p->floor_number,
                 'ownerName' => $p->owner->localized_name ?? '—',
+                'ownerUrl' => $p->owner ? route('profile.showUser', $p->owner->id) : null,
             ];
         })->filter()->values();
         $page->setCollection($items);
@@ -155,10 +163,17 @@ class GalleryController extends Controller
 
     private static function buildGalleryFilters($user): array
     {
-        $noteBase = Note::query()->whereNull('notes.general_submission_id')
-            ->where(fn ($q) => $q->where('notes.user_id', $user->id)->orWhere('notes.status', '!=', Note::STATUS_DRAFT));
-        $subBase = GeneralSubmission::query()
-            ->where(fn ($q) => $q->whereHas('reportWriters', fn ($w) => $w->where('users.id', $user->id))->orWhere('general_submissions.user_id', $user->id));
+        $isGM = $user->isGeneralManager();
+        $noteBase = Note::query()->whereNull('notes.general_submission_id');
+        if ($isGM) {
+            $noteBase->where('notes.status', '!=', Note::STATUS_DRAFT);
+        } else {
+            $noteBase->where(fn ($q) => $q->where('notes.user_id', $user->id)->orWhere('notes.status', '!=', Note::STATUS_DRAFT));
+        }
+        $subBase = GeneralSubmission::query();
+        if (!$isGM) {
+            $subBase->where(fn ($q) => $q->whereHas('reportWriters', fn ($w) => $w->where('users.id', $user->id))->orWhere('general_submissions.user_id', $user->id));
+        }
         $cameras = $noteBase->clone()->distinct()->orderBy('notes.camera_number')->pluck('notes.camera_number')
             ->merge($subBase->clone()->distinct()->orderBy('general_submissions.camera_number')->pluck('general_submissions.camera_number'))
             ->all();

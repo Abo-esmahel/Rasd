@@ -19,12 +19,26 @@ class NotePolicy
 
     public function view(User $user, Note $note): bool
     {
-        
+      
         if ($note->user_id === $user->id) {
             return true;
         }
         
         return $note->status !== Note::STATUS_DRAFT;
+    }
+
+    /**
+     * التفاعل على الملاحظة لا معنى له قبل إرسالها: المسودة وثيقة عمل
+     * خاصة بصاحبها لا يقرأها أحد، فإعجابها أو تعليق عليها بلا معنى.
+     * بعد الإرسال (معلّقة/مقبولة/مرفوضة) التفاعل مفتوح لقارئها.
+     */
+    public function react(User $user, Note $note): bool
+    {
+        if ($note->isDraft()) {
+            return false;
+        }
+
+        return $this->view($user, $note);
     }
 
     public function update(User $user, Note $note): bool

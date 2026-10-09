@@ -5,10 +5,13 @@ namespace App\Http\Controllers\Web;
 use App\Http\Controllers\Controller;
 use App\Services\Localization\SourceLanguage;
 use App\Services\Localization\TranslationService;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
 
 class DynamicTranslationController extends Controller
 {
+    use AuthorizesRequests;
+
     public function translatePage(Request $request, TranslationService $service)
     {
         $validated = $request->validate([
@@ -97,7 +100,6 @@ class DynamicTranslationController extends Controller
         }
 
         try {
-            // Async warm (after response) — never block the request on Gemini (2-15s).
             \App\Jobs\WarmTranslationProjection::scheduleAfterResponse($type, $model->id, $missing, $locale);
         } catch (\Throwable) {
             try { \App\Jobs\WarmTranslationProjection::dispatch($type, $model->id, $missing, $locale); } catch (\Throwable) {}

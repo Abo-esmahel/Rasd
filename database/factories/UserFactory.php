@@ -32,4 +32,9 @@ class UserFactory extends Factory
     {
         return $this->state(fn () => ['role' => 'report_writer']);
     }
+
+    public function generalManager(): static
+    {
+        return $this->state(fn () => ['role' => 'general_manager']);
+    }
 }

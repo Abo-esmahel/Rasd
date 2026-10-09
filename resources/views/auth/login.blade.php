@@ -17,9 +17,12 @@
     <link rel="icon" type="image/png" sizes="192x192" href="/pwa/icons/icon-192.png">
     <link rel="apple-touch-icon" href="/pwa/icons/icon-192.png">
     <title>{{ __('ui.login_title_full') }}</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Almarai:wght@300;400;700;800&display=swap" rel="stylesheet">
+    <style>
+        @font-face{font-family:'Almarai';font-style:normal;font-weight:300;font-display:swap;src:url('/fonts/almarai-arabic-300.woff2') format('woff2');unicode-range:U+0600-06FF,U+0750-077F,U+08A0-08FF,U+FB50-FDFF,U+FE70-FEFC,U+0020-007E;}
+        @font-face{font-family:'Almarai';font-style:normal;font-weight:400;font-display:swap;src:url('/fonts/almarai-arabic-400.woff2') format('woff2');unicode-range:U+0600-06FF,U+0750-077F,U+08A0-08FF,U+FB50-FDFF,U+FE70-FEFC,U+0020-007E;}
+        @font-face{font-family:'Almarai';font-style:normal;font-weight:700;font-display:swap;src:url('/fonts/almarai-arabic-700.woff2') format('woff2');unicode-range:U+0600-06FF,U+0750-077F,U+08A0-08FF,U+FB50-FDFF,U+FE70-FEFC,U+0020-007E;}
+        @font-face{font-family:'Almarai';font-style:normal;font-weight:800;font-display:swap;src:url('/fonts/almarai-arabic-800.woff2') format('woff2');unicode-range:U+0600-06FF,U+0750-077F,U+08A0-08FF,U+FB50-FDFF,U+FE70-FEFC,U+0020-007E;}
+    </style>
     
     @vite(['resources/css/app.css'])
     <script>(function(){try{var t=localStorage.getItem('theme')||localStorage.getItem('rasd_theme');var d=window.matchMedia('(prefers-color-scheme: dark)').matches;if(t==='dark'||(!t&&d))document.documentElement.classList.add('dark');}catch(e){}})();</script>
@@ -48,8 +51,8 @@
 </head>
 <body class="min-h-screen bg-[#eceee9] flex flex-col selection:bg-[#0e6a38] selection:text-[#fdfcfa] overflow-x-hidden">
     <button type="button" id="theme-toggle-login" class="fixed top-4 left-4 z-50 inline-flex items-center justify-center w-9 h-9 rounded-full bg-[#fdfcfa] border border-[#e6e9e1] text-[#6b7a6e] hover:bg-[#eceee9] shadow-sm transition" aria-label="{{ __('ui.toggle_theme') }}">
-        <svg class="w-5 h-5 sun-i" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
-        <svg class="w-5 h-5 moon-i hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+        <x-phosphor-sun-duotone class="w-5 h-5 sun-i" />
+        <x-phosphor-moon-stars-duotone class="w-5 h-5 moon-i hidden" />
     </button>
     <div class="h-[4px] w-full flex shrink-0">
         <div class="flex-1 bg-[#0e6a38]"></div>
@@ -88,7 +91,7 @@
                         @if($errors->any())
                             <div class="mb-6 flex gap-3 p-4 bg-[#fef2f2] border border-[#fecaca] rounded-2xl text-[#991b1b]" role="alert">
                                 <div class="shrink-0 w-9 h-9 rounded-xl bg-[#c41e1e] text-white flex items-center justify-center">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                    <x-phosphor-info-duotone class="w-5 h-5" />
                                 </div>
                                 <div class="flex-1 min-w-0">
                                     <div class="text-[13px] font-extrabold text-[#7f1d1d]">{{ __('ui.error_title') }}</div>
@@ -105,7 +108,7 @@
                                 <label for="username" class="block text-[13px] font-bold text-[#0f1e14] mb-2">{{ __('ui.username_label') }} <span class="text-[#c41e1e]">*</span></label>
                                 <div class="relative group">
                                     <span class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3.5 text-[#94a8a0] group-focus-within:text-[#0e6a38] transition">
-                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.7"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                                        <x-phosphor-user-duotone class="w-5 h-5" />
                                     </span>
                                     <input type="text" id="username" name="username" value="{{ old('username') }}" required autofocus autocomplete="username"
                                         class="block w-full rounded-xl border border-[#e6e9e1] bg-white py-3.5 pr-11 pl-4 text-[14px] font-medium text-[#0f1e14] placeholder:text-[#94a8a0] focus:bg-white focus:border-[#0e6a38] focus:ring-4 focus:ring-[#0e6a38]/10 outline-none transition"
@@ -116,14 +119,14 @@
                                 <label for="password" class="block text-[13px] font-bold text-[#0f1e14] mb-2">{{ __('ui.password_label') }} <span class="text-[#c41e1e]">*</span></label>
                                 <div class="relative group">
                                     <span class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3.5 text-[#94a8a0] group-focus-within:text-[#0e6a38] transition">
-                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.7"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                                        <x-phosphor-lock-duotone class="w-5 h-5" />
                                     </span>
                                     <input type="password" id="password" name="password" required autocomplete="current-password"
                                         class="block w-full rounded-xl border border-[#e6e9e1] bg-white py-3.5 pr-11 pl-11 text-[14px] font-medium text-[#0f1e14] placeholder:text-[#94a8a0] focus:bg-white focus:border-[#0e6a38] focus:ring-4 focus:ring-[#0e6a38]/10 outline-none transition"
                                         placeholder="••••••••">
                                     <button type="button" id="toggle-pass" class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-[#94a8a0] hover:text-[#2a3d2f] transition" aria-label="{{ __('ui.toggle_password_aria') }}" tabindex="-1">
-                                        <svg class="w-5 h-5 eye-open" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.7"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-                                        <svg class="w-5 h-5 eye-closed hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.7"><path stroke-linecap="round" stroke-linejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18"/></svg>
+                                        <x-phosphor-eye-duotone class="w-5 h-5 eye-open" />
+                                        <x-phosphor-eye-slash-duotone class="w-5 h-5 eye-closed hidden" />
                                     </button>
                                 </div>
                             </div>
@@ -135,7 +138,7 @@
 </label>
                             </div>
 <button type="submit" class="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-[#0e6a38] hover:bg-[#0a4d28] text-white font-extrabold text-[14.5px] py-3.5 shadow-sm hover:shadow transition-all">
-    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/></svg>
+    <x-phosphor-sign-out-duotone class="w-5 h-5" />
     {{ __('ui.login_btn') }}
 </button>
                         </form>

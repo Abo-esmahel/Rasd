@@ -32,7 +32,7 @@
     @if($notifications->isEmpty())
         <div class="bg-surface-elevated rounded-2xl border border-border p-10 text-center" role="status" aria-live="polite">
             <div class="w-14 h-14 rounded-2xl bg-surface-muted flex items-center justify-center mx-auto">
-                <svg class="w-7 h-7 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M14 10h4.586a1 1 0 011.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                <x-phosphor-video-camera-duotone class="w-7 h-7 text-text-muted" />
             </div>
             <h3 class="mt-4 text-base font-bold text-text-primary dark:text-text-primary">{{ __('ui.no_notifications') }}</h3>
         </div>
@@ -43,51 +43,35 @@
                     $data = $notification->data;
                     if (is_string($data)) $data = json_decode($data, true) ?: [];
                     $type = $data['type'] ?? ($notification->type ?? '');
-                    $isRejected = str_contains($type, 'reject') || str_contains(strtolower($type), 'rejected') || isset($data['reason']);
-                    $isAccepted = str_contains($type, 'accept') || str_contains(strtolower($type), 'accepted');
-                    $priority = $data['priority'] ?? ($isRejected ? 'high' : 'normal');
-                    $isHigh = $priority === 'high' || $priority === 'critical';
                     $url = $data['url'] ?? null;
                     if (!$url) {
                         if (isset($data['note_id'])) $url = route('notes.show', $data['note_id']);
                         elseif (isset($data['submission_id'])) $url = route('general-submissions.show', $data['submission_id']);
                         elseif (isset($data['general_submission_id'])) $url = route('general-submissions.show', $data['general_submission_id']);
-                        else $url = route('notifications.index');
+                        elseif (isset($data['report_id'])) $url = route('reports.show', $data['report_id']).(isset($data['comment_id']) ? '#report-discussion' : '');
+                        else $url = null;
                     }
 
-                    $title = $data['title'] ?? ($isRejected ? __('ui.rejected_status') : ($isAccepted ? __('ui.accepted_status') : __('ui.notif_incoming')));
-                    $shortMsg = $data['message'] ?? __('ui.new_notif');
-                    $sender = $data['sender_name'] ?? $data['processor_name'] ?? null;
-                    $iconBg = $isRejected ? 'bg-surface-elevated border border-red-200 dark:border-red-900/30 text-red-600 dark:text-red-400' : ($isAccepted ? 'bg-surface-elevated border border-border text-primary dark:text-green-400' : 'bg-surface-elevated border border-border text-amber-600 dark:text-amber-400');
-                    $iconPath = $isRejected
-                        ? 'M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z'
-                        : ($isAccepted ? 'M5 13l4 4L19 7' : 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' );
+                    $title = $data['title'] ?? __('notifications.generic_title');
+                    $iconBg = 'bg-surface-muted border border-border text-text-secondary';
                 @endphp
                 <div class="group bg-surface-elevated rounded-xl border border-border overflow-hidden hover:border-border-strong hover:shadow-sm transition {{ is_null($notification->read_at) ? 'shadow-sm' : 'opacity-[0.96]' }} focus-within:ring-2 focus-within:ring-primary/20" tabindex="0" role="article" aria-labelledby="notif-{{ $notification->id }}-title">
                     <div class="p-4 flex gap-3">
                         <div class="w-9 h-9 rounded-xl {{ $iconBg }} flex items-center justify-center shrink-0 mt-0.5 shadow-sm" aria-hidden="true">
-                            <svg class="w-4.5 h-4.5 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.9"><path stroke-linecap="round" stroke-linejoin="round" d="{{ $iconPath }}"/></svg>
+                            <x-phosphor-bell-duotone class="w-5 h-5" />
                         </div>
                         <div class="flex-1 min-w-0">
                             <div class="flex items-start gap-2">
                                 <h3 id="notif-{{ $notification->id }}-title" class="min-w-0 flex-1 text-[13px] font-extrabold text-text-primary dark:text-text-primary leading-5 break-words">{{ $title }}</h3>
                                 @if(is_null($notification->read_at))
-                                    <span class="w-1.5 h-1.5 rounded-full {{ $isRejected ? 'bg-red-500' : ($isAccepted ? 'bg-primary' : 'bg-amber-500') }} mt-1.5 shrink-0"></span>
+                                    <span class="w-1.5 h-1.5 rounded-full bg-primary mt-1.5 shrink-0"></span>
                                 @endif
                                 <span class="text-[11px] text-text-muted dark:text-text-muted mr-auto shrink-0 whitespace-nowrap">{{ \Carbon\Carbon::parse($notification->created_at)->diffForHumans() }}</span>
                             </div>
-                            <p class="text-xs font-medium text-text-secondary dark:text-text-secondary mt-1 leading-5 line-clamp-1">{{ $shortMsg }}</p>
-                            <p class="text-[11px] text-text-muted dark:text-text-muted mt-1 truncate">
-                                @if($sender) {{ $sender }} · @endif
-                                {{ __('ui.camera_floor_format', ['camera' => $data['camera_number'] ?? '—', 'floor' => $data['floor_number'] ?? '—']) }}
-                            </p>
-                            @if(!empty($data['reason']))
-                            <div class="mt-2.5 text-xs leading-5 text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900/30 rounded-lg px-3 py-2 line-clamp-2">
-                                {{ l10n_text('notification', $notification->id, 'reason', $data['reason']) }}
-                            </div>
-                            @endif
                             <div class="mt-3 flex items-center gap-2">
-                                <a href="{{ $url }}" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-primary text-white text-xs font-bold hover:bg-primary-hover transition shadow-sm" data-notif-action="open">{{ __('ui.view_details') }}</a>
+                                @if($url)
+                                    <a href="{{ $url }}" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-primary text-white text-xs font-bold hover:bg-primary-hover transition shadow-sm" data-notif-action="open">{{ __('ui.view_details') }}</a>
+                                @endif
                                 @if(is_null($notification->read_at))
                                     <button type="button" data-notif-id="{{ $notification->id }}" class="notif-mark-one px-3 py-1.5 rounded-lg bg-surface-elevated border border-border text-text-secondary dark:text-text-secondary text-xs font-bold hover:bg-surface-muted dark:hover:bg-surface-muted transition" aria-label="{{ __('ui.mark_read') }}">{{ __('ui.mark_one_short') }}</button>
                                 @endif

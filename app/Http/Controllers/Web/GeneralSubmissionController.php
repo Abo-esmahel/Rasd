@@ -57,7 +57,7 @@ class GeneralSubmissionController extends Controller
     public function create(Request $request)
     {
         $this->authorize('create', GeneralSubmission::class);
-        $writers = User::where('role','report_writer')->orderBy('name')->get();
+        $writers = User::whereIn('role',['report_writer','general_manager'])->orderBy('name')->get();
         return view('general-submissions.create', compact('writers'));
     }
 
@@ -94,7 +94,7 @@ class GeneralSubmissionController extends Controller
 
         
         $writers = User::whereIn('id', $validated['report_writer_ids'])->get();
-        $invalid = $writers->filter(fn($u) => !$u->isReportWriter());
+        $invalid = $writers->filter(fn($u) => !$u->isReportWriter() && !$u->isGeneralManager());
         if ($invalid->count() > 0 || $writers->count() !== count($validated['report_writer_ids'])) {
             if ($this->wantsJson($request)) {
                 return response()->json(['success' => false, 'message' => __('api.sub_recipients_must_writers_choice')], 422);
@@ -203,7 +203,7 @@ class GeneralSubmissionController extends Controller
     public function viewAttachment(GeneralSubmissionAttachment $attachment)
     {
         $submission = $attachment->submission;
-        if (!auth()->user()->can('view', $submission)) {
+        if (!auth()->user()->isGeneralManager() && !auth()->user()->can('view', $submission)) {
             abort(403, __('api.forbidden_attach_view'));
         }
 
@@ -217,10 +217,10 @@ class GeneralSubmissionController extends Controller
     public function downloadAttachment(GeneralSubmissionAttachment $attachment)
     {
         $submission = $attachment->submission;
-        if (!auth()->user()->can('view', $submission)) {
+        if (!auth()->user()->isGeneralManager() && !auth()->user()->can('view', $submission)) {
             abort(403, __('api.forbidden_attach_download'));
         }
-        if (!auth()->user()->isReportWriter()) {
+        if (!auth()->user()->isReportWriter() && !auth()->user()->isGeneralManager() && $submission->user_id !== auth()->id()) {
             abort(403, __('api.download_writer_only'));
         }
 
@@ -234,7 +234,7 @@ class GeneralSubmissionController extends Controller
     public function thumbAttachment(GeneralSubmissionAttachment $attachment)
     {
         $submission = $attachment->submission;
-        if (!auth()->user()->can('view', $submission)) {
+        if (!auth()->user()->isGeneralManager() && !auth()->user()->can('view', $submission)) {
             abort(403, __('api.forbidden_attach_view'));
         }
 
@@ -252,7 +252,7 @@ class GeneralSubmissionController extends Controller
         }
         $model = GeneralSubmissionAttachment::with('submission')->findOrFail($attachment);
         $submission = $model->submission;
-        if (!$submission || !auth()->user()->can('view', $submission)) {
+        if (!$submission || (!auth()->user()->isGeneralManager() && !auth()->user()->can('view', $submission))) {
             abort(403, __('api.forbidden_attach_view'));
         }
         if (!$this->storage->isLocalSubmission($model)) {
@@ -265,7 +265,7 @@ class GeneralSubmissionController extends Controller
             'size' => $model->file_size,
             'fileUrl' => route('shared.submission-attachments.file', $model),
             'downloadUrl' => route('submission-attachments.download', $model),
-            'canDownload' => auth()->user()->isReportWriter(),
+            'canDownload' => auth()->user()->isReportWriter() || auth()->user()->isGeneralManager(),
         ]);
     }
 
@@ -276,7 +276,7 @@ class GeneralSubmissionController extends Controller
         }
         $model = GeneralSubmissionAttachment::with('submission')->findOrFail($attachment);
         $submission = $model->submission;
-        if (!$submission || !auth()->user()->can('view', $submission)) {
+        if (!$submission || (!auth()->user()->isGeneralManager() && !auth()->user()->can('view', $submission))) {
             abort(403, __('api.forbidden_attach_view'));
         }
         if (!$this->storage->isLocalSubmission($model)) {

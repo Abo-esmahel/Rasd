@@ -1,11 +1,13 @@
 @extends('layouts.app')
 
+@php($title = l10n_text('report', $report->id, 'title', $report->title))
+
 @section('content')
 
 <div class="flex flex-wrap items-center justify-between gap-2 mb-3 no-print">
     <a href="{{ route('reports.index') }}" class="inline-flex items-center gap-1 min-h-[44px] text-sm text-[#6b7a6e] hover:text-[#0e6a38] transition">{{ back_arrow() }} {{ __('ui.back_to_reports') }}</a>
     <div class="flex items-center gap-2 w-full sm:w-auto">
-        <button type="button" onclick="window.print()" class="w-full sm:w-auto inline-flex items-center justify-center px-4 py-2 min-h-[48px] sm:min-h-[44px] rounded-xl bg-[#0e6a38] hover:bg-[#0a4d28] text-white text-base sm:text-sm font-bold transition">{{ __('ui.print_pdf') }}</button>
+        <button type="button" onclick="printReportWhenReady(this)" class="w-full sm:w-auto inline-flex items-center justify-center px-4 py-2 min-h-[48px] sm:min-h-[44px] rounded-xl bg-[#0e6a38] hover:bg-[#0a4d28] text-white text-base sm:text-sm font-bold transition">{{ __('ui.print_pdf') }}</button>
     </div>
 </div>
 
@@ -14,7 +16,7 @@
     <p class="text-[13px] text-[#6b7a6e] mt-1">{{ $report->report_date?->toDateString() }}</p>
 </div>
 
-<link rel="stylesheet" href="{{ asset('report/css/report-engine.css') }}?v=17">
+<link rel="stylesheet" href="{{ asset('report/css/report-engine.css') }}?v=19">
 <p id="report-l10n-badge" class="hidden text-[12px] font-bold text-[#0e6a38] bg-[#e8f3ec] border border-[#cde7d6] rounded-xl px-3 py-1.5 mb-2 w-fit no-print" role="status"></p>
 <div class="bg-white border border-[#e6e9e1] rounded-2xl p-3 sm:p-5 shadow-sm overflow-x-auto" data-report-id="{{ $report->id }}" data-paper-fit>
     <div class="report-preview" id="report-export-doc" data-paper-fit-inner>
@@ -22,6 +24,7 @@
     </div>
 </div>
 @include('reports.partials.paper_fit')
+@include('reports.partials.print_ready')
 
 <style>
 .report, .report * { font-family: 'ReportNaskh', 'ReportBody', 'Traditional Arabic', 'Simplified Arabic', serif !important; }
@@ -48,4 +51,3 @@
 }
 </style>
 @endsection
-

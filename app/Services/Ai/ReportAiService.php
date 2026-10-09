@@ -7,8 +7,10 @@ use App\Exceptions\Ai\AiDisabledException;
 use App\Exceptions\Ai\AiException;
 use App\Exceptions\Ai\AiGenerationBusyException;
 use App\Models\Report;
+use App\Models\Note;
 use App\Models\User;
 use App\Services\ReportService;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
@@ -17,7 +19,6 @@ class ReportAiService
 {
     public function __construct(
         private ReportService $reports,
-        private ReportAiContextResolver $resolver,
         private ReportAiPromptBuilder $prompts,
         private AiAttachmentResolver $attachments,
         private AiTextGeneratorInterface $generator,
@@ -38,7 +39,6 @@ class ReportAiService
         if (trim((string) config('ai.gemini.api_key', '')) === '') {
             throw new AiAuthenticationException(__('api.ai_not_configured'));
         }
-        // Backend decides language — AI never guesses from notes
         $locale = $locale ? strtolower(trim($locale)) : strtolower((string) app()->getLocale());
         if (!in_array($locale, ['ar', 'en'], true)) $locale = 'ar';
 
@@ -88,7 +88,7 @@ class ReportAiService
                 throw new InvalidArgumentException(__('api.ai_manual_exists'));
             }
 
-            $slice = $this->resolver->resolveFor($fresh);
+            $slice = '';
             $resolved = $withImages
                 ? $this->attachments->resolve($notes, (int) config('ai.max_images_per_generation', 3))
                 : ['images' => [], 'metadata' => $this->attachments->resolve($notes, 0)['metadata'], 'skipped' => []];
@@ -137,6 +137,75 @@ class ReportAiService
                 $lock->release();
             } catch (\Throwable $e) {
             }
+        }
+    }
+
+    /** Generate a reviewable suggestion without saving it to the report or database. */
+    public function previewFor(User $user, Report $report, Collection $notes, bool $withImages = false, ?string $locale = null): \App\Services\Ai\AiResult
+    {
+        if (!$user->isReportWriter() || (int) $report->author_id !== (int) $user->id) {
+            throw new InvalidArgumentException(__('api.report_unauthorized_generate'));
+        }
+        if ($report->exists && !$report->isDraft()) {
+            throw new InvalidArgumentException(__('api.ai_draft_only'));
+        }
+        if (!config('ai.enabled', false)) {
+            throw new AiDisabledException(__('api.ai_disabled'));
+        }
+        if ((string) config('ai.provider', 'gemini') !== 'gemini') {
+            throw new InvalidArgumentException(__('api.ai_unsupported_provider'));
+        }
+        if (trim((string) config('ai.gemini.api_key', '')) === '') {
+            throw new AiAuthenticationException(__('api.ai_not_configured'));
+        }
+
+        $locale = $locale ? strtolower(trim($locale)) : strtolower((string) app()->getLocale());
+        if (!in_array($locale, ['ar', 'en'], true)) $locale = 'ar';
+        $timeout = max(10, (int) config('ai.gemini.timeout', 60));
+        $phpLimit = max(120, $timeout + 45);
+        if (function_exists('set_time_limit')) @set_time_limit($phpLimit);
+        @ini_set('max_execution_time', (string) $phpLimit);
+        $notes = $notes->values();
+        if ($notes->isEmpty()) {
+            throw new InvalidArgumentException(__('api.ai_need_accepted_note'));
+        }
+        $day = $report->report_date->toDateString();
+        $allowedStatuses = $report->exists
+            ? [Note::STATUS_ACCEPTED]
+            : [Note::STATUS_ACCEPTED, Note::STATUS_PENDING];
+        foreach ($notes as $note) {
+            if (!$note instanceof Note || !in_array($note->status, $allowedStatuses, true) || $note->general_submission_id !== null) {
+                throw new InvalidArgumentException(__('api.ai_need_accepted_note'));
+            }
+            if ($this->reports->reportDay($note) !== $day) {
+                throw new InvalidArgumentException(__('api.report_note_wrong_day', ['id' => $note->id]));
+            }
+        }
+        if (!$report->exists) {
+            $linked = DB::table('report_note')->whereIn('note_id', $notes->pluck('id'))->exists();
+            if ($linked) {
+                throw new InvalidArgumentException(__('api.ai_notes_changed'));
+            }
+        }
+
+        $key = 'ai:report-preview:'.$user->id.':'.$day;
+        $lock = \Illuminate\Support\Facades\Cache::lock($key, 120);
+        if (!$lock->get()) {
+            throw new AiGenerationBusyException(__('api.ai_busy'));
+        }
+
+        try {
+            $slice = '';
+            $resolved = $withImages
+                ? $this->attachments->resolve($notes, (int) config('ai.max_images_per_generation', 3))
+                : ['images' => [], 'metadata' => $this->attachments->resolve($notes, 0)['metadata'], 'skipped' => []];
+            $built = $this->prompts->build($report, $notes, $slice, $resolved['metadata'], $locale);
+
+            return !empty($resolved['images'])
+                ? $this->generator->generateWithImages($built['system'], $built['user'], $resolved['images'])
+                : $this->generator->generate($built['system'], $built['user']);
+        } finally {
+            try { $lock->release(); } catch (\Throwable) {}
         }
     }
 }

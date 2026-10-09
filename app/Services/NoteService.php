@@ -24,32 +24,26 @@ class NoteService
 
     public static function uploadFileMaxKb(): int
     {
-        $phpMaxKb = (int) (self::parseBytesStatic((string) ini_get('upload_max_filesize')) / 1024);
-        $appMaxKb = max(
-            (int) config('attachments.max_image_size', 20480),
-            (int) config('attachments.max_video_size', 102400),
-            (int) (config('attachments.max_audio_size', 100 * 1024 * 1024) / 1024)
-        );
-        $cap = min($appMaxKb, 512000);
+        $phpMaxKb = (int) (\App\Support\UploadLimits::effectivePerFile() / 1024);
+        $appMaxKb = (int) (config('attachments.max_file_bytes')
+            ?: max(
+                (int) config('attachments.max_image_size', 40960),
+                (int) config('attachments.max_video_size', 512000),
+                (int) (config('attachments.max_audio_size', 512 * 1024 * 1024) / 1024)
+            ));
 
-        return $phpMaxKb > 0 ? min($phpMaxKb, $cap) : $cap;
+        if ($phpMaxKb > 0) {
+            $appMaxKb = min($appMaxKb, $phpMaxKb);
+        }
+
+        return max(1024, $appMaxKb);
     }
 
     private static function parseBytesStatic(string $value): int
     {
-        $value = trim($value);
-        if ($value === '' || $value === '-1') {
-            return 0;
-        }
-        $unit = strtolower(substr($value, -1));
-        $number = (float) $value;
-
-        return (int) match ($unit) {
-            'g' => $number * 1024 * 1024 * 1024,
-            'm' => $number * 1024 * 1024,
-            'k' => $number * 1024,
-            default => $number,
-        };
+        return \App\Support\UploadLimits::toBytes($value) === -1
+            ? 0
+            : \App\Support\UploadLimits::toBytes($value);
     }
 
     private static function sanitizeObservedInput(?string $value): ?string
@@ -57,25 +51,17 @@ class NoteService
         if ($value === null) return null;
         $v = trim((string) $value);
         if ($v === '') return null;
-        // تحويل الأرقام العربية/الفارسية إلى غربية
         $map = [
             '٠'=>'0','١'=>'1','٢'=>'2','٣'=>'3','٤'=>'4','٥'=>'5','٦'=>'6','٧'=>'7','٨'=>'8','٩'=>'9',
             '۰'=>'0','۱'=>'1','۲'=>'2','۳'=>'3','۴'=>'4','۵'=>'5','۶'=>'6','۷'=>'7','۸'=>'8','۹'=>'9',
         ];
         $v = strtr($v, $map);
-        // إزالة أحرف التحكم الخفية
         $v = preg_replace('/[\x00-\x1F\x7F]/u', ' ', $v);
         $v = trim(preg_replace('/\s+/', ' ', $v));
-        // توحيد الفاصل: إذا كان "YYYY/MM/DD" حوّله إلى "-"
         $v = str_replace('/', '-', $v);
-        // إزالة الـ offset الزمني المرسل من المتصفح (+03:00 / Z) حتى يُفسر كوقت جداري بمنطقة التطبيق
-        // نحتفظ بالوقت الجداري فقط: "YYYY-MM-DDTHH:MM" أو "YYYY-MM-DD HH:MM:SS"
-        // إذا انتهى بـ Z أو +HH:MM / +HHMM / -HH:MM نحذفه
         $v = preg_replace('/\s*[Zz]\s*$/', '', $v);
         $v = preg_replace('/\s*[\+\-]\d{2}:?\d{2}\s*$/', '', $v);
         $v = trim($v);
-        // استبدال T بـ مسافة لتوافق Carbon
-        // لكن Carbon يفهم T أيضاً، نتركها
         return $v === '' ? null : $v;
     }
 
@@ -96,7 +82,6 @@ class NoteService
         try {
             $start = \Carbon\Carbon::parse($rawStart, $parseTz);
         } catch (\Throwable $e) {
-            // محاولة أخيرة عبر strtotime
             $ts = strtotime($rawStart);
             if ($ts === false) {
                 throw new InvalidArgumentException(__('api.time_invalid'));
@@ -143,7 +128,6 @@ class NoteService
 
             $data['observed_end_at'] = $end->setTimezone($parseTz)->toDateTimeString();
         } else {
-            // تطبيع القيمة الفارغة إلى null حتى لا تُخزن كنص فارغ
             $data['observed_end_at'] = null;
         }
 
@@ -160,9 +144,28 @@ class NoteService
                 $cache->forget('notes-counts:'.$userId.':my');
                 $cache->forget('notes-counts:'.$userId.':all');
                 $cache->forget('notes-header-counts:'.$userId);
+                $cache->forget('profile-stats:'.$userId.':priv');
+                $cache->forget('profile-stats:'.$userId.':pub');
                 $cache->forget('profile-stats:'.$userId);
+                $cache->forget('gallery-filters:v2:'.$userId);
             }
+            $cache->forget('ranking-global-stats:privileged');
+            $cache->forget('ranking-global-stats:public');
             $cache->forget('ranking-global-stats');
+            foreach (['today', '7d', '30d', 'all'] as $range) {
+                $cache->forget('report-insights:v2:'.$range);
+            }
+        } catch (\Throwable $e) {
+        }
+    }
+
+    public static function flushReportCaches(): void
+    {
+        try {
+            $cache = \Illuminate\Support\Facades\Cache::store(config('cache.default'));
+            foreach (['today', '7d', '30d', 'all'] as $range) {
+                $cache->forget('report-insights:v2:'.$range);
+            }
         } catch (\Throwable $e) {
         }
     }
@@ -529,7 +532,7 @@ class NoteService
             $fresh = $note->fresh();
 
             try {
-                \App\Jobs\FanoutNoteNotifications::dispatch($fresh->id, $user->id, $user->localized_name)->afterResponse();
+                \App\Jobs\FanoutNoteNotifications::dispatch($fresh->id, $user->id, $user->localized_name, true)->afterResponse();
             } catch (\Throwable $e) {
                 Log::warning('فشل جدولة إشعار ملاحظة جديدة: '.$e->getMessage());
             }
@@ -724,6 +727,12 @@ class NoteService
 
     public function getVisibleNotesQuery(User $user)
     {
+        if ($user->isGeneralManager()) {
+            return Note::with(['owner:id,name,name_en,name_ar,avatar_path', 'processor:id,name,name_en,name_ar'])
+                ->withCount('attachments')
+                ->whereNull('notes.general_submission_id')
+                ->whereRaw('1=0');
+        }
 
         $query = Note::with(['owner:id,name,name_en,name_ar,avatar_path', 'processor:id,name,name_en,name_ar'])
             ->withCount('attachments')

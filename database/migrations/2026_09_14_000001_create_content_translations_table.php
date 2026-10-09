@@ -10,10 +10,10 @@ return new class extends Migration
     {
         Schema::create('content_translations', function (Blueprint $table) {
             $table->id();
-            $table->string('translatable_type', 32); // report | note | submission
+            $table->string('translatable_type', 32);
             $table->unsignedBigInteger('translatable_id');
-            $table->string('field', 64); // title | description | observation | recommendations | ...
-            $table->char('source_hash', 64); // sha256(source_text)
+            $table->string('field', 64);
+            $table->char('source_hash', 64);
             $table->mediumText('source_text');
             $table->string('locale', 5)->default('en');
             $table->mediumText('translated_text');

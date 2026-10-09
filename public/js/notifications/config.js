@@ -12,8 +12,6 @@ export const CATEGORY = {
   GENERIC: 'generic',
 };
 
-// Locale-aware labels: Arabic default, English when <html lang="en"> or RASD_LOCALE=en.
-// Server sends localized title/message first — these are fallbacks only (ZERO hardcoded visible Arabic in EN).
 export function rasdNotifLocale() {
   try {
     if (typeof window !== 'undefined' && window.RASD_LOCALE === 'en') return 'en';
@@ -129,7 +127,7 @@ export const TYPE_CONFIG = {
     labelShortEn: 'Rejected',
     icon: 'x-circle',
     color: 'red',
-    bgClass: 'bg-surface-elevated border border-red-200 dark:border-red-900/30 text-red-600 dark:text-red-400',
+    bgClass: 'bg-surface-elevated border border-border text-red-600 dark:border-red-900/30 text-red-600 dark:text-red-400',
     dotClass: 'bg-red-500',
     priority: PRIORITY.HIGH,
     sound: 'error',
@@ -137,6 +135,21 @@ export const TYPE_CONFIG = {
     toast: true,
     vibrate: [250, 100, 250, 100, 250],
     requireInteraction: true,
+  },
+  report_published: {
+    label: 'تقرير منشور',
+    labelEn: 'Report published',
+    labelShort: 'منشور',
+    labelShortEn: 'Published',
+    icon: 'doc',
+    color: 'purple',
+    bgClass: 'bg-surface-elevated border border-border text-purple-600 dark:text-purple-400',
+    dotClass: 'bg-purple-500',
+    priority: PRIORITY.NORMAL,
+    sound: 'success',
+    duration: 6000,
+    toast: true,
+    vibrate: [200, 100, 200],
   },
   generic: {
     label: 'إشعار',

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
 use App\Models\NotificationPreference;
+use App\Notifications\ReportPublishedNotification;
 use App\Services\Localization\LocalizedPresenter;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -17,13 +18,13 @@ class NotificationController extends Controller
         $perPage = min(50, max(1, (int) $request->query('per_page', 20)));
         $filter = $request->query('filter');
 
-        $query = $user->notifications()->latest();
+        $query = $this->visibleNotifications($user)->latest();
         if ($filter === 'unread') $query->whereNull('read_at');
         if ($filter === 'read') $query->whereNotNull('read_at');
 
         $paginator = $query->paginate($perPage);
         $notifications = $paginator->getCollection()->map(fn($n) => $this->normalize($n, $presenter))->values();
-        $unreadCount = $user->unreadNotifications()->count();
+        $unreadCount = $this->visibleNotifications($user)->whereNull('read_at')->count();
 
         if ($request->expectsJson() || $request->ajax()) {
             return response()->json([
@@ -41,8 +42,7 @@ class NotificationController extends Controller
 
         $viewNotifications = $paginator->getCollection()->map(function ($n) use ($presenter) {
             $data = is_string($n->data) ? json_decode($n->data, true) : (array) $n->data;
-            $localized = $presenter->notification($data);
-            $data = array_merge($data, ['title' => $localized['title'], 'message' => $localized['message']]);
+            $data = $presenter->safeNotificationData($data);
             return (object)[
                 'id' => $n->id,
                 'type' => $n->type,
@@ -61,7 +61,7 @@ class NotificationController extends Controller
 
     public function unreadCount()
     {
-        $count = Auth::user()->unreadNotifications()->count();
+        $count = $this->visibleNotifications(Auth::user())->whereNull('read_at')->count();
         return response()->json(['unread_count' => $count, 'server_time' => now()->toIso8601String()]);
     }
 
@@ -78,7 +78,7 @@ class NotificationController extends Controller
         } else {
             $user->notifications()->whereIn('id', $ids)->whereNull('read_at')->update(['read_at' => now()]);
         }
-        $unread = $user->unreadNotifications()->count();
+        $unread = $this->visibleNotifications($user)->whereNull('read_at')->count();
         return response()->json(['success' => true, 'unread_count' => $unread]);
     }
 
@@ -86,7 +86,7 @@ class NotificationController extends Controller
     {
         $notification = Auth::user()->notifications()->where('id', $id)->firstOrFail();
         $notification->markAsRead();
-        $unread = Auth::user()->unreadNotifications()->count();
+        $unread = $this->visibleNotifications(Auth::user())->whereNull('read_at')->count();
         return response()->json(['success' => true, 'unread_count' => $unread]);
     }
 
@@ -122,24 +122,43 @@ class NotificationController extends Controller
         $data = $n->data;
         if (is_string($data)) $data = json_decode($data, true) ?: [];
         $rawType = $data['type'] ?? $n->type ?? 'generic';
-        $priority = $data['priority'] ?? $this->inferPriority($rawType);
-        $category = $data['category'] ?? $this->inferCategory($rawType);
-        try {
-            if ($presenter) {
-                $localized = $presenter->notification($data);
-                $data['title'] = $localized['title'];
-                $data['message'] = $localized['message'];
-            }
-        } catch (\Throwable) {}
+        $safeData = $presenter?->safeNotificationData($data) ?? [
+            'type' => $rawType,
+            'category' => $this->inferCategory($rawType),
+            'priority' => $this->inferPriority($rawType),
+            'title' => __('notifications.generic_title'),
+            'message' => '',
+            'body' => '',
+        ];
         return [
             'id' => $n->id,
-            'type' => $n->type,
-            'data' => array_merge($data, ['priority' => $priority, 'category' => $category]),
+            'type' => 'generic',
+            'data' => $safeData,
             'read_at' => $n->read_at?->toIso8601String(),
             'created_at' => $n->created_at->toIso8601String(),
             'created_at_human' => $n->created_at->diffForHumans(),
             'created_at_full' => $n->created_at->format('Y-m-d H:i'),
         ];
+    }
+
+    private function visibleNotifications($user)
+    {
+        $query = $user->notifications();
+        if ($user->isMonitor()) {
+            $query->where(function ($q) {
+                $q->where(function ($other) {
+                    $other->where('type', '!=', ReportPublishedNotification::class)
+                        ->where(function ($category) {
+                            $category->whereNull('data->category')
+                                ->orWhere('data->category', '!=', 'report');
+                        });
+                })->orWhere(function ($alert) {
+                    $alert->where('type', ReportPublishedNotification::class)
+                        ->where('data->monitor_alert', true);
+                });
+            });
+        }
+        return $query;
     }
 
     private function inferPriority(string $type): string

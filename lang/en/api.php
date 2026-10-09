@@ -1,17 +1,18 @@
 <?php
 
-// Application messages — human-readable app messages (web + api + services).
-// Business values never change; these strings are presentation only.
 
 return [
-    // auth
     'invalid_credentials' => 'Invalid login credentials',
+    'account_banned' => 'This account is suspended. Please contact the general manager.',
+    'username' => 'Username',
+    'password' => 'Password',
+    'role' => 'Role',
     'logged_in' => 'Logged in successfully',
     'logged_out' => 'Logged out successfully',
     'unauthorized' => 'You are not authorized to access this resource',
     'token_invalid' => 'Token is invalid or expired',
 
-    // generic
+    'forbidden' => 'You are not authorized to perform this action',
     'file_not_found' => 'File not found',
     'forbidden_attach_view' => 'You are not authorized to view this attachment',
     'forbidden_attach_download' => 'You are not authorized to download this attachment',
@@ -23,7 +24,6 @@ return [
     'push_already_linked' => 'This subscription is linked to another account',
     'jwt_misconfigured' => 'Authentication is misconfigured on the server. Contact technical administration.',
 
-    // upload errors (with :name and :code)
     'upload_ini' => 'File :name exceeds the server upload_max_filesize limit.',
     'upload_form' => 'File :name exceeds the form limit.',
     'upload_partial' => 'File :name arrived incomplete. Please retry.',
@@ -37,7 +37,6 @@ return [
     'store_failed_named' => 'Could not store file :name on local disk.',
     'attach_failed_prefix' => 'Attachment upload failed: :error',
 
-    // notes
     'note_unauthorized_create' => 'You are not authorized to create notes',
     'note_unauthorized_view' => 'You are not authorized to view this note',
     'note_unauthorized_update' => 'You are not authorized to edit this note',
@@ -52,6 +51,7 @@ return [
     'note_web_created' => 'Note created successfully',
     'note_updated' => 'Note updated successfully',
     'note_deleted' => 'Note deleted',
+    'note_not_found' => 'Note not found',
     'note_api_deleted' => 'Note deleted successfully',
     'note_sent' => 'Note sent successfully',
     'note_web_sent' => 'Note sent for review',
@@ -96,14 +96,12 @@ return [
     'note_files_partial' => 'Received :received of :count declared file(s) only. Re-send the missing files.',
     'note_files_partial_short' => 'Received :received of :count declared file(s) only.',
 
-    // time
     'time_invalid' => 'Observation time is invalid',
     'time_future' => 'Observation time cannot be in the future',
     'time_end_invalid' => 'Observation end time is invalid',
     'time_end_future' => 'Observation end time cannot be in the future',
     'time_range_exceeded' => 'The span between observation start and end exceeds 12 hours — check the date',
 
-    // files
     'file_type_not_allowed' => 'File type is not allowed',
     'file_ext_not_supported' => 'File extension is not supported. Supported: :list',
     'file_real_type_not_supported' => 'Actual file type is not supported',
@@ -111,7 +109,6 @@ return [
     'file_video_too_large' => 'Video size exceeds the maximum (:mbMB)',
     'file_audio_too_large' => 'Audio size exceeds the maximum (:mbMB)',
 
-    // general submissions
     'sub_unauthorized_create' => 'You are not authorized to create public submissions',
     'sub_unauthorized_view' => 'You are not authorized to view this submission',
     'sub_unauthorized_update' => 'You are not authorized to edit this submission',
@@ -157,7 +154,6 @@ return [
     'sub_attach_verify_failed' => 'Attachment verification before save failed.',
     'sub_attach_create_failed' => 'Failed to create submission with attachments.',
 
-    // reports
     'report_unauthorized_create' => 'You are not authorized to create reports',
     'report_unauthorized_view' => 'You are not authorized to view this report',
     'report_unauthorized_update' => 'You are not authorized to edit this report',
@@ -167,6 +163,7 @@ return [
     'report_unauthorized_manage' => 'You are not authorized to manage this report',
     'report_unauthorized_generate' => 'You are not authorized to generate for this report',
     'report_unauthorized_fill' => 'You are not authorized to fill this report',
+    'report_fill_draft_only' => 'The official sheet can only be filled for a draft report',
     'report_draft_created' => 'Report draft created',
     'report_draft_created_auto_one' => 'Draft created with one note attached automatically',
     'report_draft_created_auto_two' => 'Draft created with two notes attached automatically',
@@ -193,6 +190,9 @@ return [
     'report_title_too_short' => 'Title is too short (at least 3 characters)',
     'report_duplicate_day' => 'Only one report per day is allowed',
     'report_publish_duplicate_day' => 'Only one published report per day is allowed — a published report already exists for this date',
+    'report_pending_notes' => 'There are :n daily notes awaiting review. The report writer must accept or reject them before creating or publishing the report.',
+    'report_create_needs_accepted_note' => 'There are no accepted, unlinked daily notes to attach. Review this day’s notes first.',
+    'report_unattached_accepted_notes' => 'There are :n accepted daily notes not attached to this report. Add them before publishing.',
     'report_date_required' => 'Report date is required',
     'report_date_future' => 'Report date cannot be in the future',
     'report_date_change_rejected' => 'Date change rejected: notes from a different day exist',
@@ -201,6 +201,7 @@ return [
     'report_note_not_accepted' => 'Note #:id is not accepted',
     'report_note_wrong_day' => 'Note #:id is from a different day than the report date',
     'report_note_already_in_report' => 'Note #:id is already used in another report and cannot be reused',
+    'report_note_already_linked' => 'One of these notes is already linked to another report and cannot be reused',
     'report_has_wrong_day_note' => 'Report contains a note from a different day',
     'report_invalid_order' => 'Invalid order: must contain the same notes',
     'report_publish_draft_only' => 'Only drafts can be published',
@@ -229,7 +230,6 @@ return [
     'sheet_filled' => 'Official sheet filled — review the filled image in the preview before printing.',
     'sheet_deleted' => 'Filled sheet deleted.',
 
-    // attachments (internal technical, shown only on failure)
     'attach_copy_source_missing' => 'Could not copy attachment: original file is missing.',
     'attach_copy_failed' => 'Could not copy attachment to the note.',
     'attach_copy_verify_failed' => 'Could not verify the attachment copy in the note.',
@@ -240,7 +240,6 @@ return [
     'attach_size_mismatch' => 'File :name was saved but size mismatches (original :orig bytes, stored :stored bytes).',
     'attach_hash_mismatch' => 'File :name was saved but content mismatches (hash verification failed).',
 
-    // AI (user-facing messages only — internal prompts are not translated)
     'ai_disabled' => 'Automatic generation is currently disabled. You can write the full report manually in the content field.',
     'ai_disabled_short' => 'Automatic generation is currently disabled.',
     'ai_unsupported_provider' => 'AI provider is not supported',
@@ -277,20 +276,20 @@ return [
     'ai_previous_draft' => 'A previous automatic draft exists — enable regenerate to replace it.',
     'ai_manual_exists' => 'You have saved manual summary/recommendations — confirm approval despite manual content.',
     'ai_draft_only' => 'Generation is available for draft reports only. Unpublish first to regenerate.',
-    'ai_need_accepted_note' => 'Generation requires at least one accepted note from the same day attached.',
+    'ai_need_accepted_note' => 'The report needs at least one accepted note from the same day.',
+    'ai_notes_changed' => 'Accepted notes changed after drafting. Regenerate before creating the report so the text matches the current notes.',
     'ai_data_range' => 'Data generation covers reports of 1 to 7 notes only.',
     'ai_hint_retry_seconds' => 'Tip: retry in (:seconds seconds) — your report and notes are saved and unchanged.',
     'ai_hint_retry_later' => 'Tip: retry shortly — your report and notes are saved and unchanged.',
     'ai_hint_manual' => 'Tip: you can continue manually now and regenerate later.',
     'ai_hint_retry_once' => 'Tip: regenerate once; if it persists, contact technical administration.',
 
-    // profile
+    'profile_update_invalid' => 'Please review the required fields',
     'profile_phone_invalid' => 'Phone number is invalid',
     'profile_phone_taken' => 'This number is already used',
     'profile_password_wrong' => 'Current password is incorrect',
     'profile_avatar_failed' => 'Could not upload the image. Try a smaller image (up to 10MB) as JPG/PNG/WEBP.',
 
-    // custom validation
     'validation_recipients_unique' => 'Duplicate recipients are not allowed',
     'validation_recipients_writers' => 'All recipients must be report writers',
     'validation_user_must_writer' => 'User must be a report writer',

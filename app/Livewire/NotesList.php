@@ -53,7 +53,6 @@ class NotesList extends Component
                 $query->where('notes.status', $this->status);
             }
         } else {
-            // قسم "الكل" يجب ألا يعرض المسودات — المسودات لها تبويب مستقل (كل الأوضاع)
             $query->where('notes.status', '!=', Note::STATUS_DRAFT);
         }
         if ($this->date) {
@@ -87,7 +86,15 @@ class NotesList extends Component
 
         $cacheKey = 'notes-counts:'.$user->id.':'.$this->mode;
 
-        return \Illuminate\Support\Facades\Cache::remember($cacheKey, 30, function () use ($user) {
+        try {
+            return \Illuminate\Support\Facades\Cache::remember($cacheKey, 30, fn () => $this->computeCounts($user));
+        } catch (\Throwable $e) {
+            return $this->computeCounts($user);
+        }
+    }
+
+    private function computeCounts($user): array
+    {
             if ($this->mode === 'my') {
                 $base = Note::where('user_id', $user->id)->whereNull('general_submission_id');
             } else {
@@ -109,7 +116,6 @@ class NotesList extends Component
                 ->toArray();
 
             $total = array_sum($counts);
-            // عدّاد "الكل" يستبعد المسودات في كل الأوضاع (all و my)
             $total -= ($counts[Note::STATUS_DRAFT] ?? 0);
             $result = ['total' => $total];
             foreach ($statuses as $status) {
@@ -117,25 +123,26 @@ class NotesList extends Component
             }
 
             return $result;
-        });
     }
 
     public function getObserversProperty()
     {
+        $locale = app()->getLocale() === 'en' ? 'en' : 'ar';
+        $key = 'observers_list:v2:'.$locale;
         try {
-            $cached = cache()->get('observers_list');
+            $cached = cache()->get($key);
             if ($cached instanceof \Illuminate\Database\Eloquent\Collection && $cached->first() instanceof User) {
                 return $cached;
             }
             if (is_array($cached) && isset($cached[0]['id'])) {
                 return collect($cached)->map(fn($r) => (object)$r);
             }
-            if ($cached !== null) cache()->forget('observers_list');
+            if ($cached !== null) cache()->forget($key);
             $fresh = User::where('role', 'monitor')->orderBy('name')->get(['id', 'name', 'name_en', 'name_ar']);
-            cache()->put('observers_list', $fresh->toArray(), 3600);
+            cache()->put($key, $fresh->toArray(), 3600);
             return $fresh;
         } catch (\Throwable $e) {
-            cache()->forget('observers_list');
+            try { cache()->forget($key); } catch (\Throwable $ignored) {}
             return User::where('role', 'monitor')->orderBy('name')->get(['id', 'name', 'name_en', 'name_ar']);
         }
     }

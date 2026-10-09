@@ -75,7 +75,12 @@ class JwtService
             return null;
         }
 
-        return User::find($userId);
+        $user = User::find($userId);
+        if (!$user || $user->isBanned()) {
+            return null;
+        }
+
+        return $user;
     }
 
     public function blacklistToken(string $token): void

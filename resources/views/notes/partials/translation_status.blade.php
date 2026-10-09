@@ -16,7 +16,7 @@
 <div class="flex items-center gap-2 text-xs" data-note-translation-badge data-note-id="{{ $note->id }}" data-l10n-type="{{ $l10nType }}" data-state="{{ $overall }}">
     @if($overall === 'ready')
         <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#eef4f0] text-[#0e6a38] border border-[#cde7d6] font-bold">
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+            <x-phosphor-check-duotone class="w-3.5 h-3.5" />
             {{ __('ui.note_translation_ready') }}
         </span>
     @elseif($isStale)

@@ -8,6 +8,7 @@ const Auth = {
   isLoggedIn() { return !!API.token && !!this.user; },
   isMonitor() { return this.user?.role === 'monitor'; },
   isWriter() { return this.user?.role === 'report_writer'; },
+  isGeneralManager() { return this.user?.role === 'general_manager'; },
 
   setUser(u) { this.user = u; localStorage.setItem('rasd_user', JSON.stringify(u)); },
   clear() { this.user = null; localStorage.removeItem('rasd_user'); API.clearToken(); },

@@ -28,9 +28,6 @@ class GeminiTranslationProvider implements TranslationProviderInterface
             throw new \RuntimeException('AI translation is not configured.');
         }
 
-        // If quota was exhausted recently, skip the API call entirely (avoids wasted 1-2s latency per request)
-        // نفس الشيء للأعطال المتكررة: حظر الموقع/المفتاح (30 دقيقة) أو تعطل الخدمة (5 دقائق).
-        // بدون هذا القاطع كل صفحة تعيد ضرب Gemini وتعلق اللودر 10-30 ثانية.
         $quotaKey = 'gemini:quota:exhausted';
         $blockedKey = 'gemini:blocked';
         $unavailableKey = 'gemini:unavailable';
@@ -99,22 +96,18 @@ class GeminiTranslationProvider implements TranslationProviderInterface
                 'error' => mb_substr($e->getMessage(), 0, 200),
             ]);
             if ($isDaily) {
-                // Cache the quota exhaustion for 6 hours — don't retry until quota resets
                 try {
                     \Illuminate\Support\Facades\Cache::put('gemini:quota:exhausted', true, now()->addHours(6));
                 } catch (\Throwable) {
                 }
                 return [];
             }
-            // حد لحظي (وليس يومياً): أوقف المحاولات 5 دقائق بدل ضرب الـ API مع كل صفحة.
             try {
                 \Illuminate\Support\Facades\Cache::put('gemini:unavailable', true, now()->addMinutes(5));
             } catch (\Throwable) {
             }
             throw $e;
         } catch (\App\Exceptions\Ai\AiAuthenticationException $e) {
-            // مفتاح مرفوض أو موقع محظور ("User location is not supported") — لا فائدة من إعادة
-            // المحاولة مع كل طلب. أوقف الترجمة 30 دقيقة واعرض النص الأصلي فوراً.
             try {
                 \Illuminate\Support\Facades\Cache::put('gemini:blocked', true, now()->addMinutes(30));
             } catch (\Throwable) {
@@ -125,8 +118,6 @@ class GeminiTranslationProvider implements TranslationProviderInterface
             ]);
             throw $e;
         } catch (\App\Exceptions\Ai\AiInvalidResponseException $e) {
-            // يشمل "The service rejected the request" وحظر الموقع من جهة Google (400).
-            // لا تعيد الضرب مباشرة: قاطع قصير 10 دقائق.
             try {
                 \Illuminate\Support\Facades\Cache::put('gemini:unavailable', true, now()->addMinutes(10));
             } catch (\Throwable) {
@@ -140,7 +131,6 @@ class GeminiTranslationProvider implements TranslationProviderInterface
             ]);
             throw $e;
         } catch (\App\Exceptions\Ai\AiUnavailableException $e) {
-            // timeout / 503: قاطع 5 دقائق بدل تعليق كل صفحة تالية.
             try {
                 \Illuminate\Support\Facades\Cache::put('gemini:unavailable', true, now()->addMinutes(5));
             } catch (\Throwable) {

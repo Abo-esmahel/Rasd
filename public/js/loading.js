@@ -1,7 +1,6 @@
 (function () {
     'use strict';
 
-    // Fast + explicit loader: nav shows almost instantly, net shows quickly.
     var SHOW_DELAY_NAV = 15;
     var SHOW_DELAY_NET = 60;
     var MIN_VISIBLE = 220;
@@ -49,7 +48,6 @@
         currentMessage = msg || null;
         var lab = labelEl();
         if (lab && msg) {
-            // Keep dots animation span if present
             var dots = lab.querySelector ? lab.querySelector('.rasd-loader-dots') : null;
             try {
                 lab.childNodes[0].nodeValue = String(msg);
@@ -59,7 +57,6 @@
                 return;
             }
             if (!dots) {
-                // label structure: text node + dots span (server-rendered). If missing, append.
                 var s = document.createElement('span');
                 s.className = 'rasd-loader-dots';
                 s.setAttribute('aria-hidden', 'true');
@@ -81,7 +78,6 @@
         if (!loader) return;
         try { loader.style.animation = 'none'; } catch (e) {}
         loader.classList.remove('hidden');
-        // Force reflow so transition runs even on fast nav
         try { void loader.offsetWidth; } catch (e) {}
         loader.style.display = '';
         loader.style.opacity = '';
@@ -92,7 +88,6 @@
         } else {
             loader.style.pointerEvents = 'none';
         }
-        // Show synchronously for instant feedback (no double-rAF delay on showNow path)
         loader.classList.add('is-visible');
         loader.setAttribute('aria-hidden', 'false');
         try { document.body.setAttribute('aria-busy', 'true'); } catch (e) {}
@@ -147,8 +142,6 @@
         return pending;
     }
 
-    // Immediate, explicit show — used for language switch & report open.
-    // Persists across reload so the NEXT page shows the spinner instantly (no white gap).
     function showNow(msg) {
         if (msg) setMessage(msg);
         try { sessionStorage.setItem('rasd_loader_on', '1'); } catch (e) {}
@@ -274,7 +267,6 @@
             if (a.closest('[data-no-loader]')) return;
             var low = href.toLowerCase();
             if (low.indexOf('mailto:') === 0 || low.indexOf('tel:') === 0) return;
-            // Instant explicit feedback for report links (the slowest pages)
             var msg = defaultNavMessage(href);
             if (msg) {
                 showNow(msg);
@@ -293,8 +285,6 @@
         } catch (err) {}
     }, { passive: true });
 
-    // If previous page requested a persistent loader (locale switch / report nav),
-    // show it the moment this page's loader element exists.
     function restorePersisted() {
         try {
             var on = sessionStorage.getItem('rasd_loader_on') === '1';
@@ -322,7 +312,6 @@
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', function () {
             restorePersisted();
-            // Safety: never trap the user behind the spinner
             setTimeout(function () { if (pending <= 0 && visible) { visible = false; unpaint(); } }, 4000);
         });
     } else {
@@ -330,12 +319,10 @@
     }
 
     window.addEventListener('load', function () {
-        // New page finished: hide persisted loader shortly after paint
         setTimeout(reset, 120);
     });
     window.addEventListener('pageshow', function (ev) {
         if (ev && ev.persisted) { reset(); return; }
-        // bfcache or normal: ensure no stale spinner
         setTimeout(function () { if (pending <= 0) reset(); }, 150);
     });
     window.addEventListener('error', function () { if (pending <= 0) reset(); }, true);

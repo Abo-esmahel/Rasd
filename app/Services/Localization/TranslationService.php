@@ -78,7 +78,7 @@ class TranslationService
     {
         $locale = SourceLanguage::normalizeLocale($locale ?? app()->getLocale());
         $out = [];
-        $candidates = []; // key => ['type','id','field','text','hash','cache_key']
+        $candidates = [];
 
         foreach ($refs as $ref) {
             if (!is_array($ref)) {
@@ -126,7 +126,6 @@ class TranslationService
             return $out;
         }
 
-        // Single batched cache lookup (1 query on database cache driver instead of N).
         $pending = [];
         try {
             $ckList = array_values(array_unique(array_map(fn ($c) => $c['cache_key'], $candidates)));
@@ -235,8 +234,8 @@ class TranslationService
     {
         $locale = SourceLanguage::normalizeLocale($locale ?? app()->getLocale());
         $out = [];
-        $jobs = []; // providerKey => ['type','id','field','text','hash','cache_key','out_keys'=>[]]
-        $dbPending = []; // key => ['type','id','field','text','hash','cache_key','orig']
+        $jobs = [];
+        $dbPending = [];
 
         foreach ($refs as $ref) {
             if (!is_array($ref)) {
@@ -285,7 +284,6 @@ class TranslationService
             ];
         }
 
-        // Batched cache read (1 query instead of N) before hitting the DB.
         if ($dbPending !== []) {
             try {
                 $ckList = array_values(array_unique(array_map(fn ($p) => $p['cache_key'], $dbPending)));
@@ -375,20 +373,16 @@ class TranslationService
             }
         }
 
-        // Batch cache puts (1 query instead of N on database driver).
         $cacheBatch = [];
         foreach ($jobs as $dk => $job) {
             $t = isset($translated[$dk]) ? trim((string) $translated[$dk]) : '';
             if ($t === '') {
-                // Provider failed or returned empty: keep pending (do NOT persist source as translation)
-                // so retry stays possible and English locale falls back to source display, not fake DB row.
                 $out[$dk] = $job['text'];
                 foreach ($job['targets'] as $target) {
                     $out[$target['key']] = $job['text'];
                 }
                 continue;
             }
-            // Do not persist identical copy (would mark pending as ready with no real translation)
             $isReal = $t !== trim($job['text']);
             foreach ($job['targets'] as $target) {
                 $out[$target['key']] = $t;
@@ -497,7 +491,6 @@ class TranslationService
         if (preg_match('/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/', $t)) {
             return false;
         }
-        // Technical codes: uppercase words + dash + numbers (CAM-001, ID-123, REF-ABC-456)
         if (preg_match('/^[A-Z]{2,}(-[A-Z0-9]+){1,3}$/', $t)) {
             return false;
         }
@@ -522,6 +515,7 @@ class TranslationService
                 'published' => 'منشور',
                 'monitor' => 'مراقب ميداني',
                 'report_writer' => 'كاتب تقارير',
+                'general_manager' => 'المدير العام',
                 default => $status,
             };
         }
@@ -534,6 +528,7 @@ class TranslationService
             'published' => 'Published',
             'monitor' => 'Field Monitor',
             'report_writer' => 'Report Writer',
+            'general_manager' => 'General Manager',
             default => $status,
         };
     }

@@ -67,9 +67,6 @@ class GeminiAiTextGenerator implements AiTextGeneratorInterface
             $attempt++;
             $started = microtime(true);
             try {
-                // asJson forces UTF-8 JSON encoding (critical for Arabic prompts).
-                // Gemini requires the key as a query parameter.
-                // connectTimeout قصير: الفشل السريع أهم من الانتظار (صفحة الويب تموت بعد 30 ثانية).
                 $response = Http::asJson()->connectTimeout(5)->timeout($timeout)->retry(0)
                     ->post("https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key=" . urlencode($apiKey), $payload);
             } catch (ConnectionException $e) {
@@ -112,8 +109,6 @@ class GeminiAiTextGenerator implements AiTextGeneratorInterface
                 if ($daily) {
                     throw new AiRateLimitException(__('api.ai_quota_daily'), retryAfter: null, previous: null);
                 }
-                // فشل سريع: لا تنم داخل طلب الويب أكثر من 10 ثوانٍ — وإلا مات الطلب
-                // بحد الـ 30 ثانية وعلّق اللودر. إعادة المحاولة الطويلة للمهام الخلفية فقط.
                 if ($retryAfter === null || $retryAfter > 10 || $attempt >= $maxRetries) {
                     if ($retryAfter !== null) {
                         throw new AiRateLimitException(__('api.ai_rate_wait', ['seconds' => $retryAfter]), retryAfter: $retryAfter, previous: null);
@@ -129,7 +124,6 @@ class GeminiAiTextGenerator implements AiTextGeneratorInterface
                 continue;
             }
             if ($status >= 500 || $status === 0) {
-                // فشل سريع: نومة واحدة قصيرة فقط، ونتأكد أن المجموع لا يقترب من حد PHP.
                 if ($attempt < $maxRetries && $this->hasTimeForRetry($callStarted, $timeout, $phpLimit)) {
                     Log::warning('[AI] gemini server error, retrying', ['model' => $model, 'status' => $status, 'attempt' => $attempt]);
                     sleep(1);
@@ -204,7 +198,6 @@ class GeminiAiTextGenerator implements AiTextGeneratorInterface
     private function extractJson(string $text): ?array
     {
         $clean = trim($text);
-        // Strip markdown code fences (```json ... ```) models love to add.
         if (preg_match('/```(?:json)?\s*(.*?)```/s', $clean, $m)) {
             $clean = trim($m[1]);
         }
@@ -231,7 +224,6 @@ class GeminiAiTextGenerator implements AiTextGeneratorInterface
             return true;
         }
         $elapsed = microtime(true) - $callStarted;
-        // نحتاج: محاولة كاملة أخرى + هامش أمان 5 ثوانٍ
         return ($elapsed + $timeout + 5) < $phpLimit;
     }
 
@@ -275,7 +267,6 @@ class GeminiAiTextGenerator implements AiTextGeneratorInterface
             if (!is_array($detail)) {
                 continue;
             }
-            // google.rpc.RetryInfo → {"retryDelay": "35s"}
             if (isset($detail['retryDelay']) && is_string($detail['retryDelay'])) {
                 $parsed = $this->parseDelayString($detail['retryDelay']);
                 if ($parsed !== null) {

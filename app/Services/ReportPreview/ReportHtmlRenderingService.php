@@ -279,7 +279,7 @@ class ReportHtmlRenderingService
         $locale = \App\Services\Localization\SourceLanguage::normalizeLocale(app()->getLocale());
         $cacheKey = "report-html-preview:{$report->id}:{$row->payload_hash}:{$locale}";
 
-        return Cache::remember($cacheKey, 3600, function () use ($report, $row, $locale) {
+        $builder = function () use ($report, $row, $locale) {
             try {
                 $observations = array_values($row->payload['observations']);
                 $recommendations = (string) ($row->payload['recommendations'] ?? '');
@@ -315,7 +315,15 @@ class ReportHtmlRenderingService
 
                 return null;
             }
-        });
+        };
+
+        try {
+            return Cache::remember($cacheKey, 600, $builder);
+        } catch (\Throwable $e) {
+            Log::warning('[HTML-RENDER] cache store failed, rendering directly', ['report_id' => $report->id, 'error' => $e->getMessage()]);
+
+            return $builder();
+        }
     }
 
     private function syncRecommendations(Report $report, ReportRenderPayload $payload): void

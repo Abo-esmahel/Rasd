@@ -325,8 +325,6 @@ class AttachmentStorageService
             return $this->fileResponseForPath($thumb, 'image/jpeg', $attachment->original_name, false);
         }
 
-        // SVG has no GD thumbnail — serve it inline so <img> previews always render.
-        // Scripts stay blocked by the strict CSP (default-src 'none') sent with the response.
         $mime = strtolower(trim((string) ($attachment->mime_type ?: '')));
         if (in_array($mime, ['image/svg+xml', 'image/svg'], true)) {
             return $this->fileResponseForPath((string) $attachment->file_path, 'image/svg+xml', $attachment->original_name, false, true);
@@ -342,8 +340,6 @@ class AttachmentStorageService
             return $this->fileResponseForPath($thumb, 'image/jpeg', $attachment->original_name, false);
         }
 
-        // SVG has no GD thumbnail — serve it inline so <img> previews always render.
-        // Scripts stay blocked by the strict CSP (default-src 'none') sent with the response.
         $mime = strtolower(trim((string) ($attachment->mime_type ?: '')));
         if (in_array($mime, ['image/svg+xml', 'image/svg'], true)) {
             return $this->fileResponseForPath((string) $attachment->file_path, 'image/svg+xml', $attachment->original_name, false, true);
@@ -387,7 +383,6 @@ class AttachmentStorageService
                 return null;
             }
             [$w, $h] = [$info[0], $info[1]];
-            // Already small enough — serve the original (avoids upscale + extra file).
             if (max($w, $h) <= 480) {
                 return null;
             }
@@ -408,7 +403,6 @@ class AttachmentStorageService
                 @imagedestroy($src);
                 return null;
             }
-            // Flatten transparency on white (JPEG has no alpha).
             $bg = @imagecreatetruecolor($tw, $th);
             if (!$bg) {
                 @imagedestroy($src);

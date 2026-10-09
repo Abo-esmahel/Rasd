@@ -1,7 +1,6 @@
 <?php
 
 return [
-    // General
     'app_name' => 'Surveillance Camera Notes System',
     'app_short' => 'Note',
     'ministry' => 'Ministry of Information',
@@ -30,12 +29,32 @@ return [
     'active' => 'Active',
     'developers' => 'Developers',
 
-    // Nav
     'nav_notes' => 'Notes',
     'nav_my_notes' => 'My Notes',
     'nav_gallery' => 'Gallery',
     'nav_submissions' => 'Public Submissions',
     'nav_reports' => 'Reports',
+    'report_comments' => 'Comments & reactions',
+    'note_reactions' => 'Note reactions',
+    'comment_placeholder' => 'Write a comment on this report…',
+    'comment_added' => 'Comment added',
+    'comment_send' => 'Post comment',
+    'ai_generate_suggestion' => 'Draft with AI',
+    'ai_generating_suggestion' => 'Gathering notes and drafting…',
+    'ai_suggestion_ready' => 'Suggestion ready. Review and edit it before creating the report.',
+    'ai_suggestion_pending' => 'The suggestion includes :n notes awaiting review. This is a preview only; decide those notes and regenerate before creating the report.',
+    'ai_suggestion_stale' => 'The date changed after drafting. Regenerate to match the selected day’s notes.',
+    'ai_suggestion_overwrite' => 'This will replace the current draft text. Continue?',
+    'ai_unavailable' => 'AI drafting is not configured right now.',
+    'reply' => 'Reply',
+    'reply_placeholder' => 'Write a reply…',
+    'like' => 'Like',
+    'love' => 'Love',
+    'insightful' => 'Insightful',
+    'thanks' => 'Thanks',
+    'dislike' => 'Dislike',
+    'angry' => 'Angry',
+    'no_comments' => 'No comments yet. Start a discussion about this report.',
     'nav_ranking' => 'Ranking',
     'nav_account' => 'My Account',
     'logout' => 'Logout',
@@ -43,7 +62,6 @@ return [
     'toggle_theme' => 'Toggle theme',
     'dark_mode' => 'Dark mode',
 
-    // Notifications
     'notifications' => 'Notifications',
     'notif_center' => 'Notification Center',
     'notif_settings' => 'Notification settings',
@@ -69,11 +87,9 @@ return [
     'offline' => 'Offline',
     'all_marked_read' => 'All notifications marked as read',
 
-    // General alerts
     'alert_review' => 'Notice — please review',
     'attach_partial' => 'Saved, but some attachments failed to upload:',
 
-    // Profile
     'profile' => 'Profile',
     'profile_of' => ':name’s profile',
     'profile_subtitle' => 'Your account data and role',
@@ -101,6 +117,8 @@ return [
     'role_monitor_desc' => 'Monitor — create & follow up notes',
     'role_writer' => 'Report Writer',
     'role_writer_desc' => 'Report writer — approve & reject',
+    'role_general_manager' => 'General Manager',
+    'role_general_manager_desc' => 'General Manager — read-only reports & gallery',
     'entity' => 'Organization',
     'change_password' => 'Change password',
     'optional' => '— optional',
@@ -132,7 +150,6 @@ return [
     'zoom_avatar' => 'Zoom image',
     'preview_avatar_alt' => 'Image preview',
 
-    // Language — new card
     'language' => 'Language',
     'language_title' => 'Interface language',
     'language_hint' => 'Switching language shows the saved version in that language — the original is always preserved and never re-translated here.',
@@ -140,12 +157,10 @@ return [
     'english' => 'English',
     'lang_switched' => 'Language changed successfully',
 
-    // Ranking
     'ranking_monitors' => 'Monitors ranking',
     'ranking_hint' => 'Most accepted first',
     'ranking_calc' => 'Ranking counts accepted notes only',
 
-    // Login
     'login' => 'Login',
     'login_title' => 'Ministry of Information — Login',
     'login_hint' => 'Enter your credentials to continue',
@@ -155,7 +170,6 @@ return [
     'enter' => 'Login',
     'verifying' => 'Verifying...',
 
-    // Notes — common
     'new_note' => 'New note',
     'doc_field_note' => 'Document a field note',
     'my_notes_hint' => 'Track and manage your field notes',
@@ -208,7 +222,6 @@ return [
     'no_description' => 'No description',
     'reject' => 'Reject',
 
-    // Reports — common
     'daily_reports' => 'Daily reports',
     'new_report' => 'New report',
     'new_daily_report' => 'New daily report',
@@ -250,7 +263,6 @@ return [
     'manual_text_hint' => 'Saves manual text only — use Publish for the official document',
     'ai_draft_gen' => 'Generate AI draft',
 
-    // Gallery
     'gallery_title' => 'Attachments gallery',
     'gallery_sub' => 'Attachment · notes & submissions',
     'view_options' => 'View options',
@@ -272,7 +284,6 @@ return [
     'video_clip' => 'Video clip',
     'audio_clip' => 'Audio clip',
 
-    // Submissions
     'sub_new' => 'New public submission',
     'sub_new_plus' => '+ New public submission',
     'sub_hint' => 'Submissions sent to you or created by you',
@@ -292,26 +303,22 @@ return [
     'sender' => 'Sender:',
     'to' => 'To:',
 
-    // Validation
     'profile_updated' => 'Profile updated successfully',
 
-    // Official document — labels follow locale (internal values unchanged)
     'published' => 'Published',
     'report_number' => 'Report Number',
     'report_date_label' => 'Date',
     'daily_report' => 'Daily Report',
     'observations_section' => 'Observations',
+    'notes_eyebrow' => 'Field monitoring',
+    'notes_subtitle' => 'Track field observations and review their statuses at a glance',
     'recommendations_title' => 'Recommendations',
     'signature' => 'Signature',
     'prepared_by' => 'Prepared by',
     'responsible' => 'Responsible',
 
-    // Dynamic translation — presentation layer only
     'preparing_content' => 'Preparing content…',
 
-    // Smart note translation — display only, no technical terms.
-    // Architecture: Source → background → stored version → render per locale.
-    // Language switch shows the saved version only — no Gemini.
     'smart_note_title' => 'Smart note translation',
     'smart_note_hint_create' => 'Write the note in your current language — it is saved as-is, and the other-language version is prepared automatically in the background.',
     'smart_note_hint_edit' => 'Editing the description refreshes the translation automatically in the background — the original is preserved.',
@@ -326,15 +333,30 @@ return [
     'note_translation_retry_queued' => 'Translation refresh was queued — it will appear shortly.',
     'note_translation_nothing_to_do' => 'No translation needed for this note.',
 
-    // Print — chrome + A4 document (follows current locale, no Gemini)
     'print_ministry' => 'Syrian Arab Republic',
     'print_ministry_sub' => 'Ministry of Information',
     'print_start' => 'Observation start time',
     'print_end' => 'Observation end time',
+    'print_description' => 'Observation description',
+    'print_sent_at' => 'Sent at',
+    'print_processed_at' => 'Processed at',
+    'print_rejection' => 'Rejection reason',
+    'print_updated_at' => 'Last updated',
     'print_description_cont' => 'Description (continued)',
     'print_page_of' => 'Page :a of :b',
+    'print_open_attachment' => 'Tap to open the attachment',
+    'videoSnapshot' => 'The image below is a single snapshot from this video — full video via the link below',
+    'videoNoFrame' => 'A snapshot could not be taken from this video — full video via the link below',
+    'imageScaled' => 'Optimised print copy (full original available via the link below)',
+    'imageTooLarge' => 'Image too large for the document — full original via the link below:',
     'print_video_frame' => 'Video frame',
     'print_no_attachments' => '(No attachments)',
+    'file_missing' => 'File is not available on the server',
+    'print_attachments' => 'Attachments',
+    'print_attachments_count' => 'Attachments (:count)',
+    'print_note_title' => 'Note',
+    'print_submission_title' => 'Submission',
+    'print_page_num' => 'Page',
     'print_selected_of' => ':count of :total selected',
     'print_open_failed' => 'Could not open printing',
     'print_official_page' => 'Official document — page 1 of 1',
@@ -344,7 +366,6 @@ return [
     'fill_block_empty' => 'Attach a note first to enable the preview.',
     'fill_block_range' => 'The preview covers 1–7 notes only — this report (:n) prints with the general layout below.',
 
-    // Shared/public + redirect pages
     'download_btn' => 'Download',
     'copied_ok' => 'Copied ✓',
     'no_preview_title' => 'No preview for this type',
@@ -357,7 +378,6 @@ return [
     'redirect_back' => 'Back',
     'redirect_home' => 'Home',
 
-    // Files, upload, camera, recording (JS UI)
     'file_image' => 'Image',
     'file_video' => 'Video',
     'file_audio' => 'Audio',
@@ -422,7 +442,6 @@ return [
     'photo_done_short' => 'Photo captured ✓',
     'rec_fail_short' => 'Failed: :message',
 
-    // Report page — interface strings (internal values unchanged)
     'hidden_from_monitors' => 'Hidden from monitors',
     'add_note' => 'Add a note',
     'approve_report' => 'Approve the report',
@@ -479,7 +498,6 @@ return [
     'preview_badge' => 'Preview',
     'export_hint' => 'To export, use the ⋮ menu in Reports.',
 
-    // Reports list — interface strings
     'report_one' => '1 report',
     'report_two' => '2 reports',
     'reports_many' => ':n reports',
@@ -490,7 +508,6 @@ return [
     'print_pdf' => 'Print / PDF',
     'download_png' => 'Download PNG',
 
-    // App shell — notification drawer & banners (interface strings)
     'connected' => 'Connected',
     'settings_short' => 'Settings',
     'close_notif_drawer' => 'Close notifications panel',
@@ -499,12 +516,12 @@ return [
     'enable_sound_short' => 'Enable sound',
     'main_nav' => 'Navigation',
     'profile_aria' => 'View profile',
+    'view_profile' => 'View profile',
     'team_info' => 'Team info',
     'dev_info' => 'Developer info',
     'form_errors_title' => 'Check the fields',
     'attach_partial_short' => 'Some attachments failed to upload:',
 
-    // Zero-Arabic audit — interface, filters, counters, notifications
     'drafts' => 'Drafts',
     'observer_label' => 'Observer',
     'sort_by' => 'Sort by',
@@ -592,7 +609,6 @@ return [
     'sheet_no' => 'Sheet no. :n',
     'sheet_alt' => 'Report sheet no. :n',
 
-    // Localization (Presentation Concern)
     'rating_excellent' => 'Excellent',
     'rating_very_good' => 'Very good',
     'rating_good' => 'Good',
@@ -621,17 +637,14 @@ return [
     'js_have_notification' => 'You have a new notification',
     'js_notification_word' => 'Notification',
 
-    // Pagination
     'showing' => 'Showing',
     'of' => 'of',
 
-    // JavaScript common strings
     'done_keyword' => 'Done',
     'success_keyword' => 'Successfully',
     'error_occurred' => 'An error occurred',
     'processing' => 'Processing...',
 
-    // Translation-path keys (ReportController/Presenter)
     'report_unavailable' => 'Report unavailable.',
     'no_approved_data' => 'No approved data yet.',
     'localized_unavailable' => 'Localized version unavailable right now.',
@@ -642,7 +655,6 @@ return [
     'rating_weak' => 'Weak',
     'rating_none' => 'Unrated',
 
-    // Login page
     'login_title_full' => 'Login — Ministry of Information Syria',
     'enter_credentials' => 'Enter your credentials to continue',
     'username_label' => 'Username',
@@ -655,7 +667,6 @@ return [
     'ministry_short' => 'Ministry of Information',
     'copyright' => '© :year Syrian Arab Republic',
 
-    // Reports create
     'back_to_reports_aria' => 'Back to reports',
     'new_report_title' => 'New Report',
     'new_report_subtitle' => 'New draft — accepted notes of the day attach automatically',
@@ -667,12 +678,19 @@ return [
     'date_invalid_error' => 'Invalid date.',
     'visible_to_monitors' => 'Visible to monitors when published',
     'visible_to_monitors_hint' => 'Monitors see the report only after publishing',
-    'auto_attach_hint' => 'All accepted notes from the same date attach to the draft automatically; you can adjust them later from the report page.',
+    'auto_attach_hint' => 'All accepted notes from this day that are not linked elsewhere attach automatically. Resolve pending notes first; a note can belong to only one report.',
+    'report_day_status_loading' => 'Checking this day’s notes…',
+    'report_day_status_error' => 'Could not check this day’s status. Retry before creating the report.',
+    'report_day_status_pending' => ':n daily notes are awaiting review. Accept or reject them before creating the report. AI can show them in a preview only.',
+    'report_day_status_ready' => ':n accepted notes are available and will attach automatically.',
+    'report_day_status_exists' => 'A report already exists for this day. A second report cannot be created.',
+    'report_day_status_empty' => 'There are no accepted, unlinked notes for this day yet.',
+    'review_notes' => 'Review daily notes',
     'create_draft_btn' => 'Create Draft',
     'creating_draft' => 'Creating draft...',
     'review_fields_alert' => 'Review the highlighted fields.',
+    'content_optional' => 'Report content (optional)',
 
-    // Notes create
     'new_note_title' => 'New Note',
     'back_aria' => 'Back',
     'floor_label' => 'Floor',
@@ -745,7 +763,6 @@ return [
     'server_limit_exceeded' => 'Total size :size MB exceeds safe limit 120M (server limit 128M). Reduce count or file sizes and retry — nothing was sent.',
     'client_files_count' => 'Total attachments',
 
-    // Gallery
     'gallery_title' => 'Attachments Gallery',
     'attachments_count' => ':count attachments',
     'view_options_aria' => 'View options',
@@ -775,7 +792,6 @@ return [
     'attachment_kind_submission' => 'S',
     'created_date' => ':date',
 
-    // Notes index / my
     'my_notes_title' => 'My Notes',
     'note_statuses_aria' => 'Note statuses',
     'all_tab' => 'All',
@@ -881,7 +897,6 @@ return [
     'upload_complete_short' => 'Uploaded',
     'fix_fields_error' => 'Please fix the fields:',
 
-    // Profile
     'profile_title' => 'Profile',
     'edit_profile_btn' => 'Edit profile',
     'account_data' => 'Account data',
@@ -902,6 +917,8 @@ return [
     'role_monitor_desc' => 'Monitor — create & follow up notes',
     'role_writer' => 'Report Writer',
     'role_writer_desc' => 'Report writer — approve & reject',
+    'role_general_manager' => 'General Manager',
+    'role_general_manager_desc' => 'General Manager — read-only reports & gallery',
     'entity_label' => 'Organization',
     'change_password' => 'Change password',
     'password_optional' => '— optional',
@@ -920,7 +937,6 @@ return [
     'no_stats' => 'No statistics yet.',
     'activity_performance' => 'Activity & performance',
 
-    // Notifications
     'notifications_title' => 'Notifications',
     'notif_center' => 'Notification Center',
     'notif_settings' => 'Notification settings',
@@ -965,7 +981,6 @@ return [
     'js_have_notification' => 'You have a new notification',
     'js_notification_word' => 'Notification',
 
-    // Report writers insights — standalone page (writers only)
     'view_insights' => 'Insights',
     'insights_title' => 'Operational Insights',
     'insights_sub' => 'Period summary',

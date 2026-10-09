@@ -43,10 +43,8 @@
     })();
     </script>
     <title>{{ $title ?? __('ui.app_name') }} — {{ __('ui.ministry') }}</title>
-    {{-- Fonts are self-hosted via Vite/Bunny (Almarai, Inter, Instrument Sans) — no external Google Fonts dependency --}}
 
     @vite(['resources/css/app.css'])
-    {{-- print-layout-engine.js moved to body end for non-blocking load --}}
     <style>
 
         html{scroll-behavior:smooth; scrollbar-gutter:stable; touch-action: manipulation; -ms-touch-action: manipulation; overscroll-behavior-y: auto;}
@@ -218,7 +216,7 @@
             .xl\:hidden{display:none !important}
             .xl\:grid-cols-3{grid-template-columns:repeat(3,minmax(0,1fr)) !important}
         }
-        html[lang="en"] *{font-family:'Inter','Almarai','Segoe UI',Tahoma,sans-serif}
+        html[lang="en"] *{font-family:'Qomra','IBM Plex Sans Arabic','Inter','Almarai','Segoe UI',Tahoma,sans-serif}
         html[lang="en"] body{letter-spacing:0}
         html[lang="en"] .font-mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
     </style>
@@ -234,7 +232,7 @@
     <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-3 focus:right-3 bg-[#0e6a38] text-white px-4 py-2.5 rounded-xl z-[100] text-sm font-bold shadow-lg">{{ __('ui.skip_to_content') }}</a>
 
     @auth
-    <header class="sticky top-0 z-40 bg-[#fdfcfa]/92 backdrop-blur-xl border-b border-[#e8ece7] shadow-[0_1px_0_rgba(26,46,31,0.03),0_8px_24px_rgba(26,46,31,0.04)] supports-[backdrop-filter]:bg-[#fdfcfa]/85">
+    <header class="sticky top-0 z-40 bg-[#fdfcfa] dark:bg-[#252b26] border-b border-[#e8ece7] dark:border-[#2e352e] shadow-[0_1px_0_rgba(26,46,31,0.03),0_8px_24px_rgba(26,46,31,0.04)]">
         <div class="h-[2px] w-full flex">
             <div class="flex-1 bg-[#0e6a38]"></div>
             <div class="flex-1 bg-white"></div>
@@ -243,27 +241,33 @@
         <div class="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex flex-nowrap items-center justify-between h-14 gap-4">
                 <div class="topbar-start flex min-w-0 flex-1 flex-nowrap items-center gap-3 md:gap-4 lg:gap-6">
-                    <a href="{{ route('notes.index') }}" class="topbar-brand flex flex-nowrap items-center gap-2.5 shrink-0 group">
+                    <a href="{{ (auth()->user()->isGeneralManager() || auth()->user()->isReportWriter()) ? route('reports.index') : route('notes.index') }}" class="topbar-brand flex flex-nowrap items-center gap-2.5 shrink-0 group">
                         <img src="{{ asset('images/eagle-emblem.svg') }}" alt="شعار النسر السوري" data-no-translate class="brand-emblem h-9 w-auto max-w-[72px] object-contain shrink-0 drop-shadow-sm" loading="eager" fetchpriority="high" decoding="async">
                         <span class="font-bold text-[13px] tracking-tight text-[#1a2e1f] hidden lg:block whitespace-nowrap">{{ __('ui.ministry') }}</span>
                     </a>
 
                     <nav class="hidden md:flex flex-nowrap items-center gap-1 shrink-0 whitespace-nowrap" aria-label="{{ __('ui.main_nav') }}">
+                        @if(!auth()->user()->isGeneralManager())
                         <a href="{{ route('notes.index') }}" class="px-2 xl:px-3 py-1.5 rounded-lg text-[13px] whitespace-nowrap shrink-0 transition {{ request()->routeIs('notes.index') ? 'text-[#0e6a38] font-bold' : 'text-[#6b7a6e] hover:text-[#1a2e1f] font-medium' }}">
                             {{ __('ui.nav_notes') }}
                         </a>
                         <a href="{{ route('notes.my') }}" class="px-2 xl:px-3 py-1.5 rounded-lg text-[13px] whitespace-nowrap shrink-0 transition {{ request()->routeIs('notes.my') ? 'text-[#0e6a38] font-bold' : 'text-[#6b7a6e] hover:text-[#1a2e1f] font-medium' }}">
                             {{ __('ui.nav_my_notes') }}
                         </a>
+                        @endif
                         <a href="{{ route('gallery.index') }}" class="px-2 xl:px-3 py-1.5 rounded-lg text-[13px] whitespace-nowrap shrink-0 transition {{ request()->routeIs('gallery.*') ? 'text-[#0e6a38] font-bold' : 'text-[#6b7a6e] hover:text-[#1a2e1f] font-medium' }}">
                             {{ __('ui.nav_gallery') }}
                         </a>
+                        @if(!auth()->user()->isGeneralManager())
                         <a href="{{ route('general-submissions.index') }}" class="px-2 xl:px-3 py-1.5 rounded-lg text-[13px] whitespace-nowrap shrink-0 transition {{ request()->routeIs('general-submissions.*') ? 'text-[#0e6a38] font-bold' : 'text-[#6b7a6e] hover:text-[#1a2e1f] font-medium' }}">
                             {{ __('ui.nav_submissions') }}
                         </a>
-                        <a href="{{ route('reports.index') }}" class="px-2 xl:px-3 py-1.5 rounded-lg text-[13px] whitespace-nowrap shrink-0 transition {{ request()->routeIs('reports.*') ? 'text-[#0e6a38] font-bold' : 'text-[#6b7a6e] hover:text-[#1a2e1f] font-medium' }}">
-                            {{ __('ui.nav_reports') }}
-                        </a>
+                        @endif
+                        @if(auth()->user()->isReportWriter() || auth()->user()->isGeneralManager())
+                            <a href="{{ route('reports.index') }}" class="px-2 xl:px-3 py-1.5 rounded-lg text-[13px] whitespace-nowrap shrink-0 transition {{ request()->routeIs('reports.*') ? 'text-[#0e6a38] font-bold' : 'text-[#6b7a6e] hover:text-[#1a2e1f] font-medium' }}">
+                                {{ __('ui.nav_reports') }}
+                            </a>
+                        @endif
                         <a href="{{ route('ranking') }}" class="px-2 xl:px-3 py-1.5 rounded-lg text-[13px] whitespace-nowrap shrink-0 transition {{ request()->routeIs('ranking') ? 'text-[#0e6a38] font-bold' : 'text-[#6b7a6e] hover:text-[#1a2e1f] font-medium' }}">
                             {{ __('ui.nav_ranking') }}
                         </a>
@@ -275,17 +279,17 @@
 
                 <div class="flex flex-nowrap items-center gap-2 shrink-0">
                     <button type="button" id="lang-toggle" class="h-8 px-2.5 rounded-xl flex items-center justify-center gap-1 text-[12px] font-extrabold text-[#6b7a6e] dark:text-[#9bb0a0] hover:text-[#1a2e1f] dark:hover:text-[#e7ece5] hover:bg-[#f7f9f7] dark:hover:bg-[#2e352e] transition border border-transparent" aria-label="{{ __('ui.language_title') }}" title="{{ __('ui.language_title') }}">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M12 21a9 9 0 100-18 9 9 0 000 18zm0 0c2.5 0 4.5-4 4.5-9S14.5 3 12 3 7.5 7 7.5 12s2 9 4.5 9zM3.5 9h17M3.5 15h17"/></svg>
+                        <x-phosphor-translate-duotone class="w-4 h-4" aria-hidden="true" />
                         <span id="lang-toggle-label">{{ ($htmlLocale ?? app()->getLocale()) === 'ar' ? 'EN' : 'ع' }}</span>
                     </button>
                     <button type="button" id="theme-toggle" class="w-8 h-8 rounded-xl flex items-center justify-center text-[#6b7a6e] dark:text-[#9bb0a0] hover:text-[#1a2e1f] dark:hover:text-[#e7ece5] hover:bg-[#f7f9f7] dark:hover:bg-[#2e352e] transition" aria-label="{{ __('ui.dark_mode') }}" title="{{ __('ui.toggle_theme') }}">
-                        <svg class="w-4 h-4 sun-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
-                        <svg class="w-4 h-4 moon-icon hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+                        <x-phosphor-sun-duotone class="w-4 h-4 sun-icon" aria-hidden="true" />
+                        <x-phosphor-moon-stars-duotone class="w-4 h-4 moon-icon hidden" aria-hidden="true" />
                     </button>
 
 
                     <button type="button" id="notification-bell" class="relative w-8 h-8 rounded-xl flex items-center justify-center text-text-secondary dark:text-text-secondary hover:text-text-primary dark:hover:text-text-primary hover:bg-[#f7f9f7] dark:hover:bg-surface-muted transition" aria-label="{{ __('ui.notifications') }}" aria-haspopup="dialog" aria-expanded="false" aria-controls="notification-drawer">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+                        <x-phosphor-bell-ringing-duotone class="w-5 h-5" aria-hidden="true" />
                         <span id="notification-badge" class="hidden absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[11px] font-bold flex items-center justify-center border-2 border-surface-elevated dark:border-surface-elevated" aria-live="polite" aria-atomic="true">0</span>
                     </button>
 
@@ -300,7 +304,7 @@
                         </span>
                         <span class="hidden min-w-0 flex-col leading-tight lg:flex">
                             <span dir="auto" data-no-translate class="max-w-[130px] truncate whitespace-nowrap text-[13px] font-extrabold text-[#1a2e1f]">{{ auth()->user()->localized_name }}</span>
-                            <span class="max-w-[130px] truncate whitespace-nowrap text-[10px] font-bold text-[#6b7a6e]">{{ auth()->user()->isReportWriter() ? __('ui.role_writer') : __('ui.role_monitor') }}</span>
+                            <span class="max-w-[130px] truncate whitespace-nowrap text-[10px] font-bold text-[#6b7a6e]">{{ auth()->user()->isGeneralManager() ? __('ui.role_general_manager') : (auth()->user()->isReportWriter() ? __('ui.role_writer') : __('ui.role_monitor')) }}</span>
                         </span>
                     </a>
                     <a href="{{ route('profile.show') }}" class="flex shrink-0 items-center sm:hidden" aria-label="{{ __('ui.profile_aria') }}">
@@ -320,8 +324,8 @@
                     </form>
 
                     <button type="button" id="mobile-menu-btn" class="md:hidden w-8 h-8 rounded-xl flex items-center justify-center text-[#6b7a6e] dark:text-[#9bb0a0] hover:bg-[#f7f9f7] dark:hover:bg-[#2e352e] transition" aria-expanded="false" aria-controls="mobile-menu" aria-label="{{ __('ui.menu') }}">
-                        <svg class="w-5 h-5 menu-open" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
-                        <svg class="w-5 h-5 menu-close hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                        <x-phosphor-list-duotone class="w-5 h-5 menu-open" aria-hidden="true" />
+                        <x-phosphor-x-duotone class="w-5 h-5 menu-close hidden" aria-hidden="true" />
                     </button>
                 </div>
             </div>
@@ -338,10 +342,10 @@
             </div>
             <div class="notif-topbar-actions">
                 <button type="button" id="notification-settings-toggle" class="notif-iconbtn" aria-label="{{ __('ui.notif_settings') }}" title="{{ __('ui.settings_short') }}">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                    <x-phosphor-gear-six-duotone class="w-4 h-4" aria-hidden="true" />
                 </button>
                 <button type="button" id="notification-close" class="notif-iconbtn" aria-label="{{ __('ui.close_notif_drawer') }}">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                    <x-phosphor-x-duotone class="w-4 h-4" aria-hidden="true" />
                 </button>
             </div>
         </div>
@@ -377,7 +381,7 @@
         <div id="notification-list" class="notif-feed" role="feed" aria-busy="false" aria-live="polite">
             <div class="notif-empty" role="status">
                 <div class="notif-empty-ic" aria-hidden="true">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+                    <x-phosphor-bell-slash-duotone class="w-6 h-6" aria-hidden="true" />
                 </div>
                 <p class="notif-empty-title">{{ __('ui.no_notifications') }}</p>
             </div>
@@ -408,15 +412,21 @@
                 </span>
             </a>
             <button type="button" id="mobile-menu-close" class="w-8 h-8 rounded-lg flex items-center justify-center text-[#6b7a6e] hover:text-[#1a2e1f] hover:bg-[#f6f7f5] dark:hover:bg-[#2e352e] transition shrink-0" aria-label="{{ __('ui.close') }}">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                <x-phosphor-x-duotone class="w-5 h-5" aria-hidden="true" />
             </button>
         </div>
         <nav class="menu-body px-4 py-3 grid gap-1 content-start" aria-label="{{ __('ui.menu') }}">
+            @if(!auth()->user()->isGeneralManager())
             <a href="{{ route('notes.index') }}" class="px-3 py-2.5 rounded-lg text-sm font-medium transition {{ request()->routeIs('notes.index') ? 'bg-[#f6f7f5] dark:bg-[#1e3328] text-[#0e6a38] dark:text-[#4ade80] font-bold' : 'text-[#4a5a4f] dark:text-[#9bb0a0] hover:bg-[#f6f7f5] dark:hover:bg-[#2e352e]' }}">{{ __('ui.nav_notes') }}</a>
             <a href="{{ route('notes.my') }}" class="px-3 py-2.5 rounded-lg text-sm font-medium transition {{ request()->routeIs('notes.my') ? 'bg-[#f6f7f5] dark:bg-[#1e3328] text-[#0e6a38] dark:text-[#4ade80] font-bold' : 'text-[#4a5a4f] dark:text-[#9bb0a0] hover:bg-[#f6f7f5] dark:hover:bg-[#2e352e]' }}">{{ __('ui.nav_my_notes') }}</a>
+            @endif
             <a href="{{ route('gallery.index') }}" class="px-3 py-2.5 rounded-lg text-sm font-medium transition {{ request()->routeIs('gallery.*') ? 'bg-[#f6f7f5] dark:bg-[#1e3328] text-[#0e6a38] dark:text-[#4ade80] font-bold' : 'text-[#4a5a4f] dark:text-[#9bb0a0] hover:bg-[#f6f7f5] dark:hover:bg-[#2e352e]' }}">{{ __('ui.nav_gallery') }}</a>
+            @if(!auth()->user()->isGeneralManager())
             <a href="{{ route('general-submissions.index') }}" class="px-3 py-2.5 rounded-lg text-sm font-medium transition {{ request()->routeIs('general-submissions.*') ? 'bg-[#f6f7f5] dark:bg-[#1e3328] text-[#0e6a38] dark:text-[#4ade80] font-bold' : 'text-[#4a5a4f] dark:text-[#9bb0a0] hover:bg-[#f6f7f5] dark:hover:bg-[#2e352e]' }}">{{ __('ui.nav_submissions') }}</a>
-            <a href="{{ route('reports.index') }}" class="px-3 py-2.5 rounded-lg text-sm font-medium transition {{ request()->routeIs('reports.*') ? 'bg-[#f6f7f5] dark:bg-[#1e3328] text-[#0e6a38] dark:text-[#4ade80] font-bold' : 'text-[#4a5a4f] dark:text-[#9bb0a0] hover:bg-[#f6f7f5] dark:hover:bg-[#2e352e]' }}">{{ __('ui.nav_reports') }}</a>
+            @endif
+            @if(auth()->user()->isReportWriter() || auth()->user()->isGeneralManager())
+                <a href="{{ route('reports.index') }}" class="px-3 py-2.5 rounded-lg text-sm font-medium transition {{ request()->routeIs('reports.*') ? 'bg-[#f6f7f5] dark:bg-[#1e3328] text-[#0e6a38] dark:text-[#4ade80] font-bold' : 'text-[#4a5a4f] dark:text-[#9bb0a0] hover:bg-[#f6f7f5] dark:hover:bg-[#2e352e]' }}">{{ __('ui.nav_reports') }}</a>
+            @endif
             <a href="{{ route('ranking') }}" class="px-3 py-2.5 rounded-lg text-sm font-medium transition {{ request()->routeIs('ranking') ? 'bg-[#f6f7f5] dark:bg-[#1e3328] text-[#0e6a38] dark:text-[#4ade80] font-bold' : 'text-[#4a5a4f] dark:text-[#9bb0a0] hover:bg-[#f6f7f5] dark:hover:bg-[#2e352e]' }}">{{ __('ui.nav_ranking') }}</a>
             <a href="{{ route('profile.show') }}" class="px-3 py-2.5 rounded-lg text-sm font-medium transition {{ request()->routeIs('profile.*') ? 'bg-[#f6f7f5] dark:bg-[#1e3328] text-[#0e6a38] dark:text-[#4ade80] font-bold' : 'text-[#4a5a4f] dark:text-[#9bb0a0] hover:bg-[#f6f7f5] dark:hover:bg-[#2e352e]' }}">{{ __('ui.nav_account') }}</a>
         </nav>
@@ -434,11 +444,11 @@
             <div class="mb-6 flex items-start gap-3 p-4 bg-white border border-[#e8ece7] rounded-[18px] shadow-[0_1px_3px_rgba(26,46,31,0.04),0_4px_16px_rgba(26,46,31,0.04)] overflow-hidden relative" role="alert">
                 <div class="absolute inset-y-0 right-0 w-1 bg-[#0e6a38]"></div>
                 <div class="shrink-0 w-9 h-9 rounded-xl bg-[#0e6a38] text-[#fdfcfa] flex items-center justify-center">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                    <x-phosphor-seal-check-duotone class="w-5 h-5" aria-hidden="true" />
                 </div>
                 <div class="flex-1 min-w-0 pt-0.5"><p class="text-[14px] font-bold leading-6 text-[#1a2e1f]">{{ session('success') }}</p></div>
                 <button type="button" onclick="this.parentElement.remove()" class="shrink-0 w-8 h-8 rounded-full hover:bg-[#f6f7f5] flex items-center justify-center text-[#9aa99a] hover:text-[#1a2e1f] transition" aria-label="{{ __('ui.close') }}">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                    <x-phosphor-x-duotone class="w-4 h-4" aria-hidden="true" />
                 </button>
             </div>
         @endif
@@ -446,11 +456,11 @@
             <div class="mb-6 flex items-start gap-3 p-4 bg-[#fffbeb] border border-[#fde68a] rounded-[18px] shadow-[0_1px_3px_rgba(26,46,31,0.04),0_4px_16px_rgba(26,46,31,0.04)] overflow-hidden relative" role="alert">
                 <div class="absolute inset-y-0 right-0 w-1 bg-[#d97706]"></div>
                 <div class="shrink-0 w-9 h-9 rounded-xl bg-[#d97706] text-[#fffbeb] flex items-center justify-center">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+                    <x-phosphor-warning-duotone class="w-5 h-5" aria-hidden="true" />
                 </div>
                 <div class="flex-1 min-w-0 pt-0.5"><p class="text-[14px] font-bold leading-6 text-[#1a2e1f]">{{ session('warning') }}</p></div>
                 <button type="button" onclick="this.parentElement.remove()" class="shrink-0 w-8 h-8 rounded-full hover:bg-[#fef3c7] flex items-center justify-center text-[#9aa99a] hover:text-[#1a2e1f] transition" aria-label="{{ __('ui.close') }}">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                    <x-phosphor-x-duotone class="w-4 h-4" aria-hidden="true" />
                 </button>
             </div>
         @endif
@@ -460,7 +470,7 @@
                 <div class="absolute inset-y-0 right-0 w-1 bg-[#c41e1e]"></div>
                 <div class="flex items-start gap-3">
                     <div class="shrink-0 w-9 h-9 rounded-xl bg-[#c41e1e] text-[#fdfcfa] flex items-center justify-center">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        <x-phosphor-x-circle-duotone class="w-5 h-5" aria-hidden="true" />
                     </div>
                     <div class="flex-1 min-w-0">
                         <h3 class="text-[13px] font-extrabold text-[#1a2e1f]">{{ __('ui.form_errors_title') }}</h3>
@@ -469,7 +479,7 @@
                         </ul>
                     </div>
                     <button type="button" onclick="this.closest('div[role=alert]').remove()" class="shrink-0 w-8 h-8 rounded-full hover:bg-[#fef2f2] flex items-center justify-center text-[#94a8a0] transition" aria-label="{{ __('ui.close') }}">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                        <x-phosphor-x-duotone class="w-4 h-4" aria-hidden="true" />
                     </button>
                 </div>
             </div>
@@ -477,6 +487,7 @@
         @yield('content')
     </main>
 
+    @if(request()->routeIs('reports.*', 'report.*', 'report-sheets.*', 'notes.*', 'profile.*', 'ranking'))
     <footer class="w-full max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 pb-4 mt-auto select-none" aria-label="{{ __('ui.team_info') }}">
         <div class="flex items-center justify-center gap-1.5 text-[11px] text-[#b0bab2] dark:text-[#4a5a4f]">
             <span class="group relative inline-flex items-center gap-1 cursor-help"
@@ -505,7 +516,11 @@
             </span>
         </div>
     </footer>
+    @endif
 
+    @auth
+    @include('layouts.partials.mobile-bottom-nav')
+    @endauth
 
     <div id="global-sound-banner" class="hidden fixed bottom-4 left-4 right-4 sm:left-auto sm:right-4 sm:w-[320px] bg-amber-50 border border-amber-200 rounded-xl shadow-xl p-3 flex items-center gap-3 z-[65]" role="alert" aria-live="polite">
         <div class="flex-1 min-w-0">
@@ -615,9 +630,9 @@
     })();
     </script>
 
+    <script type="module" src="{{ asset('pwa/js/print-layout-engine.js') }}?v=EDITORIAL-v4.2.1-N3-DESCRIPTION-FIX-2026-09-06"></script>
     @stack('scripts')
     <script src="{{ asset('js/rasd-i18n-v2.js') }}?v=2.3.0" defer></script>
-    <script type="module" src="/pwa/js/print-layout-engine.js?v=EDITORIAL-v4.2.1-N3-DESCRIPTION-FIX-2026-09-06"></script>
 
     <div id="printable-a4-doc" class="hidden" data-print-root style="display:none;"></div>
     <div id="rasd-print-document" class="hidden" aria-hidden="true" style="display:none;"></div>

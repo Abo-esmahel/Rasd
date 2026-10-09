@@ -41,6 +41,7 @@
                                 <label class="flex items-center gap-3 p-3 rounded-xl bg-white border border-[#e6e9e1] hover:border-[#0e6a38] cursor-pointer transition has-[:checked]:border-[#0e6a38] has-[:checked]:bg-[#eef4f0]">
                                     <input type="checkbox" name="report_writer_ids[]" value="{{ $writer->id }}" {{ in_array($writer->id, old('report_writer_ids', [])) ? 'checked' : '' }} class="w-4 h-4 rounded border-[#e6e9e1] text-[#0e6a38] focus:ring-[#0e6a38]">
                                     <span class="text-sm font-bold text-ink-700">{{ $writer->localized_name }}</span>
+                                    <a href="{{ route('profile.showUser', $writer->id) }}" onclick="event.stopPropagation()" class="text-[11px] font-bold text-[#0e6a38] hover:underline transition shrink-0" title="{{ __('ui.profile_aria') }}">{{ __('ui.view_profile') }}</a>
                                     <span class="text-xs text-ink-400 mr-auto">{{ '@' . $writer->username }}</span>
                                 </label>
                             @endforeach
@@ -65,7 +66,7 @@
                 @error('files') <p class="text-xs text-red-500 mt-1">{{ $message }}</p> @enderror
             </div>
 
-            <div class="flex flex-col-reverse sm:flex-row gap-3 pt-2">
+            <div class="m-crud-bar flex flex-col-reverse sm:flex-row gap-3 pt-2">
                 <a href="{{ route('general-submissions.index') }}" class="w-full sm:w-auto px-6 py-3 rounded-xl bg-white border border-[#e6e9e1] text-ink-600 font-bold text-sm hover:bg-[#f5f7f5] transition text-center">{{ __('ui.cancel_btn') }}</a>
                 <button type="submit" class="w-full sm:flex-1 py-3 rounded-xl bg-[#0e6a38] hover:bg-[#0a4d28] text-white font-bold text-sm transition min-h-[44px]">{{ __('ui.send_selected') }}</button>
             </div>

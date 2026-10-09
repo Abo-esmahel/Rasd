@@ -1,6 +1,6 @@
 
 
-import { getTypeConfig, priorityForType, PRIORITY, cfgLabel, NOTIF_FB } from './config.js';
+import { getTypeConfig, priorityForType, PRIORITY, cfgLabel, NOTIF_FB, resolveNotifType } from './config.js';
 
 export class NotificationManager {
   constructor(options = {}) {
@@ -385,7 +385,7 @@ export class NotificationManager {
         
         if (location.protocol === 'http:') return true;
         if (!window.isSecureContext) return true;
-        if (location.hostname === '127.0.0.1' || location.hostname === 'localhost' || location.hostname === '10.150.2.29' || location.hostname.endsWith('.lan') || location.hostname.endsWith('.home.arpa') === false && location.hostname.match(/^\d+\.\d+\.\d+\.\d+$/)) {
+        if (location.hostname === '127.0.0.1' || location.hostname === 'localhost' || location.hostname.endsWith('.lan') || location.hostname.endsWith('.home.arpa') === false && location.hostname.match(/^\d+\.\d+\.\d+\.\d+$/)) {
           
           return true;
         }
@@ -684,7 +684,7 @@ export class NotificationManager {
 
     
     if (this.prefs.sound_enabled) {
-      const cfg = getTypeConfig(notification.data?.type || notification.type);
+      const cfg = getTypeConfig(resolveNotifType(notification.data || notification));
       const soundType = this.mapSoundType(cfg.sound, notification.data?.priority);
       let played = await this.soundManager?.play(soundType);
       if (!played && this.soundManager?.blocked) {
@@ -856,7 +856,7 @@ export class NotificationManager {
     }
 
     const data = notification.data || {};
-    const rawType = data.type || notification.type || 'generic';
+    const rawType = resolveNotifType(data) || notification.type || 'generic';
     const cfg = getTypeConfig(rawType);
     const priority = priorityForType(rawType, data.priority);
     const isHigh = priority === 'high' || priority === 'critical';
@@ -966,7 +966,7 @@ export class NotificationManager {
   }
 
   titleForType(rawType, data) {
-    const cfg = getTypeConfig(rawType);
+    const cfg = getTypeConfig(resolveNotifType(data) || rawType);
     if (data && data.title) return data.title;
 
     return cfgLabel(cfg) || NOTIF_FB.newNotif;
@@ -978,6 +978,7 @@ export class NotificationManager {
       check: 'M5 13l4 4L19 7',
       'x-circle': 'M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
       inbox: 'M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9',
+      chat: 'M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z',
     };
     return map[iconKey] || map.bell;
   }
@@ -988,7 +989,7 @@ export class NotificationManager {
     if (data.note_id) return `/notes/${data.note_id}`;
     if (data.submission_id) return `/general-submissions/${data.submission_id}`;
     if (data.general_submission_id) return `/general-submissions/${data.general_submission_id}`;
-    if (data.report_id) return `/reports/${data.report_id}`;
+    if (data.report_id) return `/reports/${data.report_id}${data.comment_id ? '#report-discussion' : ''}`;
     return null;
   }
 
@@ -1017,7 +1018,7 @@ export class NotificationManager {
 
     this.listEl.innerHTML = this.notifications.slice(0, 20).map(n => {
       const data = n.data || {};
-      const rawType = data.type || n.type || 'generic';
+      const rawType = resolveNotifType(data) || n.type || 'generic';
       const cfg = getTypeConfig(rawType);
       const isUnread = !n.read_at;
       const rawUrl = this.resolveUrl(n);
@@ -1205,7 +1206,7 @@ export class NotificationManager {
 
     try {
       const data = notification.data || {};
-      const rawType = data.type || notification.type || '';
+      const rawType = resolveNotifType(data) || notification.type || '';
       const cfg = getTypeConfig(rawType);
       const title = data.title || cfgLabel(cfg) || NOTIF_FB.newNotif;
       const body = (data.message || data.reason || NOTIF_FB.youHave).substring(0, 130);

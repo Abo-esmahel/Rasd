@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
+use App\Notifications\ReportPublishedNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -103,7 +104,7 @@ class NotificationStreamController extends Controller
 
             
             try {
-                $unread = $user->unreadNotifications()->count();
+                $unread = $this->visibleNotifications($user)->whereNull('read_at')->count();
                 $this->sendEvent('init', ['unread_count' => $unread, 'server_time' => now()->toIso8601String()]);
             } catch (\Throwable $e) {}
 
@@ -125,14 +126,14 @@ class NotificationStreamController extends Controller
 
                 
                 try {
-                    $new = $user->notifications()
+                    $new = $this->visibleNotifications($user)
                         ->where('created_at', '>', $cursor)
                         ->orderBy('created_at', 'asc')
                         ->limit(20)
                         ->get();
 
                     if ($new->isNotEmpty()) {
-                        $unread = $user->unreadNotifications()->count();
+                        $unread = $this->visibleNotifications($user)->whereNull('read_at')->count();
                         $presenterSse = null;
                         try { $presenterSse = app(\App\Services\Localization\LocalizedPresenter::class); } catch (\Throwable) {}
                         foreach ($new as $n) {
@@ -158,7 +159,7 @@ class NotificationStreamController extends Controller
                             
                             
                             static $lastUnread = null;
-                            $currentUnread = $user->unreadNotifications()->count();
+                            $currentUnread = $this->visibleNotifications($user)->whereNull('read_at')->count();
                             if ($lastUnread === null) {
                                 $lastUnread = $currentUnread;
                             } elseif ($lastUnread !== $currentUnread) {
@@ -208,7 +209,7 @@ class NotificationStreamController extends Controller
             if ($ref) $cursor = $ref->created_at;
         }
 
-        $query = $user->notifications()->latest();
+        $query = $this->visibleNotifications($user)->latest();
         if ($cursor) {
             $query->where('created_at', '>', $cursor);
         }
@@ -217,7 +218,7 @@ class NotificationStreamController extends Controller
         }
 
         $notifications = $query->limit($limit)->get()->map(fn($n) => $this->normalize($n, $presenter))->values();
-        $unreadCount = $user->unreadNotifications()->count();
+        $unreadCount = $this->visibleNotifications($user)->whereNull('read_at')->count();
 
         return response()->json([
             'notifications' => $notifications,
@@ -233,28 +234,44 @@ class NotificationStreamController extends Controller
             $data = json_decode($data, true) ?: [];
         }
         $rawType = $data['type'] ?? $n->type ?? 'generic';
-        $priority = $data['priority'] ?? $this->inferPriority($rawType);
-        $category = $data['category'] ?? $this->inferCategory($rawType);
-        try {
-            if ($presenter) {
-                $localized = $presenter->notification($data);
-                $data['title'] = $localized['title'];
-                $data['message'] = $localized['message'];
-            }
-        } catch (\Throwable) {}
+        $safeData = $presenter?->safeNotificationData($data) ?? [
+            'type' => $rawType,
+            'category' => $this->inferCategory($rawType),
+            'priority' => $this->inferPriority($rawType),
+            'title' => __('notifications.generic_title'),
+            'message' => '',
+            'body' => '',
+        ];
 
         return [
             'id' => $n->id,
-            'type' => $n->type,
-            'data' => array_merge($data, [
-                'priority' => $priority,
-                'category' => $category,
-            ]),
+            'type' => 'generic',
+            'data' => $safeData,
             'read_at' => $n->read_at?->toIso8601String(),
             'created_at' => $n->created_at->toIso8601String(),
             'created_at_human' => $n->created_at->diffForHumans(),
             'created_at_full' => $n->created_at->format('Y-m-d H:i'),
         ];
+    }
+
+    private function visibleNotifications($user)
+    {
+        $query = $user->notifications();
+        if ($user->isMonitor()) {
+            $query->where(function ($q) {
+                $q->where(function ($other) {
+                    $other->where('type', '!=', ReportPublishedNotification::class)
+                        ->where(function ($category) {
+                            $category->whereNull('data->category')
+                                ->orWhere('data->category', '!=', 'report');
+                        });
+                })->orWhere(function ($alert) {
+                    $alert->where('type', ReportPublishedNotification::class)
+                        ->where('data->monitor_alert', true);
+                });
+            });
+        }
+        return $query;
     }
 
     private function inferPriority(string $type): string

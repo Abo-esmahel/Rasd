@@ -32,7 +32,7 @@ class BroadcastDatabaseNotification
 
             
             if ($dbNotification) {
-                $payload = $this->normalize($dbNotification);
+                $payload = $this->normalize($dbNotification, $notifiable->locale ?? null);
                 $unread = $notifiable->unreadNotifications()->count();
                 
                 
@@ -66,7 +66,7 @@ class BroadcastDatabaseNotification
         }
     }
 
-    private function normalize($n): array
+    private function normalize($n, ?string $locale = null): array
     {
         
         $data = $n->data;
@@ -76,16 +76,13 @@ class BroadcastDatabaseNotification
 
         
         $rawType = $data['type'] ?? $n->type ?? 'generic';
-        $priority = $data['priority'] ?? $this->inferPriority($rawType, $data);
-        $category = $data['category'] ?? $this->inferCategory($rawType);
+        $safeData = app(\App\Services\Localization\LocalizedPresenter::class)
+            ->safeNotificationData($data, $locale);
 
         return [
             'id' => $n->id,
-            'type' => $n->type,
-            'data' => array_merge($data, [
-                'priority' => $priority,
-                'category' => $category,
-            ]),
+            'type' => 'generic',
+            'data' => $safeData,
             'read_at' => $n->read_at?->toIso8601String(),
             'created_at' => $n->created_at->toIso8601String(),
             'created_at_human' => $n->created_at->diffForHumans(),

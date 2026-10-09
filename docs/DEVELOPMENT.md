@@ -89,14 +89,19 @@ php artisan serve --host=0.0.0.0 --port=8000
 ## البذور — الواقع الحالي `database/seeders/RasdSmartSeed.php`
 
 ```bash
-php artisan db:seed              # DatabaseSeeder → RasdSmartSeed
-php artisan migrate:fresh --seed # إعادة كاملة
+php artisan db:seed                         # مستخدمون فقط (DatabaseSeeder — آمن، firstOrCreate)
+php artisan db:seed --class=RasdSmartSeed   # بيانات تجريبية — للتطوير فقط (يمسح بيانات العمل!)
+php artisan migrate:fresh --seed            # إعادة كاملة — للتطوير فقط، ممنوع على الإنتاج
 ```
+
+> تحذير نشر: `RasdSmartSeed` يمسح الملاحظات والتقارير والإرسالات والإشعارات، وكلمة مرور
+> مستخدميه من `SEED_DEMO_PASSWORD` (افتراضي `password` للتطوير — غيّرها قبل أي نشر).
+> `DatabaseSeeder` وحده لا يستدعي أي بذرة بيانات (مستخدمون فقط).
 
 يُنشئ (Verified من `RasdSmartSeed.php` الحالي):
 
-*   مستخدمون: `tariq, hadi, hamza, rami` (مراقبون) + `writer` (كاتب رئيسي) + كُتّاب إضافيون — كلهم `password`
-*   **ملاحظات تغطي 7 أيام** تشمل ملاحظات اليوم الحيّة (7 ملاحظات: مسودات/قيد المراجعة/مقبولة) — كل ملاحظة مع مرفق `SVG` مولد محلياً (`AttachmentStorageService` → `notes/{id}/UUID.svg`)
+*   مستخدمون: `tariq, hadi, hamza, rami` (مراقبون) + `writer` (كاتب رئيسي) + مدير عام — كلمة المرور من `SEED_DEMO_PASSWORD` (افتراضي `password`)
+*   **55 ملاحظة** (مقبولة/معلّقة/مرفوضة/مسودات) — كل ملاحظة مع لقطة `PNG` حقيقية مولدة محلياً (`notes/{id}/UUID.png`)، إضافة لإرسالات عامة قديمة وحديثة
 *   **تقارير منشورة** لكل يوم (byDay من المقبولة) + تقرير اليوم المنشور حديثاً (داخل مهلة التعديل 12h) + مسودة تقرير اليوم (بلا ملاحظات — لاختبار دورة النشر الكاملة)
 *   **`report_sheet_renders`** لكل تقرير منشور (1–7 ملاحظات) — `template screen-1…7` + `payload_hash` + `system_hash`
 *   **إشعارات** للملاحظات المرسلة عبر `NoteSentNotification → FanoutNoteNotifications` وللتقارير المنشورة عبر `ReportPublishedNotification` — مع `read_at` للمكتملة و`null` للحديثة (cutoff: بداية أمس)
@@ -166,7 +171,7 @@ app/
 database/
 ├── migrations/ (32 ملف — آخرها 2026_09_14_000003_stringify_content_translation_id)
 ├── factories/ (ReportFactory …)
-└── seeders/ (DatabaseSeeder, RasdSmartSeed, RasdDemoNotesSeeder …)
+└── seeders/ (DatabaseSeeder للمستخدمين فقط، RasdSmartSeed للبيانات التجريبية)
 resources/views/
 ├── layouts/app.blade.php (يحقن rasd-i18n-v2.js + app-bootstrap.js)
 ├── auth/login.blade.php

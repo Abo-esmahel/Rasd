@@ -42,7 +42,8 @@
     @else
         <div class="space-y-3">
             @foreach($submissions as $submission)
-                <a href="{{ route('general-submissions.show', $submission) }}" class="block bg-white rounded-xl border border-[#e6e9e1] p-5 hover:border-[#cde7d6] hover:shadow-sm transition" data-i18n-entity="submission" data-i18n-id="{{ $submission->id }}">
+                <div class="relative block bg-white rounded-xl border border-[#e6e9e1] p-5 hover:border-[#cde7d6] hover:shadow-sm transition" data-i18n-entity="submission" data-i18n-id="{{ $submission->id }}">
+                    <a href="{{ route('general-submissions.show', $submission) }}" class="absolute inset-0 z-0" aria-label="{{ __('ui.open_report') }}"><span class="sr-only">{{ __('ui.open_report') }}</span></a>
                     <div class="flex items-start justify-between gap-3">
                         <div class="flex-1 min-w-0">
                             <div class="flex items-center gap-2 flex-wrap">
@@ -70,19 +71,19 @@
                                     <span class="font-bold">📎 {{ $submission->attachments->count() }}</span>
                                 @endif
                             </div>
-                            <div class="flex items-center gap-2 mt-3">
+                            <div class="relative z-10 flex items-center gap-2 mt-3">
                                 <span class="text-xs text-ink-400">{{ __('ui.sender') }}</span>
-                                <span class="text-xs font-bold text-ink-700">{{ $submission->owner->localized_name }}</span>
+                                <a href="{{ route('profile.showUser', $submission->owner->id) }}" class="text-xs font-bold text-ink-700 hover:text-[#0e6a38] hover:underline transition">{{ $submission->owner->localized_name }}</a>
                                 <span class="text-xs text-ink-300">→</span>
                                 <div class="flex flex-wrap gap-1">
                                     @foreach($submission->reportWriters as $w)
-                                        <span class="px-2 py-0.5 rounded-full bg-[#f5f7f5] border border-[#e6e9e1] text-[11px] font-bold text-ink-600">{{ $w->localized_name }}</span>
+                                        <a href="{{ route('profile.showUser', $w->id) }}" class="px-2 py-0.5 rounded-full bg-[#f5f7f5] border border-[#e6e9e1] text-[11px] font-bold text-ink-600 hover:text-[#0e6a38] hover:border-[#cde7d6] transition">{{ $w->localized_name }}</a>
                                     @endforeach
                                 </div>
                             </div>
                         </div>
                     </div>
-                </a>
+                </div>
             @endforeach
         </div>
         <div class="mt-4">{{ $submissions->links() }}</div>

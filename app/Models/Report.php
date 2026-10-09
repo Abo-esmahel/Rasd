@@ -48,6 +48,16 @@ class Report extends Model
         'visible_to_monitors' => 'boolean',
     ];
 
+    /**
+     * القفل محسوب من published_at + نافذة التعديل، لا عمودٌ في القاعدة.
+     * نُسلسله ليتطابق عميل الجوال مع ReportPolicy بدل أن يظنّ نفسه مخوّلاً
+     * ثم يُقابَل بخطأ 403 عند السحب أو الحذف.
+     */
+    protected $appends = [
+        'is_locked',
+        'edit_deadline',
+    ];
+
     public function author(): BelongsTo
     {
         return $this->belongsTo(User::class, 'author_id');
@@ -64,6 +74,16 @@ class Report extends Model
     public function revisions(): HasMany
     {
         return $this->hasMany(ReportRevision::class)->orderByDesc('id');
+    }
+
+    public function comments(): HasMany
+    {
+        return $this->hasMany(ReportComment::class)->whereNull('parent_id')->with(['user', 'reactions', 'replies']);
+    }
+
+    public function reactions(): \Illuminate\Database\Eloquent\Relations\MorphMany
+    {
+        return $this->morphMany(Reaction::class, 'reactable');
     }
 
     public function isDraft(): bool
@@ -87,6 +107,18 @@ class Report extends Model
         }
 
         return Carbon::parse($base)->addHours(self::EDIT_WINDOW_HOURS);
+    }
+
+    /** يُقرأ من عميل الجوال لتحليل الصلاحيات دون تكرار منطق النافذة. */
+    public function getIsLockedAttribute(): bool
+    {
+        return $this->isLocked();
+    }
+
+    /** موعد نهاية نافذة التعديل — لعرضه للمستخدم قبل القفل. */
+    public function getEditDeadlineAttribute(): ?string
+    {
+        return $this->editDeadline()?->toIso8601String();
     }
 
     public function isLocked(): bool

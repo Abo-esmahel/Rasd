@@ -3,14 +3,10 @@
 namespace App\Notifications;
 
 use App\Models\Report;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
 
-class ReportPublishedNotification extends Notification implements ShouldQueue
+class ReportPublishedNotification extends Notification
 {
-    use Queueable;
-
     public function __construct(public Report $report)
     {
     }
@@ -22,14 +18,22 @@ class ReportPublishedNotification extends Notification implements ShouldQueue
 
     public function toArray(object $notifiable): array
     {
-        return [
-            'report_id' => $this->report->id,
-            'title_key' => 'notifications.report_published_title',
-            'message_key' => 'notifications.report_published_message',
-            'url' => '/reports/' . $this->report->id,
+        $data = [
             'type' => 'report_published',
             'category' => 'report',
             'priority' => 'normal',
+        ];
+
+        if ($notifiable instanceof \App\Models\User && $notifiable->isMonitor()) {
+            $data['monitor_alert'] = true;
+            $data['monitor_alert_day'] = $this->report->report_date?->toDateString() ?? now()->toDateString();
+            $data['category'] = 'generic';
+
+            return $data;
+        }
+
+        return $data + [
+            'report_id' => $this->report->id,
         ];
     }
 

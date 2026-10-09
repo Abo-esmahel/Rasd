@@ -11,7 +11,7 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
-        $password = Hash::make('password');
+        $password = Hash::make((string) env('SEED_DEMO_PASSWORD', 'password'));
 
         $users = [
             ['name' => 'طارق عبد الرحمن', 'name_en' => 'Tariq Abdulrahman', 'name_ar' => 'طارق عبد الرحمن', 'username' => 'tariq', 'role' => 'monitor', 'personal_number' => '0933124578'],
@@ -19,6 +19,7 @@ class DatabaseSeeder extends Seeder
             ['name' => 'خالد الاصفهاني', 'name_en' => 'Khaled Al Isfahani', 'name_ar' => 'خالد الاصفهاني', 'username' => 'hamza', 'role' => 'monitor', 'personal_number' => '0955319847'],
             ['name' => 'مأمون الكعكي', 'name_en' => 'Mamoun Al Kaaki', 'name_ar' => 'مأمون الكعكي', 'username' => 'rami', 'role' => 'monitor', 'personal_number' => '0933658421'],
             ['name' => 'شادي النداف', 'name_en' => 'Shadi Al Naddaf', 'name_ar' => 'شادي النداف', 'username' => 'writer', 'role' => 'report_writer', 'personal_number' => '0962471583'],
+            ['name' => 'المدير العام', 'name_en' => 'General Manager', 'name_ar' => 'المدير العام', 'username' => 'general_manager', 'role' => 'general_manager', 'personal_number' => '0990000001'],
         ];
 
         foreach ($users as $u) {

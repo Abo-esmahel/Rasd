@@ -1,6 +1,5 @@
 <?php
 
-//
 
 return [
     'file_pattern' => 'screen-%d.png',

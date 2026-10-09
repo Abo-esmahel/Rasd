@@ -88,8 +88,6 @@ class LocalizedPresenter
             return self::$requestCache[$ck];
         }
 
-        // No stored translation found — schedule async warm job, return source text immediately.
-        // Never translate synchronously: each Gemini call takes 2-15s and would block the page.
         try {
             if ($this->translations->shouldTranslateCached($source)) {
                 $this->scheduleWarm($type, $id, $field, $source, $locale);
@@ -106,7 +104,6 @@ class LocalizedPresenter
     {
         try {
             $loc = $this->locale($locale);
-            // Preloaded real translation — no I/O at all.
             if (isset(self::$translatedKeys["{$type}:{$id}:{$field}:{$loc}"])) {
                 return 'ready';
             }
@@ -220,7 +217,6 @@ class LocalizedPresenter
         }
         $this->preload($refs, $locale);
 
-        // Batch warm for report observations: ONE job for all missing fields (atomic translation).
         $missing = [];
         foreach ($observations as $i => $obs) {
             $field = "observation:{$i}";
@@ -271,43 +267,87 @@ class LocalizedPresenter
     public function notification(array $data, ?string $locale = null): array
     {
         $locale = $this->locale($locale);
-        $title = (string) ($data['title'] ?? '');
-        $message = (string) ($data['message'] ?? '');
-
-        if (!empty($data['title_key']) || !empty($data['message_key'])) {
-            $params = $this->notificationParams($data);
-            if (!empty($data['title_key'])) {
-                $title = __($data['title_key'], $params, $locale);
-            }
-            if (!empty($data['message_key'])) {
-                $message = __($data['message_key'], $params, $locale);
-            }
-
-            return ['title' => $title, 'message' => $message];
-        }
-
-        if ($locale === 'en' && ($title !== '' || $message !== '')) {
-            $entityId = (int) ($data['note_id'] ?? $data['submission_id'] ?? $data['report_id'] ?? 0);
-            if ($entityId > 0) {
-                $type = isset($data['report_id']) ? 'report' : (isset($data['submission_id']) ? 'submission' : 'note');
-                $refs = [];
-                if ($title !== '') {
-                    $refs[] = ['type' => $type, 'id' => $entityId, 'field' => 'title', 'text' => $title];
-                }
-                if ($message !== '') {
-                    $refs[] = ['type' => $type, 'id' => $entityId, 'field' => 'description', 'text' => $message];
-                }
-                $this->preload($refs, $locale);
-                if ($title !== '') {
-                    $title = $this->text($type, $entityId, 'title', $title, $locale);
-                }
-                if ($message !== '') {
-                    $message = $this->text($type, $entityId, 'description', $message, $locale);
+        $type = strtolower((string) ($data['type'] ?? ''));
+        $key = match (true) {
+            str_contains($type, 'note_accepted'), str_contains($type, 'noteacceptednotification') => 'notifications.note_accepted_title',
+            str_contains($type, 'note_rejected'), str_contains($type, 'noterejectednotification') => 'notifications.note_rejected_title',
+            str_contains($type, 'note_sent'), str_contains($type, 'notesentnotification') => 'notifications.note_sent_title',
+            str_contains($type, 'dispatch_accepted'), str_contains($type, 'dispatchacceptednotification') => 'notifications.dispatch_accepted_title',
+            str_contains($type, 'dispatch_rejected'), str_contains($type, 'dispatchrejectednotification') => 'notifications.dispatch_rejected_title',
+            str_contains($type, 'dispatch_sent'), str_contains($type, 'dispatchsentnotification'), str_contains($type, 'dispatch') => 'notifications.dispatch_sent_title',
+            str_contains($type, 'report_published'), str_contains($type, 'reportpublishednotification') => 'notifications.report_published_title',
+            str_contains($type, 'reply_created') => 'notifications.reply_created_title',
+            str_contains($type, 'comment_created') => 'notifications.comment_created_title',
+            str_contains($type, 'commentcreatednotification') => ! empty($data['parent_id'])
+                ? 'notifications.reply_created_title'
+                : 'notifications.comment_created_title',
+            default => 'notifications.generic_title',
+        };
+        $params = $this->notificationParams($data);
+        if (! isset($params['id'])) {
+            foreach (['note_id', 'submission_id', 'general_submission_id', 'report_id', 'comment_id'] as $k) {
+                if (isset($data[$k]) && is_scalar($data[$k]) && (string) $data[$k] !== '') {
+                    $params['id'] = (string) $data[$k];
+                    break;
                 }
             }
         }
 
-        return ['title' => $title, 'message' => $message];
+        $messageKey = preg_replace('/_title$/', '_message', $key);
+
+        return [
+            'title' => __($key, $params, $locale),
+            'message' => __($messageKey, $params, $locale),
+        ];
+    }
+
+    /** Keep only the fields needed to identify and open a notification target. */
+    public function safeNotificationData(array $data, ?string $locale = null): array
+    {
+        $rawType = (string) ($data['type'] ?? 'generic');
+        $type = strtolower($rawType);
+        $monitorAlert = !empty($data['monitor_alert']);
+        $category = match (true) {
+            str_contains($type, 'note_'), str_contains($type, 'notesentnotification'), str_contains($type, 'noteacceptednotification'), str_contains($type, 'noterejectednotification') => 'note',
+            str_contains($type, 'dispatch') => 'dispatch',
+            str_contains($type, 'report_published'), str_contains($type, 'reportpublishednotification') => 'report',
+            str_contains($type, 'comment_created'), str_contains($type, 'reply_created'), str_contains($type, 'commentcreatednotification') => 'report',
+            default => 'generic',
+        };
+        if ($monitorAlert) {
+            $category = 'generic';
+        }
+        $localized = $this->notification($data, $locale);
+        $safe = [
+            'type' => 'generic',
+            'category' => $category,
+            'priority' => 'normal',
+            'title' => $localized['title'],
+            'message' => $localized['message'],
+            'body' => $localized['message'],
+        ];
+        foreach (['note_id', 'submission_id', 'general_submission_id', 'report_id', 'comment_id', 'parent_id'] as $key) {
+            $id = filter_var($data[$key] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+            if ($id !== false) {
+                $safe[$key] = $id;
+            }
+        }
+        if (! empty($data['sender_name']) && is_scalar($data['sender_name'])) {
+            $safe['sender_name'] = mb_substr((string) $data['sender_name'], 0, 120);
+        }
+
+        $noteId = $safe['note_id'] ?? null;
+        $submissionId = $safe['submission_id'] ?? $safe['general_submission_id'] ?? null;
+        $reportId = $safe['report_id'] ?? null;
+        if ($noteId) {
+            $safe['url'] = '/notes/'.$noteId;
+        } elseif ($submissionId) {
+            $safe['url'] = '/general-submissions/'.$submissionId;
+        } elseif ($reportId) {
+            $safe['url'] = '/reports/'.$reportId.(isset($safe['comment_id']) ? '#report-discussion' : '');
+        }
+
+        return $safe;
     }
 
     public function statusLabel(string $status, ?string $locale = null): string

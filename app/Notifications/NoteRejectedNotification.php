@@ -3,14 +3,10 @@
 namespace App\Notifications;
 
 use App\Models\Note;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
 
-class NoteRejectedNotification extends Notification implements ShouldQueue
+class NoteRejectedNotification extends Notification
 {
-    use Queueable;
-
     public Note $note;
     public string $reason;
     public string $processorName;
@@ -31,14 +27,6 @@ class NoteRejectedNotification extends Notification implements ShouldQueue
     {
         return [
             'note_id' => $this->note->id,
-            'camera_number' => $this->note->camera_number,
-            'floor_number' => $this->note->floor_number,
-            'reason' => $this->reason,
-            'processor_name' => $this->processorName,
-            'observed_at' => $this->note->observed_at?->toIso8601String(),
-            'title_key' => 'notifications.note_rejected_title',
-            'message_key' => 'notifications.note_rejected_message',
-            'url' => '/notes/'.$this->note->id,
             'type' => 'note_rejected',
             'category' => 'note',
             'priority' => 'high',

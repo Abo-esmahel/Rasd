@@ -1,11 +1,3 @@
-/* RASD i18n v2 — Presentation Layer (SSR, no DOM translation)
- * - UI static text: Blade __() via app()->getLocale()
- * - Dynamic data: server preloads via LocalizedPresenter + l10n_text()
- * - Language switch: fetch POST /locale (JSON) -> reload, fallback to form POST.
- *   Never navigates to raw JSON; response is always handled in JS.
- *   Persists optimistically (cookie/localStorage) before fetch so early inline script avoids FOUC.
- *   Both header (#lang-toggle) and profile ([data-lang-btn]) use the SAME fetch path.
- */
 (function () {
   'use strict';
 
@@ -64,8 +56,6 @@
     persistLocal(to);
     updateLabel(to);
 
-    // Instant explicit feedback — spinner appears immediately (no 180ms gap),
-    // and persists across reload so the next page shows it during SSR render.
     var loadingMsg = to === 'en' ? 'Switching to English…' : 'جاري التبديل إلى العربية…';
     try {
       if (window.RASDLoading && window.RASDLoading.showNow) window.RASDLoading.showNow(loadingMsg);
@@ -90,7 +80,7 @@
           btn.style.opacity = origOpacity;
         }
       } catch (e) {}
-      try { if (window.RASDLoading && window.RASDLoading.reset) { /* keep persistent loader for reload path */ } } catch (e3) {}
+      try { if (window.RASDLoading && window.RASDLoading.reset) {  } } catch (e3) {}
     }
 
     function hideLoaderOnError() {
@@ -100,7 +90,6 @@
       } catch (e) {}
     }
 
-    // Unified fetch path — handles JSON response correctly, never displays raw token/page
     try {
       fetch('/locale', {
         method: 'POST',
@@ -113,29 +102,21 @@
         credentials: 'same-origin',
         body: JSON.stringify({ locale: to })
       }).then(function (res) {
-        // Try to parse as JSON; server returns {ok:true,locale,dir} on success
         return res.text().then(function (txt) {
           var data = null;
           try { data = JSON.parse(txt); } catch (_) { data = null; }
           if (res.ok && data && data.ok) {
-            // Success — reload to get SSR HTML in new locale (cookie already set via Set-Cookie + document.cookie)
             try { location.reload(); } catch (_) { location.href = location.href; }
             return;
           }
-          // If response is HTML redirect (fetch followed 302), res.ok && content is HTML -> treat as success
           if (res.ok && txt && txt.indexOf('<html') !== -1) {
             try { location.reload(); } catch (_) {}
             return;
           }
-          // Server returned error JSON
           var msg = (data && (data.message || data.msg)) || '';
           if (msg && window.toast) { try { window.toast(msg); } catch (_) {} }
-          // Even on error, reload to reflect persisted cookie (fallback)
-          // But first restore button and allow user to retry
           restoreBtn();
-          // If validation error, don't reload automatically; let toast show
           if (res.status >= 400 && res.status < 500) { hideLoaderOnError(); return; }
-          // For other errors, fallback to form submit to ensure server sync
           fallbackFormSubmit(to);
         });
       }).catch(function (err) {
@@ -144,7 +125,6 @@
         try {
           if (window.toast) window.toast(err && err.message ? err.message : '');
         } catch (_) {}
-        // Network failure — try traditional form as last resort (will update DB & cookie via 302)
         fallbackFormSubmit(to);
       });
     } catch (e) {
@@ -168,7 +148,6 @@
       });
     }
 
-    // Profile buttons: intercept both click and form submit so header & profile use SAME fetch path
     document.querySelectorAll('[data-lang-btn]').forEach(function (b) {
       if (b.dataset.i18nV2Bound) return;
       b.dataset.i18nV2Bound = '1';
@@ -181,7 +160,6 @@
       });
     });
 
-    // Also intercept native form submit for /locale (covers Enter key, programmatic submit)
     if (!window.__rasdLocaleSubmitBound) {
       window.__rasdLocaleSubmitBound = true;
       document.addEventListener('submit', function (e) {
@@ -207,7 +185,6 @@
       }, true);
     }
 
-    // Ensure label matches current html lang on load (covers back/forward cache)
     try {
       var cur = document.documentElement.getAttribute('lang') || 'ar';
       var lb = document.getElementById('lang-toggle-label');

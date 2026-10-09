@@ -36,13 +36,11 @@ class NoteController extends Controller
 
         $query = $this->noteService->getVisibleNotesQuery($user);
 
-        // Eager-load attachments once (cards + modals read them repeatedly).
         $query->with(['attachments' => fn ($q) => $q->select(['id', 'note_id', 'original_name', 'mime_type', 'file_size'])]);
 
         if ($request->filled('status') && in_array($request->status, ['draft','pending','accepted','rejected'], true)) {
             $query->where('notes.status', $request->status);
         } else {
-            // قسم "الكل" يجب ألا يعرض المسودات — المسودات لها تبويب مستقل
             $query->where('notes.status', '!=', Note::STATUS_DRAFT);
         }
         if ($request->filled('date') && strtotime($request->date) !== false) {
@@ -66,7 +64,11 @@ class NoteController extends Controller
 
         if ($request->boolean('live')) {
             $sigKey = 'notes-sig:index:u'.$user->id.':'.md5($request->getQueryString() ?? '');
-            $sig = \Illuminate\Support\Facades\Cache::remember($sigKey, 5, fn () => $this->notesSignature($query));
+            try {
+                $sig = \Illuminate\Support\Facades\Cache::remember($sigKey, 5, fn () => $this->notesSignature($query));
+            } catch (\Throwable $e) {
+                $sig = $this->notesSignature($query);
+            }
 
             return response()->json($sig);
         }
@@ -78,7 +80,13 @@ class NoteController extends Controller
         } catch (\Throwable) {
         }
 
-        $observers = \Illuminate\Support\Facades\Cache::remember('observers_list', 3600, fn () => User::where('role', 'monitor')->orderBy('name')->get(['id', 'name', 'name_en', 'name_ar'])->map(fn ($u) => ['id' => $u->id, 'name' => $u->localized_name])->all());
+        $locale = app()->getLocale() === 'en' ? 'en' : 'ar';
+        $observersKey = 'observers_list:v2:'.$locale;
+        try {
+            $observers = \Illuminate\Support\Facades\Cache::remember($observersKey, 3600, fn () => User::where('role', 'monitor')->orderBy('name')->get(['id', 'name', 'name_en', 'name_ar'])->map(fn ($u) => ['id' => $u->id, 'name' => $u->localized_name])->all());
+        } catch (\Throwable $e) {
+            $observers = User::where('role', 'monitor')->orderBy('name')->get(['id', 'name', 'name_en', 'name_ar'])->map(fn ($u) => ['id' => $u->id, 'name' => $u->localized_name])->all();
+        }
 
         $observerUser = null;
         if ($request->filled('observer')) {
@@ -96,7 +104,6 @@ class NoteController extends Controller
         if ($request->filled('status') && in_array($request->status, ['draft','pending','accepted','rejected'], true)) {
             $query->where('status', $request->status);
         } else {
-            // قسم "الكل" يجب ألا يعرض المسودات — المسودات لها تبويب مستقل (حتى في ملاحظاتي)
             $query->where('status', '!=', Note::STATUS_DRAFT);
         }
         if ($request->filled('date') && strtotime($request->date) !== false) {
@@ -112,7 +119,11 @@ class NoteController extends Controller
 
         if ($request->boolean('live')) {
             $sigKey = 'notes-sig:my:u'.$user->id.':'.md5($request->getQueryString() ?? '');
-            $sig = \Illuminate\Support\Facades\Cache::remember($sigKey, 5, fn () => $this->notesSignature($query));
+            try {
+                $sig = \Illuminate\Support\Facades\Cache::remember($sigKey, 5, fn () => $this->notesSignature($query));
+            } catch (\Throwable $e) {
+                $sig = $this->notesSignature($query);
+            }
 
             return response()->json($sig);
         }
@@ -242,7 +253,6 @@ class NoteController extends Controller
 
         if ($this->wantsJsonResponse($request)) {
             $note = $note->fresh(['owner', 'attachments']);
-            // المسودة مخفية من قسم "الكل" — وجّه صاحبها لمكان يراها فيه فوراً
             $redirect = $note->isDraft()
                 ? route('notes.my', ['status' => 'draft'])
                 : route('notes.index');
@@ -261,7 +271,6 @@ class NoteController extends Controller
         }
 
         $note = $note->fresh(['owner', 'attachments']);
-        // المسودة لا تظهر في notes.index (يستبعد المسودات افتراضياً) — لذا نوجّه لتبويب المسودات
         if ($note->isDraft()) {
             return redirect()->route('notes.my', ['status' => 'draft'])->with('success', __('api.note_web_created'));
         }
@@ -271,6 +280,9 @@ class NoteController extends Controller
 
     public function show(Note $note, LocalizedPresenter $presenter)
     {
+        if ($note->general_submission_id !== null) {
+            abort(404);
+        }
         $this->authorize('view', $note);
         $note->load(['owner','processor','attachments']);
         try {
@@ -447,7 +459,7 @@ class NoteController extends Controller
     
     public function storeAttachment(Request $request, Note $note)
     {
-        $this->authorize('update', $note);
+        $this->authorize('addAttachment', $note);
         if ($overflow = $this->postOverflowResponse($request)) return $overflow;
 
         $phpMaxKb = (int) ($this->parseBytes((string) ini_get('upload_max_filesize')) / 1024);
@@ -496,7 +508,7 @@ class NoteController extends Controller
     {
         $user = auth()->user();
         $note = $attachment->note;
-        if (!$user->can('view', $note)) abort(403, __('api.forbidden_attach_view'));
+        if (!$user->isGeneralManager() && !$user->can('view', $note)) abort(403, __('api.forbidden_attach_view'));
 
         if ($this->storage->isLocal($attachment)) {
             return $this->storage->fileResponse($attachment, false);
@@ -509,9 +521,9 @@ class NoteController extends Controller
     {
         $user = auth()->user();
         $note = $attachment->note;
-        if (!$user->can('view', $note)) abort(403, __('api.forbidden_attach_download'));
+        if (!$user->isGeneralManager() && !$user->can('view', $note)) abort(403, __('api.forbidden_attach_download'));
 
-        if (!$user->isReportWriter()) abort(403, __('api.download_writer_only'));
+        if (!$user->isReportWriter() && !$user->isGeneralManager()) abort(403, __('api.download_writer_only'));
 
         if ($this->storage->isLocal($attachment)) {
             return $this->storage->fileResponse($attachment, true);
@@ -524,7 +536,7 @@ class NoteController extends Controller
     {
         $user = auth()->user();
         $note = $attachment->note;
-        if (!$user->can('view', $note)) abort(403, __('api.forbidden_attach_view'));
+        if (!$user->isGeneralManager() && !$user->can('view', $note)) abort(403, __('api.forbidden_attach_view'));
 
         if ($this->storage->isLocal($attachment)) {
             return $this->storage->fileResponseThumb($attachment);
@@ -541,7 +553,7 @@ class NoteController extends Controller
         }
         $model = Attachment::with('note')->findOrFail($attachment);
         $note = $model->note;
-        if (!$note || !auth()->user()->can('view', $note)) {
+        if (!$note || (!auth()->user()->isGeneralManager() && !auth()->user()->can('view', $note))) {
             abort(403, __('api.forbidden_attach_view'));
         }
         if (!$this->storage->isLocal($model)) {
@@ -554,7 +566,7 @@ class NoteController extends Controller
             'size' => $model->file_size,
             'fileUrl' => route('shared.attachments.file', $model),
             'downloadUrl' => route('notes.attachments.download', $model),
-            'canDownload' => auth()->user()->isReportWriter(),
+            'canDownload' => auth()->user()->isReportWriter() || auth()->user()->isGeneralManager(),
         ]);
     }
 
@@ -566,7 +578,7 @@ class NoteController extends Controller
         }
         $model = Attachment::with('note')->findOrFail($attachment);
         $note = $model->note;
-        if (!$note || !auth()->user()->can('view', $note)) {
+        if (!$note || (!auth()->user()->isGeneralManager() && !auth()->user()->can('view', $note))) {
             abort(403, __('api.forbidden_attach_view'));
         }
         if (!$this->storage->isLocal($model)) {

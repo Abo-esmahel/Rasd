@@ -14,7 +14,7 @@
 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
     <div class="flex items-center gap-3 min-w-0">
         <a href="{{ route('notes.index') }}" class="w-9 h-9 rounded-lg bg-white border border-[#e6e9e1] flex items-center justify-center text-ink-400 hover:text-ink-700 hover:bg-[#f5f7f5] transition shrink-0">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+            <x-phosphor-caret-right-duotone class="w-4 h-4" />
         </a>
         <div class="min-w-0">
             <div class="flex flex-wrap items-center gap-2">
@@ -34,12 +34,12 @@
 <div class="max-w-4xl mx-auto space-y-4" data-i18n-entity="note" data-i18n-id="{{ $note->id }}">
     @if($note->status === 'rejected' && $note->rejection_reason)
         <div class="flex gap-3 p-4 bg-red-50 border border-red-200 rounded-xl">
-            <svg class="w-5 h-5 text-red-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <x-phosphor-info-duotone class="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
             <div class="flex-1 min-w-0">
                 <div class="text-sm font-bold text-red-700">{{ __('ui.reject_reason') }}</div>
                 <p class="mt-1 text-sm leading-6 text-red-600 break-words" data-i18n-field="rejection_reason">{{ l10n_text('note', $note->id, 'rejection_reason', $note->rejection_reason) }}</p>
                 @if($note->processor)
-                    <div class="mt-1.5 text-xs font-bold text-red-500">{{ __('ui.by_user') }} {{ $note->processor->localized_name }} — {{ $note->processed_at?->toDatetime12() }}</div>
+                    <div class="mt-1.5 text-xs font-bold text-red-500">{{ __('ui.by_user') }} <a href="{{ route('profile.showUser', $note->processor->id) }}" class="hover:underline transition">{{ $note->processor->localized_name }}</a> — {{ $note->processed_at?->toDatetime12() }}</div>
                 @endif
             </div>
         </div>
@@ -47,7 +47,7 @@
 
     @if($note->isAccepted())
         <div class="flex gap-3 p-4 bg-[#eef4f0] border border-[#cde7d6] rounded-xl text-[#0e6a38]">
-            <svg class="w-5 h-5 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <x-phosphor-check-circle-duotone class="w-5 h-5 shrink-0 mt-0.5" />
             <p class="text-sm leading-6 font-bold">{{ __('ui.accepted_locked') }}</p>
         </div>
     @endif
@@ -117,7 +117,7 @@
                     <button type="button" id="clear-datetime-edit" class="px-3 py-2 sm:py-1.5 min-h-[36px] sm:min-h-0 rounded-lg bg-transparent border border-[#e6e9e1] text-ink-400 text-xs font-bold hover:bg-white transition">{{ __('ui.clear_btn') }}</button>
                 </div>
                 <div class="mt-3 flex items-center gap-2 p-2.5 rounded-lg bg-white border border-[#e6e9e1]">
-                    <svg class="w-4 h-4 text-[#0e6a38] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    <x-phosphor-clock-duotone class="w-4 h-4 text-[#0e6a38] shrink-0" />
                     <div id="observed_preview_edit" class="text-sm font-bold text-ink-700 truncate">—</div>
                 </div>
                 <input type="hidden" name="observed_at" id="observed_at_edit" value="{{ old('observed_at', $note->observed_at->format('Y-m-d\TH:i')) }}">
@@ -149,11 +149,11 @@
                             <div class="flex items-center gap-3 p-3 bg-white border border-[#e6e9e1] rounded-lg">
                                 <div class="w-9 h-9 rounded-lg bg-[#f5f7f5] border border-[#e6e9e1] flex items-center justify-center shrink-0">
                                     @if(str_contains($attachment->mime_type, 'video'))
-                                            <svg class="w-4 h-4 text-ink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                                            <x-phosphor-video-camera-duotone class="w-4 h-4 text-ink-400" />
                                         @elseif(str_contains($attachment->mime_type, 'audio'))
-                                            <svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/></svg>
+                                            <x-phosphor-microphone-duotone class="w-4 h-4 text-red-500" />
                                         @else
-                                        <svg class="w-4 h-4 text-[#0e6a38]" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                                        <x-phosphor-image-duotone class="w-4 h-4 text-[#0e6a38]" />
                                     @endif
                                 </div>
                                 <div class="flex-1 min-w-0 text-right">
@@ -162,17 +162,17 @@
                                 </div>
                                 <div class="flex items-center gap-1 shrink-0">
                                     <button type="button" onclick="openAttachmentView('{{ route('notes.attachments.view', $attachment) }}', '{{ $attachment->mime_type }}', '{{ addslashes($attachment->original_name) }}')" class="w-8 h-8 rounded-lg bg-[#f5f7f5] border border-[#e6e9e1] flex items-center justify-center text-ink-400 hover:text-[#0e6a38] hover:bg-white transition" aria-label="{{ __('ui.view_attachment') }}">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                        <x-phosphor-eye-duotone class="w-4 h-4" />
                                     </button>
                                     @if(auth()->user()->isReportWriter())
                                         <a href="{{ route('notes.attachments.download', $attachment) }}" class="w-8 h-8 rounded-lg bg-[#0e6a38] text-white flex items-center justify-center hover:bg-[#0a4d28] transition" aria-label="{{ __('ui.download_btn') }}" title="{{ __('ui.download_writer_only') }}">
-                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                                            <x-phosphor-download-simple-duotone class="w-4 h-4" />
                                         </a>
                                     @endif
                                     @if(!$note->isAccepted())
 
                                         <button type="submit" form="attach-del-form" formaction="{{ route('notes.attachments.destroy', [$note, $attachment], false) }}" formmethod="post" onclick="return confirm('{{ __('ui.confirm_delete') }}')" class="w-8 h-8 rounded-lg bg-red-50 border border-red-200 flex items-center justify-center text-red-400 hover:bg-red-100 transition" aria-label="{{ __('ui.file_remove') }}">
-                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                            <x-phosphor-trash-duotone class="w-4 h-4" />
                                         </button>
                                     @endif
                                 </div>
@@ -187,33 +187,33 @@
                     <label class="block text-sm font-bold text-ink-700 mb-1.5">{{ __('ui.add_attachments') }}</label>
                     <div class="rounded-xl border-2 border-dashed border-[#e6e9e1] bg-[#f5f7f5] hover:border-[#0e6a38] hover:bg-[#f5f7f5] p-5 text-center transition" id="edit-drop-zone">
                         <div class="mx-auto w-10 h-10 rounded-xl bg-white border border-[#e6e9e1] flex items-center justify-center">
-                            <svg class="w-5 h-5 text-[#0e6a38]" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.7"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+                            <x-phosphor-plus-duotone class="w-5 h-5 text-[#0e6a38]" />
                         </div>
                         <div class="mt-3 flex flex-col sm:flex-row items-center justify-center gap-2">
                             <label for="edit-files" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#0e6a38] text-white font-bold text-sm cursor-pointer hover:bg-[#0a4d28] transition">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+                                <x-phosphor-plus-duotone class="w-4 h-4" />
                                 {{ __('ui.choose_files') }}
                             </label>
                             <button type="button" id="open-camera-btn-edit" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-white border border-[#e6e9e1] text-ink-700 font-bold text-sm hover:bg-[#f5f7f5] transition">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 13a3 3 0 100-6 3 3 0 000 6z"/></svg>
+                                <x-phosphor-video-camera-duotone class="w-4 h-4" />
                                 {{ __('ui.live_camera') }}
                             </button>
                             <button type="button" id="audio-record-btn-edit" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-white border border-[#e6e9e1] text-ink-700 font-bold text-sm hover:bg-[#f5f7f5] transition">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/></svg>
+                                <x-phosphor-microphone-duotone class="w-4 h-4" />
                                 {{ __('ui.audio_recording') }}
                             </button>
                         </div>
                         <div id="audio-preview-edit" class="hidden mt-3 p-3 bg-white border border-[#e6e9e1] rounded-xl">
                             <div class="flex items-center gap-3">
                                 <div id="audio-preview-icon-edit" class="w-10 h-10 rounded-lg bg-red-50 border border-red-200 flex items-center justify-center shrink-0">
-                                    <svg class="w-5 h-5 text-red-500 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/></svg>
+                                    <x-phosphor-microphone-duotone class="w-5 h-5 text-red-500 animate-pulse" />
                                 </div>
                                 <div class="flex-1 min-w-0">
                                     <div id="audio-preview-status-edit" class="text-sm font-bold text-ink-700">{{ __('ui.requesting_mic') }}</div>
                                     <div id="audio-preview-timer-edit" class="text-xs text-ink-400 mt-0.5 hidden">00:00</div>
                                 </div>
                                 <button type="button" id="audio-preview-delete-edit" class="hidden shrink-0 w-8 h-8 rounded-lg hover:bg-red-50 flex items-center justify-center text-ink-400 hover:text-red-500 transition" title="{{ __('ui.delete_recording') }}">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                                    <x-phosphor-x-duotone class="w-4 h-4" />
                                 </button>
                             </div>
                             <audio id="audio-preview-player-edit" class="hidden w-full mt-2 rounded-lg" controls></audio>
@@ -235,10 +235,10 @@
                                 </h3>
                                 <div class="flex items-center gap-1.5">
                                     <button type="button" id="switch-camera-btn-edit" class="w-8 h-8 rounded-lg bg-[#f5f7f5] border border-[#e6e9e1] flex items-center justify-center text-ink-500 hover:text-ink-700 transition" title="{{ __('ui.switch_camera') }}">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4M16 17H4m0 0l4 4m-4-4l4-4"/></svg>
+                                        <x-phosphor-arrows-left-right-duotone class="w-4 h-4" />
                                     </button>
                                     <button type="button" id="close-camera-btn-edit" class="w-8 h-8 rounded-lg hover:bg-[#f5f7f5] flex items-center justify-center text-ink-400 hover:text-ink-700 transition">
-                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                                        <x-phosphor-x-duotone class="w-5 h-5" />
                                     </button>
                                 </div>
                             </div>
@@ -247,7 +247,7 @@
                                 <canvas id="camera-canvas-edit" class="hidden"></canvas>
                                 <div id="camera-placeholder-edit" class="text-center py-12">
                                     <div class="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center mx-auto mb-3">
-                                        <svg class="w-6 h-6 text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.7"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                                        <x-phosphor-video-camera-duotone class="w-6 h-6 text-white/70" />
                                     </div>
                                     <p class="text-sm text-white/70">{{ __('ui.camera_starting') }}</p>
                                     <p id="camera-error-edit" class="hidden mt-2 text-xs text-red-300 max-w-xs mx-auto leading-5"></p>
@@ -255,17 +255,17 @@
                                 <div id="camera-fallback-edit" class="w-full max-w-md p-4 border-t border-amber-200 bg-amber-50/50">
                                     <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
                                         <label class="flex flex-col items-center gap-2 p-4 rounded-xl bg-white border-2 border-dashed border-amber-300 hover:border-amber-400 hover:bg-amber-50 cursor-pointer transition text-center shadow-sm">
-                                            <svg class="w-7 h-7 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9a2 2 0 012-2z"/><circle cx="12" cy="13" r="3"/></svg>
+                                            <x-phosphor-camera-duotone class="w-7 h-7 text-amber-600" />
                                             <span class="text-sm font-bold text-ink-800">{{ __('ui.photo_capture_fallback') }}</span>
                                             <input type="file" accept="image/*" capture="environment" class="hidden" onchange="handleFallbackFileEdit(this)">
                                         </label>
                                         <label class="flex flex-col items-center gap-2 p-4 rounded-xl bg-white border-2 border-dashed border-amber-300 hover:border-amber-400 hover:bg-amber-50 cursor-pointer transition text-center shadow-sm">
-                                            <svg class="w-7 h-7 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                                            <x-phosphor-video-camera-duotone class="w-7 h-7 text-amber-600" />
                                             <span class="text-sm font-bold text-ink-800">{{ __('ui.video_recording_fallback') }}</span>
                                             <input type="file" accept="video/*" capture="environment" class="hidden" onchange="handleFallbackFileEdit(this)">
                                         </label>
                                         <label class="flex flex-col items-center gap-2 p-4 rounded-xl bg-white border-2 border-dashed border-amber-300 hover:border-amber-400 hover:bg-amber-50 cursor-pointer transition text-center shadow-sm">
-                                            <svg class="w-7 h-7 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/></svg>
+                                            <x-phosphor-microphone-duotone class="w-7 h-7 text-red-500" />
                                             <span class="text-sm font-bold text-ink-800">{{ __('ui.audio_recording_fallback') }}</span>
                                             <input type="file" accept="audio/*" capture="user" class="hidden" onchange="handleFallbackFileEdit(this)">
                                         </label>
@@ -280,7 +280,7 @@
                             <div class="p-4 border-t border-[#e6e9e1] bg-white shrink-0">
                                 <div class="flex gap-2 justify-center flex-wrap">
                                     <button type="button" id="capture-photo-btn-edit" class="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-[#0e6a38] hover:bg-[#0a4d28] text-white font-bold text-sm transition">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 9h2l2-2h4l2 2h2a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2V9a2 2 0 012-2z"/><circle cx="12" cy="13" r="3"/></svg>
+                                        <x-phosphor-camera-duotone class="w-4 h-4" />
                                         {{ __('ui.capture_photo') }}
                                     </button>
                                     <button type="button" id="start-record-btn-edit" class="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-white border-2 border-red-200 text-red-600 font-bold text-sm hover:bg-red-50 transition">
@@ -288,7 +288,7 @@
                                         {{ __('ui.start_video_recording') }}
                                     </button>
                                     <button type="button" id="stop-record-btn-edit" class="hidden flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-sm transition">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><rect x="6" y="6" width="12" height="12" rx="1"/></svg>
+                                        <x-phosphor-stop-duotone class="w-4 h-4" />
                                         {{ __('ui.stop_and_save') }}
                                     </button>
                                 </div>
@@ -300,7 +300,7 @@
                 </div>
             @endif
 
-            <div class="flex gap-3 pt-4 border-t border-[#e6e9e1]">
+            <div class="m-crud-bar flex gap-3 pt-4 border-t border-[#e6e9e1]">
                 <a href="{{ route('notes.index') }}" class="px-5 py-2.5 rounded-xl bg-transparent border border-[#e6e9e1] text-[#525252] font-bold text-sm hover:bg-[#f5f7f5] transition">{{ __('ui.cancel_btn') }}</a>
                 <button type="submit" class="flex-1 sm:flex-none px-6 py-2.5 rounded-xl bg-[#0e6a38] hover:bg-[#0a4d28] text-white font-bold text-sm shadow-sm transition sm:mr-auto">{{ __('ui.save_changes_btn') }}</button>
             </div>
@@ -492,7 +492,7 @@
             const sz=(f.size/1024/1024).toFixed(2)+' MB';
             const badge=f.name.startsWith('camera-')?'<span class="text-[10px] bg-[#eef4f0] text-[#0e6a38] px-1.5 py-0.5 rounded-full font-bold">'+EDIT_T.camBadge+'</span>':'';
             const recBadge=f.name.startsWith('recording-')?'<span class="text-[10px] bg-red-50 text-red-600 px-1.5 py-0.5 rounded-full font-bold">'+EDIT_T.recBadge+'</span>':'';
-            return `<div class="flex items-center gap-2.5 p-2.5 bg-white border border-[#e6e9e1] rounded-lg text-sm group"><span class="text-sm">${isA?'🎤':isV?'🎬':'🖼️'}</span><div class="flex-1 min-w-0 text-right"><div class="font-bold text-ink-700 truncate flex items-center gap-1.5" title="${escAttrEdit(f.name)}">${friendlyNameEdit(f)} ${badge} ${recBadge}</div><div class="text-xs text-ink-400">${sz} • ${f.type||'—'}</div></div><button type="button" data-remove-edit="${i}" class="shrink-0 w-7 h-7 rounded-lg hover:bg-red-50 text-ink-300 hover:text-red-500 flex items-center justify-center transition"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button></div>`;
+            return `<div class="flex items-center gap-2.5 p-2.5 bg-white border border-[#e6e9e1] rounded-lg text-sm group"><span class="text-sm">${isA?'🎤':isV?'🎬':'🖼️'}</span><div class="flex-1 min-w-0 text-right"><div class="font-bold text-ink-700 truncate flex items-center gap-1.5" title="${escAttrEdit(f.name)}">${friendlyNameEdit(f)} ${badge} ${recBadge}</div><div class="text-xs text-ink-400">${sz} • ${f.type||'—'}</div></div><button type="button" data-remove-edit="${i}" class="shrink-0 w-7 h-7 rounded-lg hover:bg-red-50 text-ink-300 hover:text-red-500 flex items-center justify-center transition"><x-phosphor-x-duotone class="w-4 h-4" /></button></div>`;
         }).join('')+(files.length>MAX_FILES_EDIT?'<p class="text-xs font-bold text-red-500">'+editFill(EDIT_T.limitMax,{':max':MAX_FILES_EDIT})+'</p>':'');
         list.querySelectorAll('[data-remove-edit]').forEach(btn=>{
             btn.addEventListener('click', ()=>{
@@ -914,10 +914,10 @@
         if(audioPreviewPlayerEdit){ audioPreviewPlayerEdit.classList.add('hidden'); audioPreviewPlayerEdit.src=''; }
         if(audioPreviewDeleteEdit) audioPreviewDeleteEdit.classList.add('hidden');
         if(audioPreviewPendingEdit) audioPreviewPendingEdit.classList.add('hidden');
-        if(audioPreviewIconEdit) audioPreviewIconEdit.innerHTML='<svg class="w-5 h-5 text-red-500 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/></svg>';
+        if(audioPreviewIconEdit) audioPreviewIconEdit.innerHTML='<x-phosphor-microphone-duotone class="w-5 h-5 text-red-500 animate-pulse" />';
     }
     function showAudioRecordedEdit(){
-        if(audioPreviewIconEdit) audioPreviewIconEdit.innerHTML='<svg class="w-5 h-5 text-[#0e6a38]" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/></svg>';
+        if(audioPreviewIconEdit) audioPreviewIconEdit.innerHTML='<x-phosphor-music-note-duotone class="w-5 h-5 text-[#0e6a38]" />';
         if(audioPreviewStatusEdit) audioPreviewStatusEdit.textContent=EDIT_T.audioDone;
         if(audioPreviewTimerEdit) audioPreviewTimerEdit.classList.remove('hidden');
         if(audioPreviewPlayerEdit){ audioPreviewPlayerEdit.classList.remove('hidden'); audioPreviewPlayerEdit.src=recordedAudioUrlE; }
@@ -936,7 +936,7 @@
         recordedAudioBlobE=null;
         audioRecordBtnEdit.classList.remove('bg-red-50','border-red-300','text-red-600');
         audioRecordBtnEdit.classList.add('bg-white','border-[#e6e9e1]','text-ink-700');
-        audioRecordBtnEdit.innerHTML='<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/></svg>'+EDIT_T.audioBtn;
+        audioRecordBtnEdit.innerHTML='<x-phosphor-microphone-duotone class="w-4 h-4" />'+EDIT_T.audioBtn;
         hideAudioPreviewEdit();
     }
     function getSupportedAudioMimeE(){
@@ -990,7 +990,7 @@
                         showAudioRecordedEdit();
                         audioRecordBtnEdit.classList.remove('bg-white','border-[#e6e9e1]','text-ink-700');
                         audioRecordBtnEdit.classList.add('bg-red-50','border-red-300','text-red-600');
-                        audioRecordBtnEdit.innerHTML='<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>'+EDIT_T.delRec;
+                        audioRecordBtnEdit.innerHTML='<x-phosphor-x-duotone class="w-4 h-4" />'+EDIT_T.delRec;
                     };
                     audioRecorderE.start();
                     audioStartTimeE=Date.now();
@@ -1024,7 +1024,7 @@
         <div class="px-4 py-3 border-b border-surface-300 flex items-center justify-between gap-3 shrink-0">
             <h3 id="attachment-view-title" class="text-sm font-bold text-ink-800 truncate"></h3>
             <button type="button" onclick="closeModal('attachment-view-modal')" class="w-8 h-8 rounded-lg hover:bg-surface-100 flex items-center justify-center text-ink-400 hover:text-ink-700 transition">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                <x-phosphor-x-duotone class="w-5 h-5" />
             </button>
         </div>
         <div class="flex-1 min-h-0 bg-ink-900 flex items-center justify-center p-4 overflow-auto">

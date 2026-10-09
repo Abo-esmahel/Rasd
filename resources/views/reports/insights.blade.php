@@ -310,7 +310,6 @@ html.dark .ins-trend-foot{border-color:#333b34 !important}
      data-link-create="{{ route('reports.create') }}"
      class="ins-root">
 
-    {{-- الترويسة مدمجة --}}
     <div class="ins-head">
         <div class="ins-head-txt">
             <p class="ins-crumb">{{ __('ui.nav_reports') }} / {{ __('ui.view_insights') }}</p>
@@ -318,12 +317,11 @@ html.dark .ins-trend-foot{border-color:#333b34 !important}
             <p class="ins-sub">{{ __('ui.insights_sub') }}</p>
         </div>
         <a href="{{ route('reports.index') }}" class="ins-back">
-            <svg class="w-4 h-4 rtl:rotate-180 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 6l6 6-6 6"/></svg>
+            <x-phosphor-caret-right-duotone class="w-4 h-4 rtl:rotate-180 shrink-0" />
             <span class="truncate">{{ __('ui.back_to_reports') }}</span>
         </a>
     </div>
 
-    {{-- شريط النطاق: شبكة ثابتة بلا سكرول أفقي --}}
     <div class="ins-card ins-range">
         <div class="ins-pills" role="tablist" aria-label="{{ __('ui.filter_time') }}">
             @foreach($ranges as $key => $label)
@@ -341,7 +339,6 @@ html.dark .ins-trend-foot{border-color:#333b34 !important}
         </div>
     </div>
 
-    {{-- الملخص التنفيذي --}}
     <section class="ins-card ins-hero" aria-label="{{ __('ui.health_title') }}">
         <div class="ins-hero-ring">
             <div class="ins-donut" role="img" aria-label="{{ __('ui.health_title') }} {{ $health }}%">
@@ -388,7 +385,6 @@ html.dark .ins-trend-foot{border-color:#333b34 !important}
         </div>
     </section>
 
-    {{-- مؤشرات التقارير --}}
     <div class="ins-sec">
         <h2 class="ins-h2">{{ __('ui.section_reports') }}</h2>
         <span class="ins-sec-hint tabular-nums">{{ __('ui.kpi_velocity') }}: <b id="kpi-velocity-hint" dir="ltr">{{ $perWeek }}</b></span>
@@ -416,7 +412,6 @@ html.dark .ins-trend-foot{border-color:#333b34 !important}
         </div>
     </div>
 
-    {{-- مؤشرات الملاحظات --}}
     <div class="ins-sec">
         <h2 class="ins-h2">{{ __('ui.section_notes') }}</h2>
         <span class="ins-sec-hint tabular-nums">{{ __('ui.kpi_streak') }}: <b id="kpi-streak-hint">{{ $streak }}</b></span>
@@ -444,7 +439,6 @@ html.dark .ins-trend-foot{border-color:#333b34 !important}
         </div>
     </div>
 
-    {{-- الإجراءات + الاتجاه --}}
     <div class="ins-grid ins-grid-2">
         <section class="ins-card ins-pad" aria-label="{{ __('ui.actions_title') }}">
             <div class="ins-boxhead">
@@ -463,7 +457,7 @@ html.dark .ins-trend-foot{border-color:#333b34 !important}
                             </div>
                             <p class="ins-act-d">{{ $m['d'] }}</p>
                             <a href="{{ $m['href'] }}" class="ins-act-link">{{ __('ui.act_open') }}
-                                <svg class="w-3 h-3 rtl:rotate-180 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.4"><path stroke-linecap="round" stroke-linejoin="round" d="M15 6l-6 6 6 6"/></svg>
+                                <x-phosphor-caret-left-duotone class="w-3 h-3 rtl:rotate-180 shrink-0" />
                             </a>
                         </div>
                     </li>
@@ -511,7 +505,6 @@ html.dark .ins-trend-foot{border-color:#333b34 !important}
         </section>
     </div>
 
-    {{-- التوزيع --}}
     <div class="ins-grid ins-grid-2">
         <section class="ins-card ins-pad">
             <h3 class="ins-h3">{{ __('ui.dist_reports_t') }}</h3>
@@ -693,7 +686,7 @@ html.dark .ins-trend-foot{border-color:#333b34 !important}
                     + '<p class="ins-act-t"></p>'
                     + '<span class="ins-lvl ' + lv.c + '">' + (isEN() ? lv.en : lv.ar) + '</span></div>'
                     + '<p class="ins-act-d"></p>'
-                    + '<a class="ins-act-link">' + m.open + ' <svg class="w-3 h-3 rtl:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.4"><path stroke-linecap="round" stroke-linejoin="round" d="M15 6l-6 6 6 6"/></svg></a></div>';
+                    + '<a class="ins-act-link">' + m.open + ' <x-phosphor-caret-left-duotone class="w-3 h-3 rtl:rotate-180" /></a></div>';
                 li.querySelector('.ins-act-t').textContent = m.t;
                 li.querySelector('.ins-act-d').textContent = m.d;
                 const link = li.querySelector('a'); link.setAttribute('href', m.href);

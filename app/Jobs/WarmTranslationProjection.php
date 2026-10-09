@@ -58,7 +58,6 @@ class WarmTranslationProjection implements ShouldQueue
         } catch (\Throwable) {
             $locale = trim((string) $locale) !== '' ? trim((string) $locale) : 'ar';
         }
-        // Non-sync drivers keep legacy behavior (worker-side merge is not possible).
         if ((string) config('queue.default', 'sync') !== 'sync') {
             try {
                 $pending = self::dispatchAfterResponse($type, $id, $clean, $locale);
@@ -74,7 +73,7 @@ class WarmTranslationProjection implements ShouldQueue
         $key = "{$type}:{$id}:{$locale}";
         self::$afterResponseBuffer[$key] = array_merge(self::$afterResponseBuffer[$key] ?? [], $clean);
         if (isset(self::$afterResponseScheduled[$key])) {
-            return; // queued job drains the merged buffer at handle time
+            return;
         }
         self::$afterResponseScheduled[$key] = true;
         try {
@@ -95,8 +94,6 @@ class WarmTranslationProjection implements ShouldQueue
 
     public function handle(TranslationService $service): void
     {
-        // فشل سريع: إذا كان الذكاء معطلاً أو القاطع مفتوحاً (حصة/حظر/تعطل) لا تضرب الـ API أبداً.
-        // هذا يمنع تعليق السيرفر أحادي الخيط (php artisan serve) بعد كل حفظ.
         try {
             if (!config('ai.enabled', false) || trim((string) config('ai.gemini.api_key', '')) === '') {
                 return;
@@ -114,8 +111,6 @@ class WarmTranslationProjection implements ShouldQueue
                 $refs[] = ['type' => $this->type, 'id' => $this->id, 'field' => (string) $field, 'text' => $text];
             }
         }
-        // Drain fields merged after this job was queued (same request/process).
-        // Queued-worker path has no static buffer, so the snapshot above still applies there.
         try {
             $bufferKey = "{$this->type}:{$this->id}:{$this->locale}";
             if (!empty(self::$afterResponseBuffer[$bufferKey])) {
@@ -139,15 +134,11 @@ class WarmTranslationProjection implements ShouldQueue
         }
 
         try {
-            // Chunked so merged sets larger than MAX_ITEMS keep full coverage.
             $map = [];
             foreach (array_chunk($refs, TranslationService::MAX_ITEMS) as $chunk) {
                 $map += $service->localizeMany(array_values($chunk), $this->locale);
             }
         } catch (\App\Exceptions\Ai\AiException $e) {
-            // خطأ ذكاء متوقع (حصة/حظر موقع/timeout): لا ترمِ — الرمي يعني إعادة المحاولة
-            // 3 مرات مع backoff ويضاعف التعليق. القاطع في الـ Provider سيمنع التكرار.
-            // نكتفي بالسجل ونعرض النص الأصلي.
             Log::info('[L10N-WARM] skipped (ai unavailable, no retry)', [
                 'type' => $this->type, 'id' => $this->id, 'locale' => $this->locale,
                 'error' => mb_substr($e->getMessage(), 0, 150),
@@ -169,6 +160,13 @@ class WarmTranslationProjection implements ShouldQueue
             }
         }
 
+        if ($warmed > 0 && $this->type === 'report' && is_numeric($this->id)) {
+            try {
+                $this->forgetReportHtmlPreview((int) $this->id);
+            } catch (\Throwable $e) {
+            }
+        }
+
         Log::info('[L10N-WARM] done', [
             'type' => $this->type, 'id' => $this->id, 'locale' => $this->locale,
             'fields' => count($refs), 'warmed' => $warmed,
@@ -181,5 +179,24 @@ class WarmTranslationProjection implements ShouldQueue
             'type' => $this->type, 'id' => $this->id, 'locale' => $this->locale,
             'error' => get_class($e).': '.mb_substr($e->getMessage(), 0, 300),
         ]);
+    }
+
+    private function forgetReportHtmlPreview(int $reportId): void
+    {
+        $cache = \Illuminate\Support\Facades\Cache::store(config('cache.default'));
+        try {
+            $hashes = \App\Models\ReportSheetRender::where('report_id', $reportId)
+                ->distinct()->pluck('payload_hash')->filter()->values();
+        } catch (\Throwable $e) {
+            $hashes = collect();
+        }
+        foreach ($hashes as $hash) {
+            foreach (['ar', 'en'] as $loc) {
+                try {
+                    $cache->forget("report-html-preview:{$reportId}:{$hash}:{$loc}");
+                } catch (\Throwable $ignored) {
+                }
+            }
+        }
     }
 }

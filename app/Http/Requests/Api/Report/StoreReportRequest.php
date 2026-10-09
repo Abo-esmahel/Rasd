@@ -25,6 +25,8 @@ class StoreReportRequest extends FormRequest
             'report_date' => ['required', 'date', 'before_or_equal:today'],
             'content' => ['nullable', 'string', 'max:20000'],
             'visible_to_monitors' => ['nullable', 'boolean'],
+            'ai_preview_note_ids' => ['sometimes', 'array', 'max:500'],
+            'ai_preview_note_ids.*' => ['integer', 'distinct', 'exists:notes,id'],
         ];
     }
 }
